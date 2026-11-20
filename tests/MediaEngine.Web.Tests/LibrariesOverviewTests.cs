@@ -838,7 +838,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WithOnlyAnEmptyLibraryThePageSaysNoLibrariesYetAndTheImportFolderRowStaysListed()
+    public void WithOnlyAnEmptyLibraryThePageShowsOnlyTheEmptyStateAndAddLibrary_NoImportRowTableOrFilters()
     {
         _configuration!.Libraries.Clear();
         _configuration.Libraries.Add(new() { Id = HomeVideosId, Name = "Home videos", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], Sources = [] });
@@ -846,7 +846,12 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         Assert.Contains("No libraries yet", Text(cut.Find("[data-empty=none]")));
         Assert.Empty(cut.FindAll("tr[data-area]"));
-        Assert.Equal("not-set", cut.Find("tr[data-library=import] [data-import-status]").GetAttribute("data-import-status"));
+        // No ghost row: the pinned Import folder row, the table, the filters and the footer wait until a library exists.
+        Assert.Empty(cut.FindAll("tr[data-library=import]"));
+        Assert.Empty(cut.FindAll("table"));
+        Assert.Empty(cut.FindAll(".libs__filters"));
+        Assert.Empty(cut.FindAll("[data-libs-footer]"));
+        Assert.Contains(cut.FindAll("[data-empty=none] button"), button => button.TextContent.Contains("Add library", StringComparison.Ordinal));
     }
 
     [Fact]

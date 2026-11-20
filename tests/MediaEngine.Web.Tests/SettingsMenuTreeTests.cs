@@ -506,6 +506,22 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.Equal("Libraries (8)", SettingsMenuBuilder.BuildPhoneSelector(groups).SelectMany(group => group.Options).Single(option => option.Route == "/settings/libraries").Label);
     }
 
+    [Fact]
+    public void LinkedAccounts_IsHiddenWhenNoPluginOffersOne_AndShownWhenOneDoes()
+    {
+        var none = SettingsMenuBuilder.FilteredGroups(Context(administrator: true));
+        var offered = SettingsMenuBuilder.FilteredGroups(Context(administrator: true) with { AccountsOffered = true });
+
+        Assert.Equal(["Overview", "Activity", "Taste"], ProfileTabs(none));
+        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], ProfileTabs(offered));
+        // Everyone sees it the same way: it follows the plugins, not the person's rights.
+        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], ProfileTabs(SettingsMenuBuilder.FilteredGroups(Context(administrator: false) with { AccountsOffered = true })));
+        Assert.Equal(["Overview", "Activity", "Taste"], ProfileTabs(SettingsMenuBuilder.FilteredGroups(Context(administrator: false))));
+    }
+
+    private static string[] ProfileTabs(IEnumerable<SettingsMenuGroup> groups) =>
+        groups.SelectMany(group => group.Nodes).Single(node => node.Label == "Profile").Tabs.Select(tab => tab.Label).ToArray();
+
     private static SettingsMenuContext Context(bool administrator) =>
         new(administrator, IsMobile: false, ReviewCount: 0, SecurityNeedsAttention: false);
 

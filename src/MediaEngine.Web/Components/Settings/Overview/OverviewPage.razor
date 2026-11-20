@@ -44,16 +44,24 @@ else
                     <h2 class="overview-header__name">@_profile.DisplayName</h2>
                     <p class="overview-header__joined">@L["OverviewPage_Joined", Joined]</p>
                 </div>
-                @if (!IsKids)
-                {
                 <div class="overview-header__actions">
-                    <AppButton Label="@L["OverviewPage_EditProfile"].Value"
-                               StartIcon="@AppMaterialIcons.Outlined.Edit"
-                               Class="overview-header__edit"
+                    @if (!IsKids)
+                    {
+                        <AppButton Label="@L["OverviewPage_EditProfile"].Value"
+                                   StartIcon="@AppMaterialIcons.Outlined.Edit"
+                                   Class="overview-header__edit"
+                                   FullWidth="@DeviceContext.IsPhone"
+                                   OnClick="OpenEditor" />
+                    }
+                    @* Import opens its own page (it is no longer a tab of Profile). *@
+                    <AppButton Label="@L["Common_Import"].Value"
+                               StartIcon="@AppMaterialIcons.Outlined.UploadFile"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Class="overview-header__import"
                                FullWidth="@DeviceContext.IsPhone"
-                               OnClick="OpenEditor" />
+                               Href="@SettingsNav.RouteFor(SettingsSection.Overview, SettingsNav.ImportSubsection)"
+                               data-overview-import />
                 </div>
-                }
             </div>
         </AppCard>
         </div>

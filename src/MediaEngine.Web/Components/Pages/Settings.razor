@@ -19,6 +19,7 @@
 @inject DashboardIdentityClient Identity
 @inject AccountNoticeState Notices
 @inject SettingsAttentionState Attention
+@inject MediaEngine.Web.Services.Integration.IEngineApiClient EngineApi
 @inject DevelopmentToolsState DevelopmentTools
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
@@ -359,6 +360,8 @@ else
     // A this-computer-only account has no password yet: its Security entry carries the attention dot until the person
     // chooses Not now on the Secure your account card (remembered with the account); Security then shows a quiet note instead.
     private bool _thisComputerOnly;
+    // Profile's Linked accounts tab is listed only while an installed plugin asks this profile to link an account.
+    private bool _accountsOffered;
     private bool ShowSecurityAttentionDot => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
     private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
     private SettingsMenuContext MenuContext => new(
@@ -372,7 +375,8 @@ else
         Attention.AiFeaturesOn,
         Attention.IntegrationsBroken,
         ToolsMissingReason,
-        _restricted);
+        _restricted,
+        _accountsOffered);
 
     // Red on Tools and requirements only for a required tool that is missing or broken; one being downloaded is not a problem.
     private string? ToolsMissingReason => Attention.MissingTools switch
@@ -527,8 +531,10 @@ else
         }
 
         var developmentTools = LoadDevelopmentToolsAsync();
+        var accounts = LoadAccountsOfferedAsync();
         await LoadShellStateAsync();
         await developmentTools;
+        await accounts;
 
         Attention.Changed += OnAttentionChanged;
         LibraryKinds.Changed += OnAttentionChanged;
@@ -641,6 +647,21 @@ else
         }
 
         _shellStateLoading = false;
+    }
+
+    // Any profile may link accounts, so the Engine's list of plugin connections is read for everyone; a list that cannot be read offers none.
+    private async Task LoadAccountsOfferedAsync()
+    {
+        try
+        {
+            var connections = await EngineApi.GetPluginConnectionsAsync();
+            _accountsOffered = connections?.Plugins.Any(plugin => plugin.Connections.Count > 0) == true;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not read which plugins offer a linked account");
+            _accountsOffered = false;
+        }
     }
 
     // Only a server administrator is shown the Developer group, so only then is the Engine asked what it offers there.
@@ -947,9 +968,8 @@ else
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => _activeSubsection switch
         {
-            "models" => "Choose the resource profile, check this machine and manage the model files.",
             SettingsNav.AdvancedSubsection => "Runtime limits, the plugin allowance and what Local AI has done lately.",
-            _ => "Manage local intelligence features while keeping technical details out of the way.",
+            _ => "How Local AI is doing, which resource profile it uses and its model files.",
         },
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
         SettingsSection.Playback => _activeSubsection switch

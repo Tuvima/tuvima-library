@@ -26,6 +26,8 @@
         var everyRow = groups.SelectMany(group => group.All).ToList();
         var shown = ShownRows(groups);
         var areas = Areas;
+        // No library has a folder: only the empty state and Add library are drawn (no summary, filters, table or Import row).
+        var emptyOnly = everyRow.Count == 0 && ViewFoldersKnown;
     }
 
     @* Add library sits at the top right of the page header, on the title row (Libraries v3 D22); the Settings frame draws it there. Inside the frame
@@ -34,6 +36,8 @@
     {
         <div class="libs__header">@_addLibraryAction</div>
     }
+    @if (!emptyOnly)
+    {
     <LibrariesSummary Rows="@everyRow" Areas="@areas" />
 
     <div class="libs__filters">
@@ -56,10 +60,11 @@
         </div>
     </div>
     </div>
+    }
 
-    @if (everyRow.Count == 0 && ViewFoldersKnown)
+    @if (emptyOnly)
     {
-        @* Empty (no library has a folder; a library with no folders is not listed, D11): a heading, a gap, one sentence and an obvious button. The Import folder row still shows below.
+        @* Empty (no library has a folder; a library with no folders is not listed, D11): a heading, a gap, one sentence and an obvious button, and nothing else (no Import folder row).
            Not drawn while View's folders are still being read, so a person who only has photos does not see it flash. *@
         <div class="libs__empty" data-empty="none">
             <h3>@L["LibrariesOverview_NoLibrariesYet"]</h3>
@@ -71,6 +76,8 @@
         </div>
     }
 
+    @if (!emptyOnly)
+    {
     <AppTable Hover="true" CardsOn="AppTableCardsMode.Phone" Class="libs__table">
         <caption class="sr-only">@L["Nav_Libraries"]</caption>
         <thead>
@@ -184,6 +191,7 @@
     }
 
     <p class="libs__footer" data-libs-footer>@FooterText(everyRow)</p>
+    }
 </div>
 
 @code {

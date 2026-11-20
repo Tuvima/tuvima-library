@@ -294,7 +294,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=localaiengine]")));
         Assert.Empty(cut.FindAll(".local-ai-settings__feature-card"));
-        Assert.Empty(cut.FindAll("input[role=switch]"));
+        Assert.All(cut.FindAll("input[role=switch]"), toggle => Assert.Equal("Optional Whisper feature pack", toggle.GetAttribute("aria-label")));
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Save features");
         State.Stop();
     }
