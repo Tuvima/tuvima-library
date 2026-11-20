@@ -178,8 +178,8 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Assert.Equal(1, _saveCalls);
         Assert.False((bool)typeof(SecurityTab).GetField("_saving", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(cut.Instance)!);
-        var button = cut.FindAll("button").Single(element =>
-            element.TextContent.Contains("Save authentication settings", StringComparison.Ordinal));
+        var button = cut.FindAll(".security-settings__actions button").Single(element =>
+            element.TextContent.Contains("Save changes", StringComparison.Ordinal));
         Assert.False(button.HasAttribute("disabled"));
         // Told once, in place, at the top of the section; never as a pop-up notice.
         Assert.Equal("alert", cut.Find("[data-security-failure]").GetAttribute("role"));

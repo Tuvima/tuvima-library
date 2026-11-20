@@ -58,19 +58,7 @@ else
             </p>
         </AppSettingsGroup>
 
-        @if (!string.IsNullOrWhiteSpace(_error))
-        {
-            <AppAlert Tone="AppUiTone.Warning" data-testid="retention-error">@_error</AppAlert>
-        }
-        @if (!string.IsNullOrWhiteSpace(_saved))
-        {
-            <AppAlert Tone="AppUiTone.Success" data-testid="retention-saved">@_saved</AppAlert>
-        }
-
-        <div class="log-retention__actions">
-            <AppButton Label="@L["LogRetentionPanel_SaveLimits"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                       Loading="_saving" Disabled="_saving" OnClick="SaveAsync" data-testid="retention-save" />
-        </div>
+        <SettingsSaveBar @ref="_saveBar" Saving="_saving" Error="@_error" OnSave="SaveAsync" data-testid="retention-save" />
     </div>
 }
 
@@ -79,7 +67,7 @@ else
     private bool _loading = true;
     private bool _saving;
     private string? _error;
-    private string? _saved;
+    private SettingsSaveBar? _saveBar;
     private string? _activityDays;
     private string? _activityMax;
     private string? _logDays;
@@ -111,12 +99,10 @@ else
     {
         field = value;
         _error = null;
-        _saved = null;
     }
 
     private async Task SaveAsync()
     {
-        _saved = null;
         if (!TryParse(_activityDays, out var activityDays) || !TryParse(_activityMax, out var activityMax)
             || !TryParse(_logDays, out var logDays) || !TryParse(_logMegabytes, out var logMegabytes))
         {
@@ -150,7 +136,7 @@ else
 
             _status = updated;
             Fill(updated.Settings);
-            _saved = "Saved. The next nightly clean-up uses these limits.";
+            _saveBar?.ShowSaved();
         }
         finally
         {

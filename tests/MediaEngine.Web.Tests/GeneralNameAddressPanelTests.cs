@@ -189,25 +189,23 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheLibraryName_ShowsWithTheAddressItGives_AndNothingIsOfferedToSaveUntilItChanges()
+    public void TheLibraryName_ShowsWithTheAddressItGives_AndHasNoSaveButton()
     {
         var cut = RenderPage();
 
         Assert.Equal("Shaya's Library", cut.Find("[data-testid='general-library-name'] input, input[data-testid='general-library-name']").GetAttribute("value"));
         Assert.Contains("Phones and TVs on your home network will find it at shayas-library.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
-        Assert.True(cut.Find("[data-testid='general-save-name']").HasAttribute("disabled"));
+        Assert.Empty(cut.FindAll("[data-testid='general-save-name']"));
         Assert.Empty(cut.FindAll("[data-testid='general-network-name-field']"));
     }
 
     [Fact]
-    public void ChangingTheName_UpdatesTheDerivedAddressAtOnce_AndSavingSendsItToTheEngine()
+    public void LeavingTheNameField_SavesItAtOnce_AndTheDerivedAddressFollows()
     {
         var cut = RenderPage();
 
-        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Input("The Den Library");
-
-        Assert.Contains("the-den-library.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
-        cut.Find("[data-testid='general-save-name']").Click();
+        // A typed field saves when you leave it (the change event), with no Save button.
+        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Change("The Den Library");
 
         var saved = Assert.Single(_saved);
         Assert.Equal("The Den Library", saved.ServerName);
@@ -219,15 +217,15 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WhenTheEngineRefusesTheName_AnAlertStaysInPlace_AndNothingSaysSaved()
+    public void WhenTheEngineRefusesTheName_AnAlertStaysInPlace_TheOldNameComesBack_AndNothingSaysSaved()
     {
         _refuseSave = true;
         var cut = RenderPage();
 
-        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Input("The Den Library");
-        cut.Find("[data-testid='general-save-name']").Click();
+        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Change("The Den Library");
 
-        Assert.Equal("The Library name could not be saved.", cut.Find("[data-name-address-failure]").TextContent.Trim());
+        cut.WaitForAssertion(() => Assert.Equal("The Library name could not be saved.", cut.Find("[data-name-address-failure]").TextContent.Trim()));
+        cut.WaitForAssertion(() => Assert.Equal("Shaya's Library", cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").GetAttribute("value")));
         Assert.DoesNotContain("Saved", cut.Find("[data-testid='general-name-saved']").TextContent, StringComparison.Ordinal);
     }
 
@@ -238,25 +236,26 @@ public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
 
         cut.Find("[data-testid='general-network-name-change']").Click();
         Assert.Empty(cut.FindAll("[data-testid='general-network-name-change']"));
-        cut.Find("input[data-testid='general-network-name-field'], [data-testid='general-network-name-field'] input").Input("Den TV");
-        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Input("Another Name");
+        cut.Find("input[data-testid='general-network-name-field'], [data-testid='general-network-name-field'] input").Change("Den TV");
+        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Change("Another Name");
 
         Assert.Contains("den-tv.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
-        cut.Find("[data-testid='general-save-name']").Click();
-        var saved = Assert.Single(_saved);
+        Assert.Equal(2, _saved.Count);
+        var saved = _saved[^1];
         Assert.Equal("Another Name", saved.ServerName);
         Assert.Equal("den-tv", saved.HostName);
         Assert.False(saved.HostNameDerived);
     }
 
     [Fact]
-    public void ABlankName_CannotBeSaved()
+    public void ABlankName_IsNotSaved_AndTheSavedNameComesBack()
     {
         var cut = RenderPage();
 
-        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Input("   ");
+        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Change("   ");
 
-        Assert.True(cut.Find("[data-testid='general-save-name']").HasAttribute("disabled"));
+        Assert.Empty(_saved);
+        cut.WaitForAssertion(() => Assert.Equal("Shaya's Library", cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").GetAttribute("value")));
     }
 
     [Fact]

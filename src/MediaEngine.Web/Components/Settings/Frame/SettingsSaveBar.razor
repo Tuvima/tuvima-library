@@ -1,0 +1,42 @@
+@namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one Save changes button of a Settings page (design rule D2, settings-alignment). Switches and choices save the moment they
+   change and typed fields save when you leave them; a page only keeps this button where several fields must apply together
+   (a pair of times, a path plus a limit). A failed save shows its message under the button and the page keeps the old value. *@
+<div class="settings-save-bar" data-settings-save-bar @attributes="AdditionalAttributes">
+    <div class="settings-save-bar__row">
+        <AppButton Label="@(Saving ? L["SettingsSaveBar_Saving"].Value : L["SettingsSaveBar_SaveChanges"].Value)"
+                   ButtonStyle="AppButtonStyle.Filled"
+                   Tone="AppUiTone.Primary"
+                   Loading="@Saving"
+                   Disabled="@(Saving || Disabled)"
+                   OnClick="OnSave" />
+        <AppSavedNote @ref="_savedNote" />
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <p class="settings-save-bar__error" role="alert" data-settings-save-error>@Error</p>
+    }
+</div>
+
+@code {
+    /// <summary>Runs the save. Call <see cref="ShowSaved"/> when it worked, or set <see cref="Error"/> when it did not.</summary>
+    [Parameter] public EventCallback OnSave { get; set; }
+
+    /// <summary>True while a save is running: the button waits.</summary>
+    [Parameter] public bool Saving { get; set; }
+
+    /// <summary>True when there is nothing to save yet or the fields are not valid.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Why the last save failed, shown under the button; empty when it worked.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AppSavedNote? _savedNote;
+
+    /// <summary>Shows the quiet "Saved" line beside the button.</summary>
+    public void ShowSaved() => _savedNote?.Show();
+}

@@ -18,7 +18,7 @@
     {
         <SettingsSectionPanel Title="@L["ViewFileHandlingTab_FilingLayout"].Value" Description="@L["ViewFileHandlingTab_TheFoldersNewPhotosAnd"].Value">
             <div class="libraries-form-grid">
-                <AppTextField Label="@L["Common_Layout"].Value" Value="@_pattern" ValueChanged="@((string? value) => _pattern = value ?? string.Empty)" ReadOnly="@(ReadOnly || _busy)" />
+                <AppTextField Label="@L["Common_Layout"].Value" Value="@_pattern" ValueChanged="SaveAsync" Immediate="false" ReadOnly="@(ReadOnly || _busy)" />
                 <div>
                     <small>Use {year}, {month} and {day}. For example <code>{year}/{year}-{month}-{day}</code> or <code>{year}/{month}</code>.</small>
                     <small>@L["ViewFileHandlingTab_Example"] <code>@(_layout?.Example ?? "Year / Year-Month-Day / original name")</code></small>
@@ -28,7 +28,6 @@
             @if (_error is not null) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
             <AppActionBar>
                 <AppButton Label="@L["ViewFileHandlingTab_UseTheDefault"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@(ReadOnly || _busy)" OnClick="UseDefaultAsync" />
-                <AppButton Label="@L["ViewFileHandlingTab_SaveLayout"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(ReadOnly || _busy || string.IsNullOrWhiteSpace(_pattern))" OnClick="SaveAsync" />
             </AppActionBar>
             <AppSavedNote @ref="_layoutSaved" Text="@L["ViewFileHandlingTab_FilingLayoutSavedItApplies"].Value" data-layout-saved />
         </SettingsSectionPanel>
@@ -115,7 +114,22 @@
         finally { _missingBusy = false; }
     }
 
-    private Task SaveAsync() => ApplyAsync(_pattern);
+    // The layout saves when you leave the field or press Enter. A blank layout is not saved: the saved one is shown again.
+    private async Task SaveAsync(string? value)
+    {
+        var pattern = value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(pattern) || string.Equals(pattern, _layout?.Pattern, StringComparison.Ordinal))
+        {
+            _pattern = pattern;
+            StateHasChanged();
+            await Task.Yield();
+            _pattern = _layout?.Pattern ?? string.Empty;
+            return;
+        }
+
+        _pattern = pattern;
+        await ApplyAsync(pattern);
+    }
 
     private Task UseDefaultAsync() => ApplyAsync(null);
 
@@ -126,7 +140,7 @@
         try
         {
             var saved = await ApiClient.UpdateViewFilingLayoutAsync(pattern);
-            if (saved is null) _error = ApiClient.LastError ?? "The layout could not be saved.";
+            if (saved is null) { _error = ApiClient.LastError ?? "The layout could not be saved."; _pattern = _layout?.Pattern ?? string.Empty; }
             else { _error = null; _layout = saved; _pattern = saved.Pattern; _layoutSaved?.Show(); }
         }
         finally { _busy = false; }
