@@ -130,7 +130,6 @@
       "listen-filter-select",
       "listen-rail__add",
       "listen-rail__drag",
-      "listen-rail__more",
       "listen-rail__section-toggle"
     ],
     "src/MediaEngine.Web/Components/Pages/PluginPage.razor": [

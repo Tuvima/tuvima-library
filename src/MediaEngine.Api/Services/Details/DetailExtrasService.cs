@@ -19,7 +19,8 @@ public sealed class DetailExtrasService(
     IItemExtraRepository extras,
     ILibraryFolderResolver libraries,
     IExtrasConfigurationSource? rules = null,
-    IEditorConfigurationSource? editorConfig = null)
+    IEditorConfigurationSource? editorConfig = null,
+    ISupportingFileTitleResolver? titleFolders = null)
 {
     // How many of the page's files are looked up to find the folders Extras sit in. One batched lookup, so the cost is the folder walk, not a
     // query per file; 500 covers a long course (every lesson then gets its chip) and still bounds a page that lists thousands of files.
@@ -80,14 +81,38 @@ public sealed class DetailExtrasService(
             }
         }
 
-        var distinct = assetIds.Distinct().Take(MaxAssetsToLocate).ToList();
-        if (distinct.Count == 0)
+        // A Videos series (a folder of personal videos or lessons) lists its videos without episode details, so nothing above names a file.
+        // Each listed video is a Work of its own, so one file of each (a single batched lookup) says which folders to look in.
+        IReadOnlyDictionary<Guid, string> videoPaths = new Dictionary<Guid, string>();
+        if (assetIds.Count == 0
+            && detail.EntityType == DetailEntityType.TvShow
+            && detail.SequencePlacement is { } videos)
         {
-            return;
+            var listedWorks = videos.OrderedItems.Concat(videos.Groups.SelectMany(group => group.Items))
+                .Where(item => item.EpisodeContext is null && Guid.TryParse(item.Id, out var workId) && workId != Guid.Empty)
+                .Select(item => Guid.Parse(item.Id))
+                .Distinct()
+                .Take(MaxAssetsToLocate)
+                .ToList();
+            videoPaths = await assets.GetFirstFilePathsByWorkIdsAsync(listedWorks, ct).ConfigureAwait(false);
         }
 
-        var paths = await assets.GetFilePathsAsync(distinct, ct).ConfigureAwait(false);
+        var distinct = assetIds.Distinct().Take(MaxAssetsToLocate).ToList();
+        IReadOnlyDictionary<Guid, string> paths = distinct.Count == 0
+            ? videoPaths
+            : await assets.GetFilePathsAsync(distinct, ct).ConfigureAwait(false);
         var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // A title's own page also asks the folder finder the editor's supporting-files browser uses, so a page that lists its files
+        // in a way the lookups above cannot read (a show of lessons, a folder of videos) still finds the folders its Extras sit in.
+        if (!isEpisode && titleFolders is not null && Guid.TryParse(detail.Id, out var titleId))
+        {
+            foreach (var folder in await titleFolders.ResolveItemFoldersAsync(titleId, ct).ConfigureAwait(false))
+            {
+                folders.Add(folder);
+            }
+        }
+
         foreach (var path in paths.Values)
         {
             foreach (var folder in CandidateFolders(path))

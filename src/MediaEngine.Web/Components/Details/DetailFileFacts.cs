@@ -38,8 +38,10 @@ public static class DetailFileFacts
             .Where(item => string.Equals(item.MembershipScope, "MainSequence", StringComparison.OrdinalIgnoreCase))
             .ToList() ?? [];
 
-        var owned = items.Count(item => item.IsOwned);
-        var total = Math.Max(placement?.TotalKnownItems ?? 0, items.Count);
+        // The one Series count (issue 1191): the numbered run and "Also in this world" together, the same as the line under the list.
+        // An entry for one file covering two episodes ("E19-20: A + B") counts both (SeriesOwnedCount weighs by EpisodeCount).
+        var owned = placement is null ? 0 : SeriesOwnedCount.Of(placement);
+        var total = placement is null ? 0 : SeriesOwnedCount.KnownTotal(placement);
         if (owned > 0 || total > 0)
         {
             var noun = (placement?.ItemPluralLabel ?? "items").ToLowerInvariant();

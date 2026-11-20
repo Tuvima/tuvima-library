@@ -9,12 +9,17 @@ using Microsoft.Extensions.Localization;
 namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>The line a list shows in place after Add to playlist (no toast), and how loudly.</summary>
-public sealed record PlaylistFlowNotice(string Message, AppSeverity Severity);
+public sealed record PlaylistFlowNotice(string Message, AppSeverity Severity)
+{
+    /// <summary>The same line for a surface that already hosts an <see cref="UndoOffer"/> line (a "..." menu that closes): no Undo button.</summary>
+    public UndoOffer ToOffer() => new(Message, null, Severity);
+}
 
 /// <summary>
-/// "Add to playlist" from ticked songs or albums (Listen music spec D9, D12, D15): the list of hand-made playlists with "New playlist",
-/// then the add, then one plain sentence for the caller to show in place. The desktop selection bar and the phone's bottom bar both go
-/// through here, so every list behaves the same.
+/// "Add to playlist" from every place that offers it (Listen music spec D9, D12, D15; Listen playlists spec WP2): the picker of hand-made
+/// playlists (<see cref="PlaylistPickerDialog"/>), then the add through <see cref="PlaylistMembership"/>, then one plain sentence for the
+/// caller to show in place. The selection bars, the song menu, the player bar menu and the page action all go through here, and
+/// dragged songs use <see cref="Describe"/>, so every path gives the same sentence.
 /// </summary>
 public static class PlaylistMembershipFlow
 {
@@ -50,7 +55,7 @@ public static class PlaylistMembershipFlow
             notice.Severity == AppSeverity.Error ? AppSeverity.Error : AppSeverity.Warning);
     }
 
-    /// <summary>The same flow for songs already known by their ids (the phone's bottom bar). On a phone the list is a bottom sheet.</summary>
+    /// <summary>The same flow for songs already known by their ids (the song menu, the player menu, a page action, the phone's bottom bar). On a phone the picker is a bottom sheet.</summary>
     public static async Task<PlaylistFlowNotice?> RunForSongsAsync(IServiceProvider services, IReadOnlyList<Guid> songIds, string label)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -64,13 +69,10 @@ public static class PlaylistMembershipFlow
         var api = services.GetRequiredService<IEngineApiClient>();
         var phone = services.GetService<DeviceContextService>()?.IsPhone == true;
         var dialogs = services.GetRequiredService<IAppDialogService>();
-        var dialog = await dialogs.ShowAsync<MediaMembershipDialog>(
+        var dialog = await dialogs.ShowAsync<PlaylistPickerDialog>(
             label,
-            new AppDialogParameters<MediaMembershipDialog>
+            new AppDialogParameters<PlaylistPickerDialog>
             {
-                { d => d.Playlist, true },
-                { d => d.ChooseOnly, true },
-                { d => d.OfferNewPlaylist, true },
                 { d => d.WorkIds, songIds },
             },
             phone ? new AppDialogOptions { Sheet = AppDialogSheetMode.Phone } : null);
@@ -87,7 +89,10 @@ public static class PlaylistMembershipFlow
         return Describe(outcome, strings);
     }
 
-    /// <summary>The sentence for how an add went: "3 songs added to Road trip", "2 added, 1 already there".</summary>
+    /// <summary>
+    /// The sentence for how an add went: "3 songs added to Road trip", "2 added, 1 already there", "Already in Road trip". When some songs
+    /// failed it says what went in and what did not, and is a warning rather than a success.
+    /// </summary>
     public static PlaylistFlowNotice Describe(PlaylistAddResult result, IStringLocalizer<SharedStrings> strings)
     {
         ArgumentNullException.ThrowIfNull(result);
@@ -99,14 +104,20 @@ public static class PlaylistMembershipFlow
                 AppSeverity.Error);
         }
 
+        if (result.Failed > 0)
+        {
+            var told = result switch
+            {
+                { Added: 0 } => strings["PlaylistMembership_AlreadyThereSomeFailed", result.AlreadyThere, result.Failed].Value,
+                { AlreadyThere: 0 } => strings["PlaylistMembership_SomeFailed", result.Added, result.Failed].Value,
+                _ => strings["PlaylistMembership_SomeAlreadyThereSomeFailed", result.Added, result.AlreadyThere, result.Failed].Value,
+            };
+            return new PlaylistFlowNotice(told, AppSeverity.Warning);
+        }
+
         if (result.Added == 0)
         {
             return new PlaylistFlowNotice(strings["PlaylistMembership_AllAlreadyThere", result.PlaylistName].Value, AppSeverity.Info);
-        }
-
-        if (result.Failed > 0)
-        {
-            return new PlaylistFlowNotice(strings["PlaylistMembership_SomeFailed", result.Added, result.Failed].Value, AppSeverity.Warning);
         }
 
         if (result.AlreadyThere > 0)

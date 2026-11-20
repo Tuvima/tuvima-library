@@ -171,7 +171,7 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
         Assert.Empty(_dialogs.FindAll("[data-footer-line]"));
         Assert.Empty(_dialogs.FindAll("[data-picker-safety]"));
         Assert.DoesNotContain("never", Text(footer), StringComparison.Ordinal);
-        Assert.Contains("Read-only never changes your files.", Text(_dialogs.Find("[data-folder-handling]")), StringComparison.Ordinal);
+        Assert.Contains("Files stay exactly as they are", _dialogs.Find("[data-folder-handling] [data-playback-tooltip]").GetAttribute("data-playback-tooltip"), StringComparison.Ordinal);
         Assert.DoesNotContain("Library scans this folder", Text(_dialogs.Find(".add-view-folder")), StringComparison.Ordinal);
     }
 

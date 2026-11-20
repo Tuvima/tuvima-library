@@ -163,8 +163,6 @@
                                    DisplayName="@_displayName"
                                    AccountLabel="@_accountLabel"
                                    CanManageProfiles="@CanManageProfiles"
-                                   ShowSecureAccount="@ShowSecureAccountCard"
-                                   OnSecureAccountNotNow="@DismissSecureAccountAsync"
                                    ProfileRole="@_profileRole"
                                    AvatarInitial="@_avatarInitial"
                                    AvatarColor="@_avatarColor"
@@ -1013,11 +1011,6 @@
 
     // True while the account works only on this computer (no password).
     private bool _thisComputerOnly;
-
-    // The account menu shows its Secure your account card until the person chooses Not now (remembered with the account).
-    private bool ShowSecureAccountCard => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
-
-    private Task DismissSecureAccountAsync() => Notices.DismissAsync(AccountNoticeKeys.SecureAccount);
 
     private void OnNoticesChanged()
     {

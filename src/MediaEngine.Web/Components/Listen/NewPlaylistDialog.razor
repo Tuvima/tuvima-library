@@ -1,0 +1,63 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
+
+@* New playlist (spec listen-playlists WP3, mockup A and D): one small window, the same on a computer and on a phone (a bottom sheet there). It
+   asks for a name and offers the two kinds as two buttons, Hand-picked and Smart, with no dropdown. Hand-picked makes the playlist at once
+   (so it needs a name); Smart goes on to the rule editor with the name filled in. The window only answers; the page does the work. *@
+<AppDialogShell Size="Small" Title="@L["PlaylistTiles_NewTitle"].Value" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="app-dialog-shell__pad app-dialog-shell__pad--flow new-playlist" data-new-playlist>
+            <AppTextField Label="@L["ListenPage_PlaylistName"].Value"
+                          Value="@_name"
+                          ValueChanged="@(value => _name = value ?? string.Empty)"
+                          MaxLength="100"
+                          AutoFocus="true"
+                          OnKeyDown="OnNameKeyDownAsync"
+                          data-new-playlist-name="true" />
+            <div class="new-playlist__kinds">
+                <div class="new-playlist__kind">
+                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               Label="@L["CollectionsPage_HandPicked"].Value"
+                               Disabled="@string.IsNullOrWhiteSpace(_name)"
+                               OnClick="@(() => Choose(false))"
+                               data-new-playlist-handpicked="true" />
+                    <span class="new-playlist__caption">@L["PlaylistTiles_HandPickedHint"]</span>
+                </div>
+                <div class="new-playlist__kind">
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                               Label="@L["Common_Smart"].Value"
+                               OnClick="@(() => Choose(true))"
+                               data-new-playlist-smart="true" />
+                    <span class="new-playlist__caption">@L["PlaylistTiles_SmartHint"]</span>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Label="@L["Search_Cancel"].Value" OnClick="@(() => Dialog.Cancel())" />
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    private string _name = string.Empty;
+
+    private Task OnNameKeyDownAsync(KeyboardEventArgs args)
+    {
+        // Enter makes a hand-picked playlist, the kind a name alone is enough for.
+        if (string.Equals(args.Key, "Enter", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(_name))
+        {
+            Choose(false);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void Choose(bool smart) => Dialog.Close(AppDialogResult.Ok(new NewPlaylistChoice(_name.Trim(), smart)));
+}

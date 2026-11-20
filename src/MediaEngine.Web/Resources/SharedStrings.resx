@@ -1610,8 +1610,11 @@
   <data name="PlaybackLyrics_EditLyrics" xml:space="preserve">
     <value>Edit lyrics</value>
   </data>
-  <data name="PlaybackLyrics_ThisOneIsWrong" xml:space="preserve">
-    <value>This one is wrong</value>
+  <data name="PlaybackLyrics_HideTheseLyrics" xml:space="preserve">
+    <value>Hide these lyrics for this song</value>
+  </data>
+  <data name="PlaybackLyrics_NotTheseLyrics" xml:space="preserve">
+    <value>Not these lyrics? Find different lyrics</value>
   </data>
   <data name="PlaybackLyrics_LyricLines" xml:space="preserve">
     <value>Lyric lines</value>
@@ -1711,9 +1714,6 @@
   </data>
   <data name="Common_Kids" xml:space="preserve">
     <value>Kids</value>
-  </data>
-  <data name="TopNavAccountMenu_AddAPassword" xml:space="preserve">
-    <value>Add a password</value>
   </data>
   <data name="TopNavAccountMenu_WhoSWatching" xml:space="preserve">
     <value>Who's watching?</value>
@@ -6243,7 +6243,7 @@
     <value>The Engine is still starting. Check again in a moment.</value>
   </data>
   <data name="SecuritySettingsPage_YourAccountHasNoPassword" xml:space="preserve">
-    <value>Your account has no password, so it only works at home. Add one any time below.</value>
+    <value>Your account has no password, so it only works on this computer. Add one any time below.</value>
   </data>
   <data name="SecuritySettingsPage_LoadingAccountSecurity" xml:space="preserve">
     <value>Loading account security</value>
@@ -6649,6 +6649,9 @@
   </data>
   <data name="SetupProfileStage_UseLibraryOnYourOther" xml:space="preserve">
     <value>Use Library on your other devices from the start.</value>
+  </data>
+  <data name="SetupProfileStage_NoPasswordWarning" xml:space="preserve">
+    <value>Anyone on your home network who can reach Library can open this profile without a password. It never opens from outside your home network. Choose email and password if you would rather keep it private.</value>
   </data>
   <data name="SetupProfileStage_ConfirmPassword" xml:space="preserve">
     <value>Confirm password</value>
@@ -8231,14 +8234,14 @@
   <data name="MediaGroupTile_KindCollection" xml:space="preserve">
     <value>Collection</value>
   </data>
-  <data name="ContinueTile_KindBook" xml:space="preserve">
-    <value>Book</value>
-  </data>
-  <data name="ContinueTile_KindAudiobook" xml:space="preserve">
-    <value>Audiobook</value>
-  </data>
   <data name="MediaGroupTile_KindSeries" xml:space="preserve">
     <value>Series</value>
+  </data>
+  <data name="MediaGroupTile_KindBookSeries" xml:space="preserve">
+    <value>Book series</value>
+  </data>
+  <data name="MediaGroupTile_KindAudiobookSeries" xml:space="preserve">
+    <value>Audiobook series</value>
   </data>
   <data name="MediaGroupTile_KindUniverse" xml:space="preserve">
     <value>Universe</value>
@@ -8616,7 +8619,7 @@
     <value>Working</value>
   </data>
   <data name="SettingsLibrariesTabs_Libraries" xml:space="preserve">
-    <value>Libraries</value>
+    <value>Libraries list</value>
   </data>
   <data name="SettingsLibrariesTabs_NeedsReview" xml:space="preserve">
     <value>Needs Review</value>
@@ -10202,6 +10205,60 @@
   <data name="LibraryActivity_NoMatchHelp" xml:space="preserve">
     <value>Try a different title.</value>
   </data>
+  <data name="LibraryActivity_BatchSummary" xml:space="preserve">
+    <value>Batch · {0}</value>
+  </data>
+  <data name="LibraryActivity_BatchTypes" xml:space="preserve">
+    <value>Media types in this batch</value>
+  </data>
+  <data name="LibraryActivity_ChipAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="LibraryActivity_CollectionWorking" xml:space="preserve">
+    <value>{0} of {1} working</value>
+  </data>
+  <data name="LibraryActivity_ColumnCover" xml:space="preserve">
+    <value>Cover</value>
+  </data>
+  <data name="LibraryActivity_ColumnSize" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="LibraryActivity_ColumnStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="LibraryActivity_ColumnTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="LibraryActivity_ColumnType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="LibraryActivity_HideFiles" xml:space="preserve">
+    <value>Hide the files in {0}</value>
+  </data>
+  <data name="LibraryActivity_PillDone" xml:space="preserve">
+    <value>{0} done</value>
+  </data>
+  <data name="LibraryActivity_PillItem" xml:space="preserve">
+    <value>{0} item</value>
+  </data>
+  <data name="LibraryActivity_PillItems" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="LibraryActivity_PillWorking" xml:space="preserve">
+    <value>{0} working</value>
+  </data>
+  <data name="LibraryActivity_ShowFiles" xml:space="preserve">
+    <value>Show the files in {0}</value>
+  </data>
+  <data name="LibraryActivity_StatusDone" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="LibraryActivity_StatusWorking" xml:space="preserve">
+    <value>Working</value>
+  </data>
+  <data name="LibraryActivity_VideoCollection" xml:space="preserve">
+    <value>Video collection</value>
+  </data>
   <data name="LibraryActivity_NothingInBatch" xml:space="preserve">
     <value>Nothing to show for this batch.</value>
   </data>
@@ -10484,18 +10541,6 @@
   <data name="SubtitleAppearance_Saved" xml:space="preserve">
     <value>Changes saved automatically</value>
   </data>
-  <data name="SubtitleFind_ResultsFrom" xml:space="preserve">
-    <value>{0} results from {1}</value>
-  </data>
-  <data name="SubtitleFind_ResultFrom" xml:space="preserve">
-    <value>1 result from {0}</value>
-  </data>
-  <data name="SubtitleFind_ResultsPlain" xml:space="preserve">
-    <value>{0} results</value>
-  </data>
-  <data name="SubtitleFind_ResultPlain" xml:space="preserve">
-    <value>1 result</value>
-  </data>
   <data name="SubtitleFind_SearchingSource" xml:space="preserve">
     <value>Searching {0}…</value>
   </data>
@@ -10519,9 +10564,6 @@
   </data>
   <data name="SubtitleFind_DifferentRelease" xml:space="preserve">
     <value>Different release</value>
-  </data>
-  <data name="SubtitleFind_UseThis" xml:space="preserve">
-    <value>Use this</value>
   </data>
   <data name="SubtitleFind_ThisOneIsWrong" xml:space="preserve">
     <value>This one is wrong</value>
@@ -10582,6 +10624,12 @@
   </data>
   <data name="SubtitleFind_LanguageUnknown" xml:space="preserve">
     <value>That language is not supported for subtitle search.</value>
+  </data>
+  <data name="SubtitleFind_TextSearchUnsupported" xml:space="preserve">
+    <value>{0} can only find subtitles for the movie or episode itself, not by words you type.</value>
+  </data>
+  <data name="SubtitleFind_TextSearchUnsupportedHint" xml:space="preserve">
+    <value>Put the original text back to search for this {0} itself.</value>
   </data>
   <data name="SubtitleFind_Failed" xml:space="preserve">
     <value>The search could not be completed.</value>
@@ -10652,6 +10700,9 @@
   <data name="VideoPlaybackHost_SubtitleCanTBePrepared" xml:space="preserve">
     <value>This subtitle can't be shown right now. The video is playing as it was.</value>
   </data>
+  <data name="VideoPlaybackHost_NoSubtitleInYourLanguage" xml:space="preserve">
+    <value>No subtitles in {0} for this video.</value>
+  </data>
   <data name="AudioSubtitles_MoreLanguages" xml:space="preserve">
     <value>More languages</value>
   </data>
@@ -10714,12 +10765,6 @@
   </data>
   <data name="EditorDetailsPanel_Lock" xml:space="preserve">
     <value>Lock {0}</value>
-  </data>
-  <data name="EditorDetailsPanel_Locked" xml:space="preserve">
-    <value>Locked</value>
-  </data>
-  <data name="EditorDetailsPanel_Unlocked" xml:space="preserve">
-    <value>Unlocked</value>
   </data>
   <data name="EditorDetailsPanel_GoesBackToProvider" xml:space="preserve">
     <value>{0} goes back to the {1} value when you save.</value>
@@ -12635,9 +12680,6 @@
   <data name="FolderPicker_Name" xml:space="preserve">
     <value>Name</value>
   </data>
-  <data name="FolderPicker_Modified" xml:space="preserve">
-    <value>Modified</value>
-  </data>
   <data name="FolderPicker_Open" xml:space="preserve">
     <value>Open</value>
   </data>
@@ -13394,9 +13436,6 @@
   <data name="ListenPage_PlaylistCreateFailed" xml:space="preserve">
     <value>The Playlist could not be created.</value>
   </data>
-  <data name="ListenPage_PlaylistRenameFailed" xml:space="preserve">
-    <value>The Playlist could not be renamed.</value>
-  </data>
   <data name="ListenPage_PlaylistDeleteFailed" xml:space="preserve">
     <value>The Playlist could not be deleted.</value>
   </data>
@@ -13408,21 +13447,6 @@
   </data>
   <data name="ListenPage_SongsSavedListNotRefreshed" xml:space="preserve">
     <value>The songs were saved, but the list could not be refreshed. Reload the page to see them.</value>
-  </data>
-  <data name="ListenPage_ProfileRequiredToSaveToPlaylists" xml:space="preserve">
-    <value>Choose an active profile before saving to playlists.</value>
-  </data>
-  <data name="ListenPage_AddSongsFailed" xml:space="preserve">
-    <value>Could not add songs to {0}.</value>
-  </data>
-  <data name="ListenPage_ChooseProfileBeforeCreatingPlaylists" xml:space="preserve">
-    <value>Choose an active profile before creating playlists.</value>
-  </data>
-  <data name="ListenPage_DroppedSongsPlaylistFailed" xml:space="preserve">
-    <value>Could not create a playlist for the dropped songs.</value>
-  </data>
-  <data name="ListenPage_PlaylistCreatedNotLoaded" xml:space="preserve">
-    <value>Playlist was created, but it could not be loaded yet.</value>
   </data>
   <data name="ListenPage_SongRemoveFailed" xml:space="preserve">
     <value>Song could not be removed from the playlist.</value>
@@ -13883,9 +13907,6 @@
   <data name="PlaylistMembership_NewPlaylist" xml:space="preserve">
     <value>New playlist</value>
   </data>
-  <data name="PlaylistMembership_ChooseExisting" xml:space="preserve">
-    <value>Choose an existing playlist</value>
-  </data>
   <data name="PlaylistMembership_TooManyAlbums" xml:space="preserve">
     <value>Pick up to {0} albums at a time</value>
   </data>
@@ -13908,13 +13929,52 @@
     <value>{0} added, {1} already there</value>
   </data>
   <data name="PlaylistMembership_AllAlreadyThere" xml:space="preserve">
-    <value>Those songs are already in {0}.</value>
+    <value>Already in {0}</value>
   </data>
   <data name="PlaylistMembership_SomeFailed" xml:space="preserve">
     <value>{0} added, {1} could not be added</value>
   </data>
   <data name="PlaylistMembership_AddFailed" xml:space="preserve">
     <value>The songs could not be added to {0}.</value>
+  </data>
+  <data name="PlaylistMembership_AlreadyThereSomeFailed" xml:space="preserve">
+    <value>{0} already there, {1} could not be added</value>
+  </data>
+  <data name="PlaylistMembership_SomeAlreadyThereSomeFailed" xml:space="preserve">
+    <value>{0} added, {1} already there, {2} could not be added</value>
+  </data>
+  <data name="PlaylistPicker_TitleOne" xml:space="preserve">
+    <value>Add 1 song to…</value>
+  </data>
+  <data name="PlaylistPicker_TitleMany" xml:space="preserve">
+    <value>Add {0} songs to…</value>
+  </data>
+  <data name="PlaylistPicker_Search" xml:space="preserve">
+    <value>Search playlists</value>
+  </data>
+  <data name="PlaylistPicker_Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="PlaylistPicker_SongsOne" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="PlaylistPicker_SongsMany" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="PlaylistPicker_AlreadyIn" xml:space="preserve">
+    <value>Already in</value>
+  </data>
+  <data name="PlaylistPicker_NoPlaylists" xml:space="preserve">
+    <value>You have no hand-made playlists yet.</value>
+  </data>
+  <data name="PlaylistPicker_NoMatches" xml:space="preserve">
+    <value>No playlist matches that.</value>
+  </data>
+  <data name="PlaylistPicker_Loading" xml:space="preserve">
+    <value>Loading your playlists…</value>
+  </data>
+  <data name="MediaMembershipDialog_NoCollections" xml:space="preserve">
+    <value>No editable manual collections are available.</value>
   </data>
   <data name="PlaylistMembership_CreateFailed" xml:space="preserve">
     <value>The playlist could not be created.</value>
@@ -14698,5 +14758,560 @@
   </data>
   <data name="EncodeSettingsTab_PausedCountsAsWatching" xml:space="preserve">
     <value>A paused player counts as watching for (minutes)</value>
+  </data>
+  <data name="PickResult_SearchBox" xml:space="preserve">
+    <value>Search for</value>
+  </data>
+  <data name="PickResult_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="PickResult_Searching" xml:space="preserve">
+    <value>Searching…</value>
+  </data>
+  <data name="PickResult_BestMatch" xml:space="preserve">
+    <value>Best match</value>
+  </data>
+  <data name="PickResult_UseThis" xml:space="preserve">
+    <value>Use this</value>
+  </data>
+  <data name="CapacityPanel_Title" xml:space="preserve">
+    <value>Computer capacity</value>
+  </data>
+  <data name="CapacityPanel_Tested" xml:space="preserve">
+    <value>Last tested {0}</value>
+  </data>
+  <data name="CapacityPanel_NotTested" xml:space="preserve">
+    <value>Not tested yet</value>
+  </data>
+  <data name="CapacityPanel_GaugeLabel" xml:space="preserve">
+    <value>Score {0} out of 100</value>
+  </data>
+  <data name="CapacityPanel_Streams" xml:space="preserve">
+    <value>Video streams at once</value>
+  </data>
+  <data name="CapacityPanel_FourK" xml:space="preserve">
+    <value>4K conversions at once</value>
+  </data>
+  <data name="CapacityPanel_Speed" xml:space="preserve">
+    <value>Faster than real time</value>
+  </data>
+  <data name="CapacityPanel_RunAgain" xml:space="preserve">
+    <value>Run again</value>
+  </data>
+  <data name="CapacityPanel_RunTest" xml:space="preserve">
+    <value>Run test</value>
+  </data>
+  <data name="CapacityPanel_Testing" xml:space="preserve">
+    <value>Testing…</value>
+  </data>
+  <data name="CapacityPanel_Running" xml:space="preserve">
+    <value>Testing this computer. This takes about a minute and uses the graphics card or processor heavily while it runs.</value>
+  </data>
+  <data name="CapacityPanel_CouldNotRun" xml:space="preserve">
+    <value>The test could not run. Check that the Engine is running, then try again.</value>
+  </data>
+  <data name="ReachDevices_Title" xml:space="preserve">
+    <value>Reach from other devices</value>
+  </data>
+  <data name="ReachDevices_Subtitle" xml:space="preserve">
+    <value>Phones, TVs and tablets on your home network</value>
+  </data>
+  <data name="ReachDevices_AddPassword" xml:space="preserve">
+    <value>Add a password</value>
+  </data>
+  <data name="ReachDevices_AddPasswordHint" xml:space="preserve">
+    <value>Until your account has a password it works only on this computer, so other devices cannot sign in as you.</value>
+  </data>
+  <data name="ReachDevices_OutsideOff" xml:space="preserve">
+    <value>Outside access: Off</value>
+  </data>
+  <data name="ReachDevices_OutsideOn" xml:space="preserve">
+    <value>Outside access: On</value>
+  </data>
+  <data name="ReachDevices_RestartNote" xml:space="preserve">
+    <value>Takes effect the next time Library starts. Restart Library to apply it.</value>
+  </data>
+  <data name="ReachDevices_ContainerNote" xml:space="preserve">
+    <value>This install already shares its port with your network. Change who can reach it in your container port settings.</value>
+  </data>
+  <data name="ReachDevices_FirewallOpen" xml:space="preserve">
+    <value>Windows allows your home networks to reach Library.</value>
+  </data>
+  <data name="ReachDevices_FirewallBlocked" xml:space="preserve">
+    <value>Windows may block other devices until you allow Library on your home (Private) networks. Only home networks are opened; public Wi-Fi stays blocked.</value>
+  </data>
+  <data name="ReachDevices_FirewallAllow" xml:space="preserve">
+    <value>Allow</value>
+  </data>
+  <data name="ReachDevices_FirewallManual" xml:space="preserve">
+    <value>Or allow it yourself: open an administrator window and run this command. It opens the port on Private networks only.</value>
+  </data>
+  <data name="ReachDevices_FirewallElsewhere" xml:space="preserve">
+    <value>To change the Windows firewall, open Settings on the computer that runs Library.</value>
+  </data>
+  <data name="ReachDevices_FirewallRefused" xml:space="preserve">
+    <value>Windows did not allow it. You can try again, or use the command below.</value>
+  </data>
+  <data name="FirewallPrompt_Title" xml:space="preserve">
+    <value>Allow Library on your home network?</value>
+  </data>
+  <data name="FirewallPrompt_Body" xml:space="preserve">
+    <value>So your phone and TV can open it. Windows will ask once. Only home (Private) networks are opened. Public Wi-Fi stays blocked.</value>
+  </data>
+  <data name="FirewallPrompt_NotNow" xml:space="preserve">
+    <value>Not now</value>
+  </data>
+  <data name="FirewallPrompt_Allow" xml:space="preserve">
+    <value>Allow</value>
+  </data>
+  <data name="FirewallPrompt_Refused" xml:space="preserve">
+    <value>Windows did not allow it. Settings, then Network, lists exactly what to allow.</value>
+  </data>
+  <data name="FirewallPrompt_SaveFailed" xml:space="preserve">
+    <value>Library could not remember your answer. You can allow it later in Settings, then Network.</value>
+  </data>
+  <data name="ViewPage_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="ViewPage_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="ViewPage_Uploading" xml:space="preserve">
+    <value>Uploading…</value>
+  </data>
+  <data name="ViewPage_AddMedia" xml:space="preserve">
+    <value>Add media</value>
+  </data>
+  <data name="ViewPage_ReadWordsInPhotos" xml:space="preserve">
+    <value>Read words in my photos</value>
+  </data>
+  <data name="ViewPage_ReadWordsCouldNotBeSaved" xml:space="preserve">
+    <value>Could not save the words in photos setting. Try again.</value>
+  </data>
+  <data name="ViewPage_SearchPlaceholderWithWords" xml:space="preserve">
+    <value>Search photos, people, places, dates, cameras, and words in photos</value>
+  </data>
+  <data name="ViewPage_SearchPlaceholder" xml:space="preserve">
+    <value>Search photos, people, places, dates, and cameras</value>
+  </data>
+  <data name="ViewPage_SearchPhotos" xml:space="preserve">
+    <value>Search Photos</value>
+  </data>
+  <data name="ViewPage_PhotosQuickFilters" xml:space="preserve">
+    <value>Photos quick filters</value>
+  </data>
+  <data name="ViewPage_MorePhotoFilters" xml:space="preserve">
+    <value>More photo filters</value>
+  </data>
+  <data name="ViewPage_NoTimeline" xml:space="preserve">
+    <value>The Engine did not return a timeline.</value>
+  </data>
+  <data name="ViewPage_LoadingMorePhotos" xml:space="preserve">
+    <value>Loading more photos…</value>
+  </data>
+  <data name="ViewPage_ContinueOlderWindow" xml:space="preserve">
+    <value>Continue into an older window, or use the date navigator. Your selection is kept.</value>
+  </data>
+  <data name="ViewPage_MoreLoadAsYouScroll" xml:space="preserve">
+    <value>More photos load as you scroll</value>
+  </data>
+  <data name="ViewPage_Loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="ViewPage_ContinueToOlderPhotos" xml:space="preserve">
+    <value>Continue to older photos</value>
+  </data>
+  <data name="ViewPage_LoadMore" xml:space="preserve">
+    <value>Load more</value>
+  </data>
+  <data name="ViewPage_FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="ViewPage_FilterFavorites" xml:space="preserve">
+    <value>Favorites</value>
+  </data>
+  <data name="ViewPage_FilterVideos" xml:space="preserve">
+    <value>Videos</value>
+  </data>
+  <data name="ViewPage_FilterArchive" xml:space="preserve">
+    <value>Archive</value>
+  </data>
+  <data name="ViewPage_ScopeMine" xml:space="preserve">
+    <value>Your private photo and video timeline.</value>
+  </data>
+  <data name="ViewPage_ScopeShared" xml:space="preserve">
+    <value>Photos and videos in the Shared Library.</value>
+  </data>
+  <data name="ViewPage_Archived" xml:space="preserve">
+    <value>Archived selected items.</value>
+  </data>
+  <data name="ViewPage_SelectionMovedToTrash" xml:space="preserve">
+    <value>Moved selected items to Trash.</value>
+  </data>
+  <data name="ViewPage_Favorited" xml:space="preserve">
+    <value>Favorited selected items.</value>
+  </data>
+  <data name="ViewPage_Restored" xml:space="preserve">
+    <value>Restored selected items to Photos.</value>
+  </data>
+  <data name="ViewPage_ContributionFailed" xml:space="preserve">
+    <value>The contribution could not be submitted.</value>
+  </data>
+  <data name="ViewPage_FileMissing" xml:space="preserve">
+    <value>File missing</value>
+  </data>
+  <data name="ViewPage_EmptyNoMatch" xml:space="preserve">
+    <value>No matching items</value>
+  </data>
+  <data name="ViewPage_EmptyFavorites" xml:space="preserve">
+    <value>No favorites yet</value>
+  </data>
+  <data name="ViewPage_EmptyVideos" xml:space="preserve">
+    <value>No videos yet</value>
+  </data>
+  <data name="ViewPage_EmptyArchive" xml:space="preserve">
+    <value>Archive is empty</value>
+  </data>
+  <data name="ViewPage_EmptyTrash" xml:space="preserve">
+    <value>Trash is empty</value>
+  </data>
+  <data name="ViewPage_EmptyHidden" xml:space="preserve">
+    <value>No hidden items</value>
+  </data>
+  <data name="ViewPage_EmptyDocuments" xml:space="preserve">
+    <value>No documents yet</value>
+  </data>
+  <data name="ViewPage_EmptyPersonal" xml:space="preserve">
+    <value>No personal media yet</value>
+  </data>
+  <data name="ViewPage_TrySearch" xml:space="preserve">
+    <value>Try a different search.</value>
+  </data>
+  <data name="ViewPage_FilterEmptyHint" xml:space="preserve">
+    <value>Items matching this View filter will appear here.</value>
+  </data>
+  <data name="ViewPage_ScopeProfile" xml:space="preserve">
+    <value>Photos and videos shared by {0}.</value>
+  </data>
+  <data name="ViewPeoplePage_NoResult" xml:space="preserve">
+    <value>The discovery service did not return a result.</value>
+  </data>
+  <data name="ViewPeoplePage_NoMatch" xml:space="preserve">
+    <value>No matching people</value>
+  </data>
+  <data name="ViewPeoplePage_NoPeople" xml:space="preserve">
+    <value>No people to show yet</value>
+  </data>
+  <data name="ViewPlacesPage_NoData" xml:space="preserve">
+    <value>The Engine did not return geographic discovery data.</value>
+  </data>
+  <data name="ViewPlacesPage_WithoutLocation" xml:space="preserve">
+    <value>Without location</value>
+  </data>
+  <data name="ViewPlacesPage_PlaceStory" xml:space="preserve">
+    <value>Place Story</value>
+  </data>
+  <data name="ViewPhotoTimeline_Video" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="ViewImmersiveViewer_ShowStill" xml:space="preserve">
+    <value>Show still</value>
+  </data>
+  <data name="ViewImmersiveViewer_PlayMotion" xml:space="preserve">
+    <value>Play motion</value>
+  </data>
+  <data name="ViewImmersiveViewer_ShowLiveStill" xml:space="preserve">
+    <value>Show Live Photo still</value>
+  </data>
+  <data name="ViewImmersiveViewer_PlayLiveMotion" xml:space="preserve">
+    <value>Play Live Photo motion</value>
+  </data>
+  <data name="ViewPage_DensityCompact" xml:space="preserve">
+    <value>Compact</value>
+  </data>
+  <data name="ViewPage_DensityComfortable" xml:space="preserve">
+    <value>Comfortable</value>
+  </data>
+  <data name="ViewPage_DensityRelaxed" xml:space="preserve">
+    <value>Relaxed</value>
+  </data>
+  <data name="ViewContributionsPage_AcceptedDestination" xml:space="preserve">
+    <value>Accepted destination</value>
+  </data>
+  <data name="ViewContributionsPage_DestinationTimeline" xml:space="preserve">
+    <value>Shared Timeline</value>
+  </data>
+  <data name="ViewContributionsPage_DestinationFolder" xml:space="preserve">
+    <value>Named Shared folder</value>
+  </data>
+  <data name="ViewGalleryDetailPage_PermissionFor" xml:space="preserve">
+    <value>Permission for {0}</value>
+  </data>
+  <data name="ViewPlacesPage_TileDisclosure" xml:space="preserve">
+    <value>Map pictures come from the online OpenFreeMap service (OpenStreetMap data). Only the area you look at is requested; your photos and their locations stay on your computer.</value>
+  </data>
+  <data name="ViewPlacesPage_BuiltInDisclosure" xml:space="preserve">
+    <value>Showing the built-in map only. No online map service is asked for anything.</value>
+  </data>
+  <data name="ViewPlacesPage_BuiltInOnly" xml:space="preserve">
+    <value>Built-in map only</value>
+  </data>
+  <data name="ViewPlacesPage_MapChoiceFailed" xml:space="preserve">
+    <value>The map choice could not be saved.</value>
+  </data>
+  <data name="ViewSmartSearch_People" xml:space="preserve">
+    <value>People</value>
+  </data>
+  <data name="ViewSmartSearch_Years" xml:space="preserve">
+    <value>Years</value>
+  </data>
+  <data name="ViewSmartSearch_Places" xml:space="preserve">
+    <value>Places</value>
+  </data>
+  <data name="ViewSmartSearch_Cameras" xml:space="preserve">
+    <value>Cameras</value>
+  </data>
+  <data name="ViewSmartSearch_Tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="ViewSmartSearch_Suggestions" xml:space="preserve">
+    <value>Search suggestions</value>
+  </data>
+  <data name="ViewSmartSearch_RemoveChip" xml:space="preserve">
+    <value>Remove {0}</value>
+  </data>
+  <data name="ViewSmartSearch_Count" xml:space="preserve">
+    <value>{0} photos</value>
+  </data>
+  <data name="PlaylistMenu_Options" xml:space="preserve">
+    <value>{0} options</value>
+  </data>
+  <data name="PlaylistMenu_EditRules" xml:space="preserve">
+    <value>Edit rules</value>
+  </data>
+  <data name="PlaylistMenu_EditDetails" xml:space="preserve">
+    <value>Edit description and cover</value>
+  </data>
+  <data name="PlaylistMenu_Duplicate" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="PlaylistMenu_PinToTop" xml:space="preserve">
+    <value>Pin to top</value>
+  </data>
+  <data name="PlaylistMenu_Unpin" xml:space="preserve">
+    <value>Unpin</value>
+  </data>
+  <data name="PlaylistEdit_RenameTitle" xml:space="preserve">
+    <value>Rename playlist</value>
+  </data>
+  <data name="PlaylistEdit_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaylistEdit_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="PlaylistEdit_Cover" xml:space="preserve">
+    <value>Cover</value>
+  </data>
+  <data name="PlaylistEdit_ChoosePicture" xml:space="preserve">
+    <value>Choose a picture</value>
+  </data>
+  <data name="PlaylistEdit_UseMosaic" xml:space="preserve">
+    <value>Use the automatic cover</value>
+  </data>
+  <data name="PlaylistEdit_CoverHelp" xml:space="preserve">
+    <value>JPG or PNG, up to 5 MB. The automatic cover is a mosaic of the songs' covers.</value>
+  </data>
+  <data name="PlaylistEdit_PictureChosen" xml:space="preserve">
+    <value>{0} will be the cover.</value>
+  </data>
+  <data name="PlaylistEdit_MosaicInUse" xml:space="preserve">
+    <value>The cover is an automatic mosaic of the songs' covers.</value>
+  </data>
+  <data name="PlaylistEdit_PictureInUse" xml:space="preserve">
+    <value>The cover is your own picture.</value>
+  </data>
+  <data name="PlaylistEdit_PictureTooLarge" xml:space="preserve">
+    <value>That picture is larger than 5 MB. Choose a smaller one.</value>
+  </data>
+  <data name="PlaylistEdit_SaveFailed" xml:space="preserve">
+    <value>Could not save. The playlist was not changed.</value>
+  </data>
+  <data name="PlaylistEdit_CoverFailed" xml:space="preserve">
+    <value>The changes were saved, but the cover was not changed.</value>
+  </data>
+  <data name="PlaylistPage_Kind" xml:space="preserve">
+    <value>Playlist</value>
+  </data>
+  <data name="PlaylistPage_KindSmart" xml:space="preserve">
+    <value>Smart playlist</value>
+  </data>
+  <data name="PlaylistPage_KindYours" xml:space="preserve">
+    <value>{0} · yours</value>
+  </data>
+  <data name="PlaylistPage_KindOwner" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="PlaylistPage_Unavailable" xml:space="preserve">
+    <value>{0} unavailable songs</value>
+  </data>
+  <data name="PlaylistPage_UnavailableOne" xml:space="preserve">
+    <value>1 unavailable song</value>
+  </data>
+  <data name="PlaylistPage_SortedBy" xml:space="preserve">
+    <value>Sorted by {0}. Keep this order to save it.</value>
+  </data>
+  <data name="PlaylistPage_KeepThisOrder" xml:space="preserve">
+    <value>Keep this order</value>
+  </data>
+  <data name="PlaylistPage_DuplicateFailed" xml:space="preserve">
+    <value>Could not duplicate the playlist. Nothing was changed.</value>
+  </data>
+  <data name="PlaylistPage_PinFailed" xml:space="preserve">
+    <value>Could not change the pin. Nothing was changed.</value>
+  </data>
+  <data name="QueueSave_Button" xml:space="preserve">
+    <value>Save queue as playlist</value>
+  </data>
+  <data name="QueueSave_NothingToSave" xml:space="preserve">
+    <value>There are no songs in the queue to save.</value>
+  </data>
+  <data name="QueueSave_NameLabel" xml:space="preserve">
+    <value>Playlist name</value>
+  </data>
+  <data name="QueueSave_DefaultName" xml:space="preserve">
+    <value>Queue, {0}</value>
+  </data>
+  <data name="QueueSave_OneSaved" xml:space="preserve">
+    <value>Saved 1 song as {0}</value>
+  </data>
+  <data name="QueueSave_ManySaved" xml:space="preserve">
+    <value>Saved {0} songs as {1}</value>
+  </data>
+  <data name="QueueSave_SkippedOne" xml:space="preserve">
+    <value>1 item was skipped because it is not a song in your library.</value>
+  </data>
+  <data name="QueueSave_SkippedMany" xml:space="preserve">
+    <value>{0} items were skipped because they are not songs in your library.</value>
+  </data>
+  <data name="QueueSave_Failed" xml:space="preserve">
+    <value>The queue could not be saved as a playlist. Your queue was not changed.</value>
+  </data>
+  <data name="PlaylistTiles_NewTitle" xml:space="preserve">
+    <value>New playlist</value>
+  </data>
+  <data name="PlaylistTiles_HandPickedHint" xml:space="preserve">
+    <value>You choose the songs.</value>
+  </data>
+  <data name="PlaylistTiles_SmartHint" xml:space="preserve">
+    <value>Fills itself from rules you set.</value>
+  </data>
+  <data name="PlaylistTiles_NewShort" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="PlaylistTiles_SortBy" xml:space="preserve">
+    <value>Sort: {0}</value>
+  </data>
+  <data name="PlaylistTiles_SortManual" xml:space="preserve">
+    <value>Manual</value>
+  </data>
+  <data name="PlaylistTiles_SortName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaylistTiles_SortRecentlyAdded" xml:space="preserve">
+    <value>Recently added</value>
+  </data>
+  <data name="PlaylistTiles_MetaSongs" xml:space="preserve">
+    <value>Songs · {0}</value>
+  </data>
+  <data name="PlaylistTiles_MetaSongsLength" xml:space="preserve">
+    <value>Songs · {0} · {1}</value>
+  </data>
+  <data name="PlaylistTiles_MetaSmart" xml:space="preserve">
+    <value>Smart · Songs · {0}</value>
+  </data>
+  <data name="PlaylistTiles_MetaSmartShort" xml:space="preserve">
+    <value>Smart · {0}</value>
+  </data>
+  <data name="PlaylistTiles_MetaShortOne" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="PlaylistTiles_MetaShortMany" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="PlaylistTiles_EmptyTitle" xml:space="preserve">
+    <value>No playlists yet</value>
+  </data>
+  <data name="PlaylistTiles_EmptyMessage" xml:space="preserve">
+    <value>Make one with New playlist, or add songs from any song's menu.</value>
+  </data>
+  <data name="PlaylistTiles_SeeAll" xml:space="preserve">
+    <value>See all</value>
+  </data>
+  <data name="PlaylistTiles_Back" xml:space="preserve">
+    <value>Playlists</value>
+  </data>
+  <data name="Common_MoveToTop" xml:space="preserve">
+    <value>Move to top</value>
+  </data>
+  <data name="Common_MoveToBottom" xml:space="preserve">
+    <value>Move to bottom</value>
+  </data>
+  <data name="QueuePanel_MoveToBottom" xml:space="preserve">
+    <value>Move to bottom</value>
+  </data>
+  <data name="PlaylistTiles_Moved" xml:space="preserve">
+    <value>Moved {0} to place {1} of {2}</value>
+  </data>
+  <data name="PlaylistPage_AllMusic" xml:space="preserve">
+    <value>All Music</value>
+  </data>
+  <data name="PlaylistPage_SongsTableLabel" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="ListenPage_DragToReorderPlaylist" xml:space="preserve">
+    <value>Drag to reorder {0}</value>
+  </data>
+  <data name="ListenPage_PlaylistsShelfSubtitle" xml:space="preserve">
+    <value>Saved playlists and mixes from your library</value>
+  </data>
+  <data name="ListenBrowsePage_UnsupportedPage" xml:space="preserve">
+    <value>Choose Music, Audiobooks, or Playlists to browse your library.</value>
+  </data>
+  <data name="ListenBrowsePage_PlaylistsYearSemantic" xml:space="preserve">
+    <value>Playlist update year</value>
+  </data>
+  <data name="PlaybackItemMenu_AddToPlaylist" xml:space="preserve">
+    <value>Add to playlist…</value>
+  </data>
+  <data name="CollectionEditorShell_PlaylistEditor" xml:space="preserve">
+    <value>Playlist editor</value>
+  </data>
+  <data name="CollectionEditorShell_EditPlaylist" xml:space="preserve">
+    <value>Edit Playlist</value>
+  </data>
+  <data name="CollectionEditorShell_PlaylistSubtitle" xml:space="preserve">
+    <value>Create a playlist, then choose manual or smart membership.</value>
+  </data>
+  <data name="CollectionEditorShell_CreatePlaylist" xml:space="preserve">
+    <value>Create Playlist</value>
+  </data>
+  <data name="CollectionEditorShell_SelectedPlaylistArtwork" xml:space="preserve">
+    <value>Selected playlist artwork</value>
+  </data>
+  <data name="CollectionEditorShell_CurrentPlaylistArtwork" xml:space="preserve">
+    <value>Current playlist artwork</value>
+  </data>
+  <data name="MediaBrowseShell_SearchPlaylists" xml:space="preserve">
+    <value>Search playlists...</value>
+  </data>
+  <data name="MediaBrowseShell_NoPlaylistsMessage" xml:space="preserve">
+    <value>Create a playlist or smart playlist to organize music for later.</value>
+  </data>
+  <data name="SettingsSaveBar_SaveChanges" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="SettingsSaveBar_Saving" xml:space="preserve">
+    <value>Saving…</value>
   </data>
 </root>

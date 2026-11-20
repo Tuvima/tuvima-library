@@ -61,8 +61,7 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
 
         var cut = Render<SequencePlacementPanel>(p => p
             .Add(c => c.Placement, Placement(DetailEntityType.Movie, movies))
-            .Add(c => c.DetailSurface, true)
-            .Add(c => c.ShowIdentity, false));
+            .Add(c => c.DetailSurface, true));
 
         Assert.Empty(cut.FindAll(".tl-series-detail__heading"));
         Assert.Single(cut.FindAll(".tl-series-detail__controls .tl-series-detail__jump--fit"));
@@ -86,7 +85,7 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AMoviePage_ShowsItsSeriesRowOpen_WithoutACollapseButton(bool otherMovieOwned)
+    public void AMoviePage_ShowsItsSeriesRowOpen_WithoutACollapseButtonOrHeadingText(bool otherMovieOwned)
     {
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton<IDetailsOverlayHistory>(new NoHistory());
@@ -119,7 +118,11 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
         var row = cut.Find("#detail-primary-module .app-collapsible-row");
         Assert.False(row.ClassList.Contains("is-collapsed"));
         Assert.Null(row.QuerySelector("button.app-collapsible-row__toggle"));
-        Assert.Equal("28 Days Later", row.QuerySelector(".app-collapsible-row__title")!.TextContent);
+        // No group name or count at the top of the page (issue 1172): the count sits under the list.
+        Assert.Null(row.QuerySelector(".app-collapsible-row__title"));
+        Assert.Null(row.QuerySelector(".app-collapsible-row__summary"));
+        Assert.Equal("28 Days Later", row.GetAttribute("aria-label"));
+        Assert.Contains("owned", cut.Find("#detail-primary-module .tl-detail-owned-line").TextContent);
     }
 
     [Fact]

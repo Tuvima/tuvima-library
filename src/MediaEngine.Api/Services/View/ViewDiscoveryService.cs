@@ -23,6 +23,10 @@ public sealed record ViewPeopleResult(
     ViewPeoplePageDto? Page = null,
     ResolvedViewScope? Scope = null);
 
+public sealed record ViewSuggestionsResult(
+    ViewAccessOutcome Outcome,
+    ViewSuggestionsDto? Page = null);
+
 public sealed record ViewAtlasResult(
     ViewAccessOutcome Outcome,
     ViewAtlasPageDto? Page = null,
@@ -135,6 +139,41 @@ public sealed class ViewDiscoveryService(
                 page.HasMore,
                 capability),
             decision.Scope);
+    }
+
+    /// <summary>Search-bar suggestions for the caller's authorized scope; the same scope rule as the timeline and People, so another person's photos are never read.</summary>
+    public async Task<ViewSuggestionsResult> GetSuggestionsAsync(
+        ViewScopeRequest scope,
+        string? prefix,
+        int limitPerKind,
+        CancellationToken ct = default)
+    {
+        if (limitPerKind is < 1 or > 20)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limitPerKind), "Suggestion limit must be between 1 and 20.");
+        }
+
+        var text = prefix?.Trim();
+        if (text is { Length: > 80 })
+        {
+            throw new ArgumentOutOfRangeException(nameof(prefix), "Suggestion text is too long.");
+        }
+
+        var decision = await AuthorizeAsync(scope, ct).ConfigureAwait(false);
+        if (!decision.IsAllowed || decision.Scope is null)
+        {
+            return new ViewSuggestionsResult(decision.Outcome);
+        }
+
+        var rows = repository.QuerySuggestions(new ViewSuggestionQuery(
+            decision.Scope.LibraryIds,
+            string.IsNullOrEmpty(text) ? null : text,
+            limitPerKind,
+            decision.Scope.Kind == ViewScopeKind.Shared,
+            await BlockedKindsAsync(ct).ConfigureAwait(false)), ct);
+        return new ViewSuggestionsResult(
+            ViewAccessOutcome.Allowed,
+            new ViewSuggestionsDto(rows.Select(row => new ViewSuggestionDto(row.Kind, row.Value, row.AssetCount)).ToList()));
     }
 
     public async Task<ViewAtlasResult> GetAtlasAsync(

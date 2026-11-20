@@ -132,7 +132,7 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
             DisplayPath = PathOf(relative),
             Directories = relative switch
             {
-                "" => [new() { Name = "Movies", RelativePath = "Movies" }, new() { Name = "TV", RelativePath = "TV" }],
+                "" => [new() { Name = "Movies", RelativePath = "Movies", ItemCount = 38 }, new() { Name = "TV", RelativePath = "TV", ItemCount = 1 }],
                 "Movies" => [new() { Name = "Action", RelativePath = Child("Action") }],
                 "media" => [new() { Name = "movies", RelativePath = Child("movies") }, new() { Name = "tv", RelativePath = Child("tv") }],
                 "media/movies" => [new() { Name = "2024", RelativePath = Child("2024") }],
@@ -464,12 +464,13 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFolderPickerHidesTheModifiedCellAndItsHeadingTogether()
+    public async Task TheFolderPickerShowsHowManyItemsAreInsideEachFolderInPlaceOfTheModifiedDate()
     {
         var host = await OpenPickerAsync();
 
-        Assert.Single(host.FindAll("th.is-wide-only"));
-        Assert.Equal(2, host.FindAll("td.is-wide-only").Count);
+        // The Items column is always shown (a phone too); the old Modified column is gone (issue 1155).
+        Assert.Empty(host.FindAll("th.is-wide-only"));
+        Assert.Equal(["38 items", "1 item"], host.FindAll(".app-browser-folder--folder .app-browser-folder__middle").Select(cell => cell.TextContent.Trim()).ToArray());
     }
 
     [Fact]

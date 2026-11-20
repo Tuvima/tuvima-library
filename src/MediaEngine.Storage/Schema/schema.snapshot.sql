@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0087 activity_run_interrupted).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0092 profile_pinned_playlists).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -90,7 +90,7 @@ CREATE TABLE activity_run_items (
     group_title   TEXT NOT NULL,
     group_work_id BLOB,                          -- the show or album a tile opens, when there is one
     created_at    TEXT NOT NULL
-);
+, size_bytes INTEGER NOT NULL DEFAULT 0);
 
 CREATE TABLE activity_runs (
     id               BLOB NOT NULL PRIMARY KEY,
@@ -2314,6 +2314,13 @@ CREATE TABLE profile_person_preferences (
     PRIMARY KEY (profile_id, person_id)
 );
 
+CREATE TABLE profile_pinned_playlists (
+    profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    collection_id BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    pinned_at     TEXT NOT NULL,
+    PRIMARY KEY (profile_id, collection_id)
+);
+
 CREATE TABLE "profile_reactions" (
     profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     entity_kind  TEXT NOT NULL CHECK(entity_kind IN ('Movie','TvShow','Book','Comic','Audiobook','Album','Song','Collection','Playlist')),
@@ -2369,7 +2376,7 @@ CREATE TABLE profile_view_preferences (
     viewer_info_open        INTEGER NOT NULL DEFAULT 1 CHECK (viewer_info_open IN (0, 1)),
     -- How the Documents list is ordered for this profile; NULL means the default order.
     documents_sort          TEXT CHECK (documents_sort IS NULL OR documents_sort IN ('added', 'document_date', 'title', 'correspondent')),
-    updated_at              TEXT NOT NULL, documents_pictures_to_photos INTEGER NOT NULL DEFAULT 0 CHECK (documents_pictures_to_photos IN (0, 1)),
+    updated_at              TEXT NOT NULL, documents_pictures_to_photos INTEGER NOT NULL DEFAULT 0 CHECK (documents_pictures_to_photos IN (0, 1)), built_in_map_only INTEGER NOT NULL DEFAULT 0 CHECK (built_in_map_only IN (0, 1)), read_words_in_photos INTEGER NOT NULL DEFAULT 0 CHECK (read_words_in_photos IN (0, 1)), recognize_people INTEGER NOT NULL DEFAULT 1 CHECK (recognize_people IN (0, 1)),
     CHECK ((last_scope_kind = 'profile' AND last_scope_profile_id IS NOT NULL)
         OR (last_scope_kind IS NULL OR last_scope_kind IN ('shared', 'mine'))
            AND last_scope_profile_id IS NULL)
@@ -3040,6 +3047,39 @@ CREATE TABLE view_duplicate_groups (
     UNIQUE (library_id, content_hash)
 );
 
+CREATE TABLE view_face_rejections (
+    face_id           BLOB NOT NULL REFERENCES view_faces(id) ON DELETE CASCADE,
+    person_id         BLOB NOT NULL REFERENCES view_people(id) ON DELETE CASCADE,
+    owner_profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    PRIMARY KEY (face_id, person_id)
+);
+
+CREATE TABLE view_face_scans (
+    item_id           BLOB NOT NULL PRIMARY KEY REFERENCES local_items(id) ON DELETE CASCADE,
+    owner_profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    scanned_at        TEXT NOT NULL,
+    face_count        INTEGER NOT NULL,
+    model             TEXT NOT NULL
+);
+
+CREATE TABLE view_faces (
+    id                BLOB NOT NULL PRIMARY KEY,
+    item_id           BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
+    owner_profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    person_id         BLOB REFERENCES view_people(id) ON DELETE SET NULL,
+    -- The face box as fractions of the photo (0 to 1), so it fits any size of the picture.
+    box_x             REAL NOT NULL,
+    box_y             REAL NOT NULL,
+    box_width         REAL NOT NULL,
+    box_height        REAL NOT NULL,
+    quality           REAL NOT NULL,
+    -- A short list of numbers (little-endian 32-bit floats) that describes how the face looks; two looks of one person are close.
+    embedding         BLOB NOT NULL,
+    -- 1 once a person said "yes, this is them".
+    confirmed         INTEGER NOT NULL DEFAULT 0 CHECK (confirmed IN (0, 1)),
+    created_at        TEXT NOT NULL
+);
+
 CREATE TABLE view_galleries (
     id                  BLOB NOT NULL PRIMARY KEY,
     owner_profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -3093,6 +3133,17 @@ CREATE TABLE view_intake_files (
     created_at          TEXT NOT NULL,             -- ISO 8601 UTC
     updated_at          TEXT NOT NULL,
     expires_at          TEXT                       -- a refused file is removed automatically after this time
+);
+
+CREATE TABLE view_people (
+    id                BLOB NOT NULL PRIMARY KEY,
+    owner_profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    -- NULL while the group is still unnamed ("Who's this?").
+    name              TEXT,
+    cover_face_id     BLOB,
+    hidden            INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1)),
+    created_at        TEXT NOT NULL,
+    updated_at        TEXT NOT NULL
 );
 
 CREATE TABLE view_personal_spaces (
@@ -3749,6 +3800,8 @@ CREATE INDEX idx_prc_provider ON provider_response_cache (provider_id);
 CREATE INDEX idx_profile_person_preferences_person
     ON profile_person_preferences(person_id, profile_id);
 
+CREATE INDEX idx_profile_pinned_playlists_collection ON profile_pinned_playlists(collection_id);
+
 CREATE INDEX idx_profile_reactions_recent
     ON profile_reactions(profile_id, reaction, updated_at DESC);
 
@@ -3838,6 +3891,16 @@ CREATE INDEX idx_vault_asset_performers_performer ON vault_asset_performers(perf
 CREATE INDEX idx_vault_asset_studios_studio ON vault_asset_studios(studio_id);
 
 CREATE INDEX idx_vault_asset_tags_tag ON vault_asset_tags(tag_id);
+
+CREATE INDEX idx_view_face_scans_owner ON view_face_scans(owner_profile_id);
+
+CREATE INDEX idx_view_faces_item ON view_faces(item_id);
+
+CREATE INDEX idx_view_faces_owner ON view_faces(owner_profile_id);
+
+CREATE INDEX idx_view_faces_person ON view_faces(person_id);
+
+CREATE INDEX idx_view_people_owner ON view_people(owner_profile_id);
 
 CREATE INDEX idx_view_shared_contribution_events_batch
     ON view_shared_contribution_events(contribution_id, occurred_at, id);

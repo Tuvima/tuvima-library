@@ -69,12 +69,12 @@ public sealed class SetupSessionService(
         }
     }
 
-    /// <summary>True when the setup session identified by <paramref name="token"/> was begun on this computer or the home network.</summary>
-    public bool BeganLocally(string? token) =>
+    /// <summary>True when the setup session identified by <paramref name="token"/> was begun on the computer that runs Tuvima.</summary>
+    public bool BeganOnThisComputer(string? token) =>
         !string.IsNullOrWhiteSpace(token)
         && _currentSessionHash is not null
         && string.Equals(_currentSessionHash, Convert.ToHexStringLower(Hash(token)), StringComparison.Ordinal)
-        && ClientIngress.IsLocal(_currentSessionIngress);
+        && ClientIngress.IsThisComputer(_currentSessionIngress);
 
     public async Task<bool> ValidateSessionAsync(string? token, CancellationToken ct)
     {

@@ -171,6 +171,7 @@ else
          role="row"
          id="@RowDomId(row)"
          data-song-row-id="@row.Id"
+         data-song-row-key="@RowKey(row)"
          data-song-ticked="@(_selected.Contains(row.Id) ? "true" : null)"
          data-listen-immediate-start="@(row.IsOwned ? "music" : null)"
          data-listen-start-url="@StartUrl(row)"
@@ -190,6 +191,11 @@ else
         }
         <span class="song-table__cell song-table__filler" aria-hidden="true"></span>
         <div class="song-table__cell song-table__cell--actions" role="cell" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+            @if (TouchGripShown)
+            {
+                @* A touch tablet drags a playlist's row by this grip (song-table.js); the row itself still scrolls the page. *@
+                @TouchGrip
+            }
             @if (row.IsOwned)
             {
                 @if (ShowHoverQueue)
@@ -198,7 +204,7 @@ else
                         <AppIconButton Icon="@AppMaterialIcons.Outlined.PlaylistAdd" ButtonStyle="AppButtonStyle.Text" Tooltip="@L["Common_AddToQueue"].Value" AriaLabel="@L["SongTable_AddTitleToQueue", row.Title].Value" OnClick="@(() => QueueAsync(row))" />
                     </span>
                 }
-                <AppOverflowMenu Size="AppControlSize.Normal" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
+                <AppOverflowMenu Size="AppControlSize.Normal" TriggerClass="app-row-menu__trigger" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
                     @RowMenu(row, false)
                 </AppOverflowMenu>
             }
@@ -208,6 +214,10 @@ else
             <span class="song-table__drop-line" aria-hidden="true"></span>
         }
     </div>;
+
+    // The grip a finger drags a playlist row by (spec listen-playlists WP5, issue 1201). It is a pointer-only affordance with no focus of its own: the
+    // keyboard has Alt+Arrow and the row's "..." menu has Move to top, Move up, Move down and Move to bottom.
+    private RenderFragment TouchGrip => @<span class="song-table__touch-grip" data-song-grip="true" aria-hidden="true" @onclick:stopPropagation="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppIconSize.Control20" /></span>;
 
     private RenderFragment DesktopCell(SongRow row, SongColumn column) => @<text>
         @switch (column)
@@ -388,11 +398,19 @@ else
                impossible move out; the desktop menu keeps both rows and greys the one that cannot go anywhere. *@
             @if (!sheet || RowIndex(row) > 0)
             {
+                <AppMenuItem Label="@L["Common_MoveToTop"].Value" Icon="@AppMaterialIcons.Outlined.ArrowUpward" Disabled="@(RowIndex(row) <= 0)" OnClick="@(() => MoveToEdgeAsync(row, true))" />
+            }
+            @if (!sheet || RowIndex(row) > 0)
+            {
                 <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Disabled="@(RowIndex(row) <= 0)" OnClick="@(() => MoveByAsync(row, -1))" />
             }
             @if (!sheet || RowIndex(row) < _shown.Count - 1)
             {
                 <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Disabled="@(RowIndex(row) >= _shown.Count - 1)" OnClick="@(() => MoveByAsync(row, 1))" />
+            }
+            @if (!sheet || RowIndex(row) < _shown.Count - 1)
+            {
+                <AppMenuItem Label="@L["Common_MoveToBottom"].Value" Icon="@AppMaterialIcons.Outlined.ArrowDownward" Disabled="@(RowIndex(row) >= _shown.Count - 1)" OnClick="@(() => MoveToEdgeAsync(row, false))" />
             }
         }
         @if (RemoveAllowed(row))
@@ -523,6 +541,10 @@ else
                 }
             </span>
         }
+        @if (TouchGripShown)
+        {
+            @TouchGrip
+        }
         @if (PhoneCovers)
         {
             <div class="@(row.IsUpdatingDetails ? "song-table__art song-table__art--phone is-updating" : "song-table__art song-table__art--phone")">
@@ -559,7 +581,7 @@ else
         @if (row.IsOwned && !SelectModeOn)
         {
             <span class="song-table__pmenu" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
-                <AppOverflowMenu Size="AppControlSize.Normal" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
+                <AppOverflowMenu Size="AppControlSize.Normal" TriggerClass="app-row-menu__trigger" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
                     @RowMenu(row, true)
                 </AppOverflowMenu>
             </span>

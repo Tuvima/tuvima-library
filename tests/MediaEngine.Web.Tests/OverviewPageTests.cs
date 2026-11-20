@@ -1,6 +1,7 @@
 using Bunit;
 using MediaEngine.Contracts.Activity;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Taste;
 using MediaEngine.Web.Components.Settings;
@@ -24,6 +25,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         new DateTimeOffset(2026, 3, 15, 12, 0, 0, TimeSpan.Zero), NavigationConfig: "{\"playlist_order\":[\"a\"]}");
 
     private ProfileOverviewViewModel? _overview = new();
+    private DisplayPageDto? _continue;
     private PersonalActivitySummaryDto? _summary = new(0, 0, 0, 0, 0, 0, 0, null);
     private TasteViewDto? _tasteView;
     private PersonalActivityRecentDto? _recent = new([]);
@@ -54,6 +56,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
     {
         stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel> { _profile }));
         stub.SetHandler(nameof(IEngineApiClient.GetProfileOverviewAsync), _ => Task.FromResult(_overview));
+        stub.SetHandler(nameof(IEngineApiClient.GetDisplayContinueAsync), _ => Task.FromResult(_continue));
         stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivityRecentAsync), _ => Task.FromResult(_recent));
         stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivitySummaryAsync), _ => Task.FromResult(_summary));
         stub.SetHandler(nameof(IEngineApiClient.GetPersonalTasteAsync), _ => Task.FromResult(_tasteView));
@@ -100,6 +103,20 @@ public sealed class OverviewPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-settings-overview]")));
         return cut;
     }
+
+    private static DisplayArtworkDto Art()
+    {
+        var fields = typeof(DisplayArtworkDto).GetProperties()
+            .Where(property => property.Name.EndsWith("Url", StringComparison.Ordinal))
+            .ToDictionary(property => property.Name, _ => "/art.jpg");
+        return System.Text.Json.JsonSerializer.Deserialize<DisplayArtworkDto>(System.Text.Json.JsonSerializer.Serialize(fields))!;
+    }
+
+    private static DisplayCardDto ContinueCard(string title) =>
+        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, "Movie", "work", title, null, [], Art(), "portrait", "default", "caption", "bottom",
+            new DisplayProgressDto(40, "40%", DateTimeOffset.UtcNow.AddMinutes(-5), null),
+            [], new(true, false, false, false), DateTimeOffset.UtcNow.AddDays(-30))
+        { ContinuationState = DisplayContinuationState.InProgress };
 
     [Fact]
     public void Header_ShowsTheAvatarNameAndWhenTheyJoined_WithEditProfileAndNoAppsLink()
@@ -201,37 +218,23 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ContinueEnjoying_ShowsTheNewestTitlePartWayThroughForEachOfReadingWatchingAndListening()
+    public void ContinueEnjoying_UsesTheSameContinueTilesAsTheContinuePages()
     {
-        _overview = new ProfileOverviewViewModel
-        {
-            ContinueItems =
-            [
-                Item("Old Show", "TV", 20, daysAgo: 5),
-                Item("Dune", "Book", 55, daysAgo: 1),
-                Item("New Show", "Movie", 30, daysAgo: 0),
-                Item("Dune (audio)", "Audiobook", 80, daysAgo: 2),
-            ],
-        };
+        _continue = new("page", "Page", null, null, [], [ContinueCard("Dune")]);
 
         var cut = RenderPage();
 
-        Assert.Equal(["Reading", "Watching", "Listening"], cut.FindAll("[data-overview-continue-kind]").Select(card => card.GetAttribute("data-overview-continue-kind")!).ToArray());
-        Assert.Equal("Dune", cut.Find("[data-overview-continue-kind='Reading'] .overview-continue__title").TextContent);
-        Assert.Equal("New Show", cut.Find("[data-overview-continue-kind='Watching'] .overview-continue__title").TextContent);
-        Assert.Equal("80%", cut.Find("[data-overview-continue-kind='Listening'] .overview-continue__percent").TextContent);
-        Assert.StartsWith("/watch/player/", cut.Find("[data-overview-continue-kind='Watching'] a").GetAttribute("href"), StringComparison.Ordinal);
+        Assert.NotEmpty(cut.FindAll("[data-overview-continue] .continue-tile"));
+        Assert.Empty(cut.FindAll("[data-overview-continue-empty]"));
+        Assert.Empty(cut.FindAll(".overview-continue__card"));
     }
 
     [Fact]
-    public void ContinueEnjoying_LeavesOutAKindWithNothingInProgress_AndSaysSoWhenThereIsNothing()
+    public void ContinueEnjoying_SaysSoWhenNothingIsPartWayThrough()
     {
-        _overview = new ProfileOverviewViewModel { ContinueItems = [Item("Dune", "Book", 55, daysAgo: 1)] };
-        var cut = RenderPage();
-        Assert.Equal(["Reading"], cut.FindAll("[data-overview-continue-kind]").Select(card => card.GetAttribute("data-overview-continue-kind")!).ToArray());
+        _continue = null;
 
-        _overview = new ProfileOverviewViewModel();
-        cut = RenderPage();
+        var cut = RenderPage();
 
         Assert.Empty(cut.FindAll("[data-overview-continue]"));
         Assert.NotEmpty(cut.FindAll("[data-overview-continue-empty]"));
@@ -490,6 +493,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel> { _profile }));
             stub.SetHandler(nameof(IEngineApiClient.GetProfileOverviewAsync), _ => Task.FromResult(_overview));
+            stub.SetHandler(nameof(IEngineApiClient.GetDisplayContinueAsync), _ => Task.FromResult(_continue));
             stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivityRecentAsync), _ => Task.FromResult(_recent));
             stub.SetHandler(nameof(IEngineApiClient.UpdateProfileAsync), _ => Task.FromResult(false));
         });

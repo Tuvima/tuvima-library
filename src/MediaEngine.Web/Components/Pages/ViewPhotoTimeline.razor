@@ -90,7 +90,7 @@
     private RenderFragment TileFace(LocalAssetDto item) => @<text>
         @if (Visual(item)) { <img src="@ThumbnailUrl(item)" alt="" width="@item.Width" height="@item.Height" loading="lazy" decoding="async" /> } else { <span class="view-tile__file-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><strong>@Title(item)</strong><small>@item.MimeType</small></span> }
         @if (IsLive(item)) { <span class="view-tile__motion"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MotionPhotosOn" /> Live</span> }
-        @if (IsVideo(item)) { <span class="view-tile__duration"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Videocam" />@(item.DurationSeconds is > 0 ? Duration(item.DurationSeconds.Value) : "Video")</span> }
+        @if (IsVideo(item)) { <span class="view-tile__duration"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Videocam" />@(item.DurationSeconds is > 0 ? Duration(item.DurationSeconds.Value) : L["ViewPhotoTimeline_Video"].Value)</span> }
     </text>;
 
     /// <summary>True while tiles select on a tap instead of opening the viewer. The page owns the mode and its Select button.</summary>

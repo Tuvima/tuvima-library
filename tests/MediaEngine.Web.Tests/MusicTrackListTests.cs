@@ -156,36 +156,19 @@ public sealed class MusicTrackListTests : AsyncBunitContext
     // -- Ticks and the page's bulk bar ---------------------------------------------------------------
 
     [Fact]
-    public async Task TickingARow_OnAPageThePersonMayEdit_AddsItWithItsAlbumToThePagesSelection_AndShowsTheBar()
+    public async Task OnAnAlbumPage_SongRowsCarryNoTickBoxes_WhetherOrNotThePersonMayEdit()
     {
         await UseDeviceAsync("desktop");
-        var binding = new EditorBinding(_device) { HasPermission = true, EntityId = Album };
-        var selection = new BulkEditSelection { MediaType = "Music" };
-        var cut = RenderList([Tracks(Track(1, "Airbag"), Track(2, "Paranoid Android"))], parameters => parameters
-            .AddCascadingValue(binding)
-            .AddCascadingValue(selection));
+        foreach (var mayEdit in new[] { true, false })
+        {
+            var binding = new EditorBinding(_device) { HasPermission = mayEdit, EntityId = Album };
+            var cut = RenderList([Tracks(Track(1, "Airbag"))], parameters => parameters
+                .AddCascadingValue(binding)
+                .AddCascadingValue(new BulkEditSelection { MediaType = "Music" }));
 
-        cut.Find(".song-table__row .song-table__cell--tick input").Change(true);
-
-        var row = Assert.Single(selection.Rows);
-        Assert.Equal("Airbag", row.Title);
-        Assert.Equal(Album, row.ParentId);
-        Assert.Equal("Music", row.MediaType);
-        Assert.Same(binding, Services.GetRequiredService<EditorHost>().Binding);
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-batch__bar")));
-        Assert.Contains("is-selected", cut.FindAll(".song-table__row")[0].ClassList);
-    }
-
-    [Fact]
-    public async Task OnAPageThePersonMayNotEdit_TickBoxesAreStillDrawn_ForPlayingQueuingAndPlaylists()
-    {
-        await UseDeviceAsync("desktop");
-        var binding = new EditorBinding(_device) { HasPermission = false, EntityId = Album };
-        var cut = RenderList([Tracks(Track(1, "Airbag"))], parameters => parameters
-            .AddCascadingValue(binding)
-            .AddCascadingValue(new BulkEditSelection { MediaType = "Music" }));
-
-        Assert.NotEmpty(cut.FindAll(".song-table__cell--tick"));
+            Assert.NotEmpty(cut.FindAll(".song-table__row"));
+            Assert.Empty(cut.FindAll(".song-table__cell--tick"));
+        }
     }
 
     // -- Phone ------------------------------------------------------------------------------------------

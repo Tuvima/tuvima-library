@@ -155,6 +155,28 @@ public sealed class CastReceiverRelayTests
     }
 
     [Fact]
+    public async Task AHomeOnlyLink_IsServedOnTheHomeNetwork_ButNeverWhenForwardedFromOutside()
+    {
+        var hits = 0;
+        await using var engine = await Host.StartEngineAsync(_ => Interlocked.Increment(ref hits));
+        await using var dashboard = await Host.StartDashboardAsync(engine.Address);
+
+        using var home = await dashboard.Client.GetAsync($"/cast/v1/lan-{Grant}/media");
+        using var outside = new HttpRequestMessage(HttpMethod.Get, $"/cast/v1/lan-{Grant}/media");
+        outside.Headers.Add("X-Forwarded-For", "203.0.113.9");
+        using var outsideResponse = await dashboard.Client.SendAsync(outside);
+
+        using var oldLink = new HttpRequestMessage(HttpMethod.Get, $"/cast/v1/{Grant}/media");
+        oldLink.Headers.Add("X-Forwarded-For", "203.0.113.9");
+        using var oldLinkResponse = await dashboard.Client.SendAsync(oldLink);
+
+        Assert.Equal(HttpStatusCode.OK, home.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, outsideResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, oldLinkResponse.StatusCode);
+        Assert.Equal(1, hits);
+    }
+
+    [Fact]
     public async Task TheRelaysHttpClientLogsNothingThatSpellsTheGrant()
     {
         var logs = new List<string>();
@@ -212,6 +234,7 @@ public sealed class CastReceiverRelayTests
             }
 
             builder.WebHost.UseUrls("http://127.0.0.1:0");
+            builder.Services.AddSingleton(new MediaEngine.Web.Services.Configuration.IngressClassifier(null, []));
             if (engine is not null)
             {
                 builder.Services.AddClientApiProxyClient(engine);

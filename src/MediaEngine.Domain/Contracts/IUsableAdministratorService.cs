@@ -5,8 +5,7 @@ namespace MediaEngine.Domain.Contracts;
 /// <summary>What remote access needs to know about administrator sign-in.</summary>
 public sealed record UsableAdministratorStatus(
     bool HasUsableAdministrator,
-    bool HasRecoveryCodes,
-    bool LocalhostBypassDisabled);
+    bool HasRecoveryCodes);
 
 /// <summary>
 /// What a change would take away from administrator sign-in, so it can be checked before it is made: a whole user

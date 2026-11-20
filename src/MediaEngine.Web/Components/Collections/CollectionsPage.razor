@@ -16,6 +16,8 @@
 @inject NavigationManager Nav
 @inject ILogger<CollectionsPage> Logger
 @implements IDisposable
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
 
 <BrowseShellStyles />
@@ -277,6 +279,8 @@
                         <PeopleCatalogList Items="@FilteredPeople" Presence="@_peoplePresence" />
                     }
 
+                    @* The next hundred people load by themselves as the end of the list comes near; the button stays as the fallback. *@
+                    <div @ref="_peopleSentinel" class="collections-people-sentinel" aria-hidden="true"></div>
                     @if (_peopleHasMore)
                     {
                         <div class="collections-load-more">
@@ -294,13 +298,10 @@
                     <div class="collections-shelf-lane-previews">
                         @foreach (var laneShelf in ShelfLanePreviews)
                         {
+                            @* A lane with nothing in it is not drawn at all (issue 1119). *@
                             @if (laneShelf.Items.Count > 0)
                             {
                                 <MediaTileShelf Shelf="@laneShelf" />
-                            }
-                            else
-                            {
-                                <EmptyShelfState Title="@laneShelf.Title" Message="@laneShelf.Subtitle" />
                             }
                         }
                     </div>
@@ -362,6 +363,33 @@
     private int _visibleTileCount = TilePageSize;
     private int _peopleOffset;
     private bool _peopleHasMore;
+    // How many people the Library holds in all (the Engine tells it when no search or filter is set), so the page can say
+    // "436 people" instead of "100+" while the rest load as you scroll. Null while a filter makes the total unknown.
+    private int? _peopleTotal;
+    private ElementReference _peopleSentinel;
+    private GridLoadMoreObserver<CollectionsPage>? _peopleObserver;
+
+    private string PeopleCountText(int shown) =>
+        _peopleTotal is { } total && total >= shown
+            ? total.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)
+            : $"{shown}{(_peopleHasMore ? "+" : string.Empty)}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_activeSection != CollectionsSectionConfiguration.People)
+            return;
+
+        // Watching only while there is more to load; a render after each page asks again if the end is still near.
+        _peopleObserver ??= new GridLoadMoreObserver<CollectionsPage>(JS, Logger, this);
+        await _peopleObserver.SyncAsync(_peopleSentinel, _peopleHasMore && !_loadingMorePeople && _peopleReady);
+    }
+
+    [JSInvokable]
+    public Task LoadMoreFromObserverAsync() => InvokeAsync(async () =>
+    {
+        await LoadMorePeopleAsync();
+        StateHasChanged();
+    });
     private bool _loading = true;
     private bool _loadingMorePeople;
     private bool _loaded;
@@ -392,7 +420,7 @@
             _shelves.Count,
             _people.Count == 0
                 ? null
-                : $"{_people.Count}{(_peopleHasMore ? "+" : string.Empty)}");
+                : PeopleCountText(_people.Count));
 
     private IReadOnlyList<CollectionManagementCatalogViewModel> AutomaticCollections =>
         _collections
@@ -611,7 +639,7 @@
     };
 
     private string ResultCountLabel => _activeSection == CollectionsSectionConfiguration.People
-        ? $"{FilteredPeople.Count}{(_peopleHasMore ? "+" : string.Empty)} people"
+        ? $"{PeopleCountText(FilteredPeople.Count)} people"
         : $"{ActiveTiles.Count} {(_activeSection == CollectionsSectionConfiguration.Shelves ? "shelves" : "collections")}";
 
     private string EmptyTitle => _activeSection switch
@@ -704,6 +732,12 @@
     // Titles deleted from the library leave the shelves, hand-picked collections and universes shown here.
     private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent ev) =>
         _ = InvokeAsync(() => _loaded && !_pageCts.IsCancellationRequested ? ReloadAsync() : Task.CompletedTask);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_peopleObserver is not null)
+            await _peopleObserver.DisposeAsync();
+    }
 
     public void Dispose()
     {
@@ -830,6 +864,7 @@
 
         _people.Clear();
         _peopleOffset = 0;
+        _peopleTotal = null;
         await AppendPeoplePageAsync(peopleTask.Result ?? EmptyPeoplePage(), ct);
         _loadedPeopleQueryKey = CurrentPeopleQueryKey;
         _peopleReady = true;
@@ -866,6 +901,7 @@
     private async Task AppendPeoplePageAsync(PagedResponse<PersonListItemResponse> page, CancellationToken ct = default)
     {
         _peopleHasMore = page.HasMore;
+        _peopleTotal = page.TotalCount ?? _peopleTotal;
         _peopleOffset = page.Offset + page.Items.Count;
 
         var presence = await ApiClient.GetPersonPresenceAsync(page.Items.Select(person => person.id), ct);
@@ -1111,6 +1147,7 @@
             _people.Clear();
             _peoplePresence.Clear();
             _peopleOffset = 0;
+            _peopleTotal = null;
             var page = await ApiClient.GetPersonsPageAsync(
                 search: NullIfBlank(_searchText),
                 role: _role == "all" ? null : _role,

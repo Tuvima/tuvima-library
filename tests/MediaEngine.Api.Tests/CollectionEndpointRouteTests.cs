@@ -271,8 +271,9 @@ public sealed class CollectionEndpointRouteTests
         Assert.Contains("WHEN w.work_kind = 'child' THEN COALESCE(gp.id, p.id, w.id)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("parent_by_key.parent_key = LOWER(TRIM(CAST(show_name.value AS TEXT)))", source, StringComparison.Ordinal);
         Assert.DoesNotContain("parent_value.key IN ('show_name', 'title')", source, StringComparison.Ordinal);
-        Assert.Contains("catalogReadService.ResolveMembershipWorkIdAsync(body.WorkId, ct)", source, StringComparison.Ordinal);
-        Assert.Contains("existingDisplayWorkIds.Contains(collectionWorkId)", source, StringComparison.Ordinal);
+        Assert.Contains("catalogReadService.ResolveMembershipWorkIdAsync(requestedWorkId, ct)", source, StringComparison.Ordinal);
+        // The duplicate check runs in SQL over the whole collection (no 1,000-item read cap).
+        Assert.Contains("playlistRepo.AddWorksAsync(id, collectionWorkIds, ct)", source, StringComparison.Ordinal);
         Assert.Contains("GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct, ownedWorkIds)", source, StringComparison.Ordinal);
         Assert.Contains("GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id)", source, StringComparison.Ordinal);
         Assert.Contains("IsGeneratedTvShowContainer", source, StringComparison.Ordinal);

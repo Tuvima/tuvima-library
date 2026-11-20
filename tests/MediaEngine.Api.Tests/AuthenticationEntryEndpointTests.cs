@@ -234,7 +234,7 @@ public sealed class AuthenticationEntryEndpointTests
         public Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default) => throw NotSupported();
         public Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default) => throw NotSupported();
         public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => throw NotSupported();
-        public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default) => throw NotSupported();
+        public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default, string? currentIngress = null) => throw NotSupported();
         public Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default) => throw NotSupported();
 
         private static NotSupportedException NotSupported() => new();

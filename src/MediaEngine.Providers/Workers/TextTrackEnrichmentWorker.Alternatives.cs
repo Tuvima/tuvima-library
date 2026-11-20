@@ -29,7 +29,8 @@ public sealed record TextTrackAlternative(
 /// <c>Unavailable</c> (a source could not be reached) or <c>AssetMissing</c> / <c>Unsupported</c>. For subtitles it can also be
 /// <c>IdentityUnverified</c> (the movie or episode cannot be identified for an online search), <c>SourceKeyRequired</c> (a source is
 /// switched on but its key is missing or was refused), <c>LimitReached</c> (a source's allowance or rate limit is used up) or
-/// <c>LanguageUnknown</c> (the language asked for cannot be searched).
+/// <c>LanguageUnknown</c> (the language asked for cannot be searched). For a search by typed words it can also be
+/// <c>TextSearchUnsupported</c> (no source that is switched on can be searched by words).
 /// </param>
 /// <param name="SourceName">The display name of the source the status is about, when there is one.</param>
 /// <param name="Language">The language code that was searched, for subtitles.</param>
@@ -54,9 +55,13 @@ public sealed partial class TextTrackEnrichmentWorker
         TextTrackKind kind,
         PluginAudience? requester,
         CancellationToken ct = default,
-        string? language = null)
+        string? language = null,
+        string? query = null)
     {
-        var session = await OpenSessionAsync(assetId, kind, requester, language, ct).ConfigureAwait(false);
+        query = NormalizeSearchText(query);
+        // One fixed line per search, with no typed text in it, so the log shows whether the words reached the Engine.
+        _logger.LogInformation("Find another {Kind} for asset {AssetId}: searching by typed words: {ByWords}", kind, assetId, query is not null);
+        var session = await OpenSessionAsync(assetId, kind, requester, language, query, ct).ConfigureAwait(false);
         if (session.Failure is not null)
         {
             return session.Failure;
@@ -64,10 +69,26 @@ public sealed partial class TextTrackEnrichmentWorker
 
         string? searchLanguage = null;
         var providers = session.Providers;
+        if (query is not null)
+        {
+            // Words a person typed go only to sources that can be searched by words; the rest are left out and, when none is left, named.
+            var byText = providers.Where(provider => provider.SupportsSearchText(session.MediaType)).ToList();
+            if (byText.Count == 0)
+            {
+                var names = string.Join(" and ", providers.Select(provider => provider.DisplayName));
+                return new("TextSearchUnsupported", [],
+                    $"{names} can only find {kind.ToString().ToLowerInvariant()} for the item itself, not by words you type.",
+                    providers.FirstOrDefault()?.DisplayName);
+            }
+
+            providers = byText;
+        }
+
         if (kind == TextTrackKind.Subtitles)
         {
-            // The movie or episode must be identified before an online search can say anything (same rule as the refresh).
-            if (SubtitleIdentityMissing(session.Lookup!, session.MediaType))
+            // The movie or episode must be identified before an online search can say anything (same rule as the refresh);
+            // words a person typed name what to look for, so they need no identity.
+            if (query is null && SubtitleIdentityMissing(session.Lookup!, session.MediaType))
             {
                 return new("IdentityUnverified", [], "The movie or episode identity could not be verified for an online subtitle search.");
             }
@@ -195,9 +216,11 @@ public sealed partial class TextTrackEnrichmentWorker
         string sourceId,
         PluginAudience? requester,
         CancellationToken ct = default,
-        string? language = null)
+        string? language = null,
+        string? query = null)
     {
-        var session = await OpenSessionAsync(assetId, kind, requester, language, ct).ConfigureAwait(false);
+        // The same words the list was searched with, so the same result is found again.
+        var session = await OpenSessionAsync(assetId, kind, requester, language, NormalizeSearchText(query), ct).ConfigureAwait(false);
         if (session.Failure is not null)
         {
             return new(session.Failure.Status, kind, 0, 0, null, session.Failure.Message);
@@ -383,8 +406,10 @@ public sealed partial class TextTrackEnrichmentWorker
     /// <summary>
     /// Works out which sources may be asked for this item and by this person, with the same rules as an ordinary lookup, and builds the lookup.
     /// <paramref name="language"/> (a name or a code) replaces the title's own language for a subtitle search.
+    /// <paramref name="query"/>, when there is one, is the words a person typed to search by instead of the item's own details.
     /// </summary>
-    private async Task<Session> OpenSessionAsync(Guid assetId, TextTrackKind kind, PluginAudience? requester, string? language, CancellationToken ct)
+    private async Task<Session> OpenSessionAsync(
+        Guid assetId, TextTrackKind kind, PluginAudience? requester, string? language, string? query, CancellationToken ct)
     {
         var session = await CheckSourcesAsync(assetId, kind, requester, ct).ConfigureAwait(false);
         if (session.Failure is not null)
@@ -398,8 +423,11 @@ public sealed partial class TextTrackEnrichmentWorker
             lookup = lookup with { Language = language.Trim() };
         }
 
-        return session with { Lookup = lookup };
+        return session with { Lookup = lookup with { SearchText = query, Interactive = true } };
     }
+
+    /// <summary>The words a person typed to search by, trimmed; <c>null</c> when there are none.</summary>
+    private static string? NormalizeSearchText(string? query) => string.IsNullOrWhiteSpace(query) ? null : query.Trim();
 
     /// <summary>The checks of <see cref="OpenSessionAsync"/> that need no lookup of the title and contact no source.</summary>
     private async Task<Session> CheckSourcesAsync(Guid assetId, TextTrackKind kind, PluginAudience? requester, CancellationToken ct)

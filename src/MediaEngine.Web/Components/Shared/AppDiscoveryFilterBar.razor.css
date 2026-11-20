@@ -14,3 +14,4 @@
 .app-discovery-filter__advanced ::deep .app-discovery-filter__clear{align-self:end;min-height:2.6rem;padding:.45rem .8rem;color:var(--tl-accent-primary-hover);border:1px solid color-mix(in srgb, var(--tl-accent-primary-hover) 30%, transparent);border-radius:.5rem;background:transparent;cursor:pointer}
 @media(max-width:1050px){.app-discovery-filter{grid-template-columns:minmax(0,1fr)}.app-discovery-filter__controls{justify-content:flex-end;min-width:0}.app-discovery-filter__tabs{flex:1;min-width:0}.app-discovery-filter__advanced{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:640px){.app-discovery-filter__controls{flex-direction:column}.app-discovery-filter__tabs{width:100%;overflow-x:auto}.app-discovery-filter__advanced{grid-template-columns:1fr 1fr}::deep .app-discovery-filter__more{min-height:2.9rem}}
+.app-discovery-filter__search--custom{position:relative;height:auto;min-height:3.75rem;flex-wrap:wrap;padding-block:.35rem}

@@ -1015,6 +1015,9 @@ public sealed class DisplayCardBuilder
         return $"{count} {noun}";
     }
 
+    /// <summary>The most member covers a group card carries: the Dashboard's wide group tile draws up to six (issue 1175).</summary>
+    internal const int GroupPreviewItemLimit = 6;
+
     private static IReadOnlyList<DisplayCardPreviewItemDto> BuildSeriesPreviewItems(
         string mediaKind,
         IReadOnlyList<DisplayWorkRow> works,
@@ -1047,7 +1050,7 @@ public sealed class DisplayCardBuilder
             .ThenBy(item => item.Work.CreatedAt)
             .ToList();
 
-        if (orderedItems.Count <= 4)
+        if (orderedItems.Count <= GroupPreviewItemLimit)
         {
             return ToPreviewItems(orderedItems, mediaKind, collectionId, tvShowRootId);
         }
@@ -1057,7 +1060,7 @@ public sealed class DisplayCardBuilder
         // request progress-biased representatives explicitly below.
         if (progressByWork is null)
         {
-            return ToPreviewItems(orderedItems.Take(4).ToList(), mediaKind, collectionId, tvShowRootId);
+            return ToPreviewItems(orderedItems.Take(GroupPreviewItemLimit).ToList(), mediaKind, collectionId, tvShowRootId);
         }
 
         var representativeWorkIds = new List<Guid>();
@@ -1110,7 +1113,7 @@ public sealed class DisplayCardBuilder
 
         var representativeItems = representativeWorkIds
             .Distinct()
-            .Take(4)
+            .Take(GroupPreviewItemLimit)
             .Select(workId => orderedItems.First(item => item.Work.WorkId == workId))
             .ToList();
         if (!hasProgressHistory)

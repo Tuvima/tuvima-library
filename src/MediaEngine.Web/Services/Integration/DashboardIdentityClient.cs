@@ -137,13 +137,16 @@ public sealed partial class DashboardIdentityClient(
     private HttpRequestMessage? ThisComputerRequest(HttpMethod method)
     {
         var context = contextAccessor?.HttpContext;
-        if (context is null || IngressClassifierExtensions.FromWireValue(CurrentIngress(context)) == IngressKind.Remote)
+        // The computer that runs Tuvima and devices on the home network; anything else (Remote) signs in with a password.
+        // The address alone decides whether to ask; a forwarded visitor is still asked, flagged, so the Engine refuses it.
+        var place = context is not null && ingress is not null ? ingress.Classify(context).ToWireValue() : ClientIngressValues.Remote;
+        if (context is null || IngressClassifierExtensions.FromWireValue(place) is not (IngressKind.ThisComputer or IngressKind.HomeNetwork))
         {
             return null;
         }
 
         var request = new HttpRequestMessage(method, "/auth/this-computer");
-        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, CurrentIngress(context));
+        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, place);
         if (context.WasForwarded())
         {
             request.Headers.TryAddWithoutValidation(ClientIngressValues.ForwardedHeader, "true");
@@ -885,7 +888,7 @@ public sealed partial class DashboardIdentityClient(
 
     // No classifier or no request means the caller cannot be placed, so it is treated as remote (fail closed).
     private string CurrentIngress(HttpContext? context) =>
-        context is not null && ingress is not null
+        context is not null && ingress is not null && !context.WasForwarded()
             ? ingress.Classify(context).ToWireValue()
             : ClientIngressValues.Remote;
 

@@ -91,7 +91,7 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
                    last_scope_profile_id AS LastScopeProfileId,
                    timeline_density AS TimelineDensity, viewer_info_open AS ViewerInfoOpen,
                    documents_sort AS DocumentsSort,
-                   documents_pictures_to_photos AS DocumentsPicturesToPhotos, updated_at AS UpdatedAt
+                   documents_pictures_to_photos AS DocumentsPicturesToPhotos, built_in_map_only AS BuiltInMapOnly, read_words_in_photos AS ReadWordsInPhotos, recognize_people AS RecognizePeople, updated_at AS UpdatedAt
               FROM profile_view_preferences
              WHERE profile_id = @profileId;
             """, new { profileId }, cancellationToken: ct));
@@ -192,6 +192,72 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         }, ct);
     }
 
+    public Task<bool> SaveBuiltInMapOnlyAsync(Guid profileId, bool builtInOnly, CancellationToken ct = default)
+    {
+        ValidateId(profileId, nameof(profileId));
+        return database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (!ProfileExists(connection, transaction, profileId, token))
+            {
+                return false;
+            }
+
+            connection.Execute(new CommandDefinition("""
+                INSERT INTO profile_view_preferences (profile_id, built_in_map_only, updated_at)
+                VALUES (@profileId, @value, @now)
+                ON CONFLICT(profile_id) DO UPDATE SET
+                    built_in_map_only = excluded.built_in_map_only,
+                    updated_at = excluded.updated_at;
+                """, new { profileId, value = builtInOnly ? 1 : 0, now = DateTimeOffset.UtcNow }, transaction, cancellationToken: token));
+            return true;
+        }, ct);
+    }
+
+    public Task<bool> SaveReadWordsInPhotosAsync(Guid profileId, bool readWords, CancellationToken ct = default)
+    {
+        ValidateId(profileId, nameof(profileId));
+        return database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (!ProfileExists(connection, transaction, profileId, token))
+            {
+                return false;
+            }
+
+            connection.Execute(new CommandDefinition("""
+                INSERT INTO profile_view_preferences (profile_id, read_words_in_photos, updated_at)
+                VALUES (@profileId, @value, @now)
+                ON CONFLICT(profile_id) DO UPDATE SET
+                    read_words_in_photos = excluded.read_words_in_photos,
+                    updated_at = excluded.updated_at;
+                """, new { profileId, value = readWords ? 1 : 0, now = DateTimeOffset.UtcNow }, transaction, cancellationToken: token));
+            return true;
+        }, ct);
+    }
+
+    public Task<bool> SaveRecognizePeopleAsync(Guid profileId, bool recognize, CancellationToken ct = default)
+    {
+        ValidateId(profileId, nameof(profileId));
+        return database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (!ProfileExists(connection, transaction, profileId, token))
+            {
+                return false;
+            }
+
+            connection.Execute(new CommandDefinition("""
+                INSERT INTO profile_view_preferences (profile_id, recognize_people, updated_at)
+                VALUES (@profileId, @value, @now)
+                ON CONFLICT(profile_id) DO UPDATE SET
+                    recognize_people = excluded.recognize_people,
+                    updated_at = excluded.updated_at;
+                """, new { profileId, value = recognize ? 1 : 0, now = DateTimeOffset.UtcNow }, transaction, cancellationToken: token));
+            return true;
+        }, ct);
+    }
+
     private static bool ProfileExists(
         System.Data.IDbConnection connection,
         System.Data.IDbTransaction transaction,
@@ -215,7 +281,10 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         ParseDate(row.UpdatedAt),
         row.ViewerInfoOpen != 0,
         row.DocumentsSort,
-        row.DocumentsPicturesToPhotos != 0);
+        row.DocumentsPicturesToPhotos != 0,
+        row.BuiltInMapOnly != 0,
+        row.ReadWordsInPhotos != 0,
+        row.RecognizePeople != 0);
 
     private static string ToStorage(ViewScopeKind value) => value switch
     {
@@ -288,6 +357,9 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         public long ViewerInfoOpen { get; init; } = 1;
         public string? DocumentsSort { get; init; }
         public long DocumentsPicturesToPhotos { get; init; }
+        public long BuiltInMapOnly { get; init; }
+        public long ReadWordsInPhotos { get; init; }
+        public long RecognizePeople { get; init; } = 1;
         public string? UpdatedAt { get; init; }
     }
 }

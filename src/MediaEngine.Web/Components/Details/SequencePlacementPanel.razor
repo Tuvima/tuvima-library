@@ -71,35 +71,16 @@
                     }
             </div>
 
-        @* Under a shared row heading (no identity line), a Series' Jump to sits in this controls row, as a season's does. *@
-        @if ((IsSeasonContainer || !ShowIdentity) && ShowJumpSelector)
+        @* Jump to sits in this controls row for every page with a dropdown (issue 1165, 1172); the owned count is under the list, never here. *@
+        @if (ShowJumpSelector)
         {
             @JumpPicker
         }
 
-        @* The owned-items bar and Show missing sit at the right end, level with the dropdowns (spec details-page-bottom D10, D12). *@
+        @* Show missing sits at the right end, level with the dropdowns (spec details-page-bottom D12). *@
         @if (ShowUtilities)
         {
         <div class="tl-series-detail__utilities">
-            @if (TotalItems > 0 && !OwnedLineBelow)
-            {
-                <div class="tl-series-detail__ownership" aria-label="@OwnershipSummaryLabel">
-                    @if (ShowCoverageBar)
-                    {
-                        <span class="tl-series-detail__ownership-progress"
-                              role="progressbar"
-                              aria-label="@OwnershipSummaryLabel"
-                              aria-valuemin="0"
-                              aria-valuemax="@TotalItems"
-                              aria-valuenow="@OwnedCount">
-                            <AppCssElement Tag="span"
-                                           Class="tl-series-detail__ownership-progress-fill"
-                                           Css="@OwnershipProgressStyle" />
-                        </span>
-                    }
-                    <span class="tl-series-detail__ownership-text">@OwnershipText</span>
-                </div>
-            }
             @if (CanShowMissingToggle)
             {
                 @* One plain check mark; a Series always starts unticked and the tick is kept per profile and Series. *@
@@ -120,23 +101,6 @@
             <AppAlert Severity="@_preferenceNoticeSeverity" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _preferenceNotice = null)" data-missing-preference-notice="true">@_preferenceNotice</AppAlert>
         }
     </header>
-    }
-
-    @if (!IsSeasonContainer && ShowIdentity)
-    {
-    <div class="tl-series-detail__heading">
-        <div class="tl-series-detail__identity">
-            <AppMaterialIcon Icon="@ContainerIcon" Size="AppIconSize.Control20" />
-            <div>
-                <span>@ContainerTitleDisplay</span>
-                <small>@Placement.ItemPluralLabel · @OwnedSummary</small>
-            </div>
-        </div>
-        @if (ShowJumpSelector)
-        {
-            @JumpPicker
-        }
-    </div>
     }
 
     <div class="tl-series-detail__carousel">
@@ -199,13 +163,10 @@
                        OnClick="PageRight" />
     </div>
 
-    @if (OwnedLineBelow && TotalItems > 0)
+    @if (TotalItems > 0)
     {
-        @* An episode row has no heading line: "N episodes owned" sits on its own line under the tiles, with the collection tile icon (spec details-and-tile-fixes D9). *@
-        <p class="tl-series-detail__owned-line" aria-label="@OwnershipSummaryLabel">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" aria-hidden="true" />
-            <span>@OwnedSummary</span>
-        </p>
+        @* No heading line on any page: "N episodes owned" sits on its own line under the tiles, with the collection tile icon (spec details-and-tile-fixes D9, issue 1172). *@
+        <DetailOwnedLine Text="@OwnedLineText" />
     }
 
     @if (AlsoItems.Count > 0)
@@ -464,7 +425,7 @@ else
                 {
                     <div class="sequence-episode-tile @(item.IsCurrent ? "is-current" : null) @(_sameFileHighlight.Contains(item.Id) ? "is-same-file-highlight" : null)" aria-current="@(item.IsCurrent ? "page" : null)">
                         <MediaTile Item="@SequenceEpisodeTileAdapter.FromItem(item, Placement.StandInBackdropUrl)" ShowEpisodeText="true" />
-                        <SameFileChip Links="item.CoveredWith"
+                        <SameFileChip Links="ChipLinks(item)"
                                       CanHighlight="@HasVisibleSibling(item)"
                                       IsHighlighting="@IsHighlightingSiblings(item)"
                                       OnHighlight="@(() => ToggleSameFileHighlight(item))" />
@@ -554,12 +515,6 @@ else
     [Parameter] public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
 
     private IReadOnlyList<DetailExtraCardViewModel> ChipsFor(SequenceItemViewModel item) => ExtrasRowRules.FilesFor(Extras, item);
-
-    /// <summary>False when a shared row heading above already names the Series and its count (the details page row).</summary>
-    [Parameter] public bool ShowIdentity { get; set; } = true;
-
-    /// <summary>An episode row (spec details-and-tile-fixes D9): "N episodes owned" moves to its own line under the tiles and Jump to sits at the right edge, level with the season dropdown.</summary>
-    [Parameter] public bool OwnedLineBelow { get; set; }
 
     private const int LongSequenceThreshold = 6;
     private const int PortraitWindowSize = 6;
@@ -674,18 +629,8 @@ else
         .Select(group => new AppSelectOption(group.Key, GroupOptionLabel(group)))
         .ToList();
 
-    // A season reads "Season 2 · 13 episodes" so the list says what each choice holds; a folder of videos reads "Week 1 · 12 videos",
-    // as the editor's Section dropdown does (spec details-page-bottom D13). The current choice is ticked by the dropdown itself.
-    private string GroupOptionLabel(SequenceGroupViewModel group)
-    {
-        var count = group.ItemCount > 0 ? group.ItemCount : group.Items.Count;
-        if (IsVideoFolder)
-            return VideoFolderWording.SectionOptionLabel(group.Title, count);
-
-        return IsSeasonContainer && count > 0
-            ? $"{group.Title} · {count} {(count == 1 ? Placement.ItemLabel.ToLowerInvariant() : Placement.ItemPluralLabel.ToLowerInvariant())}"
-            : group.Title;
-    }
+    // The dropdown names the choice only (a season or a folder); the count sits once under the list (issue 1105).
+    private string GroupOptionLabel(SequenceGroupViewModel group) => group.Title;
 
     private string? SelectedGroupKey
     {
@@ -776,16 +721,21 @@ else
         .Select((item, index) => $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}")
         .Select((label, index) => new AppSelectOption(index.ToString(CultureInfo.InvariantCulture), label, Title: label))
         .ToList();
+    // An entry for one file that covers two episodes ("E19-20: A + B") stands for both: episodes count every episode a file covers.
     private int OwnedCount => IsWindowedGroup && ActiveGroup is { } windowedGroup
         ? windowedGroup.OwnedCount
-        : GroupItems.Count(item => item.IsOwned);
+        : GroupItems.Where(item => item.IsOwned).Sum(item => Math.Max(1, item.EpisodeCount));
+    private int GroupEpisodeCount => GroupItems.Sum(item => Math.Max(1, item.EpisodeCount));
+    // Files count physical files; shown only when a file covers more than one episode ("20 episodes owned · 19 files").
+    private int OwnedFileCount => IsWindowedGroup && ActiveGroup is { FileCount: > 0 } group ? group.FileCount : GroupItems.Count(item => item.IsOwned);
+    // A merged entry already says which episodes it holds, so it carries no "Same file as ..." chip of its own.
+    private static IReadOnlyList<SequenceCoverageLinkViewModel> ChipLinks(SequenceItemViewModel item) => item.EpisodeCount > 1 ? [] : item.CoveredWith;
     private int MissingCount => Math.Max(0, TotalItems - OwnedCount);
     private bool IsComicSequence => Placement.CurrentItem.EntityType is DetailEntityType.ComicIssue or DetailEntityType.ComicSeries;
     private bool ShowCoverageDonut => !IsComicSequence && Placement.HasAuthoritativeTotal && TotalItems > 0;
-    private bool ShowCoverageBar => Placement.HasAuthoritativeTotal && TotalItems > 0;
     private int TotalItems => ShowGroupSelector
-        ? Math.Max(GroupItems.Count, ActiveGroup?.TotalKnownItems ?? GroupItems.Count)
-        : Math.Max(GroupItems.Count, Placement.TotalKnownItems ?? GroupItems.Count);
+        ? Math.Max(GroupEpisodeCount, ActiveGroup?.TotalKnownItems ?? GroupEpisodeCount)
+        : Math.Max(GroupEpisodeCount, Placement.TotalKnownItems ?? GroupEpisodeCount);
     private bool HasCurrentPosition => StringHelpers.FirstNonBlank(
         Placement.PositionText,
         Placement.CurrentItem.PositionText,
@@ -839,12 +789,12 @@ else
     private IReadOnlyList<AppSelectOption> ContainerSelectOptions => DistinctAvailableContainers
         .Select(option => new AppSelectOption(option.ContainerId, option.ContainerTitle))
         .ToList();
-    private bool ShowUtilities => CanShowMissingToggle || (TotalItems > 0 && !OwnedLineBelow);
-    private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle || (TotalItems > 0 && !OwnedLineBelow)
-        || (!IsSeasonContainer && !ShowIdentity && ShowJumpSelector);
+    private bool ShowUtilities => CanShowMissingToggle;
+    private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle || ShowJumpSelector;
 
+    // Jump to is the last item in the controls row, at its right edge, level with the dropdowns on the left.
     private string JumpClass => (IsSeasonContainer ? "tl-series-detail__jump" : "tl-series-detail__jump tl-series-detail__jump--fit")
-        + (OwnedLineBelow ? " tl-series-detail__jump--end" : string.Empty);
+        + " tl-series-detail__jump--end";
 
     // A season's Jump to sizes to the chosen episode; a Series' sizes to its longest entry, so entries never wrap.
     private RenderFragment JumpPicker => __builder =>
@@ -873,14 +823,16 @@ else
         : IsComicSequence && HasCurrentPosition
             ? ItemNoun.ToLowerInvariant()
             : "owned";
-    private string OwnedSummary => $"{OwnedCount} {(OwnedCount == 1 ? ItemNoun : Placement.ItemPluralLabel).ToLowerInvariant()} owned";
-    // "13 of 13 owned" beside the bar; without an authoritative total the plain owned count stands alone.
-    private string OwnershipText => ShowCoverageBar ? $"{OwnedCount} of {TotalItems} owned" : OwnedSummary;
-    private string OwnershipSummaryLabel => ShowCoverageBar
-        ? $"{OwnedSummary}; {MissingCount} missing; {TotalItems} total"
-        : OwnedSummary;
-    private string OwnershipProgressStyle
-        => $"--series-owned-ratio:{Math.Clamp(OwnedCount * 100d / Math.Max(1, TotalItems), 0d, 100d).ToString("0.###", CultureInfo.InvariantCulture)}%;";
+    // A season or folder says what it holds, and how many files when one file covers several episodes ("20 episodes owned · 19 files").
+    private string OwnedSummary => OwnedCountText(OwnedCount)
+        + (OwnedFileCount > 0 && OwnedFileCount < OwnedCount ? $" · {DisplayFormat.FormatCountNoun(OwnedFileCount, "file")}" : string.Empty);
+
+    // The one line under the list. A season or folder dropdown counts what the chosen season or folder holds; a Series counts every
+    // owned title it lists, "Also in this world" included (issue 1191), so the line agrees with the tile and the menu.
+    private string OwnedLineText => IsSeasonContainer ? OwnedSummary : OwnedCountText(SeriesOwnedCount.Of(Placement));
+
+    private string OwnedCountText(int count)
+        => $"{DisplayFormat.FormatCountNoun(count, ItemNoun.ToLowerInvariant(), Placement.ItemPluralLabel.ToLowerInvariant())} owned";
 
     private List<AppChartSeries<double>> SequenceDonutSeries =>
     [

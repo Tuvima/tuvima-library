@@ -55,12 +55,14 @@ function harness() {
         },
     };
     runInNewContext([
+        block("    function streamOffsetOf(", "    // Seconds of the stream the Engine has ready"),
         block("    function samePlaybackUrl(", "    function audioAssetId"),
         block("    function audioAssetId(", "    function audioRequestVersionMatches"),
         block("    function audioRequestVersionMatches(", "    function audioSourceMatches"),
         block("    function audioSourceMatches(", "    function readAudioPositionForSleepTimer"),
         block("    function closeAudioSourceMatches(", "    function readCurrentAudiobookPosition"),
         block("    async function startAudioElement(", "    function clearPreparedCaptions("),
+        block("    function resetTextTracks(", "    function discoverPreparedCaptions("),
         block("    function browserMayUseHlsJs(", "    function numberFromDataset("),
         `function captureAudiobookBookmarkPosition() { return null; }`,
         `globalThis.api = { ensureAudioSource, invalidateAudioSource, startAudio: startAudioElement, `
@@ -170,4 +172,16 @@ test("After hls.js fails to load, the same address is loaded again on the next s
     assert.equal(await retry, true);
     assert.equal(h.attached.length, 1);
     assert.equal(h.audio.playCalls, 1);
+});
+
+test("A new source switches off the old video's subtitle tracks, drops their cues and forgets the caption choice", () => {
+    const h = harness();
+    const removed = [];
+    const track = { kind: "subtitles", mode: "showing", cues: [{ id: "old-1" }, { id: "old-2" }], removeCue(cue) { removed.push(cue.id); } };
+    h.audio.textTracks = [track];
+    h.audio._tuvimaCaptionSelection = { asset: "asset-a", key: "managed:old", explicit: true };
+    h.api.ensureAudioSource(h.audio, "/stream/next.mp4");
+    assert.equal(track.mode, "disabled");
+    assert.deepEqual(removed, ["old-1", "old-2"]);
+    assert.equal(h.audio._tuvimaCaptionSelection, null);
 });

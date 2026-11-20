@@ -236,14 +236,34 @@ public sealed record CollectionPreviewResponse(
     public string? EvaluatedForProfileName { get; init; }
 }
 
+/// <summary>
+/// Adds works to a saved/manual collection. Send one <c>work_id</c> or a list in <c>work_ids</c> (both are added, in that order);
+/// the Engine answers with <see cref="CollectionItemsAddedResponse"/>.
+/// </summary>
 public sealed class CollectionItemAddRequest
 {
     [JsonPropertyName("work_id")] public Guid WorkId { get; init; }
+    [JsonPropertyName("work_ids")] public List<Guid> WorkIds { get; init; } = [];
 }
 
-public sealed class CollectionItemReorderRequest
+/// <summary>
+/// Moves one item of a saved/manual collection to a new place, at any collection size. Send exactly one of
+/// <c>position</c> (1 is the top; past the end means the bottom), <c>to_top</c> or <c>to_bottom</c>.
+/// </summary>
+public sealed class CollectionItemMoveRequest
 {
-    [JsonPropertyName("item_ids")] public List<Guid> ItemIds { get; init; } = [];
+    [JsonPropertyName("position")] public int? Position { get; init; }
+    [JsonPropertyName("to_top")] public bool ToTop { get; init; }
+    [JsonPropertyName("to_bottom")] public bool ToBottom { get; init; }
+}
+
+/// <summary>Pins or unpins a playlist for the active profile only.</summary>
+public sealed record CollectionPinRequest([property: JsonPropertyName("pinned")] bool Pinned);
+
+/// <summary>Duplicates a playlist; the copy is named <c>name</c>, or "&lt;name&gt; copy" when none is sent.</summary>
+public sealed class CollectionDuplicateRequest
+{
+    [JsonPropertyName("name")] public string? Name { get; init; }
 }
 
 public sealed record CollectionEnabledRequest([property: JsonPropertyName("enabled")] bool Enabled);

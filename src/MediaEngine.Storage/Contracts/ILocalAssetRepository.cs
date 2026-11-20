@@ -84,6 +84,17 @@ public interface ILocalAssetRepository
         int limit,
         IReadOnlyCollection<string> imageExtensions,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Lists photos (never PDFs, never the Vault) in the given libraries whose words have not been read yet, for the per-profile
+    /// "Read words in my photos" scan. Pages by item ID like <see cref="GetOcrCandidatesAsync"/>.
+    /// </summary>
+    Task<IReadOnlyList<LocalAssetOcrCandidate>> GetPhotoWordsCandidatesAsync(
+        IReadOnlyCollection<Guid> libraryIds,
+        Guid? afterItemId,
+        int limit,
+        IReadOnlyCollection<string> imageExtensions,
+        CancellationToken ct = default);
     Task<bool> SetFlagsAsync(
         Guid itemId,
         bool? favorite,

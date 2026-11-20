@@ -141,7 +141,8 @@
                                          TriggerClass="@(_captionTracks.Any(track => track.Selected) ? "is-on" : null)"
                                          Audio="@AudioChoices" Subtitles="@SubtitleChoices" Position="@Playback.CurrentTimeSeconds" OnSwitch="HandleTrackSwitchAsync" Notice="@_trackNotice"
                                          Look="@_profileSubtitles" StyleChanged="ChangeSubtitleStyleAsync"
-                                         NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" IsEpisode="@IsTvEpisode" Find="@Find" />
+                                         NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" IsEpisode="@IsTvEpisode" Find="@Find"
+                                         FindSearchText="@FindSearchText" FindCoverUrl="@Playback.CurrentItem?.CoverUrl" />
                             break;
                         case PlaybackControlKey.Settings:
                             @SettingsTool
@@ -280,6 +281,10 @@
         _presentationContext?.Episodes.Count ?? 0, UpcomingVideo.Count);
     private bool IsMovie => Playback.CurrentItem?.MediaType.Contains("movie", StringComparison.OrdinalIgnoreCase) == true;
     private bool IsTvEpisode => VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem);
+
+    // What Find subtitles' search box starts with (review mock-ups D7): the title and year ("Ferrari 2023"); an episode is searched by its show.
+    private string FindSearchText => FindDialogSearchText.ForVideo(
+        IsTvEpisode ? _presentationContext?.ShowTitle ?? Playback.CurrentItem?.Title : Playback.CurrentItem?.Title, Playback.CurrentItem?.Year);
     // The list is "Episodes" for a TV show and "Lessons" for a course or a folder of videos (unified player v2 D19).
     private string ContextTitle => EpisodesPanel.Title(L, IsTvEpisode);
     private string ChapterTickLabel(double seconds) => VideoChapters.Where(chapter => chapter.StartSeconds <= seconds).OrderByDescending(chapter => chapter.StartSeconds).FirstOrDefault() is { } chapter
@@ -302,8 +307,9 @@
         if (_disposed || identity is null || identity.ProfileId != profileId || identity.WorkId != workId
             || identity.AssetId != assetId || identity.RequestVersion != requestVersion) return Task.CompletedTask;
         _isPictureInPicture = active;
-        // Native PiP exit has no reliable close/back-to-tab reason. Both exits retain Restore.
         if (active) Playback.SetVideoExpanded(false);
+        // Closing the pop-out (or its back-to-tab button) ends playback: no mini box is left behind and the page stays where it is.
+        else if (!_closingPlayer && !_restoringFromPictureInPicture) return InvokeAsync(() => ClosePlayerAsync(navigate: false));
         return InvokeAsync(StateHasChanged);
     }
     private IReadOnlyList<PlaybackSubtitleTrackDto> SubtitleTracks =>
@@ -758,6 +764,7 @@
     }
     private async Task ApplyProfileAudioDefaultAsync()
     {
+        NoteMissingPreferredSubtitle();
         // Once per playback, and never over a track the viewer already picked in the Audio sheet.
         if (_profileSubtitles is null || _selectedAudioTrackIndex is not null || !CanSwitchAudio
             || _profileAudioAppliedFor == VideoInstanceKey) return;
@@ -1288,6 +1295,7 @@
             {
                 streamUrl,
                 positionSeconds = position,
+                streamOffsetSeconds = Playback.CurrentItem?.Manifest?.StreamStartSeconds ?? 0,
                 playbackRate = command.PlaybackRate ?? Playback.PlaybackRate,
                 volume = Playback.Volume,
                 muted = Playback.IsMuted,
@@ -1338,8 +1346,14 @@
         var identity = VideoPlaybackIdentity.Capture(Playback);
         var max = Playback.DurationSeconds > 0 ? Playback.DurationSeconds : double.MaxValue;
         var next = Math.Clamp(seconds, 0, max);
-        await JS.InvokeVoidAsync("listenPlayback.seekAudio", _videoRef, next);
+        var held = await JS.InvokeAsync<bool>("listenPlayback.seekAudio", _videoRef, next);
         if (identity is not null && !identity.IsCurrent(Playback)) return;
+        if (!held)
+        {
+            // The converted stream does not hold that second yet (before where it started, or past what is ready): the Engine starts it there.
+            await Playback.RestartVideoAtAsync(next, _lifetimeCancellation.Token);
+            return;
+        }
         Playback.UpdateTransportState(currentTimeSeconds: next);
         ObserveEndCard();
         await Playback.ReportHeartbeatAsync(force: true);
@@ -1498,6 +1512,7 @@
         if (burn is null && _burnedSubtitleStream is null)
         {
             await SelectCaptionAsync(request.CaptionKey);
+            await RememberSubtitleChoiceAsync(request.CaptionKey);
             return;
         }
         if (_burningSubtitle) return;
@@ -1517,6 +1532,44 @@
         }
         await InvokeAsync(StateHasChanged);
     }
+
+    // The person's own choice is kept on the profile (on or off, and the language), so the next video that has a matching track starts the same way
+    // (issue 1170). It goes through the profile's existing subtitle defaults: Off is "Never"; a track is "Always" in that track's language.
+    private async Task RememberSubtitleChoiceAsync(string? captionKey)
+    {
+        string? mode;
+        string? language = null;
+        if (string.IsNullOrEmpty(captionKey) || captionKey == "off")
+        {
+            mode = PlaybackPreferenceValues.Never;
+        }
+        else
+        {
+            language = captionKey.StartsWith("managed:", StringComparison.Ordinal)
+                ? ManagedSubtitleTracks.FirstOrDefault(track => $"managed:{track.Id:D}" == captionKey)?.Language
+                : SubtitleTracks.FirstOrDefault(track => $"manifest:{track.Index}" == captionKey)?.Language;
+            if (string.IsNullOrWhiteSpace(language)) return;
+            mode = PlaybackPreferenceValues.Always;
+        }
+        var languageName = language is null ? null : DisplayFormat.FormatLanguageName(language) ?? language;
+        await ChangeSubtitleStyleAsync(settings =>
+        {
+            settings.ForcedSubtitlesMode = mode;
+            if (languageName is not null) settings.DefaultSubtitleLanguage = languageName;
+        });
+    }
+
+    // With subtitles remembered as on, a video that has none in that language says so (and shows none), never the previous video's words.
+    private void NoteMissingPreferredSubtitle()
+    {
+        if (_profileSubtitles is not { } look || _trackNotice is not null
+            || !string.Equals(look.ForcedSubtitlesMode, PlaybackPreferenceValues.Always, StringComparison.OrdinalIgnoreCase)
+            || TrackDefaults.Captions != VideoCaptionDecision.Unchanged
+            || _subtitleNoticeFor == VideoInstanceKey) return;
+        _subtitleNoticeFor = VideoInstanceKey;
+        _trackNotice = L["VideoPlaybackHost_NoSubtitleInYourLanguage", look.DefaultSubtitleLanguage].Value;
+    }
+    private string? _subtitleNoticeFor;
 
     private async Task SelectAudioTrackAsync(int index, double? resumeSeconds = null)
     {
@@ -1565,6 +1618,9 @@
         if (_canPictureInPicture && await JS.InvokeAsync<bool>("listenPlayback.togglePictureInPicture", _videoRef))
         {
             Playback.SetVideoExpanded(false);
+            // The player page has nothing left to show, so the page the title was opened from comes back (not a blank page).
+            if (!wasFloating && Nav.ToAbsoluteUri(Nav.Uri).AbsolutePath.StartsWith("/watch/player/", StringComparison.OrdinalIgnoreCase))
+                await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Services.GetService(typeof(DetailsOverlayState)) as DetailsOverlayState, CurrentDetailAddress());
             return;
         }
         // Leaving picture in picture also answers false; only say the browser refused when the video was not floating to begin with.
@@ -1587,7 +1643,9 @@
     private async Task RestoreVideoAsync()
     {
         if (!Playback.HasQueue || !Playback.IsVideoMode) return;
-        await JS.InvokeVoidAsync("listenPlayback.exitPictureInPicture");
+        _restoringFromPictureInPicture = true;
+        try { await JS.InvokeVoidAsync("listenPlayback.exitPictureInPicture"); }
+        finally { _restoringFromPictureInPicture = false; }
         _continuationStatus = null;
         Playback.SetVideoExpanded(true);
     }
@@ -1651,9 +1709,29 @@
 
     private Task RetryPreparationAsync() => Playback.RetryPreparationAsync(_lifetimeCancellation.Token);
 
-    private async Task ClosePlayerAsync()
+    private bool _closingPlayer, _restoringFromPictureInPicture;
+
+    private string CurrentDetailAddress()
     {
-        if (!Playback.HasQueue || !Playback.IsVideoMode) return;
+        var workId = Playback.CurrentItem?.WorkId;
+        return _presentationContext is { ShowWorkId: Guid showId } context && context.Identity.IsCurrent(Playback)
+            && workId is Guid episodeId
+            ? TvEpisodeDetailRoute.Build(showId, episodeId, "watch")
+            : workId is Guid id && id != Guid.Empty ? $"/details/work/{id}?context=watch" : "/watch";
+    }
+
+    // navigate false: the player is closed where the person already is (closing the pop-out), not sent back to the title.
+    private Task ClosePlayerAsync() => ClosePlayerAsync(true);
+    private async Task ClosePlayerAsync(bool navigate)
+    {
+        if (!Playback.HasQueue || !Playback.IsVideoMode || _closingPlayer) return;
+        _closingPlayer = true;
+        try { await ClosePlayerCoreAsync(navigate); }
+        finally { _closingPlayer = false; }
+    }
+
+    private async Task ClosePlayerCoreAsync(bool navigate)
+    {
         var capturedProfile = Playback.ActiveProfileId;
         var capturedAsset = Playback.CurrentItem?.AssetId;
         var capturedRequest = Playback.PlaybackRequestVersion;
@@ -1673,10 +1751,7 @@
             await resolution;
             if (!IsCurrentClose()) return;
         }
-        var detailUrl = _presentationContext is { ShowWorkId: Guid showId } context && context.Identity.IsCurrent(Playback)
-            && workId is Guid episodeId
-            ? TvEpisodeDetailRoute.Build(showId, episodeId, "watch")
-            : workId is Guid id && id != Guid.Empty ? $"/details/work/{id}?context=watch" : "/watch";
+        var detailUrl = CurrentDetailAddress();
         var native = await JS.InvokeAsync<VideoMetrics>("listenPlayback.readAudioState", _videoRef);
         if (!IsCurrentClose()) return;
         if (native is not null && native.RequestVersion == capturedRequest && Guid.TryParse(native.AssetId, out var nativeAsset) && nativeAsset == capturedAsset)
@@ -1694,7 +1769,7 @@
         _isPictureInPicture = false;
         Playback.ClosePlayer();
         // Back over the page the title was opened from, so closing the title afterwards returns there instead of to the (now empty) player address.
-        await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Services.GetService(typeof(DetailsOverlayState)) as DetailsOverlayState, detailUrl);
+        if (navigate) await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Services.GetService(typeof(DetailsOverlayState)) as DetailsOverlayState, detailUrl);
     }
 
     private string? AbsoluteUrl(string? value)

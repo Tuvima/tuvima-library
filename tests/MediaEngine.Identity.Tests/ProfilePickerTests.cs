@@ -39,7 +39,7 @@ public sealed class ProfilePickerTests : IDisposable
     }
 
     [Fact]
-    public async Task ThisComputerSignIn_WithSeveralProfiles_LeavesTheSessionPending_WithTheUsersOwnProfileToPreSelect_AndRecordsTheHomeNetwork()
+    public async Task ThisComputerSignIn_WithSeveralProfiles_LeavesTheSessionPending_WithTheUsersOwnProfileToPreSelect_AndRecordsThisComputer()
     {
         var owner = await _service.BootstrapThisComputerAdministratorAsync(Email, "Dad", "setup-device", "Setup", "Dashboard");
         var mary = new Profile
@@ -53,13 +53,13 @@ public sealed class ProfilePickerTests : IDisposable
         await InsertProfileAsync(mary);
         await JoinHouseholdOfAsync(owner.Account.Id, mary.Id);
 
-        var signedIn = await _service.SignInThisComputerAccountAsync("laptop", "Laptop", "Dashboard", ClientIngress.HomeNetwork);
+        var signedIn = await _service.SignInThisComputerAccountAsync("laptop", "Laptop", "Dashboard", ClientIngress.ThisComputer);
 
         Assert.NotNull(signedIn);
         Assert.True(signedIn!.ChooseProfile);
         Assert.True(signedIn.Session.ProfilePending);
         Assert.Equal(owner.Profile.Id, signedIn.ActiveProfile.Id);
-        Assert.Equal(ClientIngress.HomeNetwork, signedIn.Session.IssuedIngress);
+        Assert.Equal(ClientIngress.ThisComputer, signedIn.Session.IssuedIngress);
     }
 
     [Fact]

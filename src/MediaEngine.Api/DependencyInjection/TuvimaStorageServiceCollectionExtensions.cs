@@ -46,6 +46,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IDocumentRuleRepository, DocumentRuleRepository>();
         services.AddSingleton<DocumentRulesQueue>();
         services.AddSingleton<IViewProfileRepository, ViewProfileRepository>();
+        services.AddSingleton<IViewFaceRepository, ViewFaceRepository>();
         services.AddSingleton<IViewPersonalSpaceRepository, ViewPersonalSpaceRepository>();
         services.AddSingleton<IViewSharedLibraryRepository, ViewSharedLibraryRepository>();
         services.AddSingleton<IProfilePersonalMediaRepository, ProfilePersonalMediaRepository>();
@@ -117,6 +118,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAssetExportService, AssetExportService>();
         services.AddSingleton<ITextTrackExportService, TextTrackExportService>();
         services.AddSingleton<ICollectionRepository, CollectionRepository>();
+        services.AddSingleton<IPlaylistRepository, PlaylistRepository>();
         services.AddSingleton<ICollectionPlacementRepository, CollectionPlacementRepository>();
         services.AddSingleton<ICollectionListRepository, CollectionListRepository>();
         services.AddSingleton<IListImportCandidateRepository, ListImportCandidateRepository>();

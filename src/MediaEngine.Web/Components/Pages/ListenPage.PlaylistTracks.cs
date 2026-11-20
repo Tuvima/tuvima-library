@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Enums;
@@ -82,6 +83,7 @@ public partial class ListenPage
         }
 
         _trackOrderBefore = null;
+        _playlistSort = null;
         return Task.CompletedTask;
     }
 
@@ -94,6 +96,7 @@ public partial class ListenPage
             if (saved)
             {
                 _trackOrderBefore = null;
+                _playlistSort = null;
             }
 
             return saved;
@@ -101,6 +104,8 @@ public partial class ListenPage
         finally
         {
             _trackOrderSaving = false;
+            // The bar hands its Save back as a plain function, which does not re-draw this page: draw it so the bar leaves once the order is kept.
+            StateHasChanged();
         }
     }
 
@@ -291,6 +296,8 @@ public partial class ListenPage
                 reordered[index].SortOrder = index + 1;
             }
 
+            // A hand move after a Sort means the order is no longer simply sorted.
+            _playlistSort = null;
             return;
         }
 
@@ -362,10 +369,22 @@ public partial class ListenPage
         }
 
         _notice = null;
-        var saved = await ApiClient.ReorderCollectionItemsAsync(
-            ActivePlaylistCollection.Id,
-            orderedItems.Select(item => item.Id).ToList(),
-            _activeProfileId);
+        // The Engine takes position moves, not a whole list: a drag or Move to top is one call at any playlist size. While the order is staged
+        // (Reorder, or a Sort) the items already carry the staged places, so the saved order is the one held aside.
+        var currentOrder = _trackOrderBefore is { } before
+            ? before.OrderBy(pair => pair.SortOrder).Select(pair => pair.Item.Id).ToList()
+            : _playlistItems.OrderBy(item => item.SortOrder).Select(item => item.Id).ToList();
+        var newOrder = orderedItems.Select(item => item.Id).ToList();
+        bool saved;
+        if (SingleEdgeMove(currentOrder, newOrder) is { } edge)
+        {
+            // One song sent to the very top or the very bottom is a to_top or to_bottom move, which holds however long the playlist is.
+            saved = await ApiClient.MoveCollectionItemAsync(ActivePlaylistCollection.Id, edge.ItemId, edge.Move, _activeProfileId);
+        }
+        else
+        {
+            saved = await ApiClient.ApplyCollectionItemOrderAsync(ActivePlaylistCollection.Id, currentOrder, newOrder, _activeProfileId);
+        }
 
         if (!saved)
         {
@@ -381,6 +400,22 @@ public partial class ListenPage
         }
 
         return true;
+    }
+
+    // The one move that turns the saved order into the new one when it is a single song sent to the top or to the bottom; otherwise null.
+    private static (Guid ItemId, CollectionItemMoveRequest Move)? SingleEdgeMove(IReadOnlyList<Guid> current, IReadOnlyList<Guid> target)
+    {
+        if (CollectionItemMovePlanner.Plan(current, target) is not [{ } only] || current.Count < 2)
+        {
+            return null;
+        }
+
+        if (only.Position == 1)
+        {
+            return (only.ItemId, new CollectionItemMoveRequest { ToTop = true });
+        }
+
+        return only.Position == current.Count ? (only.ItemId, new CollectionItemMoveRequest { ToBottom = true }) : null;
     }
 
     private async Task RemovePlaylistTrackAsync(Guid itemId)

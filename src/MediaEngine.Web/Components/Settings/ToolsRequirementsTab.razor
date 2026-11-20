@@ -11,6 +11,8 @@
         <AppButton Label="@L["Common_CheckAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" Loading="_checking" Disabled="@(_loading || _checking)" OnClick="CheckAgainAsync" />
     </div>
 
+    <ComputerCapacityPanel />
+
     @if (!string.IsNullOrWhiteSpace(_message))
     {
         <AppAlert Tone="@_messageTone" Class="tl-sp-mb-3" data-testid="tools-message">@_message</AppAlert>

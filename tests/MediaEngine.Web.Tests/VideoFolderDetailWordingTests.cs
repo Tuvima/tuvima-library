@@ -56,13 +56,13 @@ public sealed class VideoFolderDetailWordingTests : AsyncBunitContext
         var cut = RenderPanel(VideoFolderPlacement());
 
         var select = cut.FindComponents<AppSelect>().Single(candidate => candidate.Instance.Options!.Any(option => option.Label.StartsWith("Week 1", StringComparison.Ordinal)));
-        Assert.Equal(["Week 1 – Basics · 2 videos", "Week 2 – Game play · 2 videos"], select.Instance.Options!.Select(option => option.Label));
+        Assert.Equal(["Week 1 – Basics", "Week 2 – Game play"], select.Instance.Options!.Select(option => option.Label));
         Assert.Equal("Section", select.Instance.AdditionalAttributes?["aria-label"]?.ToString());
         Assert.Equal("Section", cut.Find(".tl-series-detail__control--group .sr-only").TextContent);
     }
 
     [Fact]
-    public void TheSectionDropdownListsEachFolderInItsOwnOrderWithItsVideoCount_AndTicksTheCurrentOne()
+    public void TheSectionDropdownListsEachFolderInItsOwnOrderByNameOnly_AndTicksTheCurrentOne()
     {
         var placement = VideoFolderPlacement();
         placement = new SequencePlacementViewModel
@@ -88,7 +88,7 @@ public sealed class VideoFolderDetailWordingTests : AsyncBunitContext
 
         // The dropdown ticks the folder whose key is its Value (AppSelectItem draws the check). Real order is the order the Engine sent, not alphabetical; a sub-folder reads "Parent / Child"; no row repeats the folder's name.
         var select = cut.FindComponents<AppSelect>().Single(candidate => candidate.Instance.Options!.Any(option => option.Label.StartsWith("Intro", StringComparison.Ordinal)));
-        Assert.Equal(["Intro · 1 video", "Week 2 / Game play · 2 videos", "Week 1 – Basics · 2 videos"], select.Instance.Options!.Select(option => option.Label));
+        Assert.Equal(["Intro", "Week 2 / Game play", "Week 1 – Basics"], select.Instance.Options!.Select(option => option.Label));
         Assert.DoesNotContain(select.Instance.Options!, option => option.Label.StartsWith("Basketball course", StringComparison.Ordinal));
         Assert.Equal("section-parent-child", select.Instance.Value);
     }
@@ -110,7 +110,7 @@ public sealed class VideoFolderDetailWordingTests : AsyncBunitContext
         var cut = RenderPanel(TvPlacement());
 
         var select = cut.FindComponents<AppSelect>().Single(candidate => candidate.Instance.Options!.Any(option => option.Label.StartsWith("Season", StringComparison.Ordinal)));
-        Assert.Equal(["Season 1 · 1 episode", "Season 2 · 1 episode"], select.Instance.Options!.Select(option => option.Label));
+        Assert.Equal(["Season 1", "Season 2"], select.Instance.Options!.Select(option => option.Label));
         Assert.Contains("E1", cut.Markup);
     }
 

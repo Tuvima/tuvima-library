@@ -8,6 +8,9 @@ public sealed partial class EngineApiClient
     public Task<NetworkSettingsDto?> GetNetworkSettingsAsync(CancellationToken ct = default) =>
         GetAsync<NetworkSettingsDto>("GET /settings/network", "/settings/network", ct: ct);
 
+    public Task<bool> MarkFirewallPromptAnsweredAsync(CancellationToken ct = default) =>
+        PostNetworkAsync<NetworkSettingsDto>("POST /settings/network/firewall-answered", "/settings/network/firewall-answered", new { }, ct).ContinueWith(t => t.Result is not null, ct);
+
     public async Task<NetworkSettingsDto?> UpdateNetworkSettingsAsync(NetworkSettingsDto settings, CancellationToken ct = default)
     {
         if (!await PutAsync("PUT /settings/network", "/settings/network", settings, ct: ct))

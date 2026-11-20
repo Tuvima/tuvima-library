@@ -25,7 +25,10 @@ public static class SequenceEpisodeTileAdapter
             EpisodeContext = context,
             ContinuationState = context.State,
             Title = item.Title,
-            Subtitle = $"S{context.SeasonNumber} E{context.EpisodeNumber}",
+            // One file covering two episodes is one tile: "S1 E19-20" over "Title A + Title B".
+            Subtitle = item.EpisodeCount > 1 && !string.IsNullOrWhiteSpace(item.PositionText)
+                ? $"S{context.SeasonNumber} {item.PositionText}"
+                : $"S{context.SeasonNumber} E{context.EpisodeNumber}",
             IsStandInPicture = standIn,
             StandInLabel = standIn ? StandInLabelFor(item, context) : null,
             StandInRetryAfter = standIn ? item.StandInRetryAfter : null,

@@ -388,14 +388,14 @@ public sealed class SettingsNavTests
         Assert.Equal(["Sign-in", "Devices"], TabLabels(groups, "Security & Devices"));
         Assert.Equal(["Libraries", "Needs Review", "Matching", "Rules"], TabLabels(groups, "Libraries"));
         Assert.Equal(["Quality", "Advanced"], TabLabels(groups, "Playback"));
-        Assert.Equal(["General", "Notifications", "Library activity", "Playing now"], TabLabels(groups, "General"));
+        Assert.Equal(["Name and address", "Notifications", "Library activity", "Playing now"], TabLabels(groups, "General"));
         Assert.Equal(["Users", "Households", "Advanced"], TabLabels(groups, "Users & Households"));
         Assert.Equal(["Home network", "Remote access", "Advanced"], TabLabels(groups, "Network & Remote Access"));
         Assert.Empty(TabLabels(groups, "Tools"));
         Assert.Equal(["Status", "Models", "Advanced"], TabLabels(groups, "Local AI"));
         Assert.Empty(TabLabels(groups, "Plugins"));
         Assert.Empty(TabLabels(groups, "Integrations"));
-        Assert.Equal(["Backups", "Destinations", "Advanced"], TabLabels(groups, "Backups"));
+        Assert.Equal(["Back up and restore", "Destinations", "Advanced"], TabLabels(groups, "Backups"));
         Assert.Equal(["Health", "Scheduled tasks", "Logs", "Advanced"], TabLabels(groups, "System"));
         Assert.Equal(["Provider Tester", "Enrichment Tester", "Development data"], TabLabels(groups, "Developer Tools"));
 

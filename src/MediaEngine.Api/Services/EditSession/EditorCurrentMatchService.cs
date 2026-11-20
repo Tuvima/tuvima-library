@@ -9,6 +9,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Services;
+using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Services.EditSession;
@@ -32,7 +33,8 @@ public sealed class EditorCurrentMatchService(
     ILogger<EditorCurrentMatchService> logger,
     EditorProviderNames? providerNames = null,
     ICanonicalValueArrayRepository? arrays = null,
-    IHttpClientFactory? httpFactory = null)
+    IHttpClientFactory? httpFactory = null,
+    IDatabaseConnection? db = null)
 {
     private const string TvdbProvider = EditorMatchRule.TvdbProvider;
 
@@ -139,6 +141,9 @@ public sealed class EditorCurrentMatchService(
         // provider by a small copy the Engine fetches (the card's cover or album art, v8 D10). The file's own cover is the fallback.
         var imageUrl = MetadataEndpoints.CreateTvdbPreviewUrl(previews, entityId, launch.WorkId, facts.ImageUrl)
             ?? await ProviderPictureAsync(source, facts.ImageUrl, LocalPicture(own) ?? (IsMusic(launch.MediaType) ? LocalPicture(root) : null), ct).ConfigureAwait(false);
+        // Nothing from the provider could be shown (no picture saved, a provider that sends none, or one that cannot be fetched): the card shows the
+        // picture Library holds for the item, then for its album or show, the same one the editor's header shows, so a match never has an empty cover.
+        imageUrl ??= StoredCover(launch.WorkId) ?? (launch.RootWorkId != Guid.Empty && launch.RootWorkId != launch.WorkId ? StoredCover(launch.RootWorkId) : null);
         var why = BuildWhy(isTv, parsed, titleSide, yearSide, facts, scores, measured, recordMinutes);
         var productName = providerNames?.ProductName(source.ProviderId, source.Kind.ToLowerInvariant()) ?? source.ProviderName;
         var checks = why.Select(Check).ToList();
@@ -157,6 +162,9 @@ public sealed class EditorCurrentMatchService(
                 Title = facts.Title ?? stored.Title ?? string.Empty,
                 Year = facts.Year,
                 Creator = facts.Creator,
+                Album = string.Equals(source.Kind, "Song", StringComparison.Ordinal)
+                    ? Value(own, MetadataFieldConstants.Album) ?? Value(root, MetadataFieldConstants.Album) ?? Value(root, MetadataFieldConstants.Title)
+                    : null,
                 LengthText = lengthText,
                 Cast = cast,
                 ImageUrl = imageUrl,
@@ -172,6 +180,24 @@ public sealed class EditorCurrentMatchService(
             FileName = fileName,
             Note = note,
         };
+    }
+
+    private string? StoredCover(Guid workId)
+    {
+        if (db is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return EditorHeaderReadService.StoredCoverUrl(db, workId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "The stored cover of work {WorkId} could not be read for the Match tab", workId);
+            return null;
+        }
     }
 
     // "108 min" from the minutes the Engine saved; null when it saved none.
@@ -236,7 +262,12 @@ public sealed class EditorCurrentMatchService(
 
     private async Task<string?> ProviderPictureAsync(EditorMatchRule.ProviderSource source, string? picture, string? local, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(picture) || IsTvdbAddress(picture))
+        if (string.IsNullOrWhiteSpace(picture))
+        {
+            return local;
+        }
+
+        if (IsTvdbAddress(picture))
         {
             return null;
         }

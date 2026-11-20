@@ -218,4 +218,16 @@
   <data name="PlaybackInformation_Color" xml:space="preserve">
     <value>Colour</value>
   </data>
+  <data name="ViewPage_FilterFavorites" xml:space="preserve">
+    <value>Favourites</value>
+  </data>
+  <data name="ViewPage_Favorited" xml:space="preserve">
+    <value>Favourited selected items.</value>
+  </data>
+  <data name="ViewPage_EmptyFavorites" xml:space="preserve">
+    <value>No favourites yet</value>
+  </data>
+  <data name="MediaBrowseShell_NoPlaylistsMessage" xml:space="preserve">
+    <value>Create a playlist or smart playlist to organise music for later.</value>
+  </data>
 </root>

@@ -16,6 +16,8 @@ public sealed class LocalNetworkSettingsDto
     [JsonPropertyName("bind_mode")] public string BindMode { get; set; } = "automatic";
     [JsonPropertyName("interface_id")] public string? InterfaceId { get; set; }
     [JsonPropertyName("discovery_enabled")] public bool DiscoveryEnabled { get; set; } = true;
+    [JsonPropertyName("reach_other_devices")] public bool ReachOtherDevices { get; set; } = true;
+    [JsonPropertyName("firewall_prompt_answered")] public bool FirewallPromptAnswered { get; set; }
     [JsonPropertyName("preferred_server_name")] public string PreferredServerName { get; set; } = "tuvima";
     [JsonPropertyName("ipv6_enabled")] public bool Ipv6Enabled { get; set; } = true;
     [JsonPropertyName("allowed_hostnames")] public List<string> AllowedHostnames { get; set; } = [];

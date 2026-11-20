@@ -26,7 +26,6 @@
   "time_format": "system",
   "auth": {
     "mode": "Local",
-    "localhost_bypass": false,
     "external_providers": [],
     "password_reset": {
       "mode": "Disabled",

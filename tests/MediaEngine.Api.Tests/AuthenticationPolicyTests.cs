@@ -74,7 +74,6 @@ public sealed class AuthenticationPolicyTests
         var contract = new MediaEngine.Contracts.Settings.AuthSettingsDto();
 
         Assert.Equal(domain.Mode, contract.Mode);
-        Assert.Equal(domain.LocalhostBypass, contract.LocalhostBypass);
     }
 
     [Theory]

@@ -5,6 +5,11 @@ maplibregl.setWorkerUrl('/vendor/maplibre/maplibre-gl-worker.mjs');
 const states = new WeakMap();
 const detailedStyleUrl = 'https://tiles.openfreemap.org/styles/dark';
 
+// The person chose the built-in map only: no online tile service is asked for anything (spec view-people-search WP2).
+async function builtInStyle() {
+  return { style: baseStyle(), attribution: 'Natural Earth', detailed: false };
+}
+
 async function preferredStyle() {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 6000);
@@ -271,7 +276,7 @@ export async function initialize(container, dotnet, options) {
   states.set(container, state);
   try {
     // The MapLibre stylesheet loads only when a map mounts; wait for it so the map never draws unstyled.
-    const [styleSelection] = await Promise.all([preferredStyle(), window.tuvimaLazy.loadMapLibreStyles()]);
+    const [styleSelection] = await Promise.all([options.builtInOnly === true ? builtInStyle() : preferredStyle(), window.tuvimaLazy.loadMapLibreStyles()]);
     // The part can be disposed while it waited (the page changed); then nothing is created, so no map is left running.
     if (state.disposed) return;
     state.detailedStyle = styleSelection.detailed;

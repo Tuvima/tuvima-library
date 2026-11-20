@@ -385,12 +385,16 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<CreditGroupViewModel> contributorGroups = IsStructuralContainer(entityType) || placementOnly
             ? []
             : await BuildCollectionCreditsAsync(collectionId, rootWorkId, works, entityType, values, ct);
-        var fullContributorGroups = entityType == DetailEntityType.TvShow && !placementOnly
-            ? await BuildTvCreditsAsync(rootWorkId ?? collectionId, ct) : contributorGroups;
+        // The show's own credits are the stored per-episode credits when there are any; a show matched without that table
+        // (TheTVDB only) still shows the cast found for the show itself, each person once.
+        var fullContributorGroups = contributorGroups;
         if (entityType == DetailEntityType.TvShow && !placementOnly)
         {
-            contributorGroups = tvInProgressEpisode is not null
+            var episodeCredits = await BuildTvCreditsAsync(rootWorkId ?? collectionId, ct);
+            fullContributorGroups = episodeCredits.Count > 0 ? episodeCredits : contributorGroups;
+            var inProgressCredits = tvInProgressEpisode is not null
                 ? await BuildTvCreditsAsync(Guid.Parse(tvInProgressEpisode.Id), ct) : fullContributorGroups;
+            contributorGroups = inProgressCredits.Count > 0 ? inProgressCredits : fullContributorGroups;
         }
 
         var musicAlbumCompanion = entityType == DetailEntityType.MusicAlbum
@@ -542,7 +546,8 @@ internal sealed partial class DetailCompositionOrchestrator
             CollectionInfo = collectionInfo,
             PrimaryActions = BuildCollectionActions(collectionId, entityType, context, heroProgress, displayWorks),
             SecondaryActions = BuildSecondaryActions(rootWorkId ?? collectionId, entityType, favoriteWorkIds.Contains(rootWorkId ?? collectionId)),
-            OverflowActions = BuildOverflowActions(collectionId, entityType, actionAuthorization),
+            OverflowActions = BuildOverflowActions(collectionId, entityType, actionAuthorization,
+                isVideoFolder: VideoFolderWording.IsVideoFolderMediaType(displayWorks.FirstOrDefault()?.MediaType)),
             SequencePlacement = sequencePlacement,
             ContributorGroups = contributorGroups,
             FullContributorGroups = fullContributorGroups,

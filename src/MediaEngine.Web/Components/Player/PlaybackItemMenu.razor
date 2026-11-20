@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Progress
 @using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Playback
 @using Microsoft.Extensions.DependencyInjection
 @implements IDisposable
@@ -125,7 +126,8 @@
         Media, Item,
         IsDone: _status is { OwnedCount: > 0 } status ? status.CompletedCount >= status.OwnedCount : null,
         CanMark: _status is null || _status.OwnedCount > 0,
-        ShowWorkId: ShowWorkId, SeasonId: SeasonId));
+        ShowWorkId: ShowWorkId, SeasonId: SeasonId,
+        AddToPlaylistLabel: L["PlaybackItemMenu_AddToPlaylist"].Value));
 
     protected override void OnInitialized()
     {
@@ -225,11 +227,10 @@
 
     private async Task AddToPlaylistAsync()
     {
-        if (StatusSubject is not { } subject || Services.GetService<IAppDialogService>() is not { } dialogs) return;
-        await dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist", new AppDialogParameters<MediaMembershipDialog>
-        {
-            { d => d.Playlist, true }, { d => d.WorkIds, new[] { subject.Id } },
-        });
+        if (StatusSubject is not { } subject) return;
+        // The same Add to playlist flow every place uses; the menu has closed, so the sentence goes to the host's in-place line.
+        var notice = await PlaylistMembershipFlow.RunForSongsAsync(Services, new[] { subject.Id }, L["Common_AddToPlaylist"].Value);
+        if (notice is not null) await OnStatusChanged.InvokeAsync(notice.ToOffer());
     }
 
     private async Task ChangeStatusAsync(PersonalStatusAction action)

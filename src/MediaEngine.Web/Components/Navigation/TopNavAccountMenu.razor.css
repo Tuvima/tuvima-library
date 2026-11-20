@@ -230,39 +230,3 @@
     color: var(--tl-text-muted);
     font-size: var(--tl-icon-size-md);
 }
-
-/* Add a password reminder: one short line at the top of the menu, a small red dot and a close button for Not now (issue 1066). The longer explanation lives on the Security page. */
-.top-nav-account-menu__secure-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--tl-space-2);
-    margin-bottom: var(--tl-space-2);
-    padding: 0 var(--tl-space-1) 0 var(--tl-space-3);
-    border-radius: var(--tl-radius-md, 8px);
-    background: var(--tl-bg-surface-elevated);
-}
-
-.top-nav-account-menu__secure-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--tl-space-2);
-    min-height: var(--tl-tap-target-min, 44px);
-    color: var(--tl-text-primary);
-    font-size: var(--tl-type-control-size);
-    text-decoration: none;
-    white-space: nowrap;
-}
-
-.top-nav-account-menu__secure-dot {
-    flex: none;
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: var(--tl-radius-round);
-    background: var(--tl-status-danger-solid);
-}
-
-.top-nav-account-menu__secure-card ::deep .top-nav-account-menu__secure-action {
-    min-height: var(--tl-tap-target-min, 44px);
-    min-width: var(--tl-tap-target-min, 44px);
-}

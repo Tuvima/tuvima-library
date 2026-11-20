@@ -32,7 +32,6 @@ using static MediaEngine.Api.Services.Collections.CollectionResponseFormatting;
 using CollectionCreateRequest = MediaEngine.Contracts.Collections.CollectionCreateRequest;
 using CollectionDto = MediaEngine.Contracts.Collections.CollectionDto;
 using CollectionItemAddRequest = MediaEngine.Contracts.Collections.CollectionItemAddRequest;
-using CollectionItemReorderRequest = MediaEngine.Contracts.Collections.CollectionItemReorderRequest;
 using CollectionPreviewRequest = MediaEngine.Contracts.Collections.CollectionPreviewRequest;
 using CollectionPreviewResponse = MediaEngine.Contracts.Collections.CollectionPreviewResponse;
 using CollectionUpdateRequest = MediaEngine.Contracts.Collections.CollectionUpdateRequest;
@@ -55,6 +54,7 @@ public static class CollectionEndpoints
 
         group.MapCollectionPersonalMediaEndpoints();
         group.MapCollectionListEndpoints();
+        group.MapCollectionPlaylistEndpoints();
 
         group.MapPut("/{id:guid}/display-overrides", async (
             Guid id,
@@ -1537,7 +1537,8 @@ public static class CollectionEndpoints
             CancellationToken ct) =>
         {
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
-            var page = PagedRequest.From(null, limit, defaultLimit: 20);
+            // A playlist page asks for the whole list (a long playlist is thousands of songs), so this read may go up to the most one list holds.
+            var page = PagedRequest.From(null, limit, defaultLimit: 20, maxLimit: CollectionCatalogReadService.MaxPagedItems);
             var take = page.Limit;
             var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var result = await catalogReadService.GetItemsAsync(id, activeProfile, take, ct, allowedWorkIds);
@@ -1563,6 +1564,7 @@ public static class CollectionEndpoints
             Guid id,
             CollectionItemAddRequest body,
             ICollectionRepository collectionRepo,
+            IPlaylistRepository playlistRepo,
             IProfileRepository profileRepo,
             HttpContext httpContext,
             Guid? profileId,
@@ -1589,47 +1591,39 @@ public static class CollectionEndpoints
             {
                 return ApiErrors.BadRequest("Only saved/manual collections support direct item membership.");
             }
-            if (body.WorkId == Guid.Empty)
+
+            // One work (work_id) or many (work_ids) go through the same path, in the order sent.
+            var requestedWorkIds = body.WorkIds.Prepend(body.WorkId).Where(workId => workId != Guid.Empty).Distinct().ToList();
+            if (requestedWorkIds.Count == 0)
             {
-                return ApiErrors.BadRequest("work_id is required.");
+                return ApiErrors.BadRequest("work_id or work_ids is required.");
             }
 
-            var collectionWorkId = await catalogReadService.ResolveMembershipWorkIdAsync(body.WorkId, ct);
+            var collectionWorkIds = new List<Guid>(requestedWorkIds.Count);
+            foreach (var requestedWorkId in requestedWorkIds)
+            {
+                collectionWorkIds.Add(await catalogReadService.ResolveMembershipWorkIdAsync(requestedWorkId, ct));
+            }
+
+            collectionWorkIds = collectionWorkIds.Distinct().ToList();
             var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
-            if (!allowedWorkIds.Contains(collectionWorkId))
+            if (collectionWorkIds.Any(workId => !allowedWorkIds.Contains(workId)))
             {
                 return ApiErrors.Forbidden("The requested work is outside the caller's available libraries.");
             }
             if (await CollectionVaultGuard.RefusesAsync(
-                    collection.OwnerKind, collection.Audience, [collectionWorkId], vaultLibraries, ct))
+                    collection.OwnerKind, collection.Audience, collectionWorkIds, vaultLibraries, ct))
             {
                 return ApiErrors.Forbidden(CollectionVaultGuard.Message);
             }
-            var existingItems = await collectionRepo.GetCollectionItemsAsync(id, 1000, ct);
-            var existingDisplayWorkIds = await catalogReadService.GetDisplayWorkIdsAsync(existingItems.Select(item => item.WorkId), ct);
-            if (existingDisplayWorkIds.Contains(collectionWorkId))
-            {
-                return Results.Ok();
-            }
 
-            var nextSortOrder = existingItems.Count == 0
-                ? 1
-                : existingItems.Max(item => item.SortOrder) + 1;
-
-            await collectionRepo.AddCollectionItemAsync(new CollectionItem
-            {
-                Id = Guid.NewGuid(),
-                CollectionId = id,
-                WorkId = collectionWorkId,
-                SortOrder = nextSortOrder,
-                AddedAt = DateTimeOffset.UtcNow,
-            }, ct);
-
-            return Results.Ok();
+            // The duplicate check and the append happen in SQL over the whole collection, so a long playlist is checked in full.
+            var result = await playlistRepo.AddWorksAsync(id, collectionWorkIds, ct);
+            return Results.Ok(new CollectionItemsAddedResponse(result.Added, result.AlreadyThere));
         })
         .WithName("AddCollectionItem")
-        .WithSummary("Adds a work to a saved/manual collection.")
-        .Produces(StatusCodes.Status200OK)
+        .WithSummary("Adds one work (work_id) or several (work_ids) to a saved/manual collection and reports how many were added and how many were already there.")
+        .Produces<CollectionItemsAddedResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
@@ -1681,51 +1675,6 @@ public static class CollectionEndpoints
         })
         .WithName("RemoveCollectionItem")
         .WithSummary("Removes a work from a saved/manual collection.")
-        .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
-        .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
-
-        group.MapPut("/{id:guid}/items/reorder", async (
-            Guid id,
-            CollectionItemReorderRequest body,
-            ICollectionRepository collectionRepo,
-            IProfileRepository profileRepo,
-            HttpContext httpContext,
-            Guid? profileId,
-            CancellationToken ct) =>
-        {
-            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
-            var activeProfile = caller.Profile;
-            var collection = await collectionRepo.GetByIdAsync(id, ct);
-            if (collection is null)
-            {
-                return ApiErrors.NotFound($"Collection '{id}' not found.");
-            }
-
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
-            {
-                return Results.Forbid();
-            }
-
-            if (!CollectionAccessPolicy.IsManagedCollectionType(collection.CollectionType)
-                || collection.Resolution != CollectionResolution.Materialized)
-            {
-                return ApiErrors.BadRequest("Only saved/manual collections support direct item ordering.");
-            }
-
-            var requestedIds = body.ItemIds.Where(itemId => itemId != Guid.Empty).Distinct().ToList();
-            var existingItems = await collectionRepo.GetCollectionItemsAsync(id, 1000, ct);
-            var existingIds = existingItems.Select(item => item.Id).ToHashSet();
-            if (requestedIds.Count != existingItems.Count || requestedIds.Any(itemId => !existingIds.Contains(itemId)))
-            {
-                return ApiErrors.BadRequest("item_ids must include every item in this collection exactly once.");
-            }
-
-            await collectionRepo.ReorderCollectionItemsAsync(id, requestedIds, ct);
-            return Results.Ok();
-        })
-        .WithName("ReorderCollectionItems")
-        .WithSummary("Reorders saved/manual collection items.")
         .Produces(StatusCodes.Status200OK)
         .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");

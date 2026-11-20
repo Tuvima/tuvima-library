@@ -1,0 +1,79 @@
+/* One tile of the Playlists page (spec listen-playlists WP3, mockup A and D): a card with a square cover, the name and the type line under it,
+   and the shared "..." menu in the bottom right corner. Dark only, tokens only, 44 px menu button. */
+.playlist-tile {
+    position: relative;
+    min-width: 0;
+    padding: var(--tl-space-2);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface);
+}
+
+.playlist-tile:hover,
+.playlist-tile:focus-within {
+    background: var(--tl-menu-item-hover);
+}
+
+.playlist-tile__link {
+    display: grid;
+    gap: var(--tl-space-1);
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.playlist-tile__link:focus-visible {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 2px;
+}
+
+.playlist-tile__cover {
+    display: block;
+    aspect-ratio: 1 / 1;
+    margin-bottom: var(--tl-space-1);
+    overflow: hidden;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-raised);
+}
+
+.playlist-tile__cover img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.playlist-tile__fallback {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    color: var(--tl-text-secondary);
+}
+
+/* The bottom right corner is the menu's: the text never runs under it. */
+.playlist-tile__name,
+.playlist-tile__meta {
+    overflow: hidden;
+    padding-right: var(--tl-tap-target-min, 44px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-tile__name {
+    color: var(--tl-text-primary);
+}
+
+.playlist-tile__meta {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+}
+
+.playlist-tile__menu-slot {
+    position: absolute;
+    right: var(--tl-space-1);
+    bottom: var(--tl-space-1);
+    display: grid;
+    width: var(--tl-tap-target-min, 44px);
+    height: var(--tl-tap-target-min, 44px);
+    place-items: center;
+}

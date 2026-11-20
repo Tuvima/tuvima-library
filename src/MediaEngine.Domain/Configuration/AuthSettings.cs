@@ -7,9 +7,6 @@ public sealed class AuthSettings
     [JsonPropertyName("mode")]
     public string Mode { get; set; } = "Local";
 
-    [JsonPropertyName("localhost_bypass")]
-    public bool LocalhostBypass { get; set; }
-
     [JsonPropertyName("password_sign_in_enabled")]
     public bool PasswordSignInEnabled { get; set; } = true;
 

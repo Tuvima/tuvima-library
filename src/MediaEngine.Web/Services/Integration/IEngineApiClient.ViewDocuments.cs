@@ -43,6 +43,17 @@ public partial interface IEngineApiClient
     Task<bool> GetViewDocumentsPicturesToPhotosAsync(CancellationToken ct = default);
 
     Task<bool> SetViewDocumentsPicturesToPhotosAsync(bool toPhotos, CancellationToken ct = default);
+
+    /// <summary>True when this profile chose the built-in map only, so no online map tiles are requested.</summary>
+    Task<bool> GetViewMapBuiltInOnlyAsync(CancellationToken ct = default);
+
+    Task<bool> SetViewMapBuiltInOnlyAsync(bool builtInOnly, CancellationToken ct = default);
+
+    /// <summary>Whether this person switched on reading the words inside their own photos (spec view-people-search WP5).</summary>
+    Task<bool> GetViewReadWordsInPhotosAsync(CancellationToken ct = default);
+
+    /// <summary>Switches reading the words inside the person's own photos on or off. Turning it on starts the scan of the photos already there.</summary>
+    Task<bool> SetViewReadWordsInPhotosAsync(bool readWords, CancellationToken ct = default);
 }
 
 /// <summary>A finished export: the file, or the reason there is none. <see cref="Truncated"/> means the list was cut at the row cap.</summary>

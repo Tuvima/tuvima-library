@@ -88,20 +88,6 @@
     background: var(--tl-menu-item-hover);
 }
 
-.media-section-shell__inline-create {
-    display: grid;
-    grid-template-columns: 20px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-    min-height: 40px;
-    margin: 0 4px 6px 18px;
-    padding: 5px 8px;
-    border: 1px solid var(--tl-border-strong);
-    border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-surface);
-}
-
-.media-section-shell__inline-create ::deep input,
 .media-section-shell__rename-row ::deep input {
     width: 100%;
     min-width: 0;
@@ -267,8 +253,18 @@
     transform: translateX(-136px);
 }
 
-.media-section-shell__managed-row.is-reordering {
+.media-section-shell__managed-row.is-reordering,
+.media-section-shell__managed-row.is-touch-dragging {
     opacity: 0.58;
+}
+
+/* A finger's drag by the grip (touch-reorder.js adds these): a line on the row's top or bottom edge shows where it would land. */
+.media-section-shell__managed-row.is-touch-drop-before {
+    box-shadow: inset 0 2px 0 var(--tl-accent-primary);
+}
+
+.media-section-shell__managed-row.is-touch-drop-after {
+    box-shadow: inset 0 -2px 0 var(--tl-accent-primary);
 }
 
 ::deep .media-section-shell__drag-handle {
@@ -288,6 +284,8 @@
     color: var(--tl-text-primary);
     outline: 0;
 }
+
+/* The grip's touch look (no page scrolling from it, a 44 px target) is in app.css with the other grips a finger drags. */
 
 .media-section-shell__rail-item--managed {
     grid-template-columns: 20px minmax(0, 1fr) auto;

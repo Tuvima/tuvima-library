@@ -422,6 +422,7 @@ public static class StreamEndpoints
             Guid assetId,
             string? kind,
             string? language,
+            string? query,
             HttpContext http,
             [FromServices] TextTrackEnrichmentWorker textTrackWorker,
             IRequestAuthorityResolver authorityResolver,
@@ -437,8 +438,13 @@ public static class StreamEndpoints
                 return ApiErrors.BadRequest("language must be a language name or code (letters, spaces, hyphens and brackets, at most 40 characters).");
             }
 
+            if (!IsValidSearchText(query))
+            {
+                return ApiErrors.BadRequest("query must be plain text of at most 200 characters.");
+            }
+
             var requester = PluginAccessGate.RequesterOf(await authorityResolver.ResolveAsync(http, ct));
-            var result = await textTrackWorker.FindAlternativesAsync(assetId, textTrackKind, requester, ct, language);
+            var result = await textTrackWorker.FindAlternativesAsync(assetId, textTrackKind, requester, ct, language, query);
             return Results.Ok(new TextTrackAlternativesResponse
             {
                 asset_id = assetId,
@@ -464,7 +470,7 @@ public static class StreamEndpoints
             });
         })
         .WithName("GetTextTrackAlternatives")
-        .WithSummary("Ask the switched-on lyrics or subtitle sources for other results for one item. Fetched live and never stored. Subtitles accept a language to search in and download nothing.")
+        .WithSummary("Ask the switched-on lyrics or subtitle sources for other results for one item. Fetched live and never stored. Subtitles accept a language to search in and download nothing. An optional query searches by those words instead of the item's own details.")
         .Produces<TextTrackAlternativesResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireClientScope(ClientApiScopes.PlaybackWrite)
@@ -515,9 +521,14 @@ public static class StreamEndpoints
                 return ApiErrors.BadRequest("language must be a language name or code (letters, spaces, hyphens and brackets, at most 40 characters).");
             }
 
+            if (!IsValidSearchText(request.query))
+            {
+                return ApiErrors.BadRequest("query must be plain text of at most 200 characters.");
+            }
+
             var authority = await authorityResolver.ResolveAsync(http, ct);
             var result = await textTrackWorker.ChooseAlternativeAsync(
-                assetId, textTrackKind, request.provider, request.source_id, PluginAccessGate.RequesterOf(authority), ct, request.language);
+                assetId, textTrackKind, request.provider, request.source_id, PluginAccessGate.RequesterOf(authority), ct, request.language, request.query);
             if (result.Status == "Updated")
             {
                 await peopleActions.RecordAsync(new PluginPeopleAction(
@@ -1020,6 +1031,10 @@ public static class StreamEndpoints
     private static bool IsValidSearchLanguage(string? value) =>
         string.IsNullOrWhiteSpace(value)
         || (value.Length <= 40 && value.All(character => char.IsLetter(character) || character is ' ' or '-' or '(' or ')'));
+
+    /// <summary>Words a person typed to search by: absent, or plain text of at most 200 characters with no control characters.</summary>
+    private static bool IsValidSearchText(string? value) =>
+        string.IsNullOrWhiteSpace(value) || (value.Length <= 200 && !value.Any(char.IsControl));
 
     private static bool TryParseTextTrackKind(string? value, out TextTrackKind kind)
     {

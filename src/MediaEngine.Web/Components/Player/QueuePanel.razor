@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Player
 @using System.Globalization
 @using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Playback
 @using Microsoft.AspNetCore.Components.Web
@@ -95,6 +96,7 @@
     private bool _attaching, _disposed;
     private PendingFocus? _pendingFocus;
     private ElementReference? _dragRoot;
+    private DotNetObjectReference<QueuePanel>? _self;
 
     private string Tab => ShowTabs ? _tab : ActiveTab == HistoryTab ? HistoryTab : UpNextTab;
     private ListenQueueItem? CurrentItem => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
@@ -155,7 +157,8 @@
             }
             _dragModule = module;
             _dragRoot = _list.Element;
-            await module.InvokeVoidAsync("attach", _dragRoot);
+            _self ??= DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("attach", _dragRoot, _self);
         }
         catch (InvalidOperationException)
         {
@@ -196,6 +199,8 @@
         _lifetime.Dispose();
         var module = _dragModule;
         _dragModule = null;
+        _self?.Dispose();
+        _self = null;
         if (module is null) return;
         try
         {
@@ -225,6 +230,7 @@
             @if (CurrentItem is null)
             {
                 <p class="qp__empty">@L["QueuePanel_Empty"]</p>
+                <QueueSavePlaylist Snapshot="@Snapshot" />
             }
             else
             {
@@ -240,6 +246,7 @@
                     <AppNativeButton Type="button" Class="qp__clear" Disabled="@(upcoming.Count == 0)" AriaLabel="@L["QueuePanel_ClearLabel"].Value" data-queue-clear
                                      OnClick="@(() => ClearUpcomingAsync(snapshot))">@L["Activity_Clear"]</AppNativeButton>
                 </div>
+                <QueueSavePlaylist Snapshot="@snapshot" />
                 @if (upcoming.Count == 0)
                 {
                     <p class="qp__empty">@L["QueuePanel_NothingNext"]</p>
@@ -254,10 +261,12 @@
         </text>;
 
     private RenderFragment UpcomingRowView(ListenPlaybackSnapshot shown, UpcomingRow row, int count) =>
-        @<div @key="row.Item.QueueEntryId" class="qp__drop" @ondragover:preventDefault="true" @ondrop="@(() => DropAsync(row.Index))">
+        @<div @key="row.Item.QueueEntryId" class="qp__drop" data-queue-index="@row.Index" @ondragover:preventDefault="true" @ondrop="@(() => DropAsync(row.Index))">
             <PlaybackListRow Variant="queue" Title="@row.Item.Title" Secondary="@row.Item.Subtitle" ArtUrl="@PlaybackArtworkUrl.ForItem(row.Item, "s")" Length="@row.Item.Duration"
                              OnClick="@(() => PlayOccurrenceAsync(shown, row.Item.QueueEntryId))" AriaLabel="@L["QueuePanel_PlayLabel", row.Item.Title].Value">
                 <Leading>
+                    @* A finger drags by this handle (touch-action: none on it alone, pointer events in playback-queue-drag.js), so the list still scrolls
+                       under a finger on the rest of the row; the mouse keeps the browser's drag and the keyboard keeps Alt+Arrow. *@
                     <AppNativeButton Type="button" Class="qp__handle" draggable="true" data-playback-queue-drag="@row.Item.QueueEntryId" AriaLabel="@L["QueuePanel_ReorderLabel", row.Item.Title].Value"
                                      Tooltip="@L["QueuePanel_DragHint"].Value"
                                      @ondragstart="@(() => BeginDrag(shown, row.Item.QueueEntryId))" @ondragend="@(() => _dragOccurrence = null)"
@@ -279,6 +288,8 @@
             new("play-next", L["QueuePanel_PlayNext"].Value, PlaybackUtilityGlyphKind.NextUp, Disabled: index == 0),
             new("move-up", L["QueuePanel_MoveUp"].Value, PlaybackUtilityGlyphKind.ChevronUp, Disabled: index == 0),
             new("move-down", L["QueuePanel_MoveDown"].Value, PlaybackUtilityGlyphKind.ChevronDown, Disabled: index == count - 1),
+            // Play next already is "move to top" for the queue (the first upcoming place), so only the bottom is added.
+            new("move-bottom", L["QueuePanel_MoveToBottom"].Value, PlaybackUtilityGlyphKind.ChevronDown, Disabled: index == count - 1),
             new("remove", L["Common_Remove"].Value, PlaybackUtilityGlyphKind.Close),
         };
         if (ListenPlaybackIdentityRoutes.Album(item) is not null)
@@ -287,7 +298,7 @@
         }
         if (ListenPlaybackIdentityRoutes.Artist(item) is not null)
         {
-            items.Add(new("go-artist", L["QueuePanel_GoToArtist"].Value, PlaybackUtilityGlyphKind.Person, DividerBefore: items.Count == 4));
+            items.Add(new("go-artist", L["QueuePanel_GoToArtist"].Value, PlaybackUtilityGlyphKind.Person, DividerBefore: items.Count == 5));
         }
         return items;
     }
@@ -306,6 +317,9 @@
                 break;
             case "move-down":
                 await MoveAsync(shown, row.Item.QueueEntryId, row.Index + 1);
+                break;
+            case "move-bottom":
+                await MoveAsync(shown, row.Item.QueueEntryId, shown.Queue.Count - shown.CurrentIndex - 2);
                 break;
             case "remove":
                 var afterRemove = NeighbourOf(row);
@@ -381,6 +395,30 @@
 
     private void BeginDrag(ListenPlaybackSnapshot shown, Guid occurrence) { _dragSnapshot = shown; _dragOccurrence = occurrence; }
     private Task DropAsync(int index) => _dragOccurrence is Guid id && _dragSnapshot is { } shown ? MoveAsync(shown, id, index) : Task.CompletedTask;
+
+    // A finger on the handle (playback-queue-drag.js): it tells this panel which row it took (the row's place among the upcoming songs) and, on
+    // release, which row it was dropped before or after. The queue as it was when the finger landed is kept, as for the mouse's drag, so the
+    // guarded command still names the queue revision the person was looking at.
+    [JSInvokable]
+    public Task TouchDragStarted(string index) => InvokeAsync(() =>
+    {
+        var rows = UpcomingRows;
+        if (int.TryParse(index, out var place) && place >= 0 && place < rows.Count) BeginDrag(Snapshot, rows[place].Item.QueueEntryId);
+    });
+
+    [JSInvokable]
+    public Task TouchDragCancelled() => InvokeAsync(() => { _dragOccurrence = null; _dragSnapshot = null; });
+
+    [JSInvokable]
+    public Task TouchDropped(string from, string to, bool after) => InvokeAsync(async () =>
+    {
+        var count = _dragSnapshot is { } shown ? shown.Queue.Count - shown.CurrentIndex - 1 : 0;
+        var place = int.TryParse(from, out var source) && int.TryParse(to, out var target)
+            ? TouchReorderRules.FinalIndex(source, target, after, count)
+            : null;
+        if (place is { } index) await DropAsync(index);
+        else { _dragOccurrence = null; _dragSnapshot = null; }
+    });
 
     private Task ReorderKeyAsync(KeyboardEventArgs args, ListenPlaybackSnapshot shown, Guid id, int index) => args.AltKey && args.Key is "ArrowUp" or "ArrowDown"
         ? MoveAsync(shown, id, index + (args.Key == "ArrowUp" ? -1 : 1)) : Task.CompletedTask;

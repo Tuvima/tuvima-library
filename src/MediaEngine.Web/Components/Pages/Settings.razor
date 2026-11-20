@@ -84,7 +84,8 @@ else
 
         <MediaEngine.Web.Components.Vault.VaultHiddenReminder />
 
-        <SettingsPageFrame Breadcrumbs="@Breadcrumbs"
+        <SettingsPageFrame BackHref="@BackLink?.Href"
+                           BackLabel="@BackLink?.Label"
                            Title="@GetHeroTitle()"
                            Description="@GetSectionDescription(_activeSection)"
                            Notices="@(ShowAttentionBanner ? AttentionBanner : null)"
@@ -424,7 +425,7 @@ else
 
     // The page's Advanced tab is open: the frame draws the one warning line first.
     private bool IsAdvancedTabOpen => CurrentLocation?.Tab?.IsAdvanced == true && !IsMobileRouteUnavailable;
-    private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
+    private SettingsBackLink? BackLink => BuildBackLink();
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
 
@@ -875,71 +876,34 @@ else
         }
     }
 
-    private IReadOnlyList<SettingsBreadcrumb> BuildBreadcrumbs()
+    // A page below a Settings page keeps one link back to its parent; every other page has none (settings-alignment D1).
+    private SettingsBackLink? BuildBackLink()
     {
-        var breadcrumbs = new List<SettingsBreadcrumb>
-        {
-            new("Settings", SettingsNav.RouteFor(SettingsSection.Overview)),
-        };
-
-        // Settings > Group > Page > Tab, straight from the menu. Every step is a link except the last, which is where you are.
         var location = CurrentLocation;
         var pageLabel = location?.Page.Label ?? GetHeroTitle();
-        // A group with one page of the same name (System, Developer) is not said twice.
-        if (!string.Equals(CurrentGroup.Label, pageLabel, StringComparison.Ordinal))
-        {
-            breadcrumbs.Add(new SettingsBreadcrumb(
-                CurrentGroup.Label,
-                SettingsNav.RouteFor(CurrentGroup.DefaultSection)));
-        }
-
         var pageRoute = location?.Page.Route ?? SettingsNav.RouteFor(_activeSection);
-        var steps = new List<SettingsBreadcrumb> { new(pageLabel, pageRoute) };
 
         if (_activeSection == SettingsSection.Libraries)
         {
-            // Libraries > Watch > Movies: the page is Libraries, so it is a link once the page is deeper.
+            // Libraries > Watch > Movies: one step up is the previous level.
             var levels = LibrariesLevel.Crumbs;
-            foreach (var level in levels.Skip(1))
-                steps.Add(new SettingsBreadcrumb(level.Label, level.Href));
-        }
-        else if (IsPluginDetailRoute)
-        {
-            steps.Add(new SettingsBreadcrumb(_pluginBreadcrumbName ?? "Plugin", null));
-        }
-        else if (IsIntegrationDetailRoute)
-        {
-            steps.Add(new SettingsBreadcrumb(_integrationBreadcrumbName ?? "Integration", null));
-        }
-        else if (IsProfileDetailRoute)
-        {
-            steps.Add(new SettingsBreadcrumb(_profileBreadcrumbName ?? "Profile", $"/settings/profiles/{ProfileDetailId:D}"));
-            if (ProfileTab.Length > 0)
-                steps.Add(new SettingsBreadcrumb(ProfileTab == "access" ? "Access & safety" : "Preferences", null));
-        }
-        else
-        {
-            var leaf = location?.Tab is { } leafTab ? TabLabel(leafTab) : location?.Leaf;
-            if (leaf is not null && !string.Equals(leaf, pageLabel, StringComparison.Ordinal))
-                steps.Add(new SettingsBreadcrumb(leaf, location?.Tab?.Route ?? SettingsNav.RouteFor(_activeSection)));
-            if (!string.IsNullOrWhiteSpace(Detail))
-                steps.Add(new SettingsBreadcrumb(GetDetailBreadcrumbLabel(), null));
+            return levels.Count > 1 && levels[^2].Href is { } up ? new SettingsBackLink(levels[^2].Label, up) : null;
         }
 
-        steps[^1] = steps[^1] with { Href = null };
-        breadcrumbs.AddRange(steps);
-        return breadcrumbs;
+        if (IsPluginDetailRoute || IsIntegrationDetailRoute)
+            return new SettingsBackLink(pageLabel, pageRoute);
+
+        if (IsProfileDetailRoute)
+        {
+            return ProfileTab.Length > 0
+                ? new SettingsBackLink(_profileBreadcrumbName ?? "Profile", $"/settings/profiles/{ProfileDetailId:D}")
+                : new SettingsBackLink(pageLabel, pageRoute);
+        }
+
+        return !string.IsNullOrWhiteSpace(Detail)
+            ? new SettingsBackLink(location?.Tab is { } tab ? TabLabel(tab) : pageLabel, location?.Tab?.Route ?? pageRoute)
+            : null;
     }
-
-    private string GetDetailBreadcrumbLabel() => _activeSection switch
-    {
-        SettingsSection.Libraries => "Libraries",
-        _ => FormatRouteLabel(Detail!),
-    };
-
-    private static string FormatRouteLabel(string value) =>
-        System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(value.Replace('-', ' '));
-
 
     private string GetHeroTitle()
     {

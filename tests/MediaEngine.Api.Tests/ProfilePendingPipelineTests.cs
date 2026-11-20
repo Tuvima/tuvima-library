@@ -247,6 +247,8 @@ public sealed class ProfilePendingPipelineTests : IDisposable
             var request = new HttpRequestMessage(method, path);
             request.Headers.Add(TuvimaAuthDefaults.ServiceHeader, ServiceKey);
             request.Headers.Add(TuvimaAuthDefaults.SessionHeader, sessionToken);
+            // The account here has no password, so its session works only on the computer that runs Library, and the Dashboard says so.
+            request.Headers.Add(ClientIngressValues.ValidateHeader, ClientIngressValues.ThisComputer);
             if (body is not null)
             {
                 request.Content = JsonContent.Create(body, body.GetType());

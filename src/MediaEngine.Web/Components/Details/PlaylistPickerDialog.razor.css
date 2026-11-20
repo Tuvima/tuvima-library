@@ -1,0 +1,95 @@
+/* The one "Add to playlist" picker (Listen playlists spec WP2, mockup C). Dark surface, 44 px controls. The row buttons are drawn by
+   AppNativeButton, so their rules sit in app.css (a scoped rule never reaches a child component). */
+.playlist-picker {
+    display: grid;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    text-align: left;
+}
+
+.playlist-picker__list {
+    display: grid;
+    gap: var(--tl-space-2);
+    max-height: min(52vh, 26rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* The small cover: square, with a music glyph when the playlist has no picture of its own. */
+.playlist-picker__cover {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-raised);
+}
+
+.playlist-picker__cover--new {
+    color: var(--tl-text-on-accent);
+    background: var(--tl-accent-primary);
+}
+
+.playlist-picker__picture {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.playlist-picker__copy {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.playlist-picker__name,
+.playlist-picker__count {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-picker__count {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+}
+
+/* "Already in": a check and the words, on playlists that hold every chosen song. */
+.playlist-picker__already {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    justify-self: end;
+    padding: 0.125rem 0.625rem;
+    border-radius: var(--tl-radius-pill);
+    color: var(--tl-status-success);
+    background: color-mix(in srgb, var(--tl-status-success) 16%, transparent);
+    font-size: var(--tl-type-secondary-size);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* New playlist asks for its name here: the field and a visible Create button side by side. */
+.playlist-picker__create {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.playlist-picker__status {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-body-size);
+}
+
+/* Phone sheet: the "Already in" pill drops under the text so the name keeps its room (the row's own columns are in app.css). */
+@media (max-width: 600px) {
+    .playlist-picker__already {
+        grid-column: 2;
+        justify-self: start;
+    }
+}

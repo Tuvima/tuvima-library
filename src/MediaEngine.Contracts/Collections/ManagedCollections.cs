@@ -118,6 +118,27 @@ public class ManagedCollectionDto
     [JsonPropertyName("item_count")]
     public int ItemCount { get; set; }
 
+    /// <summary>
+    /// Playlists and curated lists only: <c>picture</c> when the person chose their own cover (<see cref="CoverArtworkUrl"/> is set),
+    /// <c>mosaic</c> when the cover is the automatic mosaic of the members' covers. Left out for paired apps.
+    /// </summary>
+    [JsonPropertyName("cover_mode")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CoverMode { get; init; }
+
+    /// <summary>Whether the active profile pinned this playlist to the top of its list. Pins are per profile. Left out for paired apps.</summary>
+    [JsonPropertyName("is_pinned")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsPinned { get; init; }
+
+    /// <summary>
+    /// The summed length in seconds of the hand-picked songs whose length is stored. Null when no member has a known length
+    /// (show the count only); a song with no stored length adds nothing to the total. Left out for paired apps.
+    /// </summary>
+    [JsonPropertyName("total_duration_seconds")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? TotalDurationSeconds { get; init; }
+
     [JsonPropertyName("status")]
     public string Status { get; init; } = "Active";
 

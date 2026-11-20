@@ -107,6 +107,8 @@
                 default:
                     <SetupReadinessStage HeldKinds="@HeldKinds" Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" Tools="@_preflight?.Tools" Busy="@_busy" Complete="CompleteAsync"
                                          Back="GoBackAsync" />
+                    @* The one home-network question, asked here at the end of setup rather than over a page later (issue 1179). *@
+                    <MediaEngine.Web.Components.Settings.HomeNetworkFirewallPrompt />
                     break;
             }
         </section>
@@ -398,8 +400,8 @@
         }
         if (CurrentStep == "tools" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
         {
+            // Carry on: once the tools are ready the graphics and system checks below must run on this first visit too.
             await RunPreflightAsync();
-            return;
         }
         if (CurrentStep == "tools" && _preflight is { Passed: true } && _graphics is null && !_showRestore && !_busy)
         {
@@ -614,10 +616,10 @@
     private void CancelRestore() { _showRestore = false; _backup = null; _backupError = null; _restorePin = string.Empty; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backupError = null; _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) { _backupError = ApiClient.LastError is { Length: > 0 } sentence ? sentence : "The backup failed validation."; } } finally { _busy = false; } }
     private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession, _restorePin.Length == 4 && _restorePin.All(char.IsAsciiDigit) ? _restorePin : null); _busy = false; if (result is null) ShowStageNotice(L["Common_TheRestoreCouldNotBe"].Value, AppUiTone.Error); else ShowStageNotice(L["SetupPage_RestoreScheduledLibraryIsRestarting"].Value, AppUiTone.Info); }
-    // The no-password start is offered to a visitor on this computer or the home network, never to one a tunnel or
-    // proxy may be relaying. The Engine checks all of this again.
+    // The no-password start is offered only on the computer that runs Library, never to a phone or laptop on the home
+    // network and never to one a tunnel or proxy may be relaying. The Engine checks all of this again.
     private bool ThisComputerAvailable =>
-        MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress) != MediaEngine.Web.Services.Configuration.IngressKind.Remote
+        MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress) == MediaEngine.Web.Services.Configuration.IngressKind.ThisComputer
         && !ClientForwarded;
     // "Just my name" is the recommended default on this computer; anywhere else the password choice is the only one.
     private bool UsesThisComputer => ThisComputerAvailable && _signInMode != SetupSignInModes.Password;

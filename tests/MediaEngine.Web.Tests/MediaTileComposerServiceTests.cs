@@ -335,7 +335,7 @@ public sealed class MediaTileComposerServiceTests
 
         Assert.True(mapped.IsCollection);
         Assert.True(mapped.UseGroupTile);
-        Assert.Equal(MediaTileShape.Portrait, mapped.Shape);
+        Assert.Equal(MediaTileShape.Landscape, mapped.Shape);
         Assert.Equal(MediaTileSurfaceKind.CoverPortrait, mapped.SurfaceKind);
         Assert.Equal("/cover-s.jpg", mapped.TileImageUrl);
         Assert.Contains("/cover-s.jpg", mapped.PreviewImages);
@@ -549,7 +549,7 @@ public sealed class MediaTileComposerServiceTests
 
         Assert.True(mapped.IsCollection);
         Assert.True(mapped.UseGroupTile);
-        Assert.Equal(MediaTileShape.Portrait, mapped.Shape);
+        Assert.Equal(MediaTileShape.Landscape, mapped.Shape);
         Assert.Equal(MediaTileSurfaceKind.CoverPortrait, mapped.SurfaceKind);
         Assert.Null(mapped.TileImageUrl);
         Assert.Equal(6, mapped.PreviewTotalCount);

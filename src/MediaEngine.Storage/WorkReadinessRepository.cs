@@ -247,9 +247,9 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
                         ORDER BY woa_p.is_covered, CASE WHEN LOWER(ma_p.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END, ma_p.id
                         LIMIT 1) AS AssetId,
                        -- An episode's show (two levels up, through its season) or a song's album (one level up).
-                       CASE WHEN w.media_type IN ('TV', 'Music') THEN
+                       CASE WHEN w.media_type IN ('TV', 'Videos', 'Music') THEN
                            (SELECT cv.value FROM canonical_values cv
-                            WHERE cv.entity_id = CASE WHEN w.media_type = 'TV'
+                            WHERE cv.entity_id = CASE WHEN w.media_type IN ('TV', 'Videos')
                                       THEN COALESCE(
                                           (SELECT gp.id FROM works p
                                            INNER JOIN works gp ON gp.id = p.parent_work_id
@@ -258,8 +258,9 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
                                       ELSE w.parent_work_id END
                               AND cv.key = 'title' AND TRIM(cv.value) <> '')
                        END AS GroupTitle,
-                       -- The show or album itself, so a stacked tile in Activity opens its page.
-                       CASE WHEN w.media_type = 'TV' THEN
+                       -- The show, video folder or album itself, so a stacked tile in Activity opens its page. A folder of videos is built like a
+                       -- show: its root is the grouping, however deep the sub-folder a video sits in (issue 1157).
+                       CASE WHEN w.media_type IN ('TV', 'Videos') THEN
                            COALESCE(
                                (SELECT gp.id FROM works p
                                 INNER JOIN works gp ON gp.id = p.parent_work_id

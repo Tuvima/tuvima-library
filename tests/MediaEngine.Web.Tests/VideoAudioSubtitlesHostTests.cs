@@ -185,9 +185,9 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
         cut.WaitForElement("[data-audio-subtitles]");
         await cut.Find("[data-asa-action='find']").ClickAsync();
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
 
-        await cut.Find("[data-sfv-action='use']").ClickAsync();
+        await cut.Find("[data-pick-action='use']").ClickAsync();
 
         cut.WaitForAssertion(() => Assert.Equal(2, reloads));
         cut.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, call =>
@@ -207,7 +207,7 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         var rows = cut.FindAll("[data-asv-audio]");
         Assert.Equal(["English", "Spanish"], rows.Select(row => row.QuerySelector(".asv__label")!.TextContent));
         Assert.Equal("Dolby Digital · 5.1", rows[0].QuerySelector(".asv__sub")!.TextContent);
-        Assert.Equal("Stereo · 2.0", rows[1].QuerySelector(".asv__sub")!.TextContent);
+        Assert.Equal("AAC · Stereo · 2.0", rows[1].QuerySelector(".asv__sub")!.TextContent);
         Assert.False(rows[1].HasAttribute("disabled"));
     }
 
@@ -252,6 +252,45 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
         Assert.True(switched);
         Assert.Equal(1694.4, playback.CurrentItem!.InitialPositionSeconds!.Value, 3);
         Assert.True(playback.CurrentItem.StartAtExactPosition);
+    }
+
+    [Fact]
+    public async Task AJumpPastThePreparedPart_AsksTheEngineForAStreamStartedAtThatSecond_AndKeepsFilmTime()
+    {
+        var asset = Guid.NewGuid();
+        var asked = new List<double?>();
+        var playback = Arrange(UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid()), asset, id => Direct(id) with
+        {
+            RecommendedDelivery = PlaybackDeliveryModes.Hls,
+            HlsUrl = "/hls/master.m3u8",
+            HlsStatus = "ready",
+            DirectStreamUrl = null,
+            DirectPlaySupported = false,
+            DurationSeconds = 6700,
+        }, configureApi: stub => stub.SetHandler(nameof(IEngineApiClient.GetPlaybackManifestAsync), args =>
+        {
+            var start = (double?)args![7];
+            asked.Add(start);
+            return Task.FromResult<PlaybackManifestDto?>(Direct(asset) with
+            {
+                RecommendedDelivery = PlaybackDeliveryModes.Hls,
+                HlsUrl = "/hls/master.m3u8",
+                HlsStatus = "ready",
+                DirectStreamUrl = null,
+                DirectPlaySupported = false,
+                DurationSeconds = 6700,
+                StreamStartSeconds = start,
+            });
+        }));
+        playback.UpdateTransportState(currentTimeSeconds: 100, durationSeconds: 6700, isPlaying: true);
+
+        var restarted = await playback.RestartVideoAtAsync(6000);
+
+        Assert.True(restarted);
+        Assert.Equal([6000d], asked);
+        Assert.Equal(6000, playback.CurrentItem!.InitialPositionSeconds!.Value, 3);
+        Assert.Equal(6000, playback.CurrentItem.Manifest!.StreamStartSeconds);
+        Assert.Equal(6700, playback.CurrentItem.Manifest.DurationSeconds);
     }
 
     [Fact]

@@ -154,12 +154,13 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                                    aria-label="@RevertText(field, state)"
                                    OnClick="@(() => Revert(fields, session, field, state))">@L["EditorDetailsPanel_Revert"]</AppButton>
                     }
-                    @if (!state.Own)
+                    @if (!state.Own && state.Changed)
                     {
                         @LockState(fields, session, field, state)
                     }
                 </span>
             </div>
+            <div class="tl-editor-field__box" data-lock-box="@(!state.Own && !state.Changed ? "true" : "false")">
             @if (state.Locked && field.IsChips)
             {
                 <div class="tl-editor-field__chips" role="group" aria-label="@field.Label">
@@ -195,6 +196,11 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                 <AppTextField Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
                               InputType="@InputTypeOf(field)" ReadOnly="@state.Locked" aria-label="@field.Label" />
             }
+            @if (!state.Own && !state.Changed)
+            {
+                @LockState(fields, session, field, state)
+            }
+            </div>
         </div>
     };
 

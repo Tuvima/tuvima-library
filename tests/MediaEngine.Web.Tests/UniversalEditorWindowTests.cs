@@ -693,7 +693,11 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
             var label = field.QuerySelector(".tl-editor-field__label > span")!.TextContent.Trim();
             Assert.Equal($"Unlock {label} to edit", toggle.GetAttribute("aria-label"));
             Assert.Null(toggle.GetAttribute("aria-pressed"));
-            Assert.Equal("locked", field.QuerySelector("[data-lock-state]")!.GetAttribute("data-lock-state"));
+            var state = field.QuerySelector("[data-lock-state]")!;
+            Assert.Equal("locked", state.GetAttribute("data-lock-state"));
+            // The lock is inside the box beside the control and has no words; the state is told by its colour and its name (issue 1124).
+            Assert.NotNull(state.Closest(".tl-editor-field__box"));
+            Assert.Equal(string.Empty, state.TextContent.Trim());
         });
         // A locked text box can be focused and copied from but not typed in: read-only, not disabled.
         var locked = cut.FindAll(".tl-editor-field[data-field-key='title'] input, .tl-editor-field[data-field-key='description'] textarea");
@@ -1046,7 +1050,8 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
                 Assert.Contains("app-field__label", field.Children[0].ClassList);
                 Assert.DoesNotContain("app-field__label", field.Children[1].ClassList);
                 Assert.NotNull(field.Children[1].QuerySelector("input, select, textarea, .tl-select, [role='combobox'], button"));
-                Assert.Empty(field.Children[1].QuerySelectorAll(".tl-editor-field__lockstate"));
+                // The lock sits inside the control's box, at its edge, and carries no words (issue 1124): never in the label line.
+                Assert.Empty(field.Children[0].QuerySelectorAll(".tl-editor-field__lockstate"));
             }
         }
 

@@ -206,6 +206,34 @@ public sealed class AuthorizationFoundationTests
         Assert.False((authority with { ActiveProfileIsRestricted = true }).IsEffectiveAdministrator);
     }
 
+    // A no-password account works from any device on the home network and never from outside it; an unknown, missing or
+    // "remote" place is outside (fail closed), unlike Parse, which would fold it into the home network.
+    [Theory]
+    [InlineData("this_computer", true)]
+    [InlineData("home_network", true)]
+    [InlineData(" Home_Network ", true)]
+    [InlineData("remote", false)]
+    [InlineData("something-else", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void OnlyThisComputerAndTheHomeNetworkAreOnTheLocalNetwork(string? place, bool expected)
+    {
+        Assert.Equal(expected, ClientIngress.IsOnLocalNetwork(place));
+    }
+
+    // Where a request is now: anything not exactly this computer or the home network is outside.
+    [Theory]
+    [InlineData("this_computer", "this_computer")]
+    [InlineData("HOME_NETWORK", "home_network")]
+    [InlineData("remote", "remote")]
+    [InlineData("", "remote")]
+    [InlineData(null, "remote")]
+    [InlineData("something-else", "remote")]
+    public void TheCurrentPlaceFailsClosed(string? place, string expected)
+    {
+        Assert.Equal(expected, ClientIngress.ParseCurrent(place));
+    }
+
     [Theory]
     [InlineData("this_computer", "this_computer", true)]
     [InlineData("home_network", "home_network", true)]
@@ -217,6 +245,47 @@ public sealed class AuthorizationFoundationTests
     public void SessionsMadeAtHomeOnlyContinueAtHome(string? issued, string? current, bool expected)
     {
         Assert.Equal(expected, ClientIngress.SessionMayContinue(issued, current));
+    }
+
+    // Home network spec D8: the Dashboard listens on the home network, so only the computer that runs Library may
+    // use an account that has no password. Anything else, including a missing or unknown place, counts as the home network.
+    [Theory]
+    [InlineData("this_computer", true)]
+    [InlineData("THIS_COMPUTER", true)]
+    [InlineData("home_network", false)]
+    [InlineData("remote", false)]
+    [InlineData("", false)]
+    [InlineData("something-else", false)]
+    [InlineData(null, false)]
+    public void OnlyThisComputerIsThisComputer(string? place, bool expected)
+    {
+        Assert.Equal(expected, ClientIngress.IsThisComputer(place));
+    }
+
+    [Theory]
+    [InlineData("this_computer", "this_computer", true)]
+    [InlineData("home_network", "this_computer", true)]
+    [InlineData("this_computer", "home_network", true)]
+    [InlineData("home_network", "home_network", true)]
+    [InlineData("this_computer", "remote", false)]
+    [InlineData("home_network", "remote", false)]
+    [InlineData("this_computer", "something-else", false)]
+    [InlineData("this_computer", "", false)]
+    [InlineData("this_computer", null, false)]
+    public void AnAccountWithoutAPasswordContinuesOnlyOnThisComputerOrTheHomeNetwork(string? issued, string? current, bool expected)
+    {
+        Assert.Equal(expected, ClientIngress.SessionMayContinue(issued, current, accountIsThisComputerOnly: true));
+    }
+
+    [Theory]
+    [InlineData("lan.abc", "home_network", true)]
+    [InlineData("lan.abc", "this_computer", true)]
+    [InlineData("lan.abc", "remote", false)]
+    [InlineData("lan.abc", null, false)]
+    [InlineData("abc", "remote", true)]
+    public void ATokenFromANoPasswordApprovalWorksOnlyOnTheHomeNetwork(string token, string? current, bool expected)
+    {
+        Assert.Equal(expected, ClientIngress.TokenMayBeUsedFrom(token, current));
     }
 
     [Fact]

@@ -169,15 +169,23 @@ public sealed partial class PlaybackLyricsPresenter
 
     public bool Offers(string kind) => PluginActions.Any(action => string.Equals(action.kind, kind, StringComparison.OrdinalIgnoreCase));
 
-    public async Task OpenAlternativesAsync()
+    /// <summary>The words the open list was searched with (null for the song's own search); a choice from the list carries them so the Engine finds the same result.</summary>
+    private string? _alternativesQuery;
+
+    /// <summary>
+    /// Opens the "pick a result" window and asks the sources. <paramref name="query"/> is the text the person typed in its search box when it differs
+    /// from what the box started with (the Engine's own lookup is used when it is null); searching again from the open window calls this too.
+    /// </summary>
+    public async Task OpenAlternativesAsync(string? query = null)
     {
         if (_identity is not { } identity || AlternativesLoading)
         {
             return;
         }
         var generation = _lookupGeneration;
+        _alternativesQuery = string.IsNullOrWhiteSpace(query) ? null : query.Trim();
         AlternativesOpen = true; AlternativesLoading = true; Alternatives = null; Status = null; Changed?.Invoke();
-        var result = await api.GetTextTrackAlternativesAsync(identity.AssetId, LyricsKind, _reads.Token);
+        var result = await api.GetTextTrackAlternativesAsync(identity.AssetId, LyricsKind, _reads.Token, null, query);
         if (_disposed || generation != _lookupGeneration)
         {
             return;
@@ -200,7 +208,7 @@ public sealed partial class PlaybackLyricsPresenter
         var generation = _lookupGeneration;
         Choosing = true; Changed?.Invoke();
         var result = await api.ChooseTextTrackAlternativeAsync(identity.AssetId,
-            new ChooseTextTrackAlternativeRequest { kind = LyricsKind, provider = alternative.provider, source_id = alternative.source_id }, _reads.Token);
+            new ChooseTextTrackAlternativeRequest { kind = LyricsKind, provider = alternative.provider, source_id = alternative.source_id, query = _alternativesQuery }, _reads.Token);
         await AfterChoiceAsync(identity, generation, result, "Those lyrics could not be saved.");
     }
 
@@ -215,6 +223,11 @@ public sealed partial class PlaybackLyricsPresenter
         Choosing = true; Changed?.Invoke();
         var result = await api.MarkTextTrackWrongAsync(identity.AssetId, trackId, _reads.Token);
         await AfterChoiceAsync(identity, generation, result, "Could not mark those lyrics as wrong.");
+        // Hiding the lyrics must never leave a person with nothing: the list of other results opens straight away, searched by the song's own title and artist.
+        if (!_disposed && result is not null && Offers("find_lyrics"))
+        {
+            await OpenAlternativesAsync();
+        }
     }
 
     private async Task AfterChoiceAsync(PlaybackLyricsIdentity identity, long generation, TextTrackChoiceResponse? result, string failure)

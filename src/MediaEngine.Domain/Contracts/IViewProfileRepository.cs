@@ -20,4 +20,13 @@ public interface IViewProfileRepository
     /// straight to Photos. False when the profile does not exist.
     /// </summary>
     Task<bool> SaveDocumentsPicturesToPhotosAsync(Guid profileId, bool toPhotos, CancellationToken ct = default);
+
+    /// <summary>Remembers, for this profile, whether maps use only the built-in map and never ask an online tile service (spec view-people-search WP2).</summary>
+    Task<bool> SaveBuiltInMapOnlyAsync(Guid profileId, bool builtInOnly, CancellationToken ct = default);
+
+    /// <summary>Saves whether this person wants the words inside their own photos read so a search can find them (spec view-people-search WP5).</summary>
+    Task<bool> SaveReadWordsInPhotosAsync(Guid profileId, bool readWords, CancellationToken ct = default);
+
+    /// <summary>Saves whether Library may look for faces in this person's own photos (spec view-people-search; on by default).</summary>
+    Task<bool> SaveRecognizePeopleAsync(Guid profileId, bool recognize, CancellationToken ct = default);
 }

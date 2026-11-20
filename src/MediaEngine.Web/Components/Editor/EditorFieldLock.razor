@@ -15,7 +15,6 @@
                          OnAction="OnRevert"
                          TriggerClass="tl-editor-field__lock-toggle tl-editor-field__lock-reveal">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LockOpen" Size="AppIconSize.Control20" />
-            <span>@L["EditorDetailsPanel_Unlocked"]</span>
         </EditorTapReveal>
     </span>
 }
@@ -38,7 +37,6 @@ else
                        Tooltip="@text"
                        AriaLabel="@text"
                        OnClick="OnToggle" />
-        <span>@(Locked ? L["EditorDetailsPanel_Locked"].Value : L["EditorDetailsPanel_Unlocked"].Value)</span>
     </span>
 }
 

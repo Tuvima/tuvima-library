@@ -48,7 +48,7 @@ public static class AuthenticationEndpoints
         // ever told the account exists; everyone else gets the same plain 404 as when there is no such account.
         group.MapGet("/this-computer", async (HttpRequest request, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
-            var name = ComesFromThisComputer(request)
+            var name = ComesFromLocalNetwork(request)
                 ? await identity.GetThisComputerAccountNameAsync(ct).ConfigureAwait(false)
                 : null;
             return name is null
@@ -63,7 +63,7 @@ public static class AuthenticationEndpoints
         group.MapPost("/this-computer", async (ThisComputerSignInRequest body, HttpRequest request,
             IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
-            var issued = ComesFromThisComputer(request)
+            var issued = ComesFromLocalNetwork(request)
                 ? await identity.SignInThisComputerAccountAsync(body.DeviceId, body.DeviceName, body.Client, request.Headers[ClientIngressValues.ValidateHeader].ToString(), ct).ConfigureAwait(false)
                 : null;
             return issued is null
@@ -306,7 +306,7 @@ public static class AuthenticationEndpoints
             // Only the Dashboard (the service credential) may say where the browser is; it is recorded but not enforced.
             var isDashboard = request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true");
             var currentIngress = isDashboard
-                ? ClientIngress.Parse(request.Headers[ClientIngressValues.ValidateHeader].ToString())
+                ? ClientIngress.ParseCurrent(request.Headers[ClientIngressValues.ValidateHeader].ToString())
                 : ClientIngress.Remote;
             var session = await identity.ValidateSessionAsync(request.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), true, ct, currentIngress).ConfigureAwait(false);
             if (session is not null)
@@ -689,8 +689,15 @@ public static class AuthenticationEndpoints
         {
             try
             {
+                // Where the Dashboard says the visitor is, as the sign-in handler read it for this same request. Only the Dashboard
+                // (service credential) may say so; from any other caller the header is ignored, like for the this-computer sign-in.
+                var currentIngress = httpRequest.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
+                    && httpRequest.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
+                    && !string.IsNullOrWhiteSpace(ingressValues.ToString())
+                    ? ClientIngress.ParseCurrent(ingressValues.ToString())
+                    : null;
                 var result = await identity.SwitchActiveProfileAsync(
-                    httpRequest.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), request.ProfileId, request.Secret, ct).ConfigureAwait(false);
+                    httpRequest.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), request.ProfileId, request.Secret, ct, currentIngress).ConfigureAwait(false);
                 return Results.Ok(await ToValidationResponseAsync(result, projector, ct));
             }
             catch (Exception ex) when (ex is ProfilePinLockedException or ProfilePinRequiredException or KeyNotFoundException or UnauthorizedAccessException)
@@ -926,10 +933,19 @@ public static class AuthenticationEndpoints
                 : refusal();
         });
 
+    /// <summary>
+    /// The no-password account works from this computer and from the home network. Only the Dashboard (service credential) may
+    /// say where the browser is; a missing, unknown or "remote" header counts as outside, and so does a forwarded request.
+    /// </summary>
+    private static bool ComesFromLocalNetwork(HttpRequest request) =>
+        request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
+        && ClientIngress.IsOnLocalNetwork(request.Headers[ClientIngressValues.ValidateHeader].ToString())
+        && !WasForwarded(request);
+
     /// <summary>Only the Dashboard (service credential) may say where the browser is; a missing header counts as remote.</summary>
     private static bool ComesFromThisComputer(HttpRequest request) =>
         request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
-        && ClientIngress.IsLocal(request.Headers[ClientIngressValues.ValidateHeader].ToString())
+        && ClientIngress.IsThisComputer(request.Headers[ClientIngressValues.ValidateHeader].ToString())
         && !WasForwarded(request);
 
     /// <summary>

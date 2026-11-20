@@ -40,7 +40,6 @@ public static class CollectionMembershipFlow
 
         var dialog = await dialogs.ShowAsync<MediaMembershipDialog>(label, new AppDialogParameters<MediaMembershipDialog>
         {
-            { d => d.Playlist, false },
             { d => d.WorkIds, items.Select(item => item.WorkId).Distinct().ToList() },
             { d => d.OfferNewCollection, true },
         });

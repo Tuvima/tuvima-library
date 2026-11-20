@@ -70,6 +70,27 @@ public static class NetworkEndpoints
         .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
 
+        // Remembering the home-network question needs no fresh "Confirm it's you": it changes one flag, never what the app listens on.
+        settings.MapPost("/firewall-answered", (IConfigurationLoader configuration) =>
+        {
+            var current = configuration.LoadNetwork();
+            current.Local.FirewallPromptAnswered = true;
+            try
+            {
+                configuration.SaveNetwork(current);
+                return Results.Ok(NetworkContractMapper.ToContract(current));
+            }
+            catch (ConfigValidationException ex)
+            {
+                return ApiErrors.BadRequest(string.Join(" ", ex.ValidationMessages));
+            }
+        })
+        .WithName("MarkFirewallPromptAnswered")
+        .WithSummary("Remember that the first-run home-network question was answered.")
+        .Produces<NetworkSettingsDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
+
         var network = app.MapGroup("/network")
             .WithTags("Network & Remote Access");
 

@@ -260,15 +260,15 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WorkingQueueWithOtherWork_ListsTheIngestionLineFirstAndCountsBoth()
+    public void WorkingQueueWithOtherWork_ListsTheIngestionLineFirstAndDrawsNoCountBadge()
     {
         _state.PushIngestionQueueProgress(Queue("working", found: 5, done: 1, progress: 0.2, secondsLeft: 30));
         _state.PushUniverseEnrichmentProgress(new UniverseEnrichmentProgressEvent("Q1", "Dune", 1, 4, "people"));
 
         var cut = Render<SystemActivityIndicator>();
 
-        Assert.Equal("Found 5 files · 1 of 5 done · Less than a minute left • Enriching Dune (25%)", Tooltip(cut));
-        Assert.Equal("2", cut.Find(".system-activity-indicator__count").TextContent);
+        Assert.Equal("2 things running: Found 5 files · 1 of 5 done · Less than a minute left • Enriching Dune (25%)", Tooltip(cut));
+        Assert.Empty(cut.FindAll(".system-activity-indicator__count"));
     }
 
     [Fact]

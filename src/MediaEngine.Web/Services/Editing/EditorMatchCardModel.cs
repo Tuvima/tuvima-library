@@ -97,7 +97,7 @@ public static class EditorMatchCardModels
         var hasPage = !string.IsNullOrWhiteSpace(record.SourceUrl) && !string.IsNullOrWhiteSpace(record.ProviderName);
         return new EditorMatchCardModel(
             record.Title,
-            null,
+            record.Album,
             Join(record.Creator, record.Year, record.LengthText),
             record.ImageUrl,
             ArtFor(record.Kind, kind),

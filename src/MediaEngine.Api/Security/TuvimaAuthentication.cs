@@ -65,9 +65,7 @@ public sealed class TuvimaAuthenticationHandler(
     UrlEncoder encoder,
     IFirstPartyIdentityService identity,
     ClientAuthorizationService clientAuthorization,
-    IApplicationRepository applications,
-    IConfigurationLoader configurationLoader,
-    IWebHostEnvironment environment)
+    IApplicationRepository applications)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -136,10 +134,10 @@ public sealed class TuvimaAuthenticationHandler(
             if (Request.Headers.TryGetValue(TuvimaAuthDefaults.SessionHeader, out var sessionValues)
                 && !string.IsNullOrWhiteSpace(sessionValues.ToString()))
             {
-                // The Dashboard says where the visitor is when it knows; the place is recorded but no longer restricts access.
+                // The Dashboard says where the visitor is; a no-password account is only valid on this computer or the home network.
                 var claimedIngress = Request.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
                     && !string.IsNullOrWhiteSpace(ingressValues.ToString())
-                    ? ClientIngress.Parse(ingressValues.ToString())
+                    ? ClientIngress.ParseCurrent(ingressValues.ToString())
                     : null;
                 session = await identity.ValidateSessionAsync(sessionValues.ToString(), true, Context.RequestAborted, claimedIngress).ConfigureAwait(false);
                 if (session is null)
@@ -175,16 +173,7 @@ public sealed class TuvimaAuthenticationHandler(
             return Success(claims);
         }
 
-        var auth = configurationLoader.LoadCore().Auth;
-        if (environment.IsDevelopment() && auth.LocalhostBypass && IsLoopback(Context.Connection.RemoteIpAddress))
-        {
-            return Success([
-                new Claim(ClaimTypes.NameIdentifier, "development:localhost"),
-                new Claim(ClaimTypes.Name, "Development localhost"),
-                new Claim(TuvimaClaimTypes.PrincipalKind, Domain.Authorization.PrincipalKind.HostRecovery.ToString()),
-            ]);
-        }
-
+        // No credential, no identity.
         return AuthenticateResult.NoResult();
     }
 
@@ -219,7 +208,4 @@ public sealed class TuvimaAuthenticationHandler(
             claims.Add(new Claim(TuvimaClaimTypes.ProfilePending, "true"));
         }
     }
-
-    private static bool IsLoopback(System.Net.IPAddress? address) =>
-        address is not null && System.Net.IPAddress.IsLoopback(address);
 }

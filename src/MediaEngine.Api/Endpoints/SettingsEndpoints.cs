@@ -192,7 +192,6 @@ public static class SettingsEndpoints
             }
 
             auth.Mode = request.Mode;
-            auth.LocalhostBypass = request.LocalhostBypass;
             auth.PasswordSignInEnabled = request.PasswordSignInEnabled;
             auth.PasskeySignInEnabled = request.PasskeySignInEnabled;
             auth.ExternalSignInEnabled = request.ExternalSignInEnabled;
@@ -203,7 +202,6 @@ public static class SettingsEndpoints
             auth.MaximumActiveSessions = request.MaximumActiveSessions;
             var prospective = providerConfiguration.LoadWithSecrets();
             prospective.Mode = auth.Mode;
-            prospective.LocalhostBypass = auth.LocalhostBypass;
             prospective.PasswordSignInEnabled = auth.PasswordSignInEnabled;
             prospective.PasskeySignInEnabled = auth.PasskeySignInEnabled;
             prospective.ExternalSignInEnabled = auth.ExternalSignInEnabled;
@@ -1846,7 +1844,6 @@ public static class SettingsEndpoints
         return new AuthSettingsDto
         {
             Mode = auth.Mode,
-            LocalhostBypass = auth.LocalhostBypass,
             PasswordSignInEnabled = auth.PasswordSignInEnabled,
             PasskeySignInEnabled = auth.PasskeySignInEnabled,
             ExternalSignInEnabled = auth.ExternalSignInEnabled,

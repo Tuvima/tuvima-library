@@ -52,7 +52,7 @@
     },
     "song": {
       "tabs": ["details", "artwork", "match", "history"],
-      "facts_line": ["track_number", "runtime", "artist", "match_state"],
+      "facts_line": ["artist", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "last_refresh"],
       "match_fields": ["artist", "album", "song"]
     },

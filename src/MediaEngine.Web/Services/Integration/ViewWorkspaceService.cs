@@ -70,6 +70,24 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         }
     }
 
+    /// <summary>Groups of faces waiting for a name, shown as a count on People. Zero when face recognition is off.</summary>
+    public int PeopleWaitingCount { get; private set; }
+
+    public event Action? PeopleWaitingChanged;
+
+    public async Task RefreshPeopleWaitingAsync(CancellationToken ct = default)
+    {
+        var progress = await api.GetViewFaceProgressAsync(ct);
+        var count = progress is null || progress.State == ViewFaceStates.Off ? 0 : Math.Max(0, progress.UnnamedGroups);
+        if (count == PeopleWaitingCount)
+        {
+            return;
+        }
+
+        PeopleWaitingCount = count;
+        PeopleWaitingChanged?.Invoke();
+    }
+
     private void SetDocumentInboxCount(int count)
     {
         if (DocumentInboxCount == count)
@@ -211,6 +229,49 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         }
 
         Preferences = saved;
+        return true;
+    }
+
+    private bool _mapLoaded;
+
+    /// <summary>True when this person chose the built-in map only (no online map tiles). Read once, then kept; call <see cref="EnsureMapPreferenceAsync"/> first.</summary>
+    public bool BuiltInMapOnly { get; private set; }
+
+    public async Task EnsureMapPreferenceAsync(CancellationToken ct = default)
+    {
+        if (_mapLoaded)
+        {
+            return;
+        }
+        BuiltInMapOnly = await api.GetViewMapBuiltInOnlyAsync(ct);
+        _mapLoaded = true;
+    }
+
+    /// <summary>True when this person switched on reading the words inside their own photos. Loaded with the page; changed with <see cref="SetReadWordsInPhotosAsync"/>.</summary>
+    public bool ReadWordsInPhotos { get; private set; }
+
+    public async Task RefreshReadWordsInPhotosAsync(CancellationToken ct = default) =>
+        ReadWordsInPhotos = await api.GetViewReadWordsInPhotosAsync(ct);
+
+    public async Task<bool> SetReadWordsInPhotosAsync(bool readWords, CancellationToken ct = default)
+    {
+        if (!await api.SetViewReadWordsInPhotosAsync(readWords, ct))
+        {
+            return false;
+        }
+
+        ReadWordsInPhotos = readWords;
+        return true;
+    }
+
+    public async Task<bool> SetBuiltInMapOnlyAsync(bool builtInOnly, CancellationToken ct = default)
+    {
+        if (!await api.SetViewMapBuiltInOnlyAsync(builtInOnly, ct))
+        {
+            return false;
+        }
+        BuiltInMapOnly = builtInOnly;
+        _mapLoaded = true;
         return true;
     }
 

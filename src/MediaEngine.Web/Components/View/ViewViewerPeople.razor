@@ -1,0 +1,57 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Ui
+@inject UIOrchestratorService Orchestrator
+@inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
+
+@* The People section of the photo viewer's side panel (spec view-people-search WP10): each face found in this photo, with the person's name,
+   or "Name this face" when nobody is named yet. Only the signed-in person's own faces ever come back, so nothing shows for other people's photos. *@
+@if (Faces.Count > 0)
+{
+    <section class="view-viewer-info__section">
+        <div class="view-viewer-info__heading"><h3>@L["Wikidata_PeopleGroupTitle"]</h3></div>
+        <ul class="view-face-grid">
+            @foreach (var face in Faces)
+            {
+                <li @key="face.FaceId">
+                    @if (face.PersonName is null && face.PersonId.HasValue && CanName)
+                    {
+                        <AppNativeButton Type="button" Class="view-face-tile" AriaLabel="@ViewPeopleText.NameThisFace" OnClick="@(_ => NameAsync(face))">
+                            <ViewFaceImage FaceId="@face.FaceId" ProfileId="@_profileId" />
+                            <span>@ViewPeopleText.NameThisFace</span>
+                        </AppNativeButton>
+                    }
+                    else
+                    {
+                        <div class="view-face-tile view-face-tile--static">
+                            <ViewFaceImage FaceId="@face.FaceId" ProfileId="@_profileId" />
+                            <span>@(face.PersonName ?? ViewPeopleText.Unnamed)</span>
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    </section>
+}
+@code {
+    [Parameter] public IReadOnlyList<ViewFaceBoxDto> Faces { get; set; } = [];
+    [Parameter] public bool CanName { get; set; }
+    /// <summary>Raised after a face is named so the viewer reads the faces again.</summary>
+    [Parameter] public EventCallback OnNamed { get; set; }
+
+    private Guid? _profileId;
+
+    protected override async Task OnInitializedAsync() => _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id;
+
+    private async Task NameAsync(ViewFaceBoxDto face)
+    {
+        var dialog = await DialogService.ShowAsync<ViewNamePersonDialog>(string.Empty,
+            new AppDialogParameters<ViewNamePersonDialog> { { component => component.PersonId, face.PersonId!.Value }, { component => component.ProfileId, _profileId } },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium, Sheet = AppDialogSheetMode.PhoneAndTablet });
+        if ((await dialog.Result) is { Canceled: false })
+        {
+            await OnNamed.InvokeAsync();
+        }
+    }
+}

@@ -99,7 +99,7 @@ else
                                 @foreach (var location in group.Locations)
                                 {
                                     <AppBrowserSideItem Label="@DisplayName(location)"
-                                                        Detail="@(ShowLocationPath(location) ? location.Path : null)"
+                                                        Detail="@LocationDetail(location)"
                                                         Icon="@(IsMachineLocation(location) ? AppMaterialIcons.Outlined.Storage : AppMaterialIcons.Outlined.FolderOpen)"
                                                         Selected="@(_activeLocation?.Id == location.Id)"
                                                         aria-label="@($"Browse {DisplayName(location)}")"
@@ -180,7 +180,7 @@ else
                 </InsideContent>
                 <Columns>
                     <AppBrowserColumn Label="@L["FolderPicker_Name"].Value" MinWidth="12rem" />
-                    <AppBrowserColumn Label="@L["FolderPicker_Modified"].Value" Width="12.5rem" WideOnly="true" />
+                    <AppBrowserColumn Label="Items" Width="7rem" />
                     <AppBrowserColumn Label="@L["FolderPicker_Open"].Value" HideLabel="true" Width="3rem" />
                 </Columns>
                 <Rows>
@@ -193,8 +193,7 @@ else
                             <AppBrowserFolderRow @key="folder.RelativePath"
                                                  Id="@FolderId(position)"
                                                  Name="@folder.Name"
-                                                 Modified="@FormatModified(folder.ModifiedAt)"
-                                                 WideOnlyMiddle="true"
+                                                 Modified="@FolderHandlingWords.ItemsText(folder.ItemCount)"
                                                  Highlighted="@(position == _highlight)"
                                                  OnOpen="@(() => OpenFolderAsync(folder))" />
                         }
@@ -252,13 +251,21 @@ else
             }
             @if (OfferHandling)
             {
+                @* One line, always the same height: the label with its "i", then the two-part choice. The help that used to sit under it is a tooltip, so switching never resizes the window. *@
                 <div class="server-folder-picker__handling" role="group" aria-label="How Library uses this folder" data-folder-handling>
+                    <span class="server-folder-picker__handling-label">
+                        Folder access
+                        <AppTooltip Text="@HandlingTooltip" Warning="@(_handlingManaged && ManagedAllowed ? FolderHandlingWords.ManagedUndoWarning : null)" Placement="AppPlacement.Top">
+                            <button type="button" class="server-folder-picker__info" aria-label="@($"About {FolderHandlingWords.LabelFor(_handlingManaged)} folders")" data-picker-info>
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppIconSize.Control20" />
+                            </button>
+                        </AppTooltip>
+                    </span>
                     <AppSegmentedControl Options="HandlingOptions"
                                          Value="@(_handlingManaged ? FolderHandlingWords.ManagedKey : FolderHandlingWords.ReadOnlyKey)"
                                          ValueChanged="HandlingChosenAsync"
                                          AriaLabel="How Library uses this folder"
                                          Size="AppControlSize.Compact" />
-                    <p class="server-folder-picker__handling-help">@(ManagedAllowed ? FolderHandlingWords.ChoiceHelp : FolderHandlingWords.ReadOnlyOnlyHelp)</p>
                 </div>
             }
             @if (MessageLine is { } message)
@@ -389,6 +396,8 @@ else
     private IReadOnlyList<AppSelectOption> HandlingOptions => ManagedAllowed
         ? [new AppSelectOption(FolderHandlingWords.ReadOnlyKey, FolderHandlingWords.ReadOnly), new AppSelectOption(FolderHandlingWords.ManagedKey, FolderHandlingWords.Managed)]
         : [new AppSelectOption(FolderHandlingWords.ReadOnlyKey, FolderHandlingWords.ReadOnly)];
+    // The help for the choice that is picked now, shown only in the tooltip beside "Folder access" (issue 1155).
+    private string HandlingTooltip => !ManagedAllowed ? FolderHandlingWords.ReadOnlyOnlyHelp : _handlingManaged ? FolderHandlingWords.ManagedTooltip : FolderHandlingWords.ReadOnlyTooltip;
     private Task HandlingChosenAsync(string key) => SetHandlingAsync(key == FolderHandlingWords.ManagedKey);
     private bool _managedChoice;
     private bool _handlingManaged;
@@ -479,6 +488,11 @@ else
             }.Where(group => group.Locations.Count > 0).Select((group, position) => (Heading: group.Heading, Position: position, Locations: group.Locations));
         }
     }
+
+    // A drive says how much room it has left (so the big media drive stands out from the system drive); a media location shows its path.
+    private static string? LocationDetail(ServerStorageLocationDto location) =>
+        IsMachineLocation(location) && location.AvailableBytes is { } free ? $"{FolderHandlingWords.FormatFree(free)} free"
+        : ShowLocationPath(location) ? location.Path : null;
 
     private static string DisplayName(ServerStorageLocationDto location) => location.Label;
 
@@ -935,7 +949,6 @@ else
 
     private string FolderId(int index) => $"{FolderIdPrefix}-{index}";
 
-    private static string FormatModified(DateTimeOffset? value) => value?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? "\u2014";
 
     public void Dispose()
     {

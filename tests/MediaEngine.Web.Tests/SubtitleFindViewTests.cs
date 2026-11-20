@@ -11,13 +11,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Video player follow-ups D9 to D12 (mockup section 3): Find subtitles is a list you pick from, searched once as the view opens in the profile's
-/// language, with a plain sentence for every outcome written by the Dashboard. The Engine is a hand-written stub that records every call.
+/// Video player follow-ups D9 to D12 and review mock-ups D7: Find subtitles is the shared pick-a-result window (search box filled in with the title and
+/// year, best match first and selected, Use this), searched once as it opens in the profile's language, with a plain sentence for every outcome
+/// written by the Dashboard. The Engine is a hand-written stub that records every call.
 /// </summary>
 public sealed class SubtitleFindViewTests : AsyncBunitContext
 {
     private static readonly Guid Asset = Guid.NewGuid();
-    private readonly List<(string Kind, string? Language)> _searches = [];
+    private readonly List<(string Kind, string? Language, string? Query)> _searches = [];
     private readonly List<ChooseTextTrackAlternativeRequest> _chosen = [];
     private readonly List<Guid> _markedWrong = [];
     private readonly List<Guid?> _tracksChanged = [];
@@ -55,7 +56,7 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
     {
         stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), args =>
         {
-            _searches.Add(((string)args![1]!, (string?)args[3]));
+            _searches.Add(((string)args![1]!, (string?)args[3], (string?)args[4]));
             return Task.FromResult(answer());
         });
         stub.SetHandler(nameof(IEngineApiClient.ChooseTextTrackAlternativeAsync), args =>
@@ -83,48 +84,64 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
         bool episode = false,
         bool noSource = false,
         SubtitleLanguageSettingsDto? look = null,
-        bool phone = false)
+        string searchText = "Ferrari 2023")
     {
         var cut = Render<AudioSubtitlesPanel>(parameters => parameters
             .Add(p => p.Find, presenter)
             .Add(p => p.IsAdministrator, administrator)
             .Add(p => p.IsEpisode, episode)
             .Add(p => p.NoSubtitleSource, noSource)
-            .Add(p => p.Look, look));
+            .Add(p => p.Look, look)
+            .Add(p => p.FindSearchText, searchText)
+            .Add(p => p.FindCoverUrl, "/engine-image/stream/entity/work/11111111-1111-1111-1111-111111111111/cover?size=m"));
         var panel = cut.FindComponent<PlaybackPanel>();
-        if (phone)
-        {
-            await cut.InvokeAsync(() => panel.Instance.SetViewport(true));
-        }
         await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
         cut.WaitForElement("[data-audio-subtitles]");
         await cut.Find("[data-asa-action='find']").ClickAsync();
+        cut.WaitForElement("[data-pick-dialog]");
         return cut;
     }
 
+    private static string Row(string id) => $"[data-pick-result='subdl:{id}']";
+
     [Fact]
-    public async Task TheViewListsTheResults_WithTheirTags_AndTheFirstOtherOneIsThePrimaryAction()
+    public async Task FindSubtitles_OpensTheSharedWindow_WithTheTitleAndASearchBoxFilledInWithTitleAndYear()
     {
-        var api = Api(() => Found(Item("a", current: true, hearingImpaired: true), Item("b", release: "The.Long.Way.Home.2019.2160p.UHD.BluRay.x265"), Item("c", confidence: 0.84, release: "WEB-DL.720p")));
+        var api = Api(() => Found(Item("a")));
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        Assert.Equal("Find subtitles", cut.Find("dialog h2").TextContent);
+        Assert.Equal("Ferrari 2023", cut.Find("[data-pick-box]").GetAttribute("value"));
+        Assert.Equal("Search", cut.Find("[data-pick-search]").TextContent.Trim());
+        Assert.Equal("portrait", cut.Find("[data-pick-dialog]").GetAttribute("data-pick-cover"));
+        Assert.Equal(["Cancel", "Use this"], cut.FindAll("[data-pick-action]").Select(button => button.TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task TheBestMatchIsFirst_WearsTheBestMatchPill_AndStartsSelected()
+    {
+        var api = Api(() => Found(Item("a"), Item("b", release: "The.Long.Way.Home.2019.2160p.UHD.BluRay.x265"), Item("c", confidence: 0.84, release: "WEB-DL.720p")));
         var cut = await OpenFindAsync(Presenter(api));
 
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
 
-        Assert.Equal("3 results from SubDL", cut.Find("[data-sfv-head]").TextContent);
-        var rows = cut.FindAll("[data-sfv-result]");
-        Assert.Equal(["a", "b", "c"], rows.Select(row => row.GetAttribute("data-sfv-result")));
-        Assert.Equal(["current", "hearing-impaired", "same-release"], rows[0].QuerySelectorAll("[data-sfv-tag]").Select(tag => tag.GetAttribute("data-sfv-tag")));
-        Assert.Equal("This one is wrong", rows[0].QuerySelector("[data-sfv-action='wrong']")!.TextContent.Trim());
-        Assert.Equal("Use this", rows[1].QuerySelector("[data-sfv-action='use']")!.TextContent.Trim());
-        Assert.Contains("sfv__button--primary", rows[1].QuerySelector("[data-sfv-action='use']")!.ClassList);
-        Assert.DoesNotContain("sfv__button--primary", rows[2].QuerySelector("[data-sfv-action='use']")!.ClassList);
-        Assert.Equal("different-release", rows[2].QuerySelector("[data-sfv-tag='different-release']")!.GetAttribute("data-sfv-tag"));
-        Assert.Equal("WEB-DL.720p", rows[2].QuerySelector(".sfv__release")!.GetAttribute("data-overflow-tooltip"));
+        var rows = cut.FindAll("[data-pick-result]");
+        Assert.Equal(["subdl:a", "subdl:b", "subdl:c"], rows.Select(row => row.GetAttribute("data-pick-result")));
+        Assert.Equal("true", rows[0].GetAttribute("aria-checked"));
+        Assert.Contains("is-selected", rows[0].ClassList);
+        Assert.Equal(["false", "false"], rows.Skip(1).Select(row => row.GetAttribute("aria-checked")));
+        Assert.Single(cut.FindAll("[data-pick-best]"));
+        Assert.Equal("Best match", rows[0].QuerySelector("[data-pick-best]")!.TextContent);
+        Assert.Equal("WEB-DL.720p", rows[2].QuerySelector(".app-pick-result__title")!.TextContent);
+        Assert.Equal("Different release", rows[2].QuerySelector("[data-pick-sub]")!.TextContent);
+        Assert.Equal("Same release", rows[0].QuerySelector("[data-pick-sub]")!.TextContent);
+        Assert.NotEmpty(rows[0].QuerySelectorAll("img"));
         Assert.Equal("Your choice applies to everyone watching this title.", cut.Find("[data-sfv-note]").TextContent);
     }
 
     [Fact]
-    public async Task TheSearchRunsOnceWhenTheViewOpens_NotWhenThePanelOpens()
+    public async Task TheSearchRunsOnceWhenTheWindowOpens_NotWhenThePanelOpens()
     {
         var api = Api(() => Found(Item("a")));
         var presenter = Presenter(api);
@@ -135,31 +152,118 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
         Assert.Empty(_searches);
 
         await cut.Find("[data-asa-action='find']").ClickAsync();
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
 
         Assert.Single(_searches);
         Assert.Equal("subtitles", _searches[0].Kind);
+        Assert.Null(_searches[0].Query);
     }
 
     [Fact]
-    public async Task UsingAResult_ChoosesIt_TellsTheHostTheTracksChanged_AndMarksTheRowInUse()
+    public async Task EditingTheBoxAndPressingSearch_AsksTheSourcesAgainWithTheNewText()
+    {
+        var api = Api(() => Found(Item("a")));
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        cut.Find("[data-pick-box]").Input("Ferrari 1998");
+        await cut.Find("[data-pick-search]").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
+        Assert.Null(_searches[0].Query);
+        Assert.Equal("Ferrari 1998", _searches[1].Query);
+        cut.WaitForElement("[data-pick-results]");
+        Assert.Equal("Ferrari 1998", cut.Find("[data-pick-box]").GetAttribute("value"));
+    }
+
+    [Fact]
+    public async Task ChoosingAResultFromATextSearch_SendsTheSameTextSoTheEngineFindsItAgain()
+    {
+        var api = Api(() => Found(Item("a"), Item("b")));
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        cut.Find("[data-pick-box]").Input("Ferrari 1998");
+        await cut.Find("[data-pick-search]").ClickAsync();
+        cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
+        cut.WaitForElement("[data-pick-results]");
+        await cut.Find(Row("b")).ClickAsync();
+        await cut.Find("[data-pick-action='use']").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Single(_chosen));
+        Assert.Equal("Ferrari 1998", _chosen[0].query);
+    }
+
+    [Fact]
+    public async Task ChoosingAResultFromTheItemsOwnSearch_SendsNoText()
+    {
+        var api = Api(() => Found(Item("a"), Item("b")));
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        await cut.Find(Row("b")).ClickAsync();
+        await cut.Find("[data-pick-action='use']").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Single(_chosen));
+        Assert.Null(_chosen[0].query);
+    }
+
+    [Fact]
+    public async Task ASourceThatCannotBeSearchedByWords_SaysSoInPlainWords_AndHowToGetBack()
+    {
+        var api = Api(() => new TextTrackAlternativesResponse { asset_id = Asset, kind = "Subtitles", status = "TextSearchUnsupported", source_name = "SubDL" });
+        var cut = await OpenFindAsync(Presenter(api));
+
+        var why = cut.WaitForElement("[data-subtitles-state='TextSearchUnsupported']");
+
+        Assert.Contains("SubDL can only find subtitles for the movie or episode itself, not by words you type.", why.TextContent);
+        Assert.Contains("Put the original text back to search for this movie itself.", why.TextContent);
+    }
+
+    [Fact]
+    public async Task PressingSearchOnABoxThatWasNotEdited_SendsNoText()
+    {
+        var api = Api(() => Found(Item("a")));
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        await cut.Find("[data-pick-search]").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
+        Assert.Null(_searches[1].Query);
+    }
+
+    [Fact]
+    public async Task UseThis_ChoosesTheSelectedResult_TellsTheHostTheTracksChanged_AndClosesTheWindow()
     {
         var api = Api(() => Found(Item("a", current: true), Item("b")));
         var cut = await OpenFindAsync(Presenter(api));
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
 
-        await cut.Find("[data-sfv-result='b'] [data-sfv-action='use']").ClickAsync();
+        await cut.Find(Row("b")).ClickAsync();
+        Assert.Equal("true", cut.Find(Row("b")).GetAttribute("aria-checked"));
+        await cut.Find("[data-pick-action='use']").ClickAsync();
 
-        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-sfv-result='b'] [data-sfv-tag='current']")));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-pick-dialog]")));
         var choice = Assert.Single(_chosen);
         Assert.Equal(("subtitles", "subdl", "b", "English"), (choice.kind, choice.provider, choice.source_id, choice.language));
         Assert.Equal([Guid.Parse("11111111-1111-1111-1111-111111111111")], _tracksChanged.Select(id => id!.Value));
-        Assert.Empty(cut.FindAll("[data-sfv-result='a'] [data-sfv-tag='current']"));
-        Assert.NotNull(cut.Find("[data-sfv-result='b'] [data-sfv-action='wrong']"));
     }
 
     [Fact]
-    public async Task AFailedDownload_SaysSoOnThatRowOnly_AndTheListStays()
+    public async Task TheResultInUse_SaysInUseNow_AndCannotBeChosenAgain()
+    {
+        var api = Api(() => Found(Item("a", current: true), Item("b")));
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        Assert.Equal("In use now", cut.Find(Row("a") + " [data-pick-note]").TextContent);
+        Assert.True(cut.Find("[data-pick-action='use']").HasAttribute("disabled"));
+        Assert.Empty(_chosen);
+    }
+
+    [Fact]
+    public async Task AFailedDownload_SaysSo_KeepsTheWindowOpen_AndTheListStays()
     {
         var api = EngineApiClientStub.Create(stub =>
         {
@@ -167,15 +271,28 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.ChooseTextTrackAlternativeAsync), _ => Task.FromResult<TextTrackChoiceResponse?>(new() { status = "Unavailable" }));
         });
         var cut = await OpenFindAsync(Presenter(api));
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
 
-        await cut.Find("[data-sfv-result='b'] [data-sfv-action='use']").ClickAsync();
+        await cut.Find(Row("b")).ClickAsync();
+        await cut.Find("[data-pick-action='use']").ClickAsync();
 
-        cut.WaitForAssertion(() => Assert.Equal("Could not download this one", cut.Find("[data-sfv-result='b'] [data-sfv-row-error]").TextContent));
-        Assert.Equal("status", cut.Find("[data-sfv-result='b'] [data-sfv-row-error]").GetAttribute("role"));
-        Assert.Empty(cut.FindAll("[data-sfv-result='a'] [data-sfv-row-error]"));
-        Assert.Equal(2, cut.FindAll("[data-sfv-result]").Count);
+        cut.WaitForAssertion(() => Assert.Equal("Could not download this one", cut.Find("[data-pick-problem]").TextContent));
+        Assert.Equal("status", cut.Find("[data-pick-problem]").GetAttribute("role"));
+        Assert.Equal(2, cut.FindAll("[data-pick-result]").Count);
         Assert.Empty(_tracksChanged);
+    }
+
+    [Fact]
+    public async Task Cancel_ClosesTheWindowWithoutChoosingAnything()
+    {
+        var api = Api(() => Found(Item("a"), Item("b")));
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        await cut.Find("[data-pick-action='cancel']").ClickAsync();
+
+        Assert.Empty(cut.FindAll("[data-pick-dialog]"));
+        Assert.Empty(_chosen);
     }
 
     [Fact]
@@ -186,9 +303,9 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
         var presenter = Presenter(api);
         presenter.CurrentTrackFor = provider => provider == "subdl" ? current : null;
         var cut = await OpenFindAsync(presenter);
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
 
-        await cut.Find("[data-sfv-result='a'] [data-sfv-action='wrong']").ClickAsync();
+        await cut.Find("[data-sfv-action='wrong']").ClickAsync();
 
         cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
         Assert.Equal([current], _markedWrong);
@@ -202,7 +319,7 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
         var look = new SubtitleLanguageSettingsDto { DefaultSubtitleLanguage = "French", AlternateSubtitleLanguages = ["German"] };
 
         var cut = await OpenFindAsync(Presenter(api), look: look);
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
 
         Assert.Equal("French", _searches[0].Language);
         var options = cut.FindAll("[data-sfv-language] option").Select(option => option.TextContent).ToList();
@@ -216,7 +333,7 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
     {
         var api = Api(() => Found(Item("a")));
         var cut = await OpenFindAsync(Presenter(api));
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
 
         await cut.Find("[data-sfv-language] select").ChangeAsync(new ChangeEventArgs { Value = "Spanish" });
 
@@ -232,13 +349,12 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), _ => gate.Task));
         var cut = await OpenFindAsync(Presenter(api, TimeSpan.FromMilliseconds(60)));
 
-        Assert.Equal("Searching…", cut.Find("[data-sfv-head]").TextContent);
-        cut.WaitForAssertion(() => Assert.Equal("Still searching…", cut.Find("[data-sfv-head]").TextContent));
+        Assert.Equal("Searching…", cut.Find("[data-pick-state='searching']").TextContent);
+        cut.WaitForAssertion(() => Assert.Equal("Still searching…", cut.Find("[data-pick-state='searching']").TextContent));
         Assert.NotNull(cut.Find("[data-sfv-language] select"));
 
         gate.SetResult(Found(Item("a")));
-        cut.WaitForElement("[data-sfv-results]");
-        Assert.Equal("1 result from SubDL", cut.Find("[data-sfv-head]").TextContent);
+        cut.WaitForElement("[data-pick-results]");
     }
 
     [Theory]
@@ -264,6 +380,7 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
         Assert.Equal(headline, reason.QuerySelector("b")!.TextContent);
         Assert.Equal(detail, reason.QuerySelector("span")?.TextContent ?? string.Empty);
         Assert.DoesNotContain("internal sentence", cut.Markup);
+        Assert.True(cut.Find("[data-pick-action='use']").HasAttribute("disabled"));
     }
 
     [Fact]
@@ -277,7 +394,7 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
 
         Assert.Equal("The search could not be completed.", reason.QuerySelector("b")!.TextContent);
         await cut.Find("[data-sfv-action='retry']").ClickAsync();
-        cut.WaitForElement("[data-sfv-results]");
+        cut.WaitForElement("[data-pick-results]");
         Assert.Equal(2, _searches.Count);
     }
 
@@ -319,18 +436,7 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
 
         Assert.Equal("No subtitle source is switched on.", cut.Find("[data-subtitles-state='NoSourceOn'] b").TextContent);
         Assert.NotNull(cut.Find("a[href='/settings/plugins']"));
+        await cut.Find("[data-pick-search]").ClickAsync();
         Assert.Empty(_searches);
-    }
-
-    [Fact]
-    public async Task OnAPhoneSheet_EachResultIsOneColumnWithAFullWidthAction()
-    {
-        var api = Api(() => Found(Item("a"), Item("b")));
-        var cut = await OpenFindAsync(Presenter(api), phone: true);
-
-        cut.WaitForElement("[data-sfv-results]");
-
-        Assert.Equal("true", cut.Find("[data-subtitle-find]").GetAttribute("data-sheet"));
-        Assert.Equal(2, cut.FindAll("[data-sfv-action='use']").Count);
     }
 }

@@ -121,16 +121,11 @@ var proxyPort = ProxyPortConfiguration.Resolve(
     Environment.GetEnvironmentVariable("TUVIMA_PROXY_PORT"),
     tailscaleUrl);
 var proxyUrl = proxyPort is int proxyPortValue ? ProxyPortConfiguration.BindUrl(networkSettings.Remote, proxyPortValue) : null;
-if (string.IsNullOrWhiteSpace(explicitUrls))
+// The Dashboard listens on the home network by default; Settings > Network "Reach from other devices" off keeps it on
+// this computer (takes effect on restart). The Engine itself always stays local.
+if (DashboardBinding.Resolve(networkSettings, explicitUrls, proxyUrl, proxyPort, ContainerGateway.IsContainer()) is { } dashboardUrls)
 {
-    builder.WebHost.UseUrls(proxyUrl is null
-        ? $"http://0.0.0.0:{networkSettings.Local.Port}"
-        : $"http://0.0.0.0:{networkSettings.Local.Port};{proxyUrl}");
-}
-else if (proxyUrl is not null && !ProxyPortConfiguration.UrlsContainPort(explicitUrls, proxyPort!.Value))
-{
-    // Explicit hosting settings stay authoritative; the optional proxy port is only added on top.
-    builder.WebHost.UseUrls($"{explicitUrls};{proxyUrl}");
+    builder.WebHost.UseUrls(dashboardUrls);
 }
 
 // One answer to "is this request local?" and one list of Host names the Dashboard answers to.
@@ -140,6 +135,16 @@ builder.Services.AddSingleton(new IngressClassifier(
     networkSettings.Remote.TrustedProxies,
     networkSettings.Remote.TrustedProxyNetworks,
     ContainerGateway.Detect()));
+// Windows only: the one question that opens the Dashboard port to home (Private) networks. A no-op on every other system.
+if (OperatingSystem.IsWindows())
+{
+    builder.Services.AddSingleton<IFirewallCommandRunner, WindowsFirewallCommandRunner>();
+}
+else
+{
+    builder.Services.AddSingleton<IFirewallCommandRunner, NoFirewallCommandRunner>();
+}
+builder.Services.AddSingleton<IHomeNetworkFirewall, HomeNetworkFirewall>();
 builder.Services.AddSingleton(new HostAllowList(
     networkSettings,
     tailscaleUrl,

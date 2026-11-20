@@ -1,0 +1,92 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.MediaTiles
+@inject NavigationManager Nav
+
+@* One playlist on the Playlists page (spec listen-playlists WP3, mockup A and D): the cover, the name, the type in words with the count (and the
+   length on a wide screen), and the shared "..." menu. A hand-made playlist's tile takes songs dropped on it (the songs go in through the page's
+   drop handler); a Smart or built-in list's tile does not. Favorites is a tile with no menu and no drops. *@
+<article class="playlist-tile"
+         data-playlist-tile="@TileId"
+         data-song-drop="@(AcceptsDrops ? "playlist" : null)"
+         @ondragover:preventDefault="@AcceptsDrops"
+         @ondrop="DropAsync">
+    <a class="playlist-tile__link" href="@Route" @onclick="OpenAsync" @onclick:preventDefault="true">
+        <span class="playlist-tile__cover">
+            @if (!string.IsNullOrWhiteSpace(CoverUrl))
+            {
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(CoverUrl, 320)"
+                     srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(CoverUrl, 320)"
+                     alt="" loading="lazy" decoding="async" />
+            }
+            else
+            {
+                <span class="playlist-tile__fallback" aria-hidden="true">
+                    <AppMaterialIcon Icon="@(Playlist is null ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.QueueMusic)" />
+                </span>
+            }
+        </span>
+        <strong class="playlist-tile__name" data-overflow-tooltip="@Title">@Title</strong>
+        <span class="playlist-tile__meta" data-playlist-tile-meta>@Meta</span>
+    </a>
+    @if (Playlist is not null)
+    {
+        @* The shared menu sits in the tile's bottom right corner, beside the name and the type line. *@
+        <div class="playlist-tile__menu-slot">
+            <PlaylistActionsMenu Playlist="@Playlist"
+                                 OnEditRules="OnEditRules"
+                                 OnRename="OnRename"
+                                 OnEditDetails="OnEditDetails"
+                                 OnDuplicate="OnDuplicate"
+                                 OnTogglePin="OnTogglePin"
+                                 OnDelete="OnDelete"
+                                 OnMoveUp="OnMoveUp"
+                                 OnMoveDown="OnMoveDown"
+                                 CanMoveUp="CanMoveUp"
+                                 CanMoveDown="CanMoveDown" />
+        </div>
+    }
+</article>
+
+@code {
+    /// <summary>The playlist; null for Favorites, which has no menu and takes no drops.</summary>
+    [Parameter] public ManagedCollectionViewModel? Playlist { get; set; }
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Route { get; set; } = string.Empty;
+
+    /// <summary>The type in words and the count, as the page worked them out for this screen size.</summary>
+    [Parameter] public string? Meta { get; set; }
+    [Parameter] public string? CoverUrl { get; set; }
+
+    /// <summary>Songs dropped on this tile: the page takes them and says how it went.</summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnSongsDropped { get; set; }
+
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnEditRules { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnRename { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnEditDetails { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnDuplicate { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnTogglePin { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnDelete { get; set; }
+
+    /// <summary>Move up and Move down in the tile's "..." menu (Manual order only; the page passes them then).</summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveUp { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveDown { get; set; }
+    [Parameter] public bool CanMoveUp { get; set; } = true;
+    [Parameter] public bool CanMoveDown { get; set; } = true;
+
+    private bool AcceptsDrops => Playlist is not null && PlaylistTileRules.AcceptsSongDrops(Playlist);
+
+    private string TileId => Playlist?.Id.ToString("D") ?? "favorites";
+
+    private void OpenAsync() => Nav.NavigateTo(Route);
+
+    private async Task DropAsync()
+    {
+        if (AcceptsDrops && Playlist is not null)
+        {
+            await OnSongsDropped.InvokeAsync(Playlist);
+        }
+    }
+}

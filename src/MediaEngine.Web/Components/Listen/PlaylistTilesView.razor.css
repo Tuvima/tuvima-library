@@ -1,0 +1,54 @@
+/* The Playlists page (spec listen-playlists WP3, mockup A and D). Desktop and tablet: the title, then Sort and New playlist on one line, tiles
+   in as many columns as fit (four across at the mockup's width). Phone: the title with New on the first line, Sort on its own line, two tiles across. */
+.playlist-tiles {
+    display: grid;
+    gap: var(--tl-space-4);
+    min-width: 0;
+    padding: var(--tl-space-4) 0;
+}
+
+.playlist-tiles__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--tl-space-3);
+}
+
+.playlist-tiles__title {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-heading-size);
+}
+
+.playlist-tiles__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: var(--tl-space-3);
+}
+
+.playlist-tiles__skeleton {
+    overflow: hidden;
+    border-radius: var(--tl-radius-md);
+}
+
+@media (max-width: 600px) {
+    .playlist-tiles__header {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    /* New sits at the end of the title line, and Sort drops to a line of its own under them. */
+    .playlist-tiles__new {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .playlist-tiles__sort {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        justify-self: start;
+    }
+
+    .playlist-tiles__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

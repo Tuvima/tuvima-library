@@ -24,6 +24,8 @@ namespace MediaEngine.Web.Tests;
 public sealed class BulkAddToPlaylistTests : AsyncBunitContext
 {
     private static readonly Guid RoadTrip = Guid.Parse("b1000000-0000-0000-0000-000000000001");
+    private static readonly Guid SundayJazz = Guid.Parse("b1000000-0000-0000-0000-000000000002");
+    private static readonly Guid Marathon = Guid.Parse("b1000000-0000-0000-0000-000000000003");
     private static readonly Guid SongA = Guid.Parse("50000000-0000-0000-0000-00000000000a");
     private static readonly Guid SongB = Guid.Parse("50000000-0000-0000-0000-00000000000b");
     private static readonly Guid SongC = Guid.Parse("50000000-0000-0000-0000-00000000000c");
@@ -35,6 +37,7 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
     private readonly List<(Guid Playlist, Guid Work)> _added = [];
     private readonly List<(string Name, IReadOnlyList<Guid> Works)> _created = [];
     private readonly List<Guid> _alreadyInPlaylist = [];
+    private bool _engineAnswersAdds = true;
     private EngineApiClientStub _stub = default!;
 
     public BulkAddToPlaylistTests()
@@ -51,13 +54,15 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
         {
             _stub = stub;
-            stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ =>
-                Task.FromResult(_alreadyInPlaylist.Select(id => new CollectionItemDto { Id = Guid.NewGuid(), WorkId = id, Title = "Held" }).ToList()));
-            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemAsync), args =>
-            {
-                _added.Add(((Guid)args![0]!, (Guid)args[1]!));
-                return Task.FromResult(true);
-            });
+            // Only Road trip holds songs; the other playlists are empty of the chosen ones.
+            stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), args =>
+                Task.FromResult((Guid)args![0]! == RoadTrip
+                    ? _alreadyInPlaylist.Select(id => new CollectionItemDto { Id = Guid.NewGuid(), WorkId = id, Title = "Held" }).ToList()
+                    : []));
+            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemsAsync), args =>
+                _engineAnswersAdds
+                    ? PlaylistAddSpy.Answer(args, _alreadyInPlaylist, (playlist, work) => _added.Add((playlist, work)))
+                    : Task.FromResult<CollectionItemsAddedResponse?>(null));
             stub.SetHandler(nameof(IEngineApiClient.CreateCollectionWithItemsAsync), args =>
             {
                 _created.Add(((string)args![0]!, (IReadOnlyList<Guid>)args[8]!));
@@ -65,8 +70,10 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.GetManagedCollectionsAsync), _ => Task.FromResult(new List<ManagedCollectionViewModel>
             {
-                new() { Id = RoadTrip, Name = "Road trip", CollectionType = "Playlist", Resolution = "materialized", MembershipMode = "Manual", CanEdit = true, IsEnabled = true },
-                new() { Id = Guid.NewGuid(), Name = "Newest rock", CollectionType = "Playlist", Resolution = "materialized", MembershipMode = "Smart", CanEdit = true, IsEnabled = true },
+                new() { Id = RoadTrip, Name = "Road trip", CollectionType = "Playlist", Resolution = "materialized", MembershipMode = "Manual", CanEdit = true, IsEnabled = true, ItemCount = 42, CoverArtworkUrl = "/engine-image/road-trip.jpg" },
+                new() { Id = SundayJazz, Name = "Sunday jazz", CollectionType = "Playlist", Resolution = "materialized", MembershipMode = "Manual", CanEdit = true, IsEnabled = true, ItemCount = 1 },
+                new() { Id = Marathon, Name = "Marathon", CollectionType = "Playlist", Resolution = "materialized", MembershipMode = "Manual", CanEdit = true, IsEnabled = true, ItemCount = 900 },
+                new() { Id = Guid.NewGuid(), Name = "Newest rock", CollectionType = "Playlist", Resolution = "materialized", MembershipMode = "Smart", CanEdit = true, IsEnabled = true, ItemCount = 30 },
                 new() { Id = Guid.NewGuid(), Name = "Not mine", CollectionType = "Playlist", Resolution = "materialized", MembershipMode = "Manual", CanEdit = false, IsEnabled = true },
             }));
         }));
@@ -160,24 +167,73 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ThePlaylistList_HoldsOnlyHandMadePlaylistsThePersonMayEdit()
+    public void ThePicker_ListsOnlyHandMadePlaylistsThePersonMayEdit_AndNeverASmartList()
     {
-        var dialog = RenderDialog(out _, offerNew: true);
+        var picker = RenderPicker(out _, SongA);
 
-        var names = dialog.FindComponent<AppSelect>().Instance.Options!.Select(option => option.Label).ToList();
-        Assert.Equal(["Road trip"], names);
+        Assert.Equal(["Road trip", "Sunday jazz", "Marathon"], PlaylistNames(picker));
     }
 
     [Fact]
-    public void ChoosingNewPlaylist_AsksForANameAndClosesWithIt()
+    public void ThePicker_ShowsASearchBox_AndSearchingNarrowsTheListWithoutTouchingTheEngine()
     {
-        var dialog = RenderDialog(out var context, offerNew: true);
-        var addButton = () => dialog.FindAll(".app-dialog-shell__footer button, footer button, button").Last(button => button.TextContent.Trim() == "Add");
+        var picker = RenderPicker(out _, SongA);
+        var callsBefore = _stub.Calls.Count;
 
-        Assert.True(addButton().HasAttribute("disabled"));
-        dialog.FindAll("button").Single(button => button.TextContent.Trim() == "New playlist").Click();
-        dialog.Find("input[type='text']").Input("Road trip 2");
-        addButton().Click();
+        picker.Find(".playlist-picker__search input").Input("jazz");
+
+        Assert.Equal(["Sunday jazz"], PlaylistNames(picker));
+        Assert.Equal(callsBefore, _stub.Calls.Count);
+        picker.Find(".playlist-picker__search input").Input("zzz");
+        Assert.Empty(PlaylistNames(picker));
+        Assert.Contains("No playlist matches that.", picker.Find("[data-playlist-picker-empty]").TextContent);
+    }
+
+    [Fact]
+    public void ThePicker_ShowsEachPlaylistsCoverAndSongCount_InWords()
+    {
+        var picker = RenderPicker(out _, SongA);
+
+        var road = picker.Find($"[data-playlist-picker-row='{RoadTrip}']");
+        Assert.Equal("42 songs", road.QuerySelector("[data-playlist-picker-count]")!.TextContent.Trim());
+        Assert.NotNull(road.QuerySelector("img.playlist-picker__picture"));
+        var jazz = picker.Find($"[data-playlist-picker-row='{SundayJazz}']");
+        Assert.Equal("1 song", jazz.QuerySelector("[data-playlist-picker-count]")!.TextContent.Trim());
+        Assert.Null(jazz.QuerySelector("img"));
+    }
+
+    [Fact]
+    public void ThePicker_TicksAlreadyIn_OnlyOnPlaylistsHoldingEveryChosenSong_ReadCheaply()
+    {
+        _alreadyInPlaylist.AddRange([SongA, SongB]);
+
+        var picker = RenderPicker(out _, SongA, SongB);
+
+        picker.WaitForAssertion(() => Assert.Contains("Already in", picker.Find($"[data-playlist-picker-row='{RoadTrip}']").TextContent));
+        Assert.Empty(picker.FindAll($"[data-playlist-picker-row='{SundayJazz}'] [data-playlist-picker-already]"));
+        // A playlist longer than the cheap check is never read, so it is never ticked up front.
+        Assert.Empty(picker.FindAll($"[data-playlist-picker-row='{Marathon}'] [data-playlist-picker-already]"));
+        Assert.DoesNotContain(_stub.Calls, call => call == nameof(IEngineApiClient.AddCollectionItemsAsync));
+    }
+
+    [Fact]
+    public void ThePickerTitle_SaysHowManySongsAreGoingIn()
+    {
+        Assert.Equal("Add 1 song to…", RenderPicker(out _, SongA).Find("h2.app-dialog-shell__title").TextContent.Trim());
+        Assert.Equal("Add 3 songs to…", RenderPicker(out _, SongA, SongB, SongC).Find("h2.app-dialog-shell__title").TextContent.Trim());
+    }
+
+    [Fact]
+    public void ChoosingNewPlaylist_AsksForANameInPlace_WithAVisibleCreateButton_AndClosesWithIt()
+    {
+        var picker = RenderPicker(out var context, SongA);
+
+        Assert.True(AddButton(picker).HasAttribute("disabled"));
+        picker.Find("[data-playlist-picker-new]").Click();
+        var create = () => picker.Find("[data-playlist-picker-create-button]");
+        Assert.True(create().HasAttribute("disabled"));
+        picker.Find("[data-playlist-picker-name]").Input("Road trip 2");
+        create().Click();
 
         var choice = Assert.IsType<PlaylistChoice>(context.Closed?.Data);
         Assert.Null(choice.PlaylistId);
@@ -186,12 +242,23 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ChoosingAnExistingPlaylist_ClosesWithItAndAddsNothingItself()
+    public void TheNewPlaylistRow_SitsAtTheTopOfTheList()
     {
-        var dialog = RenderDialog(out var context, offerNew: true);
+        var picker = RenderPicker(out _, SongA);
 
-        await dialog.InvokeAsync(() => dialog.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync(RoadTrip.ToString("D")));
-        dialog.FindAll("button").Last(button => button.TextContent.Trim() == "Add").Click();
+        var first = picker.Find("[data-playlist-picker-list]").Children.First();
+        Assert.True(first.HasAttribute("data-playlist-picker-new"));
+        Assert.Contains("New playlist", first.TextContent);
+    }
+
+    [Fact]
+    public void ChoosingAnExistingPlaylist_AndPressingAdd_ClosesWithItAndAddsNothingItself()
+    {
+        var picker = RenderPicker(out var context, SongA);
+
+        picker.Find($"[data-playlist-picker-row='{RoadTrip}']").Click();
+        Assert.Equal("true", picker.Find($"[data-playlist-picker-row='{RoadTrip}']").GetAttribute("aria-checked"));
+        AddButton(picker).Click();
 
         var choice = Assert.IsType<PlaylistChoice>(context.Closed?.Data);
         Assert.Equal(RoadTrip, choice.PlaylistId);
@@ -212,7 +279,7 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
         bar.WaitForAssertion(() => Assert.Contains("3 songs added to Road trip", bar.Find("[data-bulk-selection-notice]").TextContent));
         Assert.Equal([(RoadTrip, SongA), (RoadTrip, SongB), (RoadTrip, SongC)], _added);
         Assert.Equal(["Add to playlist"], _dialogs.Titles);
-        Assert.True(_dialogs.LastParameters!.ToDictionary().TryGetValue("Playlist", out var forPlaylist) && (bool)forPlaylist);
+        Assert.Equal([SongA, SongB, SongC], (IReadOnlyList<Guid>)_dialogs.LastParameters!.ToDictionary()["WorkIds"]!);
     }
 
     [Fact]
@@ -237,7 +304,20 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
 
         bar.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Add to playlist").Click();
 
-        bar.WaitForAssertion(() => Assert.Contains("already in Road trip", bar.Find("[data-bulk-selection-notice]").TextContent));
+        bar.WaitForAssertion(() => Assert.Equal("Already in Road trip", bar.Find("[data-bulk-selection-notice]").TextContent.Trim()));
+        Assert.Empty(_added);
+    }
+
+    [Fact]
+    public async Task WhenTheEngineDoesNotAnswerTheAdd_TheBarSaysTheSongsCouldNotBeAdded_AndKeepsNothing()
+    {
+        _engineAnswersAdds = false;
+        _dialogs.Choice = new PlaylistChoice(RoadTrip, "Road trip");
+        var bar = await RenderBarAsync(Songs(SongA, SongB), "Music");
+
+        bar.FindAll(".tl-batch__bar button").Single(button => button.TextContent.Trim() == "Add to playlist").Click();
+
+        bar.WaitForAssertion(() => Assert.Equal("The songs could not be added to Road trip.", bar.Find("[data-bulk-selection-notice]").TextContent.Trim()));
         Assert.Empty(_added);
     }
 
@@ -336,17 +416,17 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
     {
         Services.AddSingleton(TestSessions.For(kids: true, administrator: false));
 
-        var dialog = RenderDialog(out _, offerNew: true);
+        var dialog = RenderPicker(out _, SongA);
 
-        Assert.DoesNotContain(dialog.FindAll("button"), button => button.TextContent.Trim() == "New playlist");
+        Assert.Empty(dialog.FindAll("[data-playlist-picker-new]"));
     }
 
     [Fact]
     public void ForAnAdultProfile_TheListOffersNewPlaylist()
     {
-        var dialog = RenderDialog(out _, offerNew: true);
+        var dialog = RenderPicker(out _, SongA);
 
-        Assert.Contains(dialog.FindAll("button"), button => button.TextContent.Trim() == "New playlist");
+        Assert.Single(dialog.FindAll("[data-playlist-picker-new]"));
     }
 
     [Fact]
@@ -437,19 +517,22 @@ public sealed class BulkAddToPlaylistTests : AsyncBunitContext
     private static bool HasButton(IRenderedComponent<BulkSelectionBar> bar, string label) =>
         bar.FindAll(".tl-batch__bar button").Any(button => button.TextContent.Trim() == label);
 
-    private IRenderedComponent<MediaMembershipDialog> RenderDialog(out RecordingContext context, bool offerNew)
+    private IRenderedComponent<PlaylistPickerDialog> RenderPicker(out RecordingContext context, params Guid[] songs)
     {
         var recording = new RecordingContext();
         context = recording;
-        var dialog = Render<MediaMembershipDialog>(parameters => parameters
+        var picker = Render<PlaylistPickerDialog>(parameters => parameters
             .AddCascadingValue<IAppDialogContext>(recording)
-            .Add(component => component.Playlist, true)
-            .Add(component => component.ChooseOnly, true)
-            .Add(component => component.OfferNewPlaylist, offerNew)
-            .Add(component => component.WorkIds, new[] { SongA }));
-        dialog.WaitForAssertion(() => Assert.DoesNotContain(dialog.FindAll("p"), p => p.TextContent.Contains("Loading", StringComparison.OrdinalIgnoreCase)));
-        return dialog;
+            .Add(component => component.WorkIds, songs));
+        picker.WaitForAssertion(() => Assert.Empty(picker.FindAll("[data-playlist-picker-loading]")));
+        return picker;
     }
+
+    private static List<string> PlaylistNames(IRenderedComponent<PlaylistPickerDialog> picker) =>
+        [.. picker.FindAll("[data-playlist-picker-row] .playlist-picker__name").Select(name => name.TextContent.Trim())];
+
+    private static AngleSharp.Dom.IElement AddButton(IRenderedComponent<PlaylistPickerDialog> picker) =>
+        picker.Find("[data-playlist-picker-add]");
 
     /// <summary>A dialog window that remembers what it was closed with.</summary>
     private sealed class RecordingContext : IAppDialogContext

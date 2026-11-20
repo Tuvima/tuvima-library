@@ -109,7 +109,8 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     {
         var source = File.ReadAllText(RepoPath("src/MediaEngine.Web/Components/Pages/SetupPage.razor")).Replace("\r\n", "\n");
 
-        Assert.Contains("!= MediaEngine.Web.Services.Configuration.IngressKind.Remote\n        && !ClientForwarded;", source, StringComparison.Ordinal);
+        // Home network spec D8: only the computer that runs Library, never a phone or laptop on the home network.
+        Assert.Contains("== MediaEngine.Web.Services.Configuration.IngressKind.ThisComputer\n        && !ClientForwarded;", source, StringComparison.Ordinal);
         Assert.Contains("SignIn = UsesThisComputer ? SetupSignInModes.ThisComputer : SetupSignInModes.Password,", source, StringComparison.Ordinal);
         Assert.Contains("OriginalClientIngress = ClientForwarded ? ClientIngressValues.Remote : (ClientIngress ?? ClientIngressValues.Remote),", source, StringComparison.Ordinal);
     }
@@ -190,75 +191,18 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AccountMenu_ShowsTheSecureYourAccountCardAboveTheNameOnlyWhileTheAccountIsThisComputerOnly()
+    public void AccountMenu_NeverShowsAnAddAPasswordRow()
     {
         Services.AddLocalization();
         JSInterop.Mode = JSRuntimeMode.Loose;
-        var offered = Render<TopNavAccountMenu>(parameters => parameters
-            .Add(menu => menu.DisplayName, "Owner")
-            .Add(menu => menu.ShowSecureAccount, true));
-        offered.Find(".top-nav-account-menu__trigger").Click();
-
-        // The card is the very first thing in the menu, above the name header.
-        var panel = offered.Find(".top-nav-account-menu__panel");
-        Assert.Contains("top-nav-account-menu__secure-card", panel.Children[0].ClassName, StringComparison.Ordinal);
-        Assert.Contains("top-nav-account-menu__header", panel.Children[1].ClassName, StringComparison.Ordinal);
-        // One short line: no title, no explanation (issue 1066).
-        Assert.Equal("Add a password", offered.Find(".top-nav-account-menu__secure-link").TextContent.Trim());
-        Assert.Empty(offered.FindAll(".top-nav-account-menu__secure-body"));
-        Assert.DoesNotContain("Tuvima", offered.Find(".top-nav-account-menu__secure-card").TextContent, StringComparison.Ordinal);
-
-        var secure = offered.Find(".top-nav-account-menu__secure-card a");
-        Assert.Equal(SecureAccountPrompt.SecureAccountHref, secure.GetAttribute("href"));
-        Assert.Equal("Not now", offered.Find(".top-nav-account-menu__secure-card button").GetAttribute("aria-label"));
-
-        // The old avatar dot and the "Secure account" menu item are gone.
-        Assert.Empty(offered.FindAll(".top-nav-account-menu__attention-dot"));
-        Assert.DoesNotContain(offered.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == SecureAccountPrompt.SecureAccountHref);
-
-        var secured = Render<TopNavAccountMenu>(parameters => parameters
-            .Add(menu => menu.DisplayName, "Owner"));
-        secured.Find(".top-nav-account-menu__trigger").Click();
-
-        Assert.Empty(secured.FindAll(".top-nav-account-menu__secure-card"));
-        Assert.Empty(secured.FindAll(".top-nav-account-menu__attention-dot"));
-        Assert.DoesNotContain(secured.FindAll("a"), link => link.GetAttribute("href") == SecureAccountPrompt.SecureAccountHref);
-    }
-
-    [Fact]
-    public void AccountMenu_NotNowReportsTheChoiceAndTheCardDisappearsImmediately()
-    {
-        Services.AddLocalization();
-        JSInterop.Mode = JSRuntimeMode.Loose;
-        var notNowCount = 0;
         var menu = Render<TopNavAccountMenu>(parameters => parameters
-            .Add(component => component.DisplayName, "Owner")
-            .Add(component => component.ShowSecureAccount, true)
-            .Add(component => component.OnSecureAccountNotNow, new Microsoft.AspNetCore.Components.EventCallbackFactory()
-                .Create(this, () => notNowCount++)));
+            .Add(component => component.DisplayName, "Owner"));
         menu.Find(".top-nav-account-menu__trigger").Click();
 
-        menu.Find(".top-nav-account-menu__secure-card button").Click();
-
-        Assert.Equal(1, notNowCount);
+        // The reminder lives only as the red dot in Settings > Security (issue 1106).
         Assert.Empty(menu.FindAll(".top-nav-account-menu__secure-card"));
-        // The menu itself stays open and clean.
-        Assert.NotEmpty(menu.FindAll(".top-nav-account-menu__panel"));
         Assert.Empty(menu.FindAll(".top-nav-account-menu__attention-dot"));
-    }
-
-    [Fact]
-    public void AccountMenu_NeverShowsTheSecureCardOnAKidsProfile()
-    {
-        Services.AddLocalization();
-        JSInterop.Mode = JSRuntimeMode.Loose;
-        var menu = Render<TopNavAccountMenu>(parameters => parameters
-            .Add(component => component.DisplayName, "Kid")
-            .Add(component => component.IsKids, true)
-            .Add(component => component.ShowSecureAccount, true));
-        menu.Find(".top-nav-account-menu__trigger").Click();
-
-        Assert.Empty(menu.FindAll(".top-nav-account-menu__secure-card"));
+        Assert.DoesNotContain(menu.FindAll("a"), link => link.GetAttribute("href") == SecureAccountPrompt.SecureAccountHref);
     }
 
     [Fact]
@@ -362,8 +306,6 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         Assert.DoesNotContain("tl-this-computer-banner", layout + css, StringComparison.Ordinal);
         Assert.DoesNotContain("with-banner", layout + css, StringComparison.Ordinal);
         Assert.Contains("_thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly(", layout, StringComparison.Ordinal);
-        Assert.Contains("ShowSecureAccount=\"@ShowSecureAccountCard\"", layout, StringComparison.Ordinal);
-        Assert.Contains("OnSecureAccountNotNow=\"@DismissSecureAccountAsync\"", layout, StringComparison.Ordinal);
         Assert.Contains("OnSecureAccountRequired", layout, StringComparison.Ordinal);
     }
 

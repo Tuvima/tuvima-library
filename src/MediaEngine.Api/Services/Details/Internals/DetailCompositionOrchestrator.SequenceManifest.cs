@@ -168,6 +168,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 RemainingSeconds = item.RemainingSeconds,
                 ProgressLabel = item.ProgressLabel,
                 CoveredWith = item.CoveredWith,
+                EpisodeCount = item.EpisodeCount,
             };
         }
 
@@ -581,6 +582,7 @@ internal sealed partial class DetailCompositionOrchestrator
             RemainingSeconds = item.RemainingSeconds,
             ProgressLabel = item.ProgressLabel,
             CoveredWith = item.CoveredWith,
+            EpisodeCount = item.EpisodeCount,
         };
         return true;
     }
@@ -641,6 +643,7 @@ internal sealed partial class DetailCompositionOrchestrator
             RemainingSeconds = item.RemainingSeconds,
             ProgressLabel = item.ProgressLabel,
             CoveredWith = item.CoveredWith,
+            EpisodeCount = item.EpisodeCount,
         };
         return true;
     }

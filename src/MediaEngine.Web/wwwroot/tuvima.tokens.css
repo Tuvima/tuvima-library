@@ -356,6 +356,13 @@
     --tl-tile-landscape-w: 320px;
     --tl-tile-text-floor: 13px;
     --tl-tile-menu-button: 44px;
+    /* Group tiles (review mock-ups D4, D5): a faint dashed outline and tint for an empty square, the dark end of the name gradient, the Series outline
+       (purple) and the mixed-media Collection outline (gold). */
+    --tl-tile-group-empty-outline: #4a4b58;
+    --tl-tile-group-empty-tint: rgba(255, 255, 255, 0.03);
+    --tl-tile-group-foot-end: rgba(10, 10, 14, 0.92);
+    --tl-tile-series-outline: #5a4aa0;
+    --tl-tile-collection-outline: #D6A84F;
     /* A mark drawn straight on cover art (the "..." glyph, the Continue play triangle): no box, a soft shadow so it reads on any picture. */
     --tl-tile-mark-shadow: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
     --tl-layer-menu: var(--tl-z-dropdown);

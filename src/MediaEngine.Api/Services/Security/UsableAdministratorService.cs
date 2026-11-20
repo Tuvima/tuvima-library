@@ -76,7 +76,7 @@ public sealed class UsableAdministratorService(
                 break;
             }
         }
-        return new UsableAdministratorStatus(usable, recovery, !policy.LocalhostBypass);
+        return new UsableAdministratorStatus(usable, recovery);
     }
 
     private async Task<IEnumerable<Account>> EnabledAdministratorsAsync(CancellationToken ct) =>

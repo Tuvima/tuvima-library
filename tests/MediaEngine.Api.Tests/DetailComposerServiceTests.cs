@@ -372,7 +372,7 @@ public sealed class DetailComposerServiceTests
         Assert.DoesNotContain("sync-settings", source);
         Assert.Contains("BuildOverflowActions(workId, entityType, actionAuthorization,", source);
         Assert.Contains("authorization.Allows(action.Key)", source);
-        Assert.Contains("DetailEditAction.Build(entityType, updatingDetails)", source);
+        Assert.Contains("DetailEditAction.Build(entityType, updatingDetails, isVideoFolder)", source);
         Assert.DoesNotContain("Edit details", source);
         Assert.DoesNotContain("Label = \"Refresh Metadata\"", source);
         Assert.DoesNotContain("Label = \"View File Info\"", source);
@@ -442,7 +442,7 @@ public sealed class DetailComposerServiceTests
 
         Assert.Contains("if (entityType == DetailEntityType.TvShow)", source);
         Assert.Contains("GetValue(values, \"start_year\")", source);
-        Assert.Contains("ownedEpisodeCount == 1 ? \"episode\" : \"episodes\"", source);
+        Assert.Contains("CombinedEpisodeFiles.CountText(ownedEpisodeCount, ownedFileCount)", source);
         Assert.DoesNotContain(")} owned\"", source);
         Assert.DoesNotContain("GetValue(values, \"episode_count\")", source);
         Assert.Contains("GetValue(values, \"content_rating\")", source);

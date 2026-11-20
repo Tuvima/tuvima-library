@@ -1,0 +1,216 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Collections
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
+@inject IEngineApiClient Api
+@inject UIOrchestratorService Orchestrator
+@inject IServiceProvider Services
+@inject IStringLocalizer<SharedStrings> L
+@* The one "Add to playlist" picker (Listen playlists spec WP2; mockup C): a small window on a computer and a bottom sheet on a phone (the opener
+   asks for the sheet). A search box, a "New playlist" row that asks for a name in place with a visible Create button, then the hand-made
+   playlists the signed-in person may edit, each with its cover, its song count and an "Already in" tick when it already holds every chosen song
+   (worked out only for short playlists, so the window opens quickly). Smart and system lists are never listed. It does not add anything: it closes
+   with a <PlaylistChoice> and PlaylistMembershipFlow adds and says how it went, so every entry point gives the same sentence. *@
+<AppDialogShell Size="Small" Title="@Title" HostClass="playlist-picker-host" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="app-dialog-shell__pad app-dialog-shell__pad--flow">
+            <div class="playlist-picker" data-playlist-picker>
+                <AppSearchField Class="playlist-picker__search"
+                                Label="@L["PlaylistPicker_Search"].Value"
+                                HideLabel="true"
+                                Placeholder="@L["PlaylistPicker_Search"].Value"
+                                Value="@_query"
+                                ValueChanged="@(value => _query = value ?? string.Empty)" />
+                @if (_loading)
+                {
+                    <p class="playlist-picker__status" role="status" data-playlist-picker-loading>@L["PlaylistPicker_Loading"]</p>
+                }
+                else
+                {
+                    <div class="playlist-picker__list" role="radiogroup" aria-label="@Title" data-playlist-picker-list>
+                        @if (CanCreatePlaylist)
+                        {
+                            <AppNativeButton Type="button"
+                                             Class="@(_creating ? "playlist-picker__row playlist-picker__row--new is-open" : "playlist-picker__row playlist-picker__row--new")"
+                                             aria-expanded="@(_creating ? "true" : "false")"
+                                             Disabled="@_saving"
+                                             data-playlist-picker-new="true"
+                                             OnClick="ToggleNewPlaylist">
+                                <span class="playlist-picker__cover playlist-picker__cover--new" aria-hidden="true">
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Add" Size="AppIconSize.Control20" />
+                                </span>
+                                <span class="playlist-picker__copy">
+                                    <strong class="playlist-picker__name">@L["PlaylistMembership_NewPlaylist"]</strong>
+                                </span>
+                            </AppNativeButton>
+                            @if (_creating)
+                            {
+                                @* New playlist asks for its name here, in the same window, and has its own Create button. *@
+                                <div class="playlist-picker__create" data-playlist-picker-create>
+                                    <AppTextField Value="@_newName"
+                                                  ValueChanged="@(value => _newName = value ?? string.Empty)"
+                                                  Label="@L["ListenPage_PlaylistName"].Value"
+                                                  HideLabel="true"
+                                                  Placeholder="@L["ListenPage_PlaylistName"].Value"
+                                                  MaxLength="100"
+                                                  AutoFocus="true"
+                                                  Disabled="@_saving"
+                                                  OnKeyDown="OnNameKeyDownAsync"
+                                                  data-playlist-picker-name="true" />
+                                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                               Tone="AppUiTone.Primary"
+                                               Label="@L["PlaylistPicker_Create"].Value"
+                                               Disabled="@(_saving || string.IsNullOrWhiteSpace(_newName))"
+                                               OnClick="CreateAsync"
+                                               data-playlist-picker-create-button="true" />
+                                </div>
+                            }
+                        }
+                        @foreach (var playlist in Visible)
+                        {
+                            var selected = _selectedId == playlist.Id;
+                            <AppNativeButton Type="button"
+                                             role="radio"
+                                             aria-checked="@(selected ? "true" : "false")"
+                                             Class="@(selected ? "playlist-picker__row is-selected" : "playlist-picker__row")"
+                                             Disabled="@_saving"
+                                             data-playlist-picker-row="@playlist.Id"
+                                             data-playlist-picker-selected="@(selected ? "true" : null)"
+                                             OnClick="@(() => Select(playlist))">
+                                <span class="playlist-picker__cover" aria-hidden="true">
+                                    @if (!string.IsNullOrWhiteSpace(playlist.CoverArtworkUrl))
+                                    {
+                                        <img class="playlist-picker__picture" alt="" loading="lazy" decoding="async"
+                                             src="@MediaTileArtworkUrl.ForDrawnSize(playlist.CoverArtworkUrl, 96)"
+                                             srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(playlist.CoverArtworkUrl, 96)" />
+                                    }
+                                    else
+                                    {
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" Size="AppIconSize.Control20" />
+                                    }
+                                </span>
+                                <span class="playlist-picker__copy">
+                                    <strong class="playlist-picker__name" data-overflow-tooltip="@playlist.Name">@playlist.Name</strong>
+                                    <span class="playlist-picker__count" data-playlist-picker-count>@SongCount(playlist.ItemCount)</span>
+                                </span>
+                                @if (_holdingAll.Contains(playlist.Id))
+                                {
+                                    <span class="playlist-picker__already" data-playlist-picker-already>
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppIconSize.Control20" />
+                                        @L["PlaylistPicker_AlreadyIn"]
+                                    </span>
+                                }
+                            </AppNativeButton>
+                        }
+                        @if (Visible.Count == 0 && !_creating)
+                        {
+                            <p class="playlist-picker__status" role="status" data-playlist-picker-empty>
+                                @(_targets.Count == 0 ? L["PlaylistPicker_NoPlaylists"] : L["PlaylistPicker_NoMatches"])
+                            </p>
+                        }
+                    </div>
+                }
+                @if (_error is not null)
+                {
+                    <p class="playlist-picker__status" role="alert">@_error</p>
+                }
+            </div>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar>
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Label="@L["Search_Cancel"].Value" OnClick="@(() => Dialog.Cancel())" />
+            <AppButton ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Primary"
+                       Label="@L["Vibes_Add"].Value"
+                       Disabled="@(_saving || _loading || _selectedId is null)"
+                       OnClick="AddAsync"
+                       data-playlist-picker-add="true" />
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>The songs that will be added; they decide the title and which playlists already hold them all.</summary>
+    [Parameter] public IReadOnlyList<Guid> WorkIds { get; set; } = [];
+
+    private List<ManagedCollectionDto> _targets = [];
+    private IReadOnlySet<Guid> _holdingAll = new HashSet<Guid>();
+    private string _query = string.Empty;
+    private string _newName = string.Empty;
+    private Guid? _selectedId;
+    private bool _creating;
+    private bool _loading = true;
+    private bool _saving;
+    private string? _error;
+
+    // "New playlist" is only offered to a profile that may start one (a Kids profile cannot; the Engine refuses it too). Unknown means no.
+    private bool CanCreatePlaylist => Services.GetService<DashboardSessionAccessor>() is { } session && CollectionAuthoringRule.CanCreate(session);
+
+    private string Title => WorkIds.Count == 1 ? L["PlaylistPicker_TitleOne"].Value : L["PlaylistPicker_TitleMany", WorkIds.Count].Value;
+
+    private IReadOnlyList<ManagedCollectionDto> Visible => string.IsNullOrWhiteSpace(_query)
+        ? _targets
+        : [.. _targets.Where(playlist => playlist.Name.Contains(_query.Trim(), StringComparison.CurrentCultureIgnoreCase))];
+
+    private string SongCount(int count) => count == 1 ? L["PlaylistPicker_SongsOne"].Value : L["PlaylistPicker_SongsMany", count].Value;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var profile = await Orchestrator.GetActiveProfileAsync();
+        var collections = await Api.GetManagedCollectionsAsync(profile?.Id);
+        _targets = [.. collections.Where(collection => CollectionAuthoringRule.IsAddTarget(collection, playlist: true))];
+        _loading = false;
+
+        // The list shows at once; the "Already in" ticks follow when the short playlists have been read.
+        await InvokeAsync(StateHasChanged);
+        _holdingAll = await PlaylistMembership.FindHoldingAllAsync(
+            Api, _targets.Select(playlist => (playlist.Id, playlist.ItemCount)), WorkIds, profile?.Id);
+    }
+
+    private void Select(ManagedCollectionDto playlist)
+    {
+        _selectedId = playlist.Id;
+        _error = null;
+    }
+
+    private void ToggleNewPlaylist()
+    {
+        _creating = !_creating;
+        _error = null;
+    }
+
+    private async Task OnNameKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await CreateAsync();
+        }
+    }
+
+    private Task CreateAsync()
+    {
+        if (_saving || string.IsNullOrWhiteSpace(_newName))
+        {
+            return Task.CompletedTask;
+        }
+
+        _saving = true;
+        Dialog.Close(AppDialogResult.Ok(new PlaylistChoice(null, _newName.Trim())));
+        return Task.CompletedTask;
+    }
+
+    private Task AddAsync()
+    {
+        if (_saving || _targets.FirstOrDefault(playlist => playlist.Id == _selectedId) is not { } chosen)
+        {
+            return Task.CompletedTask;
+        }
+
+        _saving = true;
+        Dialog.Close(AppDialogResult.Ok(new PlaylistChoice(chosen.Id, chosen.Name)));
+        return Task.CompletedTask;
+    }
+}
