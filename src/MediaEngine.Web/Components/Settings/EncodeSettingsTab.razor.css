@@ -17,11 +17,6 @@
     gap: var(--tl-space-5);
 }
 
-.encode-settings__save-row {
-    display: flex;
-    justify-content: flex-end;
-}
-
 .encode-settings__form {
     display: grid;
     gap: var(--tl-space-4);

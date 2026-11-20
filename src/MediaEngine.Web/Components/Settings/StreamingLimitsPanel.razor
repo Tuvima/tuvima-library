@@ -12,21 +12,20 @@
     @if (!DeviceContext.IsMobile)
     {
         <SettingsSectionPanel Title="@L["StreamingLimitsPanel_RemoteStreamingQuality"].Value">
-            <AppSelect T="string" @bind-Value="Settings.Streaming.RemoteQuality"
+            <AppSelect T="string" Value="@Settings.Streaming.RemoteQuality" ValueChanged="ChangeQualityAsync"
                        Label="@L["StreamingLimitsPanel_Quality"].Value" Options="@QualityOptions" />
             <AppSwitchRow Label="@L["StreamingLimitsPanel_AutomaticUploadProtection"].Value"
                           Description="@L["StreamingLimitsPanel_KeepBandwidthAvailableForThe"].Value"
                           Value="@Settings.Streaming.UploadProtectionEnabled"
                           ValueChanged="ChangeUploadProtectionAsync" />
-            <AppNumericField @bind-Value="Settings.Streaming.ReservedUploadMbps"
+            <AppNumericField Value="@Settings.Streaming.ReservedUploadMbps" ValueChanged="ChangeReservedMbpsAsync"
                              Label="@L["StreamingLimitsPanel_BandwidthReservedForOtherTraffic"].Value" Min="0" Max="10000" />
-            <div class="streaming-limits__actions"><AppButton Label="@L["StreamingLimitsPanel_SaveStreamingSettings"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRequested" /></div>
         </SettingsSectionPanel>
     }
 
     <SettingsSectionPanel Title="@L["StreamingLimitsPanel_UploadCapacity"].Value">
         <dl class="streaming-limits__bandwidth-grid">
-            @Fact("Upload Capacity", FormatBandwidth(Status?.Bandwidth.UploadCapacityMbps))
+            @Fact("Upload capacity", FormatBandwidth(Status?.Bandwidth.UploadCapacityMbps))
             @Fact("Reserved", $"{Settings.Streaming.ReservedUploadMbps} Mbps")
             @Fact("Available to Library", FormatBandwidth(Status?.Bandwidth.AvailableMbps))
         </dl>
@@ -49,12 +48,24 @@
     private NetworkBandwidthStatusDto? _bandwidth;
     private static readonly IReadOnlyList<AppSelectOption> QualityOptions =
     [
-        new("automatic", "Automatic — Recommended"),
-        new("original", "Maximum / Original"),
+        new("automatic", "Automatic — recommended"),
+        new("original", "Maximum / original"),
         new("1080p", "1080p"),
         new("720p", "720p"),
-        new("data-saver", "Data Saver"),
+        new("data-saver", "Data saver"),
     ];
+
+    private async Task ChangeQualityAsync(string? value)
+    {
+        Settings.Streaming.RemoteQuality = value ?? Settings.Streaming.RemoteQuality;
+        await SaveRequested.InvokeAsync();
+    }
+
+    private async Task ChangeReservedMbpsAsync(int value)
+    {
+        Settings.Streaming.ReservedUploadMbps = value;
+        await SaveRequested.InvokeAsync();
+    }
 
     private async Task ChangeUploadProtectionAsync(bool value)
     {

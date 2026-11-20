@@ -30,10 +30,9 @@
                 <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-name-address-failure>@_failure</AppAlert>
             }
             <div class="general-address__name">
-                <AppTextField Label="@L["GeneralNameAddress_LibraryName"].Value" Value="@_name" ValueChanged="OnNameChanged"
-                              Placeholder="@L["SetupWelcomeStage_ShayaSLibrary"].Value" data-testid="general-library-name" />
-                <AppButton Label="@L["GeneralNameAddress_SaveName"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Loading="@_saving" Disabled="@(!CanSave)" OnClick="SaveAsync" data-testid="general-save-name" />
+                @* Saves when you leave the field or press Enter (the Immediate="false" change event), the same rule as every Settings page. *@
+                <AppTextField Label="@L["GeneralNameAddress_LibraryName"].Value" Value="@_name" ValueChanged="OnNameChangedAsync" Immediate="false"
+                              Disabled="@_saving" Placeholder="@L["SetupWelcomeStage_ShayaSLibrary"].Value" data-testid="general-library-name" />
             </div>
             <AppSavedNote @ref="_savedNote" data-testid="general-name-saved" />
             <p class="general-address__note" data-testid="general-network-name-line">
@@ -46,8 +45,8 @@
             </p>
             @if (_showHostField)
             {
-                <AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@_host" ValueChanged="OnHostChanged"
-                              Placeholder="@NetworkNameRules.DefaultLabel" data-testid="general-network-name-field" />
+                <AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@_host" ValueChanged="OnHostChangedAsync" Immediate="false"
+                              Disabled="@_saving" Placeholder="@NetworkNameRules.DefaultLabel" data-testid="general-network-name-field" />
             }
 
             @if (_addresses is not null)
@@ -201,25 +200,35 @@
     private void RevealHostField() => _showHostField = true;
 
     // The network name follows the friendly name until the person types one in themselves.
-    private void OnNameChanged(string? value)
+    private Task OnNameChangedAsync(string? value)
     {
         _name = value ?? string.Empty;
         if (_derived)
         {
             _host = NetworkNameRules.ToLabel(_name);
         }
+        return SaveAsync();
     }
 
-    private void OnHostChanged(string? value)
+    private Task OnHostChangedAsync(string? value)
     {
         var label = NetworkNameRules.ToLabel(value);
         // Emptying the field hands the network name back to the friendly name.
         _derived = label.Length == 0;
         _host = _derived ? NetworkNameRules.ToLabel(_name) : label;
+        return SaveAsync();
     }
 
     private async Task SaveAsync()
     {
+        if (string.IsNullOrWhiteSpace(_name) && _identity is not null)
+        {
+            // A blank name is not saved: draw what was typed once, then show the saved name again.
+            StateHasChanged();
+            await Task.Yield();
+            Apply(_identity);
+            return;
+        }
         if (!CanSave) return;
         _saving = true;
         _failure = null;
@@ -227,6 +236,11 @@
         _saving = false;
         if (saved is null)
         {
+            // A failed save keeps the old name and network name.
+            if (_identity is not null)
+            {
+                Apply(_identity);
+            }
             _failure = L["GeneralNameAddress_NameNotSaved"].Value;
             return;
         }

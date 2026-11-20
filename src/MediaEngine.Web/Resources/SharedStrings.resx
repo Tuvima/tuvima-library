@@ -3612,10 +3612,10 @@
     <value>The public address lives on</value>
   </data>
   <data name="Common_RemoteAccess" xml:space="preserve">
-    <value>Remote Access</value>
+    <value>Remote access</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_ReverseProxyTrust" xml:space="preserve">
-    <value>Reverse Proxy Trust</value>
+    <value>Reverse proxy trust</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_AcceptForwardedClientAndHTTPS" xml:space="preserve">
     <value>Accept forwarded client and HTTPS information only from known proxy peers.</value>
@@ -3636,7 +3636,7 @@
     <value>Tailscale or a documented reverse proxy is the supported default for remote access.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_ResetNetworkSettings" xml:space="preserve">
-    <value>Reset Network Settings</value>
+    <value>Reset network settings</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_RestoreLocalFirstDefaultsAnd" xml:space="preserve">
     <value>Restore local-first defaults and turn off remote access.</value>
@@ -3656,9 +3656,6 @@
   <data name="AdvancedNetworkSettingsPanel_TryPCPNATPMPThen" xml:space="preserve">
     <value>Try PCP, NAT-PMP, then UPnP for the explicitly configured TLS listener.</value>
   </data>
-  <data name="AdvancedNetworkSettingsPanel_SaveDirectSettings" xml:space="preserve">
-    <value>Save direct settings</value>
-  </data>
   <data name="AdvancedNetworkSettingsPanel_SetUpManually" xml:space="preserve">
     <value>Set up manually</value>
   </data>
@@ -3670,9 +3667,6 @@
   </data>
   <data name="AdvancedNetworkSettingsPanel_TrustedProxyNetworks" xml:space="preserve">
     <value>Trusted proxy networks</value>
-  </data>
-  <data name="AdvancedNetworkSettingsPanel_SaveProxyTrust" xml:space="preserve">
-    <value>Save proxy trust</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_ResetNetworkSettings2" xml:space="preserve">
     <value>Reset network settings?</value>
@@ -4266,7 +4260,7 @@
     <value>No provider is set for this kind of media.</value>
   </data>
   <data name="IngestionFlowEditor_LoadingTheIngestionFlow" xml:space="preserve">
-    <value>Loading the Ingestion Flow</value>
+    <value>Loading the ingestion flow</value>
   </data>
   <data name="IngestionFlowEditor_TheIngestionFlowIsUnavailable" xml:space="preserve">
     <value>The Ingestion Flow is unavailable</value>
@@ -4745,9 +4739,6 @@
   <data name="ViewFileHandlingTab_UseTheDefault" xml:space="preserve">
     <value>Use the default</value>
   </data>
-  <data name="ViewFileHandlingTab_SaveLayout" xml:space="preserve">
-    <value>Save layout</value>
-  </data>
   <data name="ViewFileHandlingTab_OriginalsRemainProtectedThroughoutIndexi" xml:space="preserve">
     <value>Originals remain protected throughout indexing and sharing.</value>
   </data>
@@ -5078,9 +5069,6 @@
   <data name="LocalAiBudgetPanel_LongestWaitSeconds" xml:space="preserve">
     <value>Longest wait (seconds)</value>
   </data>
-  <data name="LocalAiBudgetPanel_SaveAllowance" xml:space="preserve">
-    <value>Save allowance</value>
-  </data>
   <data name="LocalAiModelFilesPanel_ModelFiles" xml:space="preserve">
     <value>Model files</value>
   </data>
@@ -5123,9 +5111,6 @@
   <data name="LocalAiRuntimePanel_EnrichmentBatchSize" xml:space="preserve">
     <value>Enrichment batch size</value>
   </data>
-  <data name="LocalAiRuntimePanel_SaveRuntimeSettings" xml:space="preserve">
-    <value>Save runtime settings</value>
-  </data>
   <data name="LocalAiRuntimePanel_RuntimeDiagnostics" xml:space="preserve">
     <value>Runtime diagnostics</value>
   </data>
@@ -5166,19 +5151,19 @@
     <value>Nothing has asked Local AI for anything in this period.</value>
   </data>
   <data name="LocalNetworkSettingsPanel_ServerPort" xml:space="preserve">
-    <value>Server Port</value>
+    <value>Server port</value>
   </data>
   <data name="LocalNetworkSettingsPanel_PortUsedByLibraryFor" xml:space="preserve">
     <value>Port used by Library for local connections.</value>
   </data>
   <data name="LocalNetworkSettingsPanel_NetworkInterface" xml:space="preserve">
-    <value>Network Interface</value>
+    <value>Network interface</value>
   </data>
   <data name="LocalNetworkSettingsPanel_WhichNetworkInterfaceShouldLibrary" xml:space="preserve">
     <value>Which network interface should Library listen on.</value>
   </data>
   <data name="LocalNetworkSettingsPanel_ChangePort" xml:space="preserve">
-    <value>Change Port</value>
+    <value>Change port</value>
   </data>
   <data name="LocalNetworkSettingsPanel_NetworkInterface2" xml:space="preserve">
     <value>Network interface</value>
@@ -5205,7 +5190,7 @@
     <value>Let devices find Library by name</value>
   </data>
   <data name="LocalNetworkSettingsPanel_IPv6Support" xml:space="preserve">
-    <value>IPv6 Support</value>
+    <value>IPv6 support</value>
   </data>
   <data name="LocalNetworkSettingsPanel_AllowConnectionsOverIPv6When" xml:space="preserve">
     <value>Allow connections over IPv6 when the network supports it.</value>
@@ -5272,9 +5257,6 @@
   </data>
   <data name="LogRetentionPanel_KeepAtMostMBAll" xml:space="preserve">
     <value>Keep at most (MB, all files together)</value>
-  </data>
-  <data name="LogRetentionPanel_SaveLimits" xml:space="preserve">
-    <value>Save limits</value>
   </data>
   <data name="LogsPage_LogsViews" xml:space="preserve">
     <value>Logs views</value>
@@ -5382,7 +5364,7 @@
     <value>Opens profile</value>
   </data>
   <data name="ManagedAccessUsers_UsersAndSignIn" xml:space="preserve">
-    <value>Users and Sign-in</value>
+    <value>Users and sign-in</value>
   </data>
   <data name="ManagedAccessUsers_ChangeEmail" xml:space="preserve">
     <value>Change email</value>
@@ -5502,7 +5484,7 @@
     <value>Create this port-forwarding rule in your router, then ask Library to test it again.</value>
   </data>
   <data name="ManualPortForwardingDialog_CopyRule" xml:space="preserve">
-    <value>Copy Rule</value>
+    <value>Copy rule</value>
   </data>
   <data name="ManualPortForwardingDialog_IVeConfiguredThisTest" xml:space="preserve">
     <value>I've configured this — Test Again</value>
@@ -5640,10 +5622,10 @@
     <value>Review</value>
   </data>
   <data name="NetworkOverviewPanel_TestConnection" xml:space="preserve">
-    <value>Test Connection</value>
+    <value>Test connection</value>
   </data>
   <data name="NetworkOverviewPanel_ConnectionStatus" xml:space="preserve">
-    <value>Connection Status</value>
+    <value>Connection status</value>
   </data>
   <data name="NetworkOverviewPanel_ALiveSummaryOfHow" xml:space="preserve">
     <value>A live summary of how devices can reach Library.</value>
@@ -6216,7 +6198,7 @@
     <value>Tailscale Serve</value>
   </data>
   <data name="RemoteAccessSettingsPanel_HTTPSReverseProxy" xml:space="preserve">
-    <value>HTTPS Reverse Proxy</value>
+    <value>HTTPS reverse proxy</value>
   </data>
   <data name="RemoteAccessSettingsPanel_TheAddressMustHaveA" xml:space="preserve">
     <value>The address must have a trusted certificate and route to this Dashboard.</value>
@@ -6425,9 +6407,6 @@
   <data name="SecurityTab_Scopes" xml:space="preserve">
     <value>Scopes</value>
   </data>
-  <data name="SecurityTab_SaveProvider" xml:space="preserve">
-    <value>Save provider</value>
-  </data>
   <data name="SecurityTab_DeleteProvider" xml:space="preserve">
     <value>Delete provider</value>
   </data>
@@ -6450,7 +6429,7 @@
     <value>No sign-ins match</value>
   </data>
   <data name="Common_LimitsAndQuality" xml:space="preserve">
-    <value>Limits and Quality</value>
+    <value>Limits and quality</value>
   </data>
   <data name="StreamingLimitsPanel_ProtectYourUploadConnectionWhile" xml:space="preserve">
     <value>Protect your upload connection while Library chooses an appropriate playback quality.</value>
@@ -6462,13 +6441,13 @@
     <value>Library shares your internet connection between remote streams automatically.</value>
   </data>
   <data name="StreamingLimitsPanel_RemoteStreamingQuality" xml:space="preserve">
-    <value>Remote Streaming Quality</value>
+    <value>Remote streaming quality</value>
   </data>
   <data name="StreamingLimitsPanel_Quality" xml:space="preserve">
     <value>Quality</value>
   </data>
   <data name="StreamingLimitsPanel_AutomaticUploadProtection" xml:space="preserve">
-    <value>Automatic Upload Protection</value>
+    <value>Automatic upload protection</value>
   </data>
   <data name="StreamingLimitsPanel_KeepBandwidthAvailableForThe" xml:space="preserve">
     <value>Keep bandwidth available for the rest of your home.</value>
@@ -6476,14 +6455,11 @@
   <data name="StreamingLimitsPanel_BandwidthReservedForOtherTraffic" xml:space="preserve">
     <value>Bandwidth reserved for other traffic (Mbps)</value>
   </data>
-  <data name="StreamingLimitsPanel_SaveStreamingSettings" xml:space="preserve">
-    <value>Save streaming settings</value>
-  </data>
   <data name="StreamingLimitsPanel_UploadCapacity" xml:space="preserve">
-    <value>Upload Capacity</value>
+    <value>Upload capacity</value>
   </data>
   <data name="StreamingLimitsPanel_TestBandwidth" xml:space="preserve">
-    <value>Test Bandwidth</value>
+    <value>Test bandwidth</value>
   </data>
   <data name="StreamingLimitsSettingsTab_StreamingLimitsAreUnavailable" xml:space="preserve">
     <value>Streaming limits are unavailable</value>
@@ -6850,6 +6826,18 @@
   </data>
   <data name="AppSaveBar_SaveChanges" xml:space="preserve">
     <value>Save changes</value>
+  </data>
+  <data name="SettingsSaveBar_SaveChanges" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="SettingsSaveBar_Saving" xml:space="preserve">
+    <value>Saving…</value>
+  </data>
+  <data name="LocalAiRuntimePanel_RuntimeSettingsCouldNotBeSaved" xml:space="preserve">
+    <value>Runtime settings could not be saved. Check the values and try again.</value>
+  </data>
+  <data name="LocalAiBudgetPanel_AllowanceCouldNotBeSaved" xml:space="preserve">
+    <value>The allowance could not be saved. Check the values and try again.</value>
   </data>
   <data name="AppStateCard_AllowedTo" xml:space="preserve">
     <value>Allowed to</value>
@@ -8581,9 +8569,6 @@
   </data>
   <data name="GeneralNameAddress_LibraryName" xml:space="preserve">
     <value>Library name</value>
-  </data>
-  <data name="GeneralNameAddress_SaveName" xml:space="preserve">
-    <value>Save name</value>
   </data>
   <data name="GeneralNameAddress_NameNotSaved" xml:space="preserve">
     <value>The Library name could not be saved.</value>
@@ -14133,7 +14118,7 @@
     <value>Library is still working on 1 file, so more items may appear here.</value>
   </data>
   <data name="NeedsReviewPage_ViewActivity" xml:space="preserve">
-    <value>View Activity</value>
+    <value>View activity</value>
   </data>
   <data name="NeedsReviewPage_Loading" xml:space="preserve">
     <value>Loading Needs Review</value>

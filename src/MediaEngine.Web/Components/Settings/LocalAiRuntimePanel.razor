@@ -20,8 +20,7 @@
                 <AppNumericField T="int" @bind-Value="_config.MinimumFreeDiskMB" Label="@L["LocalAiRuntimePanel_MinimumFreeDiskMB"].Value" Min="256" />
                 <AppNumericField T="int" @bind-Value="_config.EnrichmentBatchSize" Label="@L["LocalAiRuntimePanel_EnrichmentBatchSize"].Value" Min="1" />
             </div>
-            <AppButton Label="@L["LocalAiRuntimePanel_SaveRuntimeSettings"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                       Class="tl-sp-mt-3" Disabled="@_savingConfig" OnClick="@SaveConfig" />
+            <SettingsSaveBar @ref="_saveBar" Saving="@_savingConfig" Disabled="@(!IsRuntimeValid)" Error="@_saveError" OnSave="SaveConfig" />
         }
     </AppSettingsGroup>
     <AppSettingsGroup Heading="@L["ModelsTab_InvalidateBenchmark"].Value" Helper="@L["LocalAiRuntimePanel_InvalidateBenchmarkHelp"].Value">
@@ -56,6 +55,8 @@
     private ResourceSnapshotDto? _resources;
     private AiConfigDto? _config;
     private bool _savingConfig;
+    private string? _saveError;
+    private SettingsSaveBar? _saveBar;
     private bool _invalidating;
     private string? _benchmarkMessage;
     private AppUiTone _benchmarkTone = AppUiTone.Info;
@@ -69,12 +70,21 @@
 
     private async Task SaveConfig()
     {
-        if (_config is null || !ValidateRuntime())
+        if (_config is null || !IsRuntimeValid)
             return;
 
         _savingConfig = true;
-        await Orchestrator.SaveAiConfigAsync(_config);
+        _saveError = null;
+        var saved = await Orchestrator.SaveAiConfigAsync(_config);
         _savingConfig = false;
+        if (saved)
+        {
+            _saveBar?.ShowSaved();
+        }
+        else
+        {
+            _saveError = L["LocalAiRuntimePanel_RuntimeSettingsCouldNotBeSaved"].Value;
+        }
     }
 
     private async Task InvalidateBenchmarkAsync()
@@ -87,7 +97,7 @@
         _profile = await Orchestrator.GetAiProfileAsync();
     }
 
-    private bool ValidateRuntime() => _config is
+    private bool IsRuntimeValid => _config is
     {
         IdleUnloadSeconds: > 0,
         InferenceTimeoutSeconds: > 0,

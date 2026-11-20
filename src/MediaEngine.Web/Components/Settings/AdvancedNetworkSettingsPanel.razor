@@ -7,7 +7,7 @@
 
 <div class="network-panel network-advanced">
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SettingsEthernet" /></span><span><strong>Ports &amp; Binding</strong><small>@L["AdvancedNetworkSettingsPanel_InspectTheLocalDashboardListener"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SettingsEthernet" /></span><span><strong>Ports &amp; binding</strong><small>@L["AdvancedNetworkSettingsPanel_InspectTheLocalDashboardListener"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body">
             <div class="network-setting-rows">
                 <div class="network-setting-row">
@@ -32,7 +32,7 @@
     </details>
 
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Router" /></span><span><strong>Port Forwarding &amp; Router Mapping</strong><small>@L["AdvancedNetworkSettingsPanel_AdvancedDirectAccessThroughYour"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Router" /></span><span><strong>Port forwarding &amp; router mapping</strong><small>@L["AdvancedNetworkSettingsPanel_AdvancedDirectAccessThroughYour"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body network-advanced-fields">
             <AppAlert Tone="AppUiTone.Warning">@L["AdvancedNetworkSettingsPanel_PCPNATPMPAndUPnP"]</AppAlert>
             @if (_portProblem is not null)
@@ -57,8 +57,8 @@
                           Description="@L["AdvancedNetworkSettingsPanel_TryPCPNATPMPThen"].Value"
                           Value="@Settings.Remote.AutomaticRouterConfiguration"
                           ValueChanged="ChangeRouterAutomationAsync" />
+            <SettingsSaveBar OnSave="SaveRouterSettingsAsync" data-testid="direct-settings-save" />
             <div class="network-card-actions">
-                <AppButton Label="@L["AdvancedNetworkSettingsPanel_SaveDirectSettings"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRouterSettingsAsync" />
                 <AppButton Label="@L["AdvancedNetworkSettingsPanel_SetUpManually"].Value" StartIcon="@AppMaterialIcons.Outlined.Tune" OnClick="OpenManual" />
                 <AppButton Label="@L["AdvancedNetworkSettingsPanel_RenewNow"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RenewAsync" />
             </div>
@@ -71,7 +71,7 @@
             <AppTextField T="string" @bind-Value="_trustedProxyText" Label="@L["AdvancedNetworkSettingsPanel_TrustedProxyAddresses"].Value" HelpText="Comma-separated exact IP addresses." />
             <AppTextField T="string" @bind-Value="_trustedProxyNetworkText" Label="@L["AdvancedNetworkSettingsPanel_TrustedProxyNetworks"].Value" HelpText="Comma-separated CIDR ranges for isolated Docker proxy networks, for example 172.21.0.0/24." />
             <AppAlert Tone="AppUiTone.Info">@L["AdvancedNetworkSettingsPanel_ForwardedHeadersFromEveryOther"]</AppAlert>
-            <AppButton Label="@L["AdvancedNetworkSettingsPanel_SaveProxyTrust"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveProxySettingsAsync" />
+            <SettingsSaveBar OnSave="SaveProxySettingsAsync" data-testid="proxy-trust-save" />
         </div>
     </details>
 
