@@ -1,6 +1,6 @@
 # Spec: Notifications and delivery (mail server form, push services, webhooks)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-20 · **Related docs:** [Developer tools spec D-O, WP23, WP24, WP31](developer-tools.md) · [Plugin architecture](plugin-architecture.md) · mock-ups: `engineering/design/mockups/notifications-and-delivery.html` · Question range 180-189
+> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-11-20 · **Related docs:** [Developer tools spec D-O, WP23, WP24, WP31](developer-tools.md) · [Plugin architecture](plugin-architecture.md) · mock-ups: `engineering/design/mockups/notifications-and-delivery.html` · Question range 180-189
 
 ## 0. Plain-English walkthrough
 

@@ -6284,15 +6284,6 @@
   <data name="SecurityTab_Passkeys" xml:space="preserve">
     <value>Passkeys</value>
   </data>
-  <data name="NotificationsEmailTest_SMTPServer" xml:space="preserve">
-    <value>SMTP server</value>
-  </data>
-  <data name="NotificationsEmailTest_SMTPState" xml:space="preserve">
-    <value>SMTP state</value>
-  </data>
-  <data name="NotificationsEmailTest_SendsOnlyToTheEmail" xml:space="preserve">
-    <value>Sends only to the email address on your current signed-in account.</value>
-  </data>
   <data name="SecurityTab_ExternalProviders" xml:space="preserve">
     <value>External providers</value>
   </data>
@@ -6337,9 +6328,6 @@
   </data>
   <data name="SecurityTab_MaximumActiveSessionsPerAccount" xml:space="preserve">
     <value>Maximum active sessions per account</value>
-  </data>
-  <data name="NotificationsEmailTest_SendTestEmailToMy" xml:space="preserve">
-    <value>Send test email to my account</value>
   </data>
   <data name="SecurityTab_ProviderId" xml:space="preserve">
     <value>Provider id</value>
@@ -7976,9 +7964,6 @@
   <data name="SecurityTab_ProviderCouldNotBeDeleted" xml:space="preserve">
     <value>Provider could not be deleted.</value>
   </data>
-  <data name="NotificationsEmailTest_TestEmailCouldNotBe" xml:space="preserve">
-    <value>Test email could not be sent.</value>
-  </data>
   <data name="StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe" xml:space="preserve">
     <value>Playback settings could not be saved.</value>
   </data>
@@ -8557,18 +8542,6 @@
   </data>
   <data name="GeneralNameAddress_ScanHome" xml:space="preserve">
     <value>Scan to use the address at home</value>
-  </data>
-  <data name="NotificationsEmailTest_Email" xml:space="preserve">
-    <value>Email (SMTP)</value>
-  </data>
-  <data name="NotificationsEmailTest_Ready" xml:space="preserve">
-    <value>Ready</value>
-  </data>
-  <data name="NotificationsEmailTest_ConfiguredNotReady" xml:space="preserve">
-    <value>Configured, not ready</value>
-  </data>
-  <data name="NotificationsEmailTest_TestEmailSent" xml:space="preserve">
-    <value>Test email sent to your account address.</value>
   </data>
   <data name="EncodeSettingsTab_MaintenanceWindowStarts" xml:space="preserve">
     <value>Maintenance window starts</value>
@@ -15283,5 +15256,83 @@
   </data>
   <data name="SecurityTab_EmailConfiguredNeedsAddress" xml:space="preserve">
     <value>Configured. Reset links also need the public address above.</value>
+  </data>
+  <data name="NotificationsMailServer_EmailServer" xml:space="preserve">
+    <value>Email server</value>
+  </data>
+  <data name="NotificationsMailServer_HelperLine" xml:space="preserve">
+    <value>The mail server Library sends email through. Alerts and password reset both use it.</value>
+  </data>
+  <data name="NotificationsMailServer_Loading" xml:space="preserve">
+    <value>Loading email settings</value>
+  </data>
+  <data name="NotificationsMailServer_GettingYourEmailSettings" xml:space="preserve">
+    <value>Getting your email settings.</value>
+  </data>
+  <data name="NotificationsMailServer_CouldNotLoad" xml:space="preserve">
+    <value>Could not load email settings</value>
+  </data>
+  <data name="NotificationsMailServer_TheLibraryCouldNotGetYourEmail" xml:space="preserve">
+    <value>Library could not get your email settings. Try again.</value>
+  </data>
+  <data name="NotificationsMailServer_MailProvider" xml:space="preserve">
+    <value>Email provider</value>
+  </data>
+  <data name="NotificationsMailServer_Encrypted" xml:space="preserve">
+    <value>encrypted</value>
+  </data>
+  <data name="NotificationsMailServer_NotEncrypted" xml:space="preserve">
+    <value>not encrypted</value>
+  </data>
+  <data name="NotificationsMailServer_ServerAddress" xml:space="preserve">
+    <value>Server address</value>
+  </data>
+  <data name="NotificationsMailServer_Port" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="NotificationsMailServer_EncryptTheConnection" xml:space="preserve">
+    <value>Encrypt the connection</value>
+  </data>
+  <data name="NotificationsMailServer_AppPasswordHelp" xml:space="preserve">
+    <value>Gmail and iCloud need an app password, not your normal password. Create one in your account's security settings, then paste it below.</value>
+  </data>
+  <data name="NotificationsMailServer_Username" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="NotificationsMailServer_UsernamePlaceholder" xml:space="preserve">
+    <value>Usually your email address</value>
+  </data>
+  <data name="NotificationsMailServer_Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="NotificationsMailServer_PasswordSaved" xml:space="preserve">
+    <value>Saved. Leave blank to keep it.</value>
+  </data>
+  <data name="NotificationsMailServer_PasswordHelp" xml:space="preserve">
+    <value>Kept on this computer and never shown again.</value>
+  </data>
+  <data name="NotificationsMailServer_SendAsName" xml:space="preserve">
+    <value>Send as (name)</value>
+  </data>
+  <data name="NotificationsMailServer_SendAsAddress" xml:space="preserve">
+    <value>Send as (address)</value>
+  </data>
+  <data name="NotificationsMailServer_SendTestToMe" xml:space="preserve">
+    <value>Send test to me</value>
+  </data>
+  <data name="NotificationsMailServer_SaveAfterTest" xml:space="preserve">
+    <value>Send a test first. Save turns on once it works.</value>
+  </data>
+  <data name="NotificationsMailServer_Saved" xml:space="preserve">
+    <value>Saved</value>
+  </data>
+  <data name="NotificationsMailServer_Other" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="NotificationsMailServer_TestCouldNotBeSent" xml:space="preserve">
+    <value>The test message could not be sent.</value>
+  </data>
+  <data name="NotificationsMailServer_CouldNotBeSaved" xml:space="preserve">
+    <value>The email settings could not be saved.</value>
   </data>
 </root>

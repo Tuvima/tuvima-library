@@ -10,6 +10,7 @@ public static class TuvimaNotificationServiceCollectionExtensions
         services.AddSingleton<NotificationQueue>();
         services.AddSingleton<INotificationPublisher>(provider => provider.GetRequiredService<NotificationQueue>());
         services.AddSingleton<NotificationSettingsAccessor>();
+        services.AddSingleton<MailServerSettingsService>();
         services.AddSingleton<INotificationChannel, EmailNotificationChannel>();
         services.AddSingleton<INotificationChannelSource, PluginNotificationChannelSource>();
         services.AddSingleton<NotificationService>();

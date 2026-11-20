@@ -35,6 +35,10 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetAuthSettingsAsync), _ => Task.FromResult<AuthSettingsDto?>(_settings));
+            stub.SetHandler(nameof(IEngineApiClient.GetMailServerAsync), _ => Task.FromResult<MediaEngine.Contracts.Notifications.MailServerSettingsDto?>(
+                new() { Configured = true, Host = "smtp.gmail.com", Port = 587, FromAddress = "library@example.test", HasPassword = true }));
+            stub.SetHandler(nameof(IEngineApiClient.TestMailServerAsync), _ => Task.FromResult<MediaEngine.Contracts.Notifications.NotificationTestResponse?>(
+                new() { Success = true, Message = "A test message was sent." }));
             stub.SetHandler(nameof(IEngineApiClient.UpdateAuthSettingsAsync), args =>
             {
                 _saveCalls++;
@@ -128,25 +132,29 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void GeneralNotifications_OffersTheTestEmailOnceOutgoingEmailIsSetUp()
+    public void GeneralNotifications_MailServerForm_ShowsTheSavedServerAndNeverThePassword()
     {
-        var cut = Render<NotificationsEmailTest>();
-        cut.WaitForElement("[data-testid='notifications-email-test']");
+        var cut = Render<NotificationsMailServer>();
+        cut.WaitForElement("[data-testid='notifications-mail-server-line']");
 
-        var button = cut.Find("[data-testid='notifications-email-test-send']");
-        Assert.False(button.HasAttribute("disabled"));
-        Assert.Contains("Send test email to my account", button.TextContent, StringComparison.Ordinal);
-        Assert.Contains("current signed-in account", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("smtp.gmail.com", cut.Find("[data-testid='notifications-mail-server-line']").TextContent, StringComparison.Ordinal);
+        Assert.Equal(string.Empty, cut.Find("[data-testid='notifications-mail-password']").GetAttribute("value") ?? string.Empty);
+        Assert.Contains("Saved. Leave blank to keep it.", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void GeneralNotifications_ShowsNoTestEmailWhileOutgoingEmailIsNotConfigured()
+    public void GeneralNotifications_MailServerForm_SaveWaitsForASuccessfulTest()
     {
-        _settings = new AuthSettingsDto();
+        var cut = Render<NotificationsMailServer>();
+        cut.WaitForElement("[data-testid='notifications-mail-from-address']");
+        cut.Find("[data-testid='notifications-mail-from-address']").Input("someone@example.test");
 
-        var cut = Render<NotificationsEmailTest>();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid='notifications-email-test']")));
-        Assert.DoesNotContain("Send test email", cut.Markup, StringComparison.Ordinal);
+        Assert.True(cut.Find("[data-testid='notifications-mail-save']").HasAttribute("disabled"));
+        cut.Find("[data-testid='notifications-mail-test']").Click();
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid='notifications-mail-save']").HasAttribute("disabled")));
+
+        cut.Find("[data-testid='notifications-mail-from-address']").Input("other@example.test");
+        Assert.True(cut.Find("[data-testid='notifications-mail-save']").HasAttribute("disabled"));
     }
 
     [Fact]

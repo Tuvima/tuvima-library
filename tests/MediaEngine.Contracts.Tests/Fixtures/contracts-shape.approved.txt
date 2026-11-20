@@ -7447,6 +7447,25 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.WikidataSearchItem
   label: System.String | nullability=nullable | accessors=get,init
   description: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.MailServerRequest
+  Host: System.String | nullability=not-null | accessors=get,set
+  Port: System.Int32 | nullability=not-null | accessors=get,set
+  Encrypted: System.Boolean | nullability=not-null | accessors=get,set
+  Username: System.String | nullability=not-null | accessors=get,set
+  Password: System.String | nullability=nullable | accessors=get,set
+  FromAddress: System.String | nullability=not-null | accessors=get,set
+  FromName: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.MailServerSettingsDto
+  Configured: System.Boolean | nullability=not-null | accessors=get,set
+  Host: System.String | nullability=not-null | accessors=get,set
+  Port: System.Int32 | nullability=not-null | accessors=get,set
+  Encrypted: System.Boolean | nullability=not-null | accessors=get,set
+  Username: System.String | nullability=not-null | accessors=get,set
+  FromAddress: System.String | nullability=not-null | accessors=get,set
+  FromName: System.String | nullability=not-null | accessors=get,set
+  HasPassword: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.MarkNotificationsReadRequest
   Ids: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,set
 

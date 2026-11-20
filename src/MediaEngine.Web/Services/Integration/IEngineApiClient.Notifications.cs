@@ -21,4 +21,13 @@ public partial interface IEngineApiClient
 
     /// <summary>POST /notifications/channels/{id}/enable: turns a channel that switched itself off back on.</summary>
     Task<bool> EnableNotificationChannelAsync(string channelId, CancellationToken ct = default);
+
+    /// <summary>The mail server email is sent through (the password is never returned).</summary>
+    Task<MailServerSettingsDto?> GetMailServerAsync(CancellationToken ct = default);
+
+    /// <summary>Saves the mail server; null when the Engine refused it.</summary>
+    Task<MailServerSettingsDto?> SaveMailServerAsync(MailServerRequest request, CancellationToken ct = default);
+
+    /// <summary>Sends a test email to the signed-in administrator with the form's values, without saving them.</summary>
+    Task<NotificationTestResponse?> TestMailServerAsync(MailServerRequest request, CancellationToken ct = default);
 }

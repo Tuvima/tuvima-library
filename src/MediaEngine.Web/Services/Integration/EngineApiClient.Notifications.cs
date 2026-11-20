@@ -21,4 +21,13 @@ public sealed partial class EngineApiClient
 
     public Task<bool> EnableNotificationChannelAsync(string channelId, CancellationToken ct = default) =>
         PostAsync("POST /notifications/channels/{id}/enable", $"/notifications/channels/{Uri.EscapeDataString(channelId)}/enable", new { }, ct: ct);
+
+    public Task<MailServerSettingsDto?> GetMailServerAsync(CancellationToken ct = default) =>
+        GetAsync<MailServerSettingsDto>("GET /notifications/mail-server", "/notifications/mail-server", ct: ct);
+
+    public Task<MailServerSettingsDto?> SaveMailServerAsync(MailServerRequest request, CancellationToken ct = default) =>
+        PutAsync<MailServerRequest, MailServerSettingsDto>("PUT /notifications/mail-server", "/notifications/mail-server", request, ct: ct);
+
+    public Task<NotificationTestResponse?> TestMailServerAsync(MailServerRequest request, CancellationToken ct = default) =>
+        PostAsync<MailServerRequest, NotificationTestResponse>("POST /notifications/mail-server/test", "/notifications/mail-server/test", request, ct: ct);
 }

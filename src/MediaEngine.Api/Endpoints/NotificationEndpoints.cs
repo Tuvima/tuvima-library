@@ -105,6 +105,39 @@ public static class NotificationEndpoints
         .WithSummary("Turns a channel that switched itself off after repeated failures back on.")
         .Produces(StatusCodes.Status204NoContent);
 
+        group.MapGet("/mail-server", ([FromServices] MailServerSettingsService mailServer) => Results.Ok(mailServer.Get()))
+        .WithName("GetMailServer")
+        .WithSummary("The mail server email is sent through. The password is never returned, only whether one is saved.")
+        .Produces<MailServerSettingsDto>(StatusCodes.Status200OK);
+
+        group.MapPut("/mail-server", async (MailServerRequest request, [FromServices] MailServerSettingsService mailServer, CancellationToken ct) =>
+        {
+            var problem = await mailServer.SaveAsync(request, ct).ConfigureAwait(false);
+            return problem is null ? Results.Ok(mailServer.Get()) : ApiErrors.BadRequest(problem);
+        })
+        .WithName("UpdateMailServer")
+        .WithSummary("Saves the mail server. Notifications and password reset both send through it. A null password keeps the saved one.")
+        .Produces<MailServerSettingsDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/mail-server/test", async (
+            MailServerRequest request,
+            HttpContext context,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            [FromServices] MediaEngine.Domain.Contracts.IAccountRepository accounts,
+            [FromServices] MailServerSettingsService mailServer,
+            CancellationToken ct) =>
+        {
+            var authority = await authorityResolver.ResolveAsync(context, ct).ConfigureAwait(false);
+            var account = authority.AccountId is { } accountId
+                ? await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
+                : null;
+            return Results.Ok(await mailServer.TestAsync(request, account?.Email ?? string.Empty, ct).ConfigureAwait(false));
+        })
+        .WithName("TestMailServer")
+        .WithSummary("Sends one test email to the signed-in administrator with the values in the form, without saving them.")
+        .Produces<NotificationTestResponse>(StatusCodes.Status200OK);
+
         return routes;
     }
 }
