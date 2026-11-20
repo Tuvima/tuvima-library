@@ -15248,12 +15248,6 @@
   <data name="SecurityTab_AllowPasswords" xml:space="preserve">
     <value>Allow passwords</value>
   </data>
-  <data name="SecurityTab_RequireSignInForEveryone" xml:space="preserve">
-    <value>Require sign-in for everyone</value>
-  </data>
-  <data name="SecurityTab_RequireSignInForEveryoneHelp" xml:space="preserve">
-    <value>Everyone has to sign in to use Library.</value>
-  </data>
   <data name="SecurityTab_ExternalSignInHelp" xml:space="preserve">
     <value>Let people sign in with the linked sign-in providers set up below.</value>
   </data>

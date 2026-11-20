@@ -23,19 +23,13 @@
             {
                 <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-security-failure>@_failure</AppAlert>
             }
-            @* Plain switches that save the moment they change (settings alignment D2, D15). "Require sign-in for everyone" is the
-               old Required mode; turning it off keeps linked sign-in working when that is on. *@
+            @* Plain switches that save the moment they change (settings alignment D2, D15). Everyone always signs in, so there is no switch for it. *@
             <div class="security-settings__controls" role="group" aria-label="@L["SecurityTab_HowPeopleSignIn"]" data-testid="sign-in-switches">
                 <AppSwitchRow Label="@L["SecurityTab_AllowPasswords"].Value"
                               Description="@L["SecurityTab_AllowAccountPasswordsAndPassword"].Value"
                               Value="@_passwordSignInEnabled"
                               Disabled="@_saving"
                               ValueChanged="value => SaveSwitchAsync(() => _passwordSignInEnabled = value)" />
-                <AppSwitchRow Label="@L["SecurityTab_RequireSignInForEveryone"].Value"
-                              Description="@L["SecurityTab_RequireSignInForEveryoneHelp"].Value"
-                              Value="@RequireSignIn"
-                              Disabled="@_saving"
-                              ValueChanged="value => SaveSwitchAsync(() => ChangeRequireSignIn(value))" />
                 <AppSwitchRow Label="@L["SecurityTab_PasskeySignIn"].Value"
                               Description="@L["SecurityTab_AllowPasskeysAndPlatformCredentials"].Value"
                               Value="@_passkeySignInEnabled"
@@ -174,10 +168,6 @@
 
     private bool ProvidersNeedRestart =>
         _authSettings is not null && RegisteredProviders.DiffersFrom(_authSettings.ExternalProviders, _authSettings.Mode);
-    // "Require sign-in for everyone" is the Required value of the stored sign-in mode. Off keeps linked sign-in available
-    // (Optional) when that is on, otherwise it is the plain Local mode, so every stored mode stays reachable.
-    private bool RequireSignIn => _mode == "Required";
-    private void ChangeRequireSignIn(bool on) => _mode = on ? "Required" : _externalSignInEnabled ? "Optional" : "Local";
     // Linked sign-in needs a mode other than Local; switching it on moves Local to Optional and switching it off moves Optional back.
     private void ChangeExternalSignIn(bool on)
     {

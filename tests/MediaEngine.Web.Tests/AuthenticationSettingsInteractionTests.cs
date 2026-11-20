@@ -82,7 +82,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
 
         var signIn = cut.Find("[data-testid='sign-in-switches']").TextContent + cut.Find("h4").TextContent;
         Assert.Contains("Allow passwords", signIn, StringComparison.Ordinal);
-        Assert.Contains("Require sign-in for everyone", signIn, StringComparison.Ordinal);
+        Assert.DoesNotContain("Require sign-in for everyone", signIn, StringComparison.Ordinal);
         Assert.Contains("Passkey sign-in", signIn, StringComparison.Ordinal);
         Assert.Contains("External provider sign-in", signIn, StringComparison.Ordinal);
         Assert.Contains("External providers", signIn, StringComparison.Ordinal);
@@ -250,34 +250,19 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TurningOffRequireSignIn_SavesAtOnce_AndShowsTheSavedNote()
+    public void ChangingASwitch_SavesAtOnce_AndShowsTheSavedNote()
     {
         _saveSucceeds = true;
         var cut = Render<SecurityTab>();
         cut.WaitForElement("[data-testid='sign-in-switches']");
 
-        cut.Find("input[aria-label='Require sign-in for everyone']").Change(false);
+        cut.Find("input[aria-label='Allow passwords']").Change(false);
 
         cut.WaitForAssertion(() => Assert.Equal(1, _saveCalls));
-        Assert.Equal("Local", _lastRequest!.Mode);
-        Assert.True(_lastRequest.PasswordSignInEnabled);
         cut.WaitForAssertion(() =>
             Assert.Contains("Saved", cut.Find("[data-testid='sign-in-saved']").TextContent, StringComparison.Ordinal));
         Assert.Empty(cut.FindAll("[data-security-failure]"));
-    }
-
-    [Fact]
-    public void TurningOnRequireSignIn_SavesTheRequiredMode()
-    {
-        _saveSucceeds = true;
-        _settings = WithMode(ReadySettings(), "Local");
-        var cut = Render<SecurityTab>();
-        cut.WaitForElement("[data-testid='sign-in-switches']");
-
-        cut.Find("input[aria-label='Require sign-in for everyone']").Change(true);
-
-        cut.WaitForAssertion(() => Assert.Equal(1, _saveCalls));
-        Assert.Equal("Required", _lastRequest!.Mode);
+        Assert.Empty(cut.FindAll("input[aria-label='Require sign-in for everyone']"));
     }
 
     [Fact]
