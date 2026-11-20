@@ -42,7 +42,7 @@
     color: var(--tl-accent-primary);
     text-decoration: none;
     font-family: var(--font-ui);
-    font-size: var(--tl-type-overline-size);
+    font-size: var(--tl-font-size-secondary);
     font-weight: var(--tl-type-overline-weight);
     white-space: nowrap;
 }

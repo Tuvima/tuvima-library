@@ -56,6 +56,8 @@ public sealed partial class UiShellRenderTests
             }
         }
 
+        // Home: the culture sync leaves the test address on its own route, and the chips show only on Home and area pages (Look v3.2 D4).
+        await cut.InvokeAsync(() => Services.GetRequiredService<NavigationManager>().NavigateTo("/"));
         return cut;
     }
 
@@ -346,6 +348,24 @@ public sealed partial class UiShellRenderTests
         Assert.Equal("Menu", cut.Find(".phone-nav-menu__nav").GetAttribute("aria-label"));
         var current = Assert.Single(cut.FindAll(".phone-nav-menu a[aria-current='page']"));
         Assert.Equal("/watch", current.GetAttribute("href"));
+    }
+
+    [Fact]
+    public async Task PhoneTopBar_HasNoMyListAndChipsOnlyShowOnHomeAndAreaPages()
+    {
+        var cut = await RenderLayoutAsync(PhoneDevice);
+        var nav = Services.GetRequiredService<NavigationManager>();
+
+        // My List is in the dock only, never the top bar (Look v3.2 D5).
+        Assert.Empty(cut.FindAll(".layout-shell__my-list"));
+        Assert.NotEmpty(cut.FindAll(".phone-section-chips"));
+
+        await cut.InvokeAsync(() => nav.NavigateTo("/watch"));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".phone-section-chips")));
+
+        await cut.InvokeAsync(() => nav.NavigateTo("/settings/overview"));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".phone-section-chips")));
+        Assert.Contains("playback-app-frame--no-chips", cut.Find(".playback-app-frame").ClassName);
     }
 
     [Fact]

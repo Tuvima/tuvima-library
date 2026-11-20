@@ -19,7 +19,7 @@
 
                 @if (HasViewAllTile)
                 {
-                    <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-link">@(DeviceContext.IsPhone ? "See All" : "View all")</a>
+                    <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-link">@L["Common_ViewAll"]</a>
                 }
 
                 @if (!string.IsNullOrEmpty(LanePlace))

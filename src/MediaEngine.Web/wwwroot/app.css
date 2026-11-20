@@ -3298,6 +3298,7 @@ button.app-menu-item {
 
     :root:root .shelf-header__link,
     :root:root .media-tile-shelf-link,
+    :root:root .recent-view-all,
     :root:root .layout-shell__brand-link,
     :root:root .settings-breadcrumbs a,
     :root:root .skip-to-content {

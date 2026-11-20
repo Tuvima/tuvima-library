@@ -61,7 +61,7 @@
 <a class="skip-to-content" href="#main-content" tabindex="@(DetailsWindowOpen ? "-1" : null)" aria-hidden="@(DetailsWindowOpen ? "true" : null)">@L["Layout_SkipToContent"]</a>
 
 <AppCssElement Tag="div" Class="@AccentScopeClass" @onclick="CloseOpenShellMenus">
-<div class="playback-app-frame">
+<div class="@(IsPhoneShell && !ShowPhoneSectionChips ? "playback-app-frame playback-app-frame--no-chips" : "playback-app-frame")">
 <AppCssElement Tag="div" Class="playback-app-frame__variables">
 <AppLayout Class="@LayoutShellClass">
     <AppAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
@@ -140,6 +140,9 @@
                 </span>
             }
 
+@if (!IsPhoneShell)
+            {
+                @* My List is in the bottom dock on a phone, not the top bar (Look v3.2 D5). *@
             <span class="layout-shell__my-list-slot@(IsMyListOpen ? " is-open" : string.Empty)">
                 <AppTooltip Text="@L["TopBar_MyList"]" Placement="AppPlacement.Bottom">
                     <AppNativeButton Type="button"
@@ -151,6 +154,7 @@
                     </AppNativeButton>
                 </AppTooltip>
             </span>
+            }
 
             <NowPlayingNavButton />
 
@@ -177,8 +181,9 @@
             </span>
         </AppStack>
 
-        @if (IsPhoneShell)
+        @if (IsPhoneShell && ShowPhoneSectionChips)
         {
+            @* Section chips only on Home and the five area pages; every other phone page has at most the app bar above its content (Look v3.2 D4). *@
             <div class="layout-shell__chips-slot">
                 <PhoneSectionChips Links="@ShellNavigation.WithVault(ShellNavigation.SectionChips(_isKids), ShowVaultArea)" CurrentPath="@_currentPath" />
             </div>
@@ -383,6 +388,8 @@
         ? ShellDock.ResolvePhone(_isKids)
         : ShellDock.Resolve(DeviceContext.Settings.Shell.IntentDockItems, _isKids);
     private bool IsPhoneShell => DeviceContext.IsPhone;
+
+    private bool ShowPhoneSectionChips => _currentPath is "/" or "" || ShellNavigation.SectionChips(_isKids).Any(link => ShellNavigation.IsCurrent(link.Path, _currentPath));
     private bool OnLibrarySurface => ShellDock.IsLibrarySurface(_currentPath);
     // The phone's navigation is the three-tab floating dock plus the menu and chips (tablets keep the top navigation); TV keeps its own dock.
     private bool ShowIntentDock => DeviceContext.Settings.Shell.DockVisible
