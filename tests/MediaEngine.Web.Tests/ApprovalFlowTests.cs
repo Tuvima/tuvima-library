@@ -246,7 +246,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
         Assert.Contains("Requests per hour", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Busy seconds per hour", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Longest wait", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Save allowance");
+        Assert.Equal("Save changes", cut.Find("[data-testid=local-ai-budget] [data-settings-save-bar] button").TextContent.Trim());
     }
 
     [Fact]

@@ -40,7 +40,7 @@ public sealed class AdvancedNetworkSettingsPanelTests : AsyncBunitContext
             .Add(panel => panel.Settings, new NetworkSettingsDto())
             .Add(panel => panel.SaveRequested, () => { saves++; }));
 
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Save proxy trust").Click();
+        cut.Find("[data-testid='proxy-trust-save'] button").Click();
 
         Assert.Equal(1, saves);
         Assert.Empty(cut.FindAll("[data-network-failure]"));
@@ -58,7 +58,7 @@ public sealed class AdvancedNetworkSettingsPanelTests : AsyncBunitContext
             .First(input => input.GetAttribute("value") == "443")
             .Input("99999");
 
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Save direct settings").Click();
+        cut.Find("[data-testid='direct-settings-save'] button").Click();
 
         Assert.Equal(0, saves);
         Assert.NotEmpty(cut.Find("[data-network-failure]").TextContent.Trim());
@@ -67,7 +67,7 @@ public sealed class AdvancedNetworkSettingsPanelTests : AsyncBunitContext
         cut.FindAll("input[type='text'], input:not([type])")
             .First(input => input.GetAttribute("value") == "99999")
             .Input("443");
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Save direct settings").Click();
+        cut.Find("[data-testid='direct-settings-save'] button").Click();
 
         Assert.Equal(1, saves);
         Assert.Empty(cut.FindAll("[data-network-failure]"));
@@ -106,7 +106,7 @@ public sealed class AdvancedNetworkSettingsPanelTests : AsyncBunitContext
     // The row's button opens the dialog; the dialog's own button (the last one with that label) does the reset.
     private static void OpenResetDialogAndConfirm(IRenderedComponent<AdvancedNetworkSettingsPanel> cut)
     {
-        cut.FindAll("button").First(button => button.TextContent.Trim() == "Reset Network Settings").Click();
-        cut.FindAll("button").Last(button => button.TextContent.Trim() == "Reset Network Settings").Click();
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Reset network settings").Click();
+        cut.FindAll("button").Last(button => button.TextContent.Trim() == "Reset network settings").Click();
     }
 }

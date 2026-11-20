@@ -68,7 +68,7 @@ public sealed class PlaybackPageTests : AsyncBunitContext
         Assert.Equal("05:45", pickers[1].GetAttribute("value"));
 
         pickers[0].Input("02:00");
-        cut.FindAll("button").Single(b => b.TextContent.Contains("Save optimized copy settings")).Click();
+        cut.FindAll("button").Single(b => b.TextContent.Trim() == "Save changes").Click();
 
         cut.WaitForAssertion(() => Assert.NotNull(_saved));
         Assert.Equal("02:00-05:45", _saved!.MaintenanceWindow);
