@@ -13,6 +13,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Doc | Status |
 |---|---|
+| [Spec: Settings alignment (one home for every option, no breadcrumb, one save rule, graphics card on Tools, households on one tab, one paired-devices list, one email setup, wording bugs fixed, every Settings page on a phone)](specs/settings-alignment.md) | Locked v1 (Shy 2026-11-20, answers 160 to 169 all A); WP1 to WP8 |
 | [Spec: Review mock-ups of 2026-11-18 (Tools capacity, video Artwork, Activity list, group and Continue tiles, shared lookup dialog, home network)](specs/review-mockups-2026-11-18.md) | Built, awaiting your Local checks (v1, Locked 2026-11-18; PRs 1143, 1145, 1146, 1147, 1148, 1149, 1150, 1151; Local checks L1 to L7 in validation/batch.md) |
 | [Tuvima Library — product overview](product/overview.md) | Current |
 | [How Tuvima is built](architecture/overview.md) | Current |
