@@ -19,7 +19,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,7 +48,7 @@ class MainActivity : ComponentActivity() {
             intent.data?.pathSegments?.firstOrNull()?.let { play(PlayRequest(it, null, null, null)) }
         }
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            TuvimaTheme {
                 MobileRoot(application as TuvimaMobileApplication, initialDetail, ::play)
             }
         }

@@ -1,0 +1,55 @@
+{
+  "$comment": "The one source for Library sizes, spacing, corners, type jobs, colors and device sizes (Look v3.2 D11). Edit here, then run: node tools/Generate-Tokens.mjs. It writes the web CSS block, the Android theme and the iOS theme. A test fails if they drift from this file.",
+  "tokens": [
+    { "group": "Device sizes (Compact under 600, Medium 600 to 839, Expanded 840 and up)", "name": "deviceMediumMin", "css": "--tl-breakpoint-phone", "value": 600, "unit": "none" },
+    { "name": "deviceExpandedMin", "css": "--tl-breakpoint-navigation", "value": 840, "unit": "none" },
+    { "name": "deviceWideMin", "css": "--tl-breakpoint-wide", "value": 1180, "unit": "none" },
+
+    { "group": "Touch area and control scale", "name": "touchArea", "css": "--tl-touch-target-min", "value": 48, "unit": "px" },
+    { "name": "tapTarget", "css": "--tl-tap-target-min", "value": 44, "unit": "px" },
+    { "name": "touchMin", "css": "--tl-touch-min", "value": 44, "unit": "px" },
+    { "name": "controlHeight", "css": "--tl-control-height-touch", "value": 44, "unit": "px" },
+    { "name": "controlHeightMain", "css": "--tl-control-height-main", "value": 48, "unit": "px" },
+    { "name": "controlRadius", "css": "--tl-control-radius", "value": 10, "unit": "px" },
+
+    { "group": "Spacing", "name": "space1", "css": "--tl-space-1", "value": 4, "unit": "px" },
+    { "name": "space2", "css": "--tl-space-2", "value": 8, "unit": "px" },
+    { "name": "space3", "css": "--tl-space-3", "value": 12, "unit": "px" },
+    { "name": "space4", "css": "--tl-space-4", "value": 16, "unit": "px" },
+    { "name": "space5", "css": "--tl-space-5", "value": 20, "unit": "px" },
+    { "name": "space6", "css": "--tl-space-6", "value": 24, "unit": "px" },
+    { "name": "space8", "css": "--tl-space-8", "value": 32, "unit": "px" },
+    { "name": "space10", "css": "--tl-space-10", "value": 40, "unit": "px" },
+    { "name": "pageMarginCompact", "css": "--tl-page-margin-compact", "value": 16, "unit": "px" },
+    { "name": "pageMarginMedium", "css": "--tl-page-margin-medium", "value": 24, "unit": "px" },
+
+    { "group": "Corners", "name": "radiusXs", "css": "--tl-radius-xs", "value": 4, "unit": "px" },
+    { "name": "radiusSm", "css": "--tl-radius-sm", "value": 6, "unit": "px" },
+    { "name": "radiusMd", "css": "--tl-radius-md", "value": 8, "unit": "px" },
+    { "name": "radiusXl", "css": "--tl-radius-xl", "value": 12, "unit": "px" },
+    { "name": "radiusRound", "css": "--tl-radius-round", "value": 999, "unit": "px" },
+
+    { "group": "Type jobs", "name": "textTitle", "css": "--tl-font-size-title", "value": 24, "unit": "px" },
+    { "name": "textShelfTitle", "css": "--tl-font-size-shelf-title", "value": 20, "unit": "px" },
+    { "name": "textBody", "css": "--tl-font-size-sm", "value": 14, "unit": "px" },
+    { "name": "textSecondary", "css": "--tl-font-size-secondary", "value": 13, "unit": "px" },
+    { "name": "textCaption", "css": "--tl-font-size-xs", "value": 12, "unit": "px" },
+    { "name": "textField", "css": "--tl-font-size-md", "value": 16, "unit": "px" },
+
+    { "group": "Colors", "name": "accentPrimary", "css": "--tl-accent-primary", "value": "#8852FC", "unit": "color" },
+    { "name": "accentPrimaryHover", "css": "--tl-accent-primary-hover", "value": "#A46FFF", "unit": "color" },
+    { "name": "accentPrimaryActive", "css": "--tl-accent-primary-active", "value": "#7652D6", "unit": "color" },
+    { "name": "accentSecondary", "css": "--tl-accent-secondary", "value": "#38BDF8", "unit": "color" },
+    { "name": "accentCollection", "css": "--tl-accent-collection", "value": "#D6A84F", "unit": "color" },
+    { "name": "bgRoot", "css": "--tl-bg-root", "value": "#101115", "unit": "color" },
+    { "name": "bgShell", "css": "--tl-bg-shell", "value": "#14151A", "unit": "color" },
+    { "name": "bgSurface", "css": "--tl-bg-surface", "value": "#1A1B21", "unit": "color" },
+    { "name": "bgSurfaceRaised", "css": "--tl-bg-surface-raised", "value": "#1F2027", "unit": "color" },
+    { "name": "bgSurfaceHover", "css": "--tl-bg-surface-hover", "value": "#272830", "unit": "color" },
+    { "name": "bgSurfaceElevated", "css": "--tl-bg-surface-elevated", "value": "#2F3039", "unit": "color" },
+    { "name": "textPrimary", "css": "--tl-text-primary", "value": "#F5F7FB", "unit": "color" },
+    { "name": "textSecondaryColor", "css": "--tl-text-secondary", "value": "#B6C2D6", "unit": "color" },
+    { "name": "textMuted", "css": "--tl-text-muted", "value": "#94A3B8", "unit": "color" },
+    { "name": "textOnAccent", "css": "--tl-text-on-accent", "value": "#FFFFFF", "unit": "color" }
+  ]
+}
