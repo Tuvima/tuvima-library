@@ -7469,6 +7469,13 @@ MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.MailServ
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.MarkNotificationsReadRequest
   Ids: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelDetailDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Type: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Values: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+  SecretsSet: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelDto
   Id: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
@@ -7477,10 +7484,39 @@ MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.Notifica
   State: System.String | nullability=not-null | accessors=get,set
   StateLabel: System.String | nullability=not-null | accessors=get,set
   LastSuccessAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  Type: System.String | nullability=not-null | accessors=get,set
+  WhatLeaves: System.String | nullability=not-null | accessors=get,set
+  IncludeDetails: System.Boolean | nullability=not-null | accessors=get,set
+  CanEdit: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelFieldDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Help: System.String | nullability=not-null | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Secret: System.Boolean | nullability=not-null | accessors=get,set
+  Required: System.Boolean | nullability=not-null | accessors=get,set
+  Placeholder: System.String | nullability=not-null | accessors=get,set
+  Default: System.String | nullability=not-null | accessors=get,set
+  SuggestRandom: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelIds
 
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelStates
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelTypeDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Advanced: System.Boolean | nullability=not-null | accessors=get,set
+  Cost: System.String | nullability=not-null | accessors=get,set
+  Effort: System.String | nullability=not-null | accessors=get,set
+  Summary: System.String | nullability=not-null | accessors=get,set
+  Help: System.String | nullability=not-null | accessors=get,set
+  WhatLeaves: System.String | nullability=not-null | accessors=get,set
+  Fields: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationChannelFieldDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelTypesResponse
+  Types: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationChannelTypeDto> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationEventDto
   Id: System.String | nullability=not-null | accessors=get,set
@@ -7516,10 +7552,16 @@ MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.Notifica
   Success: System.Boolean | nullability=not-null | accessors=get,set
   Message: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.SaveNotificationChannelRequest
+  Type: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Values: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.UpdateNotificationSettingsRequest
   Routes: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | nullability=not-null | accessors=get,set
   QuietHours: MediaEngine.Contracts.Notifications.NotificationQuietHoursDto | nullability=nullable | accessors=get,set
   IncludeDetails: System.Boolean? | nullability=nullable | accessors=get,set
+  ChannelDetails: System.Collections.Generic.Dictionary<System.String, System.Boolean> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Operations.MediaEngine.Contracts.Operations.AssetStoreSweepResponse
   cleaned: System.Int32 | nullability=not-null | accessors=get,init
