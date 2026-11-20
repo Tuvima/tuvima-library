@@ -34,11 +34,11 @@
     else
     {
         <div>
-            <AppTable>
+            <AppTable CardsOn="AppTableCardsMode.Phone">
                 <thead>
                     <tr>
-                        <th>@L["Common_Device"]</th>
-                        <th>@L["Common_Type"]</th>
+                        <th data-card-role="title">@L["Common_Device"]</th>
+                        <th data-card-role="subtitle">@L["Common_Type"]</th>
                         @if (ManagesOthers)
                         {
                             <th>@L["PairedDevicesSection_BelongsTo"]</th>
@@ -46,14 +46,14 @@
                         <th>@L["PairedDevicesSection_BacksUpTo"]</th>
                         <th>@L["PairedDevicesSection_Paired"]</th>
                         <th>@L["PairedDevicesSection_LastSeen"]</th>
-                        <th></th>
+                        <th data-card-role="actions"></th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var device in VisibleDevices)
                     {
                         <tr @key="device.Id" data-device-row="@device.Id">
-                            <td>
+                            <td data-card-role="title">
                                 <span class="paired-device__name">
                                     <DeviceTypeIcon Kind="@DeviceTypeClassifier.Classify(device.Platform, device.ClientName)" />
                                     <span class="paired-device__text">@device.DeviceName<small>@device.ClientName</small></span>
@@ -77,7 +77,7 @@
                                     </div>
                                 }
                             </td>
-                            <td>@PlatformLabel(device.Platform)</td>
+                            <td data-card-role="subtitle">@PlatformLabel(device.Platform)</td>
                             @if (ManagesOthers)
                             {
                                 <td>@device.AccountDisplayName<small>@device.ProfileName</small></td>
@@ -102,7 +102,7 @@
                             </td>
                             <td>@device.PairedAt.LocalDateTime.ToString("d")</td>
                             <td>@device.LastSeenAt.LocalDateTime.ToString("g")</td>
-                            <td>
+                            <td data-card-role="actions">
                                 <AppButton Label="@L["TopBar_SignOut"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
                                            Size="AppControlSize.Compact" OnClick="@(() => AskSignOut(device))" />
                             </td>

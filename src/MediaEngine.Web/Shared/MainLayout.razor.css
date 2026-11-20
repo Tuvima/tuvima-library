@@ -635,3 +635,14 @@ html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .tl-icon-root
         font-size: var(--tl-font-size-dialog-title);
     }
 }
+
+/* The phone back bar's page name (Settings, My List, Search), beside the back arrow (Look v3.2 D4). */
+.layout-shell__back-title {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-subheading-size);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

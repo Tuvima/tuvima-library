@@ -66,7 +66,21 @@
 <AppLayout Class="@LayoutShellClass">
     <AppAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
         <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="layout-shell__left-rail">
-            @if (IsPhoneShell)
+            @if (IsPhoneShell && IsPhoneBackBarPage)
+            {
+                @* Settings, details, My List and Search: the bar is a back arrow and the page name, then the avatar (Look v3.2 D4). *@
+                <AppNativeButton Type="button"
+                                 Class="layout-shell__menu-button"
+                                 AriaLabel="@L["Common_Back"].Value"
+                                 OnClick="GoBackAsync">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" />
+                </AppNativeButton>
+                @if (PhoneBackBarTitle is { } backBarTitle)
+                {
+                    <span class="layout-shell__back-title">@backBarTitle</span>
+                }
+            }
+            else if (IsPhoneShell)
             {
                 @* Phone only: the hamburger opens the full-screen menu, generated from the same catalogue as the desktop top bar. *@
                 <AppNativeButton Type="button"
@@ -78,6 +92,8 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Menu" />
                 </AppNativeButton>
             }
+            @if (!(IsPhoneShell && IsPhoneBackBarPage))
+            {
             <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="@L["Nav_Library"].Value">
                 @if (IsPhoneShell)
                 {
@@ -102,6 +118,7 @@
                     </span>
                 }
             </AppLink>
+            }
         </AppStack>
 
         <nav class="layout-shell__desktop-nav" aria-label="@L["MainLayout_Primary"].Value">
@@ -696,6 +713,28 @@
     private void CloseLibraries() => _librariesOpen = false;
 
     private void OpenMenu() => _menuOpen = true;
+
+    // Pages that are one step below an area: the phone bar there is a back arrow, the page name and the avatar (Look v3.2 D4).
+    private bool IsPhoneBackBarPage => !ShowPhoneSectionChips
+        && (IsNavActive("/settings") || IsNavActive("/my-list") || IsNavActive("/search") || IsDetailPath(_currentPath));
+
+    private string? PhoneBackBarTitle => IsNavActive("/settings") ? L["Nav_Settings"].Value
+        : IsNavActive("/my-list") ? L["TopBar_MyList"].Value
+        : IsNavActive("/search") ? L["Nav_Search"].Value
+        : null;
+
+    private async Task GoBackAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("history.back");
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "The browser could not go back; opening Home instead.");
+            Nav.NavigateTo("/");
+        }
+    }
 
     private void CloseMenu() => _menuOpen = false;
 

@@ -37,14 +37,14 @@
     }
     else
     {
-        <AppTable Class="plugin-group__table">
+        <AppTable Class="plugin-group__table" CardsOn="AppTableCardsMode.Phone">
             <thead>
                 <tr>
                     <th scope="col" class="plugin-group__narrow"><span class="plugin-group__sr">@L["PluginGroup_Status"]</span></th>
-                    <th scope="col">@L["PluginGroup_Name"]</th>
-                    <th scope="col">@L["PluginGroup_Address"]</th>
+                    <th scope="col" data-card-role="title">@L["PluginGroup_Name"]</th>
+                    <th scope="col" data-card-role="subtitle">@L["PluginGroup_Address"]</th>
                     <th scope="col">@L["PluginGroup_Key"]</th>
-                    <th scope="col" class="plugin-group__actions-head"><span class="plugin-group__sr">@L["PluginGroup_Actions"]</span></th>
+                    <th scope="col" class="plugin-group__actions-head" data-card-role="actions"><span class="plugin-group__sr">@L["PluginGroup_Actions"]</span></th>
                 </tr>
             </thead>
             <tbody>
@@ -53,7 +53,7 @@
                     var id = item.Id;
                     <tr @key="id" class="plugin-group__row" data-testid="plugin-group-row" data-item="@id">
                         <td class="plugin-group__narrow"><AppStatusDot Tick="true" Tone="@TickTone(item)" Sentence="@TickSentence(item)" /></td>
-                        <td>
+                        <td data-card-role="title">
                             <span class="plugin-group__name">
                                 <strong>@item.Title</strong>
                                 @if (item.Locked)
@@ -62,7 +62,7 @@
                                 }
                             </span>
                         </td>
-                        <td class="plugin-group__address">@item.Subtitle</td>
+                        <td class="plugin-group__address" data-card-role="subtitle">@item.Subtitle</td>
                         <td>
                             @if (item.KeyMissing && CanChange && keyField is not null)
                             {
@@ -79,7 +79,7 @@
                                 <AppStatusBadge Text="@KeyColumnWords(item.State!)" Tone="@StateTone(item.State!)" />
                             }
                         </td>
-                        <td class="plugin-group__actions-cell">
+                        <td class="plugin-group__actions-cell" data-card-role="actions">
                             @if (CanChange)
                             {
                                 <div class="plugin-group__actions">
