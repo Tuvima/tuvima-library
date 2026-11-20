@@ -733,7 +733,7 @@
     {
         DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
         DashboardAccessMutationFailure.Unauthorized => "Your session has expired.",
-        DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+        DashboardAccessMutationFailure.Transient => "The server is unavailable. Try again.",
         _ when !string.IsNullOrWhiteSpace(engineMessage) => engineMessage,
         DashboardAccessMutationFailure.Validation or DashboardAccessMutationFailure.Forbidden
             => "That wasn't saved. You can only give what your profile has, and only to people in your household.",

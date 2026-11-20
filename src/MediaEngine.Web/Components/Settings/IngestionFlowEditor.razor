@@ -268,10 +268,24 @@
         var item = InventoryFor(name);
         if (item is null) return;
         var ok = item.Enabled && !item.NeedsSetup;
-        builder.OpenComponent<AppStatusBadge>(0);
-        builder.AddAttribute(1, "Text", ok ? "Connected" : item.NeedsSetup ? "Needs setup" : "Off");
-        builder.AddAttribute(2, "Tone", ok ? AppUiTone.Success : AppUiTone.Warning);
+        // A provider that needs setup links straight to its own place on Plugins, where its keys and settings are.
+        var sequence = 0;
+        if (item.NeedsSetup)
+        {
+            builder.OpenElement(sequence++, "a");
+            builder.AddAttribute(sequence++, "href", ProviderRoute(name));
+            builder.AddAttribute(sequence++, "data-needs-setup-link", name);
+        }
+
+        builder.OpenComponent<AppStatusBadge>(sequence++);
+        builder.AddAttribute(sequence++, "Text", ok ? "Connected" : item.NeedsSetup ? "Needs setup" : "Off");
+        builder.AddAttribute(sequence++, "Tone", ok ? AppUiTone.Success : AppUiTone.Warning);
         builder.CloseComponent();
+
+        if (item.NeedsSetup)
+        {
+            builder.CloseElement();
+        }
     };
 
     private static readonly IReadOnlyList<AppSelectOption> RoleOptions =

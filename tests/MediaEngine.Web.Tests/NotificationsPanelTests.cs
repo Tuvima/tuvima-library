@@ -104,6 +104,20 @@ public sealed class NotificationsPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheChannelsAndWhatGoesWhereComeFirst_AndTheMessagesListIsBelowThem()
+    {
+        var cut = Render<NotificationsPanel>();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='notifications-channels']")));
+        var markup = cut.Markup;
+        var channels = markup.IndexOf("data-testid=\"notifications-channels\"", StringComparison.Ordinal);
+        var matrix = markup.IndexOf("data-testid=\"notifications-matrix\"", StringComparison.Ordinal);
+        var messages = markup.IndexOf("data-testid=\"notifications-unread\"", StringComparison.Ordinal);
+        Assert.True(channels >= 0 && matrix > channels, "What goes where follows Channels.");
+        Assert.True(messages > matrix, "The messages strip sits below Channels and What goes where.");
+    }
+
+    [Fact]
     public void AnEmptyInbox_SaysWhatWillAppearThere()
     {
         var cut = Render<NotificationsPanel>();

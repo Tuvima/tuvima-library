@@ -25,7 +25,7 @@ else if (_page is null)
     <AppPageState Kind="AppPageStateKind.Error"
                   Icon="@AppMaterialIcons.Outlined.CloudOff"
                   Title="@L["PluginPage_Unavailable"]"
-                  Message="The Engine did not return the plugin's settings. Start the Engine and try again." />
+                  Message="The server did not return the plugin's settings. Start the server and try again." />
 }
 else
 {
@@ -412,7 +412,7 @@ else
             else
             {
                 _testResult = await ApiClient.CheckPluginNowAsync(Plugin.Id, _disposed.Token)
-                    ?? new PluginCheckNowResponse { PluginId = Plugin.Id, Result = "cannot_check", Summary = "The Engine could not be reached." };
+                    ?? new PluginCheckNowResponse { PluginId = Plugin.Id, Result = "cannot_check", Summary = "The server could not be reached." };
             }
         }
         finally

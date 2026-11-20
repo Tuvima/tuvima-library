@@ -1531,7 +1531,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         public override Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(State);
     }
 
-    private IRenderedComponent<IComponent> RenderSettingsForAThisComputerOnlyAccount(string[] dismissedNotices)
+    private IRenderedComponent<IComponent> RenderSettingsForAThisComputerOnlyAccount(string[] dismissedNotices, string connectionMode = "local-only")
     {
         var profileId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
@@ -1542,6 +1542,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddSingleton<Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider>(new ThisComputerOnlyStateProvider());
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(
             new DelayedLockHandler(authority, session) { DismissedNotices = dismissedNotices }));
+        var stub = (EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>();
+        stub.SetHandler(nameof(IEngineApiClient.GetNetworkSettingsAsync), _ => Task.FromResult<MediaEngine.Contracts.Settings.NetworkSettingsDto?>(
+            new MediaEngine.Contracts.Settings.NetworkSettingsDto { Remote = new MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto { ConnectionMode = connectionMode } }));
         return Render(builder =>
         {
             builder.OpenComponent<AppPopoverHost>(0);
@@ -1552,9 +1555,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsMenu_ShowsASmallRedDotOnSecurityForAThisComputerOnlyAccountUntilNotNow()
+    public void SettingsMenu_ShowsASmallRedDotOnSecurityWhenOutsideAccessIsOnAndTheAccountHasNoPassword()
     {
-        var cut = RenderSettingsForAThisComputerOnlyAccount([]);
+        var cut = RenderSettingsForAThisComputerOnlyAccount([], connectionMode: "tailscale");
 
         cut.WaitForAssertion(() =>
         {
@@ -1566,9 +1569,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsMenu_HasNoSecurityDotOnceTheAccountSaidNotNow()
+    public void SettingsMenu_HasNoSecurityDotForADeliberateNoPasswordHomeSetup()
     {
-        var cut = RenderSettingsForAThisComputerOnlyAccount([MediaEngine.Contracts.Authentication.AccountNoticeKeys.SecureAccount]);
+        var cut = RenderSettingsForAThisComputerOnlyAccount([], connectionMode: "local-only");
 
         cut.WaitForAssertion(() => Assert.NotNull(cut.Find("a.media-section-shell__tree-link[href='/settings/security']")));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".media-section-shell__attention-dot")));

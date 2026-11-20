@@ -24,11 +24,6 @@
     }
     else
     {
-        @if (DataStoreVersionLine is { } versionLine)
-        {
-            <AppText Class="tl-u-color-tl-text-muted" data-testid="data-store-version">@versionLine</AppText>
-        }
-
         <AppSettingsGroup Heading="@L["BackupRecoveryPanel_BackupStatus"].Value" Class="backup-status">
             @if (LatestBackup is null)
             {
@@ -96,7 +91,7 @@
             </AppSettingsGroup>
 
             <AppSettingsGroup Heading="@L["Common_Restore"].Value" Class="backup-action-card" data-testid="restore-list">
-                <p>The Engine validates and stages your chosen recovery point. Restart the Engine to apply it; the current database remains available as a recovery copy.</p>
+                <p>The server validates and stages your chosen recovery point. Restart the server to apply it; the current database remains available as a recovery copy.</p>
                 @if (_rows.Count == 0)
                 {
                     <AppButton Label="@L["BackupRecoveryPanel_NoBackupsAvailable"].Value" Disabled="true" />
@@ -210,28 +205,15 @@
         public bool IsLocal => DestinationId == BackupDestinationIds.Local;
     }
 
-    // Null when the Engine could not be asked; the line is then hidden (the usual unreachable messaging applies).
-    private DataStoreVersionDto? _dataStoreVersion;
-
-    private string? DataStoreVersionLine => _dataStoreVersion switch
-    {
-        null => null,
-        { StepNumber: > 0, AppliedAt: { } appliedAt } version =>
-            $"Data store version: step {version.StepNumber}, upgraded on {DisplayFormat.FormatPlainDate(appliedAt)}",
-        _ => "Data store version: setting up",
-    };
-
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
         _loading = true;
         var backups = ApiClient.GetBackupsAsync();
-        var version = ApiClient.GetDataStoreVersionAsync();
         var state = ApiClient.GetBackupStateAsync();
         var settings = ApiClient.GetBackupSettingsAsync();
         _backups = await backups;
-        _dataStoreVersion = await version;
         _state = await state;
         await BuildRestoreListAsync(await settings);
         _loading = false;

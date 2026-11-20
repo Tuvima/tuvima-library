@@ -3,7 +3,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* Two views of the same usage report. Plugins (Local AI > Status) lists each AI plugin's standing against its hourly
-   allowance; AI features are plugins, so every row links to its card on the Plugins page. Table (Local AI > Advanced) is the
+   allowance; the one link to the Plugins page sits beside it on the tab (Local AI keeps a single link there). Table (Local AI > Advanced) is the
    detailed week of use by caller and ability. *@
 <div class="local-ai-usage" data-testid="local-ai-usage">
     @if (_loading)
@@ -35,7 +35,6 @@
                             {
                                 <AppStatusBadge Text="@L["Common_NeedsAttention"].Value" Tone="AppUiTone.Warning" />
                             }
-                            <AppButton Label="@L["Common_Open"].Value" Href="@($"/settings/plugins?plugin={Uri.EscapeDataString(plugin.PluginId)}")" Size="AppControlSize.Compact" />
                         </li>
                     }
                 </ul>

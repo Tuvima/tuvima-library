@@ -673,7 +673,7 @@
         _presetId = MatchingPreset(app)?.Id ?? "custom";
         var excluded = app.PermissionIds.Count(id => !IsCompatible(id, app.ApplicationType));
         if (excluded > 0)
-            _message = $"{excluded} unavailable permission(s) are retained by the Engine but cannot be submitted from this editor.";
+            _message = $"{excluded} unavailable permission(s) are retained by the server but cannot be submitted from this editor.";
     }
 
     private Guid? _deleteRequestedFor;
@@ -1000,5 +1000,5 @@
         _restoreFocus = false;
         await _returnFocus.FocusAsync();
     }
-    private static string FailureMessage(DashboardAccessMutationFailure failure) => failure switch { DashboardAccessMutationFailure.Validation => "Check the values and try again.", DashboardAccessMutationFailure.Conflict => "This change conflicts with the current application state.", DashboardAccessMutationFailure.Forbidden => "You no longer have permission for this change.", DashboardAccessMutationFailure.Unauthorized => "Your session has expired.", DashboardAccessMutationFailure.NotFound => "This application or credential no longer exists.", DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.", _ => "The change could not be saved. Try again." };
+    private static string FailureMessage(DashboardAccessMutationFailure failure) => failure switch { DashboardAccessMutationFailure.Validation => "Check the values and try again.", DashboardAccessMutationFailure.Conflict => "This change conflicts with the current application state.", DashboardAccessMutationFailure.Forbidden => "You no longer have permission for this change.", DashboardAccessMutationFailure.Unauthorized => "Your session has expired.", DashboardAccessMutationFailure.NotFound => "This application or credential no longer exists.", DashboardAccessMutationFailure.Transient => "The server is unavailable. Try again.", _ => "The change could not be saved. Try again." };
 }

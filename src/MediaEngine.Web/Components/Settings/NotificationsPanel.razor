@@ -21,36 +21,6 @@
         {
             <AppAlert Tone="AppUiTone.Error" ShowCloseIcon="true" CloseIconClicked="@(() => { _failure = null; })" data-notifications-failure>@_failure</AppAlert>
         }
-        <AppSettingsGroup Heading="@L["NotificationsPanel_Inbox"].Value" Helper="@L["NotificationsPanel_WhatTheLibraryHasTold"].Value">
-            <div class="notifications-page__toolbar">
-                <span class="notifications-page__count" data-testid="notifications-unread">@UnreadLine</span>
-                <AppButton Label="@L["NotificationsPanel_MarkAllRead"].Value" Size="AppControlSize.Compact" Disabled="@(_unread == 0)" OnClick="MarkAllReadAsync" />
-            </div>
-            @if (_items.Count == 0)
-            {
-                <p class="notifications-page__empty">@L["NotificationsPanel_NothingYetWhenABackup"]</p>
-            }
-            else
-            {
-                <ul class="notifications-page__list" data-testid="notifications-list">
-                    @foreach (var item in _items)
-                    {
-                        <li class="@ItemClass(item)">
-                            <div class="notifications-page__item-head">
-                                <strong>@item.Title</strong>
-                                @if (item.OccurrenceCount > 1)
-                                {
-                                    <span class="notifications-page__badge">@item.OccurrenceCount times</span>
-                                }
-                                <small>@StateCardHealth.RelativeTime(item.UpdatedAt, DateTimeOffset.UtcNow)</small>
-                            </div>
-                            <span class="notifications-page__item-body">@item.Body</span>
-                        </li>
-                    }
-                </ul>
-            }
-        </AppSettingsGroup>
-
         <AppSettingsGroup Heading="@L["NotificationsPanel_Channels"].Value" Helper="@L["NotificationsPanel_WaysAMessageCanReach"].Value">
             <div class="notifications-page__channels" data-testid="notifications-channels">
                 @foreach (var channel in _settings.Channels)
@@ -121,6 +91,36 @@
             <AppSwitchRow Label="@L["NotificationsPanel_IncludeDetailsInMessagesThat"].Value"
                           Description="@L["NotificationsPanel_AddsWhatHappenedSuchAs"].Value"
                           Value="_settings.IncludeDetails" Disabled="@_busy" ValueChanged="SetIncludeDetailsAsync" />
+        </AppSettingsGroup>
+
+        <AppSettingsGroup Heading="@L["NotificationsPanel_Inbox"].Value" Helper="@L["NotificationsPanel_WhatTheLibraryHasTold"].Value">
+            <div class="notifications-page__toolbar">
+                <span class="notifications-page__count" data-testid="notifications-unread">@UnreadLine</span>
+                <AppButton Label="@L["NotificationsPanel_MarkAllRead"].Value" Size="AppControlSize.Compact" Disabled="@(_unread == 0)" OnClick="MarkAllReadAsync" />
+            </div>
+            @if (_items.Count == 0)
+            {
+                <p class="notifications-page__empty">@L["NotificationsPanel_NothingYetWhenABackup"]</p>
+            }
+            else
+            {
+                <ul class="notifications-page__list" data-testid="notifications-list">
+                    @foreach (var item in _items)
+                    {
+                        <li class="@ItemClass(item)">
+                            <div class="notifications-page__item-head">
+                                <strong>@item.Title</strong>
+                                @if (item.OccurrenceCount > 1)
+                                {
+                                    <span class="notifications-page__badge">@item.OccurrenceCount times</span>
+                                }
+                                <small>@StateCardHealth.RelativeTime(item.UpdatedAt, DateTimeOffset.UtcNow)</small>
+                            </div>
+                            <span class="notifications-page__item-body">@item.Body</span>
+                        </li>
+                    }
+                </ul>
+            }
         </AppSettingsGroup>
     }
 </div>

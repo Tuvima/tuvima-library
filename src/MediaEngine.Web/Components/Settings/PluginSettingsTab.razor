@@ -288,7 +288,7 @@ else
         <PluginUploadDialog Open="@_uploadOpen" OnClosed="@(() => { _uploadOpen = false; })" OnUploaded="@UploadedAsync" />
         @if (_plugins.Count == 0)
         {
-            <AppEmptyState Title="No plugins installed" Message="The Engine did not return any installed extensions.">
+            <AppEmptyState Title="No plugins installed" Message="The server did not return any installed extensions.">
                 <Action><AppButton Label="Read the plugins guide" Href="@(ProjectLinks.DocsSite + "guides/developer-tools/")" Target="_blank" Size="AppControlSize.Compact" /></Action>
             </AppEmptyState>
         }

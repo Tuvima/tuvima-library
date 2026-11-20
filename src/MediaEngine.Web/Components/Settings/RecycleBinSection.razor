@@ -28,7 +28,7 @@
     }
     @if (_summary is null)
     {
-        <p class="recycle-bin__note" role="status">@(_failed ? "Couldn't reach the Engine." : "Loading…")</p>
+        <p class="recycle-bin__note" role="status">@(_failed ? "Couldn't reach the server." : "Loading…")</p>
         @if (_failed)
         {
             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="LoadAsync">@L["Common_TryAgain"]</AppButton>

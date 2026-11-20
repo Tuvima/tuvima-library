@@ -4,11 +4,11 @@ using MediaEngine.Web.Services.Integration;
 namespace MediaEngine.Web.Services.Navigation;
 
 /// <summary>
-/// The secure-account prompt rules. An account that works only on this computer has no password, so it cannot be
-/// used on a phone, TV or any other device (it works only on this computer). The profile menu shows a reminder card at its top
-/// until the person chooses Not now (remembered with the account, see <see cref="AccountNoticeState"/>); Settings &gt;
-/// Security keeps its dot and first row until then and shows a quiet note afterwards; the "add a password first" toast
-/// is unchanged. Nothing is shown as a bar across the top of the screen.
+/// The secure-account prompt rules. An account with no password works on the whole home network (this computer, phones, TVs
+/// and tablets), and never from outside it. Not having a password is therefore a normal home setup and is never flagged on
+/// its own: it needs doing only once outside access is on (<see cref="SecurityNeedsAttention"/>). The profile menu may still
+/// remind the person until they choose Not now (remembered with the account, see <see cref="AccountNoticeState"/>), and
+/// Settings &gt; Security keeps its first row and a quiet note. Nothing is shown as a bar across the top of the screen.
 /// </summary>
 public static class SecureAccountPrompt
 {
@@ -18,4 +18,19 @@ public static class SecureAccountPrompt
     public static bool IsThisComputerOnly(ClaimsPrincipal user) =>
         user.Identity?.IsAuthenticated == true
         && user.FindFirst("tuvima:authentication_method")?.Value == ThisComputerRequests.AuthenticationMethod;
+
+    /// <summary>The network connection mode that means nothing outside the home network can reach Library.</summary>
+    public const string LocalOnlyConnectionMode = "local-only";
+
+    /// <summary>True when the connection mode lets people reach Library from outside the home network.</summary>
+    public static bool OutsideAccessIsOn(string? connectionMode) =>
+        !string.IsNullOrWhiteSpace(connectionMode)
+        && !string.Equals(connectionMode.Trim(), LocalOnlyConnectionMode, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The small dot on Security &amp; Devices in the Settings menu: shown only when something really needs doing, which is an
+    /// account without a password while outside access is on. A deliberate no-password home setup never raises it.
+    /// </summary>
+    public static bool SecurityNeedsAttention(bool accountHasNoPassword, bool outsideAccessOn) =>
+        accountHasNoPassword && outsideAccessOn;
 }
