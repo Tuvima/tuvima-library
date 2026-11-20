@@ -372,6 +372,24 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheList_HasNoNativeClientsRow_ButOneLineLinkingToDevices()
+    {
+        _handler.IncludeBuiltInLibraryApps = true;
+        JSInterop.Setup<string?>("localStorage.getItem", "tuvima.integrations.layout").SetResult("list");
+        var cut = Render<ManagedAccessApplications>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var row = Assert.Single(cut.FindAll("[data-testid=integration-rows] tbody tr"));
+            Assert.Contains("Living room", row.TextContent);
+        });
+        Assert.DoesNotContain("Tuvima native clients", cut.Markup, StringComparison.Ordinal);
+        var link = cut.Find("[data-integrations-devices-link] a");
+        Assert.Equal("/settings/security/devices", link.GetAttribute("href"));
+        Assert.Equal("Devices", link.TextContent.Trim());
+    }
+
+    [Fact]
     public void ServerIntegration_ShowsWebhookDeliveryState()
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
@@ -1069,6 +1087,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             }
         }
         public ApplicationTypeDto ApplicationType { get => _type; set => _type = value; }
+        public bool IncludeBuiltInLibraryApps { get; set; }
 
         private readonly object _requestLock = new();
         private readonly List<RequestRecord> _requests = [];
@@ -1092,7 +1111,9 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 
             if (request.Method == HttpMethod.Get && path == "/access/applications")
             {
-                return Json(new[] { Application() });
+                return Json(IncludeBuiltInLibraryApps
+                    ? new[] { Application(), ApplicationFor(MediaEngine.Domain.Entities.BuiltInApplicationIds.NativeClient, "Tuvima native clients") }
+                    : new[] { Application() });
             }
 
             if (request.Method == HttpMethod.Get && path == "/access/applications/permissions")

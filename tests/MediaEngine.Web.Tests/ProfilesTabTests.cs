@@ -162,7 +162,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ServerAdministrator_SeesEveryHouseholdGroupedByName_OwnFirst_WithAddHousehold()
+    public void ServerAdministrator_SeesEveryHouseholdGroupedByName_OwnFirst_WithALinkToHouseholds()
     {
         Setup(serverAdministrator: true, householdAdministrator: false);
         _households.AddRange([
@@ -178,7 +178,8 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var cabin = cut.Find($"[data-household-group='{OtherHouseholdId}']");
         Assert.Contains("Alex", cabin.TextContent);
         Assert.DoesNotContain("Sam", cabin.TextContent);
-        Assert.Single(cut.FindAll("button"), button => button.TextContent.Trim() == "Add household");
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Add household", StringComparison.Ordinal));
+        Assert.NotEmpty(cut.FindAll("[data-profiles-households-link] a"));
         Assert.Equal(2, cut.FindAll(".profiles-tab__row--add").Count);
         Assert.DoesNotContain(cut.FindAll("button, a"), control => control.TextContent.Contains("Switch", StringComparison.OrdinalIgnoreCase));
     }
@@ -195,7 +196,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
         Assert.DoesNotContain("computer or tablet", cut.Markup, StringComparison.Ordinal);
-        Assert.Single(cut.FindAll("button"), button => button.TextContent.Trim() == "Add household");
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Add household");
         Assert.Single(cut.FindAll("button"), button => button.TextContent.Trim() == "Add person");
         Assert.Equal(2, cut.FindAll(".profiles-tab__edit").Count);
         Assert.All(cut.FindAll(".profiles-tab__edit"), edit =>
@@ -211,7 +212,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AddHousehold_OpensTheHouseholdsPage_WithTheNameBoxOpen()
+    public void AddHousehold_ExistsOnlyOnTheHouseholdsTab_ProfilesLinksThere()
     {
         Setup(serverAdministrator: true, householdAdministrator: false);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
@@ -219,9 +220,32 @@ public sealed class ProfilesTabTests : AsyncBunitContext
 
         var cut = Render<ProfilesTab>();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profiles-tab__line")));
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add household").Click();
 
-        Assert.EndsWith("/settings/access/households?add=1", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Add household", StringComparison.Ordinal));
+        var link = cut.Find("[data-profiles-households-link] a");
+        Assert.Equal("/settings/access/households", link.GetAttribute("href"));
+    }
+
+    [Fact]
+    public void AddHousehold_ButtonIsOnTheHouseholdsTabAndNotOnTheProfilesTab()
+    {
+        var root = FindRepoRoot();
+        var profiles = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Settings", "ProfilesTab.razor"));
+        var households = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Settings", "HouseholdsTab.razor"));
+
+        Assert.DoesNotContain("Common_AddHousehold", profiles, StringComparison.Ordinal);
+        Assert.Contains("Common_AddHousehold", households, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("Could not find the repository root.");
     }
 
     [Fact]

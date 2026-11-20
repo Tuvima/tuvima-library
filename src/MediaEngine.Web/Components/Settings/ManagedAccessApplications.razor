@@ -34,8 +34,13 @@
             </Actions>
         </AppListPageHeader>
         @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
+        @* Paired phones and TVs (the Library apps) are one list on Security & Devices > Devices, not a row here. *@
+        <p class="access-devices-note" data-integrations-devices-link>
+            @L["ManagedAccessApplications_PairedPhonesAndTVsAre"]
+            <AppLink Href="@SettingsNav.RouteFor(SettingsSection.Security, SettingsNav.DevicesSubsection)">@L["ManagedAccessApplications_OpenDevices"]</AppLink>
+        </p>
         @if (_loading) { <AppProgressBar Indeterminate="true" aria-label="@L["ManagedAccessApplications_LoadingApplications"].Value" /> }
-        else if (_applications.Count == 0)
+        else if (ListedApplications.Count == 0)
         {
             <AppEmptyState Title="@L["ManagedAccessApplications_NoIntegrations"].Value" Message="@L["ManagedAccessApplications_ConnectAnotherApplicationSecurelyTo"].Value">
                 <Action>
@@ -507,7 +512,7 @@
     ];
 
     private IReadOnlyList<AppSelectOption> AccessOptions() =>
-        [new("all", "All access"), .. _applications.Select(PresetLabel).Distinct().Order().Select(label => new AppSelectOption(label, label))];
+        [new("all", "All access"), .. ListedApplications.Select(PresetLabel).Distinct().Order().Select(label => new AppSelectOption(label, label))];
 
     private bool IsWebhook(ApplicationResponse app) => _webhooks.TryGetValue(app.Id, out var hooks) && hooks.Count > 0;
     private ApplicationWebhookResponse? FailingWebhook(ApplicationResponse app) =>
@@ -531,7 +536,12 @@
         && (_statusFilter switch { "enabled" => app.IsEnabled, "disabled" => !app.IsEnabled, "attention" => NeedsAttention(app), _ => true })
         && (_accessFilter == "all" || PresetLabel(app) == _accessFilter);
 
-    private List<ApplicationResponse> VisibleApplications() => _applications
+    // The Library apps' own built-in integration is not a row here; paired phones and TVs live on Devices.
+    private List<ApplicationResponse> ListedApplications => _applications.Where(app => !IsBuiltInLibraryApps(app)).ToList();
+
+    private static bool IsBuiltInLibraryApps(ApplicationResponse app) => app.Id == MediaEngine.Domain.Entities.BuiltInApplicationIds.NativeClient;
+
+    private List<ApplicationResponse> VisibleApplications() => ListedApplications
         .Where(MatchesFilters)
         .Where(app => _kindTab switch { "webhooks" => IsWebhook(app), "applications" => !IsWebhook(app), _ => true })
         .OrderBy(app => app.Name, StringComparer.OrdinalIgnoreCase)
@@ -539,7 +549,7 @@
 
     private IReadOnlyList<AppCountTab> KindTabs()
     {
-        var matching = _applications.Where(MatchesFilters).ToList();
+        var matching = ListedApplications.Where(MatchesFilters).ToList();
         return
         [
             new("all", "All", matching.Count, AppMaterialIcons.Outlined.AllInclusive),

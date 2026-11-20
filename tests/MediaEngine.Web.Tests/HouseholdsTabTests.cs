@@ -127,14 +127,15 @@ public sealed class HouseholdsTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AddQueryFlag_OpensTheNameBoxStraightAway()
+    public void TheNameBox_OpensOnlyFromTheAddHouseholdButton_NotFromTheAddressBar()
     {
         UseSession(serverAdministrator: true);
-        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/profiles/households?add=1");
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/access/households?add=1");
 
         var cut = Render<HouseholdsTab>();
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-households-add]")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".households-tab__item")));
+        Assert.Empty(cut.FindAll("[data-households-add]"));
     }
 
     private IRenderedComponent<HouseholdsTab> OpenCeiling(Guid householdId)

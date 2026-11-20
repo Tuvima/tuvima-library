@@ -1,4 +1,5 @@
 .access-notice { margin-bottom: 1rem; }
+.access-devices-note { margin: 0; }
 .access-form-section { display: grid; gap: .75rem; }
 .access-form-section + .access-form-section { padding-top: 1.1rem; border-top: 1px solid var(--tl-border-default); }
 .access-native-label, .access-form-section small { color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }

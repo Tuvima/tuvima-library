@@ -6284,9 +6284,6 @@
   <data name="SecurityTab_Passkeys" xml:space="preserve">
     <value>Passkeys</value>
   </data>
-  <data name="SecurityTab_RecoveryDelivery" xml:space="preserve">
-    <value>Recovery delivery</value>
-  </data>
   <data name="NotificationsEmailTest_SMTPServer" xml:space="preserve">
     <value>SMTP server</value>
   </data>
@@ -14561,15 +14558,6 @@
   <data name="VideoOptions_PerProfile" xml:space="preserve">
     <value>Per profile. Follows you to every device.</value>
   </data>
-  <data name="VideoOptions_PerDevice" xml:space="preserve">
-    <value>Per device:</value>
-  </data>
-  <data name="VideoOptions_Devices" xml:space="preserve">
-    <value>Devices</value>
-  </data>
-  <data name="VideoOptions_ThisBrowser" xml:space="preserve">
-    <value>This browser</value>
-  </data>
   <data name="VideoOptions_PerDeviceDefaults" xml:space="preserve">
     <value>Per device. Everything defaults to Automatic.</value>
   </data>
@@ -15271,5 +15259,35 @@
   </data>
   <data name="SecurityTab_TrustedLocalNetworksHelp" xml:space="preserve">
     <value>Optional. Extra address ranges to treat as your home network, separated by commas, such as 192.168.1.0/24. Library already knows the usual home network addresses.</value>
+  </data>
+  <data name="ProfilesTab_HouseholdsAreManagedOn" xml:space="preserve">
+    <value>Households are created, renamed and removed on the Households page.</value>
+  </data>
+  <data name="ProfilesTab_OpenHouseholds" xml:space="preserve">
+    <value>Open Households</value>
+  </data>
+  <data name="VideoOptions_OnThisDevice" xml:space="preserve">
+    <value>On this device</value>
+  </data>
+  <data name="ManagedAccessApplications_PairedPhonesAndTVsAre" xml:space="preserve">
+    <value>Paired phones and TVs are listed on</value>
+  </data>
+  <data name="ManagedAccessApplications_OpenDevices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="SecurityTab_PasswordRecoveryEmail" xml:space="preserve">
+    <value>Password recovery email</value>
+  </data>
+  <data name="SecurityTab_SetUpInNotificationsChannelsEmail" xml:space="preserve">
+    <value>Set up in Notifications, Channels, Email</value>
+  </data>
+  <data name="SecurityTab_EmailNotConfigured" xml:space="preserve">
+    <value>Not configured.</value>
+  </data>
+  <data name="SecurityTab_EmailConfigured" xml:space="preserve">
+    <value>Configured.</value>
+  </data>
+  <data name="SecurityTab_EmailConfiguredNeedsAddress" xml:space="preserve">
+    <value>Configured. Reset links also need the public address above.</value>
   </data>
 </root>

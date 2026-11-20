@@ -1,7 +1,7 @@
 .profiles-tab { display: grid; gap: 24px; width: 100%; box-sizing: border-box; }
 .profiles-tab__loading { display: grid; gap: 12px; }
 .profiles-tab__people { display: grid; gap: 16px; }
-.profiles-tab__toolbar { display: flex; justify-content: flex-end; }
+.profiles-tab__households-note { margin: 0; text-align: end; }
 .profiles-tab__group { display: grid; gap: 8px; }
 /* The people sit inside a standard settings card, so the list draws no box of its own. */
 .profiles-tab__list { margin: 0; padding: 0; list-style: none; }

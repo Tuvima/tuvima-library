@@ -149,9 +149,6 @@ else
 
     protected override Task OnInitializedAsync()
     {
-        // The Add household button on the Profiles list lands here with the name box already open.
-        _adding = IsServerAdministrator
-            && System.Web.HttpUtility.ParseQueryString(Nav.ToAbsoluteUri(Nav.Uri).Query)["add"] == "1";
         return IsServerAdministrator ? LoadAsync() : Task.CompletedTask;
     }
 

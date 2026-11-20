@@ -674,7 +674,7 @@ public static class DashboardAuthenticationEndpoints
             : $"""
               <form id="continue-form" method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="this-computer"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
               <button id="continue-on-this-computer">Go back in as {H(thisComputerName)}</button></form>
-              <p class="supporting">This computer only. Add a password later to use Library on other devices.</p>
+              <p class="supporting">On your home network. Add a password to use Library away from home.</p>
               {(continueAutomatically ? ContinueAutomaticallyScript : string.Empty)}
               """;
         // Nothing to type when the only account has no password: the email and password form (and the note that it is

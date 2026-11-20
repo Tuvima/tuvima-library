@@ -139,7 +139,7 @@
             <dl class="security-settings__facts" aria-labelledby="security-group-status">
                 <div><dt>@L["SecurityTab_PublicAddress"]</dt><dd>@CanonicalOriginStatus <a href="/settings/network/remote">@L["SecurityTab_ChangeItInNetworkSettings"]</a></dd></div>
                 <div><dt>@L["SecurityTab_Passkeys"]</dt><dd>@PasskeyStatus</dd></div>
-                <div><dt>@L["SecurityTab_RecoveryDelivery"]</dt><dd>@RecoveryStatus</dd></div>
+                <div data-recovery-email-status><dt>@L["SecurityTab_PasswordRecoveryEmail"]</dt><dd>@RecoveryStatus <a href="@SettingsNav.RouteFor(SettingsSection.General, SettingsNav.NotificationsSubsection)">@L["SecurityTab_SetUpInNotificationsChannelsEmail"]</a></dd></div>
             </dl>
             <div class="security-settings__actions tl-sp-mt-5">
                 <SettingsSaveBar @ref="_saveBar" Saving="@_saving" OnSave="SaveAsync" />
@@ -201,11 +201,11 @@
                 : CanonicalOriginStatus;
     private string RecoveryStatus => _authSettings is null
         ? "Unavailable"
-        : _authSettings.RecoveryDeliveryReady
-            ? "Ready"
-            : !_authSettings.PasswordReset.Configured
-                ? "Configure SMTP host, port, and sender address."
-                : CanonicalOriginStatus;
+        : !_authSettings.PasswordReset.Configured
+            ? L["SecurityTab_EmailNotConfigured"].Value
+            : _authSettings.RecoveryDeliveryReady
+                ? L["SecurityTab_EmailConfigured"].Value
+                : L["SecurityTab_EmailConfiguredNeedsAddress"].Value;
 
     protected override async Task OnInitializedAsync()
     {

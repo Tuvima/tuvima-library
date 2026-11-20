@@ -29,9 +29,10 @@ else
         <section class="profiles-tab__people" aria-label="@L["Wikidata_PeopleGroupTitle"].Value">
             @if (IsServerAdministrator)
             {
-                <div class="profiles-tab__toolbar">
-                    <AppButton Label="@L["Common_AddHousehold"].Value" StartIcon="@AppMaterialIcons.Outlined.Home" OnClick="OpenAddHousehold" />
-                </div>
+                <p class="profiles-tab__households-note" data-profiles-households-link>
+                    @L["ProfilesTab_HouseholdsAreManagedOn"]
+                    <AppLink Href="@SettingsNav.RouteFor(SettingsSection.Access, SettingsNav.HouseholdsSubsection)">@L["ProfilesTab_OpenHouseholds"]</AppLink>
+                </p>
             }
 
             @if (_loadingPeople)
@@ -371,17 +372,6 @@ else
 
     // Each person has their own page; the sheet here is only for adding someone.
     private void OpenProfile(Guid profileId) => Nav.NavigateTo($"/settings/profiles/{profileId:D}");
-
-    // Adding a household is a server-administrator action; the Households page takes the name.
-    private void OpenAddHousehold()
-    {
-        if (!IsServerAdministrator)
-        {
-            return;
-        }
-
-        Nav.NavigateTo($"{SettingsNav.RouteFor(SettingsSection.Access, SettingsNav.HouseholdsSubsection)}?add=1");
-    }
 
     public void Dispose()
     {
