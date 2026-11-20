@@ -10,12 +10,14 @@ namespace MediaEngine.Api.Services.Notifications;
 /// <param name="Description">What the setting is for, in the routing table.</param>
 /// <param name="AdminOnly">Only administrators hear about it. Every current event is; the flag keeps that a decision, not an accident.</param>
 /// <param name="DefaultChannels">Where it goes until the administrator changes it.</param>
+/// <param name="Quiet">The optional daily summary may batch it with other quiet events into one message.</param>
 internal sealed record NotificationEventDefinition(
     string Id,
     string Title,
     string Description,
     bool AdminOnly,
-    IReadOnlyList<string> DefaultChannels);
+    IReadOnlyList<string> DefaultChannels,
+    bool Quiet = false);
 
 /// <summary>
 /// Every event the notification service knows (Developer tools spec WP23). Password reset is deliberately not here: it is
@@ -29,7 +31,7 @@ internal static class NotificationEventCatalogue
         .. LibraryEvents.All
             .Where(entry => entry.Notification is not null)
             .Select(entry => new NotificationEventDefinition(
-                entry.EventType, entry.Notification!.Title, entry.Notification.Description, entry.Notification.AdminOnly, entry.Notification.DefaultChannels)),
+                entry.EventType, entry.Notification!.Title, entry.Notification.Description, entry.Notification.AdminOnly, entry.Notification.DefaultChannels, entry.Notification.Quiet)),
     ];
 
     public static NotificationEventDefinition? Find(string id) =>

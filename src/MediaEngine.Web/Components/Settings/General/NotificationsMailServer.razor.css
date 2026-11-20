@@ -1,0 +1,38 @@
+.notifications-mail {
+    display: grid;
+    gap: 12px;
+}
+
+.notifications-mail__server-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--tl-text-muted);
+}
+
+.notifications-mail__server,
+.notifications-mail__fields {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.notifications-mail__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.notifications-mail__hint {
+    color: var(--tl-text-muted);
+}
+
+@media (max-width: 640px) {
+    .notifications-mail__server,
+    .notifications-mail__fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

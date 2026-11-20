@@ -20,8 +20,11 @@ internal sealed class NotificationService(
     NotificationSettingsAccessor settingsStore,
     IEnumerable<INotificationChannel> builtInChannels,
     IEnumerable<INotificationChannelSource> channelSources,
+    IEnumerable<IAsyncNotificationChannelSource> addedChannelSources,
+    ChannelTypeCatalogue channelTypes,
     IAccountRepository accounts,
     IApplicationEventProducer events,
+    NotificationSummaryService summary,
     TimeProvider clock,
     ILogger<NotificationService> logger)
 {
@@ -31,10 +34,26 @@ internal sealed class NotificationService(
     public static readonly TimeSpan GroupWindow = TimeSpan.FromMinutes(10);
     public static readonly TimeSpan MinimumSendInterval = TimeSpan.FromMinutes(1);
 
-    private readonly IReadOnlyList<INotificationChannel> _builtInChannels = builtInChannels.ToList();
+    private const string EmailWhatLeaves = "The alert goes to the administrators' mail accounts through your mail server and whatever relays it on the way.";
 
-    /// <summary>Built-in channels plus whatever switched-on plugins offer right now, so switching a plugin on or off changes the list without a restart.</summary>
-    private IReadOnlyList<INotificationChannel> _channels => [.. _builtInChannels, .. channelSources.SelectMany(source => source.GetChannels())];
+    private readonly IReadOnlyList<INotificationChannel> _builtInChannels = builtInChannels.ToList();
+    private readonly IReadOnlyList<IAsyncNotificationChannelSource> _addedChannelSources = addedChannelSources.ToList();
+
+    /// <summary>
+    /// Built-in channels, the channels people added in Settings, and whatever switched-on plugins offer right now, so adding,
+    /// removing or switching one on or off changes the list without a restart.
+    /// </summary>
+    private async Task<IReadOnlyList<INotificationChannel>> ChannelsAsync(CancellationToken ct)
+    {
+        var channels = new List<INotificationChannel>(_builtInChannels);
+        foreach (var source in _addedChannelSources)
+        {
+            channels.AddRange(await source.GetChannelsAsync(ct).ConfigureAwait(false));
+        }
+
+        channels.AddRange(channelSources.SelectMany(source => source.GetChannels()));
+        return channels;
+    }
 
     /// <summary>Handles one event: writes the inbox message and sends to the routed channels. Never throws for a channel problem.</summary>
     public async Task DispatchAsync(NotificationRequest request, CancellationToken ct)
@@ -69,16 +88,20 @@ internal sealed class NotificationService(
             return;
         }
 
+        // Only email needs an administrator with an address; a channel with one destination of its own (a phone topic, a Discord channel) sends without one.
         var recipients = definition.AdminOnly ? await AdministratorRecipientsAsync(ct).ConfigureAwait(false) : [];
-        if (recipients.Count == 0)
-        {
-            return;
-        }
-
+        var channels = await ChannelsAsync(ct).ConfigureAwait(false);
         foreach (var channelId in external)
         {
-            var channel = _channels.FirstOrDefault(candidate => string.Equals(candidate.Id, channelId, StringComparison.Ordinal));
-            if (channel is null || !channel.IsConfigured)
+            // With the daily summary on, calm events wait for it instead of going out one by one.
+            if (settings.DailySummaryEnabled && definition.Quiet)
+            {
+                await summary.AddAsync(channelId, definition.Title, body, now, ct).ConfigureAwait(false);
+                continue;
+            }
+
+            var channel = channels.FirstOrDefault(candidate => string.Equals(candidate.Id, channelId, StringComparison.Ordinal));
+            if (channel is null || !channel.IsConfigured || (channel.NeedsRecipients && recipients.Count == 0))
             {
                 continue;
             }
@@ -95,12 +118,61 @@ internal sealed class NotificationService(
                 continue;
             }
 
-            var outgoing = Outgoing(definition, body, settings.IncludeDetails, claim.HeldBack);
-            var sent = await SendAndRecordAsync(channel, outgoing, recipients, ct).ConfigureAwait(false);
+            var outgoing = Outgoing(definition, body, settings.DetailsFor(channel.Id), claim.HeldBack);
+            var sent = await SendAndRecordAsync(channel, outgoing, channel.NeedsRecipients ? recipients : [], ct).ConfigureAwait(false);
             if (sent.Success && claim.HeldBack > 0)
             {
                 await repository.ConfirmSendAsync(channel.Id, definition.Id, ct).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>
+    /// Sends the daily summary once its time has passed: one message per channel listing what waited. Held back while quiet hours
+    /// are on. Called every minute by the summary worker; it does nothing on all but one of those calls a day.
+    /// </summary>
+    public async Task SendDueSummaryAsync(CancellationToken ct)
+    {
+        var settings = await settingsStore.LoadAsync(ct).ConfigureAwait(false);
+        if (!settings.DailySummaryEnabled || !TimeOnly.TryParseExact(settings.DailySummaryTime, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
+        {
+            return;
+        }
+
+        var local = clock.GetLocalNow();
+        var today = local.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (TimeOnly.FromTimeSpan(local.TimeOfDay) < at || settings.IsQuiet(local) || !await summary.IsDueAsync(today, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        var pending = await summary.TakeAsync(today, ct).ConfigureAwait(false);
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        var channels = await ChannelsAsync(ct).ConfigureAwait(false);
+        var recipients = await AdministratorRecipientsAsync(ct).ConfigureAwait(false);
+        foreach (var group in pending.GroupBy(item => item.ChannelId, StringComparer.Ordinal))
+        {
+            var channel = channels.FirstOrDefault(candidate => string.Equals(candidate.Id, group.Key, StringComparison.Ordinal));
+            if (channel is null || !channel.IsConfigured || (channel.NeedsRecipients && recipients.Count == 0))
+            {
+                continue;
+            }
+
+            var state = await repository.GetChannelStateAsync(channel.Id, ct).ConfigureAwait(false);
+            if (state?.State == NotificationChannelStates.Off)
+            {
+                continue;
+            }
+
+            var lines = group.Select(item => item.Detail).ToList();
+            var text = settings.DetailsFor(channel.Id)
+                ? string.Join("\n", lines.Select(line => "- " + line))
+                : string.Create(CultureInfo.InvariantCulture, $"{lines.Count} quiet update(s) are waiting. Open your Library to see them.");
+            await SendAndRecordAsync(channel, new OutgoingNotification("summary.daily", "Your Library today", text), channel.NeedsRecipients ? recipients : [], ct).ConfigureAwait(false);
         }
     }
 
@@ -113,7 +185,7 @@ internal sealed class NotificationService(
             return new NotificationTestResponse { Success = true, Message = "The test message is in your inbox." };
         }
 
-        var channel = _channels.FirstOrDefault(candidate => string.Equals(candidate.Id, channelId, StringComparison.Ordinal));
+        var channel = (await ChannelsAsync(ct).ConfigureAwait(false)).FirstOrDefault(candidate => string.Equals(candidate.Id, channelId, StringComparison.Ordinal));
         if (channel is null)
         {
             return new NotificationTestResponse { Success = false, Message = "That channel was not found." };
@@ -137,8 +209,24 @@ internal sealed class NotificationService(
         return new NotificationTestResponse
         {
             Success = result.Success,
-            Message = result.Success ? $"A test message was sent to {recipient.Email}." : result.Error ?? "The test message could not be sent.",
+            Message = result.Success
+                ? channel.NeedsRecipients ? $"A test message was sent to {recipient.Email}." : $"A test message was sent through {channel.Name}."
+                : result.Error ?? "The test message could not be sent.",
         };
+    }
+
+    /// <summary>Forgets a removed channel in the routing table and its details choice, so nothing points at it.</summary>
+    public async Task ForgetChannelAsync(string channelId, CancellationToken ct)
+    {
+        var settings = await settingsStore.LoadAsync(ct).ConfigureAwait(false);
+        foreach (var route in settings.Routes.Keys.ToList())
+        {
+            settings.Routes[route] = [.. settings.Routes[route].Where(id => !string.Equals(id, channelId, StringComparison.Ordinal))];
+        }
+
+        settings.ChannelDetails.Remove(channelId);
+        await settingsStore.SaveAsync(settings, ct).ConfigureAwait(false);
+        await repository.ResetChannelAsync(channelId, ct).ConfigureAwait(false);
     }
 
     public Task EnableChannelAsync(string channelId, CancellationToken ct) => repository.ResetChannelAsync(channelId, ct);
@@ -153,6 +241,7 @@ internal sealed class NotificationService(
         {
             IncludeDetails = settings.IncludeDetails,
             QuietHours = new NotificationQuietHoursDto { Enabled = settings.QuietHoursEnabled, Start = settings.QuietStart, End = settings.QuietEnd },
+            DailySummary = new NotificationDailySummaryDto { Enabled = settings.DailySummaryEnabled, Time = settings.DailySummaryTime },
         };
         foreach (var definition in NotificationEventCatalogue.All)
         {
@@ -162,6 +251,7 @@ internal sealed class NotificationService(
                 Title = definition.Title,
                 Description = definition.Description,
                 Channels = [.. settings.RouteFor(definition)],
+                Quiet = definition.Quiet,
             });
         }
 
@@ -174,9 +264,10 @@ internal sealed class NotificationService(
             State = NotificationChannelStates.Healthy,
             StateLabel = "Working",
         });
-        foreach (var channel in _channels)
+        foreach (var channel in await ChannelsAsync(ct).ConfigureAwait(false))
         {
             states.TryGetValue(channel.Id, out var state);
+            var added = channel as TemplatedNotificationChannel;
             response.Channels.Add(new NotificationChannelDto
             {
                 Id = channel.Id,
@@ -186,6 +277,12 @@ internal sealed class NotificationService(
                 State = state?.State ?? NotificationChannelStates.Healthy,
                 StateLabel = StateLabel(channel, state),
                 LastSuccessAt = state?.LastSuccessAt,
+                Type = added?.TypeId ?? (channel.Id == NotificationChannelIds.Email ? NotificationChannelIds.Email : "plugin"),
+                WhatLeaves = added is null
+                    ? channel.Id == NotificationChannelIds.Email ? EmailWhatLeaves : "What leaves your computer depends on the plugin that added this channel."
+                    : channelTypes.Find(added.TypeId)?.WhatLeaves ?? string.Empty,
+                IncludeDetails = settings.DetailsFor(channel.Id),
+                CanEdit = added is not null,
             });
         }
 
@@ -195,7 +292,7 @@ internal sealed class NotificationService(
     /// <summary>Saves the changes. Returns a plain-words problem, or null when everything was saved.</summary>
     public async Task<string?> UpdateSettingsAsync(UpdateNotificationSettingsRequest request, CancellationToken ct)
     {
-        var knownChannels = _channels.Select(channel => channel.Id).Append(NotificationChannelIds.Dashboard).ToHashSet(StringComparer.Ordinal);
+        var knownChannels = (await ChannelsAsync(ct).ConfigureAwait(false)).Select(channel => channel.Id).Append(NotificationChannelIds.Dashboard).ToHashSet(StringComparer.Ordinal);
         foreach (var (eventId, routed) in request.Routes)
         {
             if (NotificationEventCatalogue.Find(eventId) is null)
@@ -209,12 +306,28 @@ internal sealed class NotificationService(
             }
         }
 
+        if (request.ChannelDetails.Keys.Any(id => !knownChannels.Contains(id)))
+        {
+            return "One of the channels does not exist.";
+        }
+
         if (request.QuietHours is { } quiet && (!IsClockTime(quiet.Start) || !IsClockTime(quiet.End)))
         {
             return "Quiet hours need times like 22:00 and 07:00.";
         }
 
+        if (request.DailySummary is { } daily && !IsClockTime(daily.Time))
+        {
+            return "The daily summary needs a time like 08:00.";
+        }
+
         var settings = await settingsStore.LoadAsync(ct).ConfigureAwait(false);
+        if (request.DailySummary is { } summaryChoice)
+        {
+            settings.DailySummaryEnabled = summaryChoice.Enabled;
+            settings.DailySummaryTime = summaryChoice.Time;
+        }
+
         foreach (var (eventId, routed) in request.Routes)
         {
             settings.Routes[eventId] = [.. routed.Distinct(StringComparer.Ordinal)];
@@ -230,6 +343,11 @@ internal sealed class NotificationService(
         if (request.IncludeDetails is { } include)
         {
             settings.IncludeDetails = include;
+        }
+
+        foreach (var (channelId, carries) in request.ChannelDetails)
+        {
+            settings.ChannelDetails[channelId] = carries;
         }
 
         await settingsStore.SaveAsync(settings, ct).ConfigureAwait(false);

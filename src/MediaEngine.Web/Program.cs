@@ -159,7 +159,6 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 var authSettings = dashboardConfig.LoadCore().Auth;
-builder.Services.AddSingleton(authSettings.PasswordReset);
 builder.Services.AddSingleton<PasswordResetEmailSender>();
 var externalSignInAllowed =
     !string.Equals(authSettings.Mode, "Local", StringComparison.OrdinalIgnoreCase);

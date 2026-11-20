@@ -5771,12 +5771,6 @@
   <data name="NotificationsPanel_ByDefaultOnlyAShort" xml:space="preserve">
     <value>By default only a short title like “A backup did not finish” leaves this computer.</value>
   </data>
-  <data name="NotificationsPanel_IncludeDetailsInMessagesThat" xml:space="preserve">
-    <value>Include details in messages that leave this computer</value>
-  </data>
-  <data name="NotificationsPanel_AddsWhatHappenedSuchAs" xml:space="preserve">
-    <value>Adds what happened, such as the plugin or tool involved. Leave this off if your email is not private to you.</value>
-  </data>
   <data name="OfflineDownloadsTab_Asset" xml:space="preserve">
     <value>Asset</value>
   </data>
@@ -6284,15 +6278,6 @@
   <data name="SecurityTab_Passkeys" xml:space="preserve">
     <value>Passkeys</value>
   </data>
-  <data name="NotificationsEmailTest_SMTPServer" xml:space="preserve">
-    <value>SMTP server</value>
-  </data>
-  <data name="NotificationsEmailTest_SMTPState" xml:space="preserve">
-    <value>SMTP state</value>
-  </data>
-  <data name="NotificationsEmailTest_SendsOnlyToTheEmail" xml:space="preserve">
-    <value>Sends only to the email address on your current signed-in account.</value>
-  </data>
   <data name="SecurityTab_ExternalProviders" xml:space="preserve">
     <value>External providers</value>
   </data>
@@ -6337,9 +6322,6 @@
   </data>
   <data name="SecurityTab_MaximumActiveSessionsPerAccount" xml:space="preserve">
     <value>Maximum active sessions per account</value>
-  </data>
-  <data name="NotificationsEmailTest_SendTestEmailToMy" xml:space="preserve">
-    <value>Send test email to my account</value>
   </data>
   <data name="SecurityTab_ProviderId" xml:space="preserve">
     <value>Provider id</value>
@@ -7976,9 +7958,6 @@
   <data name="SecurityTab_ProviderCouldNotBeDeleted" xml:space="preserve">
     <value>Provider could not be deleted.</value>
   </data>
-  <data name="NotificationsEmailTest_TestEmailCouldNotBe" xml:space="preserve">
-    <value>Test email could not be sent.</value>
-  </data>
   <data name="StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe" xml:space="preserve">
     <value>Playback settings could not be saved.</value>
   </data>
@@ -8557,18 +8536,6 @@
   </data>
   <data name="GeneralNameAddress_ScanHome" xml:space="preserve">
     <value>Scan to use the address at home</value>
-  </data>
-  <data name="NotificationsEmailTest_Email" xml:space="preserve">
-    <value>Email (SMTP)</value>
-  </data>
-  <data name="NotificationsEmailTest_Ready" xml:space="preserve">
-    <value>Ready</value>
-  </data>
-  <data name="NotificationsEmailTest_ConfiguredNotReady" xml:space="preserve">
-    <value>Configured, not ready</value>
-  </data>
-  <data name="NotificationsEmailTest_TestEmailSent" xml:space="preserve">
-    <value>Test email sent to your account address.</value>
   </data>
   <data name="EncodeSettingsTab_MaintenanceWindowStarts" xml:space="preserve">
     <value>Maintenance window starts</value>
@@ -15283,5 +15250,158 @@
   </data>
   <data name="SecurityTab_EmailConfiguredNeedsAddress" xml:space="preserve">
     <value>Configured. Reset links also need the public address above.</value>
+  </data>
+  <data name="NotificationsMailServer_EmailServer" xml:space="preserve">
+    <value>Email server</value>
+  </data>
+  <data name="NotificationsMailServer_HelperLine" xml:space="preserve">
+    <value>The mail server Library sends email through. Alerts and password reset both use it.</value>
+  </data>
+  <data name="NotificationsMailServer_Loading" xml:space="preserve">
+    <value>Loading email settings</value>
+  </data>
+  <data name="NotificationsMailServer_GettingYourEmailSettings" xml:space="preserve">
+    <value>Getting your email settings.</value>
+  </data>
+  <data name="NotificationsMailServer_CouldNotLoad" xml:space="preserve">
+    <value>Could not load email settings</value>
+  </data>
+  <data name="NotificationsMailServer_TheLibraryCouldNotGetYourEmail" xml:space="preserve">
+    <value>Library could not get your email settings. Try again.</value>
+  </data>
+  <data name="NotificationsMailServer_MailProvider" xml:space="preserve">
+    <value>Email provider</value>
+  </data>
+  <data name="NotificationsMailServer_Encrypted" xml:space="preserve">
+    <value>encrypted</value>
+  </data>
+  <data name="NotificationsMailServer_NotEncrypted" xml:space="preserve">
+    <value>not encrypted</value>
+  </data>
+  <data name="NotificationsMailServer_ServerAddress" xml:space="preserve">
+    <value>Server address</value>
+  </data>
+  <data name="NotificationsMailServer_Port" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="NotificationsMailServer_EncryptTheConnection" xml:space="preserve">
+    <value>Encrypt the connection</value>
+  </data>
+  <data name="NotificationsMailServer_AppPasswordHelp" xml:space="preserve">
+    <value>Gmail and iCloud need an app password, not your normal password. Create one in your account's security settings, then paste it below.</value>
+  </data>
+  <data name="NotificationsMailServer_Username" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="NotificationsMailServer_UsernamePlaceholder" xml:space="preserve">
+    <value>Usually your email address</value>
+  </data>
+  <data name="NotificationsMailServer_Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="NotificationsMailServer_PasswordSaved" xml:space="preserve">
+    <value>Saved. Leave blank to keep it.</value>
+  </data>
+  <data name="NotificationsMailServer_PasswordHelp" xml:space="preserve">
+    <value>Kept on this computer and never shown again.</value>
+  </data>
+  <data name="NotificationsMailServer_SendAsName" xml:space="preserve">
+    <value>Send as (name)</value>
+  </data>
+  <data name="NotificationsMailServer_SendAsAddress" xml:space="preserve">
+    <value>Send as (address)</value>
+  </data>
+  <data name="NotificationsMailServer_SendTestToMe" xml:space="preserve">
+    <value>Send test to me</value>
+  </data>
+  <data name="NotificationsMailServer_SaveAfterTest" xml:space="preserve">
+    <value>Send a test first. Save turns on once it works.</value>
+  </data>
+  <data name="NotificationsMailServer_Saved" xml:space="preserve">
+    <value>Saved</value>
+  </data>
+  <data name="NotificationsMailServer_Other" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="NotificationsMailServer_TestCouldNotBeSent" xml:space="preserve">
+    <value>The test message could not be sent.</value>
+  </data>
+  <data name="NotificationsMailServer_CouldNotBeSaved" xml:space="preserve">
+    <value>The email settings could not be saved.</value>
+  </data>
+  <data name="NotificationChannelPicker_AddAChannel" xml:space="preserve">
+    <value>Add a channel</value>
+  </data>
+  <data name="NotificationChannelPicker_PickWhereMessagesShouldGo" xml:space="preserve">
+    <value>Pick where messages should go. You can add as many as you like.</value>
+  </data>
+  <data name="NotificationChannelPicker_Email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="NotificationChannelPicker_EmailSummary" xml:space="preserve">
+    <value>Free · any mail account · password reset uses it too</value>
+  </data>
+  <data name="NotificationChannelPicker_EmailIsSetUpUnderEmail" xml:space="preserve">
+    <value>Email is set up under Email server on this page. Alerts and password reset share it.</value>
+  </data>
+  <data name="NotificationChannelPicker_More" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="NotificationChannelPicker_Fewer" xml:space="preserve">
+    <value>Fewer</value>
+  </data>
+  <data name="NotificationChannelPicker_TheKindsOfChannelCouldNotBeLoaded" xml:space="preserve">
+    <value>The kinds of channel could not be loaded. Try again.</value>
+  </data>
+  <data name="NotificationChannelPicker_TheChannelCouldNotBeOpened" xml:space="preserve">
+    <value>That channel could not be opened. Try again.</value>
+  </data>
+  <data name="NotificationChannelForm_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="NotificationChannelForm_Optional" xml:space="preserve">
+    <value>optional</value>
+  </data>
+  <data name="NotificationChannelForm_SavedLeaveBlankToKeep" xml:space="preserve">
+    <value>Saved. Leave blank to keep it.</value>
+  </data>
+  <data name="NotificationChannelForm_SuggestANewOne" xml:space="preserve">
+    <value>Suggest a new one</value>
+  </data>
+  <data name="NotificationChannelForm_WhatLeavesYourComputer" xml:space="preserve">
+    <value>What leaves your computer:</value>
+  </data>
+  <data name="NotificationChannelForm_Remove" xml:space="preserve">
+    <value>Remove this channel</value>
+  </data>
+  <data name="NotificationChannelForm_TheChannelCouldNotBeSaved" xml:space="preserve">
+    <value>The channel could not be saved. Try again.</value>
+  </data>
+  <data name="NotificationChannelForm_TheChannelCouldNotBeRemoved" xml:space="preserve">
+    <value>The channel could not be removed. Try again.</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetails" xml:space="preserve">
+    <value>Include details</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetailsHelp" xml:space="preserve">
+    <value>Adds what happened, such as the plugin or tool involved. Off means only a short title is sent.</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetailsInEventsSent" xml:space="preserve">
+    <value>Include details in events sent to webhooks and plugins</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetailsInEventsSentHelp" xml:space="preserve">
+    <value>Plugins and webhooks you set up under Developer tools get only a short title unless this is on.</value>
+  </data>
+  <data name="NotificationsPanel_DailySummary" xml:space="preserve">
+    <value>Daily summary</value>
+  </data>
+  <data name="NotificationsPanel_DailySummaryHelp" xml:space="preserve">
+    <value>Calm updates, such as a finished backup or items waiting in Needs Review, are sent as one message a day instead of one by one. Anything that needs you still arrives at once.</value>
+  </data>
+  <data name="NotificationsPanel_SendADailySummary" xml:space="preserve">
+    <value>Send a daily summary</value>
+  </data>
+  <data name="NotificationsPanel_SendAt" xml:space="preserve">
+    <value>Send at</value>
   </data>
 </root>

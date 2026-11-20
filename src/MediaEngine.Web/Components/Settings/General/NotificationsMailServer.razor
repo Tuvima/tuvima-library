@@ -1,0 +1,272 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Notifications
+@implements IAsyncDisposable
+@inject IEngineApiClient ApiClient
+@inject ILogger<NotificationsMailServer> Logger
+@inject IStringLocalizer<SharedStrings> L
+@* Server > General > Notifications: the one mail server the Library sends email through (notifications and password reset). Pick a
+   provider, type an address and an app password, send a test to yourself; Save turns on once a test has worked with exactly what
+   is in the form. The password is written once and never shown again (spec notifications-and-delivery WP1, mock C). *@
+<AppSettingsGroup Heading="@L["NotificationsMailServer_EmailServer"].Value" Helper="@L["NotificationsMailServer_HelperLine"].Value">
+    <div class="notifications-mail" data-testid="notifications-mail-server">
+        @if (_loading)
+        {
+            <AppPageState Kind="AppPageStateKind.Loading" Title="@L["NotificationsMailServer_Loading"].Value" Message="@L["NotificationsMailServer_GettingYourEmailSettings"].Value" />
+        }
+        else if (_failedToLoad)
+        {
+            <AppErrorState Title="@L["NotificationsMailServer_CouldNotLoad"].Value" Message="@L["NotificationsMailServer_TheLibraryCouldNotGetYourEmail"].Value" Retry="LoadAsync" />
+        }
+        else
+        {
+            <AppSegmentedControl Options="Providers" Value="@_provider" ValueChanged="PickProviderAsync" AriaLabel="@L["NotificationsMailServer_MailProvider"].Value" Disabled="@_busy" Class="notifications-mail__providers" />
+
+            @if (_provider != OtherProvider && !_showServer)
+            {
+                <div class="notifications-mail__server-line" data-testid="notifications-mail-server-line">
+                    <span>@_host:@_port · @(_encrypted ? L["NotificationsMailServer_Encrypted"].Value : L["NotificationsMailServer_NotEncrypted"].Value)</span>
+                    <AppButton Label="@L["Common_Change"].Value" Size="AppControlSize.Compact" OnClick="@(() => { _showServer = true; })" />
+                </div>
+            }
+            else
+            {
+                <div class="notifications-mail__server" data-testid="notifications-mail-server-fields">
+                    <AppTextField Label="@L["NotificationsMailServer_ServerAddress"].Value" Value="@_host" Placeholder="smtp.example.com" ValueChanged="@(v => Edit(() => _host = v ?? string.Empty))" data-testid="notifications-mail-host" />
+                    <AppNumericField Label="@L["NotificationsMailServer_Port"].Value" Value="_port" Min="1" Max="65535" ValueChanged="@(v => Edit(() => _port = v))" data-testid="notifications-mail-port" />
+                    <AppSwitchRow Label="@L["NotificationsMailServer_EncryptTheConnection"].Value" Value="_encrypted" ValueChanged="@(v => Edit(() => _encrypted = v))" />
+                </div>
+            }
+
+            @if (_provider is GmailProvider or ICloudProvider)
+            {
+                <AppQuietNote data-testid="notifications-mail-app-password-help">@L["NotificationsMailServer_AppPasswordHelp"]</AppQuietNote>
+            }
+
+            <div class="notifications-mail__fields">
+                <AppTextField Label="@L["NotificationsMailServer_Username"].Value" Value="@_username" Placeholder="@L["NotificationsMailServer_UsernamePlaceholder"].Value" ValueChanged="@(v => Edit(() => _username = v ?? string.Empty))" data-testid="notifications-mail-username" />
+                <AppTextField Label="@L["NotificationsMailServer_Password"].Value" InputType="AppInputType.Password" Value="@_password"
+                              Placeholder="@(_hasSavedPassword ? L["NotificationsMailServer_PasswordSaved"].Value : string.Empty)"
+                              HelpText="@L["NotificationsMailServer_PasswordHelp"].Value"
+                              ValueChanged="@(v => Edit(() => { _password = v ?? string.Empty; _passwordTouched = true; }))" data-testid="notifications-mail-password" />
+                <AppTextField Label="@L["NotificationsMailServer_SendAsName"].Value" Value="@_fromName" ValueChanged="@(v => Edit(() => _fromName = v ?? string.Empty))" data-testid="notifications-mail-from-name" />
+                <AppTextField Label="@L["NotificationsMailServer_SendAsAddress"].Value" InputType="AppInputType.Email" Value="@_fromAddress" Placeholder="you@example.com" ValueChanged="@(v => Edit(() => _fromAddress = v ?? string.Empty))" data-testid="notifications-mail-from-address" />
+            </div>
+
+            @if (_result is not null)
+            {
+                <AppAlert Tone="@(_result.Value.Success ? AppUiTone.Success : AppUiTone.Error)" Dense="true" data-testid="notifications-mail-result">@_result.Value.Message</AppAlert>
+            }
+
+            <div class="notifications-mail__actions">
+                <AppButton Label="@L["NotificationsMailServer_SendTestToMe"].Value" StartIcon="@AppMaterialIcons.Outlined.MarkEmailRead"
+                           Disabled="@(_busy || !CanTest)" OnClick="TestAsync" data-testid="notifications-mail-test" />
+                <AppButton Label="@L["Common_Save"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
+                           Disabled="@(_busy || !_tested || !_dirty)" OnClick="SaveAsync" data-testid="notifications-mail-save" />
+                @if (!_tested && _dirty)
+                {
+                    <span class="notifications-mail__hint" data-testid="notifications-mail-hint">@L["NotificationsMailServer_SaveAfterTest"]</span>
+                }
+                <AppSavedNote @ref="_savedNote" Text="@L["NotificationsMailServer_Saved"].Value" data-testid="notifications-mail-saved" />
+            </div>
+        }
+    </div>
+</AppSettingsGroup>
+
+@code {
+    private const string GmailProvider = "gmail";
+    private const string OutlookProvider = "outlook";
+    private const string ICloudProvider = "icloud";
+    private const string FastmailProvider = "fastmail";
+    private const string OtherProvider = "other";
+
+    private static readonly Dictionary<string, string> PresetHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [GmailProvider] = "smtp.gmail.com",
+        [OutlookProvider] = "smtp-mail.outlook.com",
+        [ICloudProvider] = "smtp.mail.me.com",
+        [FastmailProvider] = "smtp.fastmail.com",
+    };
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private AppSavedNote? _savedNote;
+    private bool _loading = true;
+    private bool _failedToLoad;
+    private bool _busy;
+    private bool _disposed;
+    private bool _tested;
+    private bool _dirty;
+    private bool _showServer;
+    private bool _hasSavedPassword;
+    private bool _passwordTouched;
+    private string _provider = OtherProvider;
+    private string _host = string.Empty;
+    private int _port = 587;
+    private bool _encrypted = true;
+    private string _username = string.Empty;
+    private string _password = string.Empty;
+    private string _fromName = "Library";
+    private string _fromAddress = string.Empty;
+    private (bool Success, string Message)? _result;
+
+    private IReadOnlyList<AppSelectOption> Providers =>
+    [
+        new(GmailProvider, "Gmail"),
+        new(OutlookProvider, "Outlook"),
+        new(ICloudProvider, "iCloud"),
+        new(FastmailProvider, "Fastmail"),
+        new(OtherProvider, L["NotificationsMailServer_Other"].Value),
+    ];
+
+    private bool CanTest => !string.IsNullOrWhiteSpace(_host) && !string.IsNullOrWhiteSpace(_fromAddress);
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _failedToLoad = false;
+        try
+        {
+            var saved = await ApiClient.GetMailServerAsync(_lifetime.Token);
+            if (saved is null)
+            {
+                _failedToLoad = true;
+            }
+            else
+            {
+                Apply(saved);
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The mail server settings could not be loaded.");
+            _failedToLoad = true;
+        }
+
+        _loading = false;
+    }
+
+    private void Apply(MailServerSettingsDto saved)
+    {
+        _host = saved.Host;
+        _port = saved.Port > 0 ? saved.Port : 587;
+        _encrypted = saved.Encrypted;
+        _username = saved.Username;
+        _fromName = string.IsNullOrWhiteSpace(saved.FromName) ? "Library" : saved.FromName;
+        _fromAddress = saved.FromAddress;
+        _hasSavedPassword = saved.HasPassword;
+        _password = string.Empty;
+        _passwordTouched = false;
+        _provider = PresetHosts.FirstOrDefault(pair => string.Equals(pair.Value, saved.Host, StringComparison.OrdinalIgnoreCase)).Key ?? OtherProvider;
+        _showServer = _provider == OtherProvider;
+        _tested = false;
+        _dirty = false;
+    }
+
+    private Task PickProviderAsync(string provider)
+    {
+        _provider = provider;
+        if (PresetHosts.TryGetValue(provider, out var host))
+        {
+            _host = host;
+            _port = 587;
+            _encrypted = true;
+            _showServer = false;
+        }
+        else
+        {
+            _showServer = true;
+        }
+
+        MarkEdited();
+        return Task.CompletedTask;
+    }
+
+    private void Edit(Action change)
+    {
+        change();
+        MarkEdited();
+    }
+
+    // Any change means the last test no longer proves what is in the form.
+    private void MarkEdited()
+    {
+        _tested = false;
+        _dirty = true;
+        _result = null;
+    }
+
+    private MailServerRequest BuildRequest() => new()
+    {
+        Host = _host.Trim(),
+        Port = _port,
+        Encrypted = _encrypted,
+        Username = string.IsNullOrWhiteSpace(_username) ? _fromAddress.Trim() : _username.Trim(),
+        Password = _passwordTouched ? _password : null,
+        FromAddress = _fromAddress.Trim(),
+        FromName = _fromName.Trim(),
+    };
+
+    private async Task TestAsync()
+    {
+        if (_busy || _disposed) return;
+        _busy = true;
+        _result = null;
+        try
+        {
+            var response = await ApiClient.TestMailServerAsync(BuildRequest(), _lifetime.Token);
+            _tested = response?.Success == true;
+            _result = (_tested, response?.Message ?? L["NotificationsMailServer_TestCouldNotBeSent"].Value);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The mail server test failed.");
+            _result = (false, L["NotificationsMailServer_TestCouldNotBeSent"].Value);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_busy || _disposed || !_tested) return;
+        _busy = true;
+        try
+        {
+            var saved = await ApiClient.SaveMailServerAsync(BuildRequest(), _lifetime.Token);
+            if (saved is null)
+            {
+                _result = (false, L["NotificationsMailServer_CouldNotBeSaved"].Value);
+            }
+            else
+            {
+                Apply(saved);
+                _result = null;
+                _savedNote?.Show();
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The mail server could not be saved.");
+            _result = (false, L["NotificationsMailServer_CouldNotBeSaved"].Value);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}
