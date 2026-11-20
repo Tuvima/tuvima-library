@@ -68,7 +68,7 @@
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
                            FullWidth="true"
-                           OnClick="@RunSearch"
+                           OnClick="@RunSearch" Class="pt-search-action"
                            Disabled="@(_loading || !HasAnyFieldValue())"
                            StartIcon="@AppMaterialIcons.Outlined.Bolt">
                     Search
@@ -203,7 +203,7 @@
                     @* -- Expanded details -- *@
                     @if (isExpanded)
                     {
-                        <div class="tl-sp-px-3 tl-sp-pb-3 tl-u-padding-left-75px"  @onclick:stopPropagation="true">
+                        <div class="tl-sp-px-3 tl-sp-pb-3 pt-detail-indent"  @onclick:stopPropagation="true">
                             @if (!string.IsNullOrEmpty(result.WikipediaExtract))
                             {
                                 <AppText Typo="AppTypo.body2" Class="tl-sp-mb-2 tl-u-color-tl-text-secondary tl-u-font-size-0-8rem tl-u-line-height-1-5" >

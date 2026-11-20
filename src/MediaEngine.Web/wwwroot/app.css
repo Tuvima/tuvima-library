@@ -2588,7 +2588,6 @@ input.app-control.tl-input-slot,
 .tl-u-overflow-y-auto { overflow-y: auto !important; }
 
 .tl-u-padding-32px-0 { padding: 32px 0 !important; }
-.tl-u-padding-left-75px { padding-left: 75px !important; }
 
 .tl-u-text-align-center { text-align: center !important; }
 .tl-u-text-decoration-none { text-decoration: none !important; }
@@ -2664,6 +2663,19 @@ input.app-control.tl-input-slot,
 
 .dev-harness-chip {
     min-height: 32px;
+}
+
+/* Developer Tools on a phone (Settings alignment D13): chips and the tools' actions are 48 px tall, and each action runs the full
+   width of its card. These classes sit on shared App* components, which a component's isolated stylesheet cannot reach. */
+:root[data-form-factor="phone"] .dev-harness-chip {
+    min-height: var(--tl-touch-target-min);
+}
+
+:root[data-form-factor="phone"] .dev-harness-action,
+:root[data-form-factor="phone"] .pt-search-action,
+:root[data-form-factor="phone"] .enr-search-action {
+    width: 100%;
+    min-height: var(--tl-touch-target-min);
 }
 
 .dev-harness-helper {

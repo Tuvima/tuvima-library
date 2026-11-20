@@ -13,3 +13,9 @@
 @media (max-width: 600px) {
     .real-media-harness-controls { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Phones (Settings alignment D13): fields and actions stack, every control is full width and at least 48 px tall. */
+:root[data-form-factor="phone"] .real-media-harness-controls {
+    grid-template-columns: minmax(0, 1fr);
+}
+

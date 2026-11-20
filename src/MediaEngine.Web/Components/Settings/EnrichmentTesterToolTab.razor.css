@@ -1,0 +1,9 @@
+/* The field name repeats on every claim row only in a phone card; a wide table leaves it blank under its group. */
+.enr-card-field {
+    display: none;
+}
+
+:root[data-form-factor="phone"] .enr-card-field {
+    display: inline;
+}
+

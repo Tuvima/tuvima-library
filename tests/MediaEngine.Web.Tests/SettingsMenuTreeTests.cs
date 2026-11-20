@@ -145,7 +145,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void OnAPhoneOrTablet_TheDeveloperAreaIsNotListedAtAll()
+    public void OnAPhoneOrTablet_LocalAiPluginsAndIntegrationsAreNotListed_ButDeveloperToolsAre()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { IsMobile = true });
 
@@ -153,8 +153,9 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.DoesNotContain("Local AI", labels);
         Assert.DoesNotContain("Plugins", labels);
         Assert.DoesNotContain("Integrations", labels);
-        Assert.DoesNotContain(groups, group => group.Label is "Developer");
-        Assert.DoesNotContain(SettingsMenuBuilder.BuildPhoneSelector(groups), group => group.Label is "Developer");
+        // Settings alignment D13: Developer Tools are open to administrators on a phone, so the area is listed.
+        Assert.Contains(groups, group => group.Label is "Developer");
+        Assert.Contains(SettingsMenuBuilder.BuildPhoneSelector(groups), group => group.Label is "Developer");
     }
 
     [Fact]
@@ -180,9 +181,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         var labels = Flatten(groups).Select(row => row.Label).ToArray();
 
         Assert.All(Flatten(groups), row => Assert.Equal(MediaSectionAttentionLevel.None, row.EffectiveAttention));
-        Assert.DoesNotContain("Developer Tools", labels);
-        Assert.DoesNotContain("Enrichment Tester", labels);
-        Assert.DoesNotContain("Development data", labels);
+        Assert.Contains("Developer Tools", labels);
         Assert.DoesNotContain("Recently Added", labels);
         Assert.Contains("Libraries", labels);
         Assert.Contains("Playback", labels);
@@ -239,7 +238,6 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     [InlineData(SettingsSection.Plugins, "Plugins", "Server")]
     [InlineData(SettingsSection.Integrations, "Integrations", "Server")]
     [InlineData(SettingsSection.LocalAi, "Local AI", "Server")]
-    [InlineData(SettingsSection.DevHarness, "Developer Tools", "Developer")]
     public void PhoneSelector_OnAPageThePhoneMenuLeavesOut_AddsThatPageUnderItsOwnGroup(SettingsSection section, string label, string group)
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { IsMobile = true });
@@ -249,7 +247,6 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         var option = Assert.Single(selector.Single(g => g.Label == group).Options, o => o.Label == label);
         Assert.Equal(SettingsMenuBuilder.PhoneSelectorRoute(groups, section), option.Route);
         // Pages the phone menu does list are unchanged.
-        Assert.DoesNotContain(SettingsMenuBuilder.BuildPhoneSelector(groups, SettingsSection.Profiles), g => g.Label == "Developer");
     }
 
     [Fact]
