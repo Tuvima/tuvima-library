@@ -522,7 +522,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     // running on the machine), against 0.1 second for the next one. So these waits use the context's ceiling, not a guess of their own.
 
     [Fact]
-    public void SettingsPage_ForAServerAdministrator_ShowsTheNeedsReviewLineAboveTheBreadcrumb_InTheFramesNoticeSlot()
+    public void SettingsPage_ForAServerAdministrator_ShowsTheNeedsReviewLineAboveTheTitle_InTheFramesNoticeSlot()
     {
         var cut = Render(builder =>
         {
@@ -541,7 +541,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains("3 items need review", notices.TextContent, StringComparison.Ordinal);
             var markup = cut.Markup;
             Assert.True(markup.IndexOf("data-settings-frame-slot=\"notices\"", StringComparison.Ordinal)
-                < markup.IndexOf("aria-label=\"Breadcrumb\"", StringComparison.Ordinal));
+                < markup.IndexOf("app-page-header__title", StringComparison.Ordinal));
         });
     }
 
@@ -771,29 +771,31 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(expectedTitle, (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!));
     }
 
-    // The Settings frame carries each Libraries level: one breadcrumb, one title, and no second heading or breadcrumb in the page.
+    // The Settings frame carries each Libraries level: no breadcrumb, one title, one back link above a library, and no second heading in the page.
     [Theory]
-    [InlineData(null, null, "Libraries", "Libraries", true)]
-    [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies", "Libraries|Watch|Movies", false)]
-    [InlineData("view", "photos", "Photos and videos", "Libraries|View|Photos and videos", false)]
-    public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)
+    [InlineData(null, null, "Libraries", null, true)]
+    [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies", "Watch", false)]
+    [InlineData("view", "photos", "Photos and videos", "View", false)]
+    public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameTitleWithOneBackLink(string? subsection, string? detail, string title, string? backLabel, bool hasSubtitle)
     {
         var cut = RenderLibraries(subsection, detail);
 
-        var expected = trail.Split('|');
-        // The frame redraws once the kinds have arrived, so wait for the trail rather than reading it once.
+        // The frame redraws once the kinds have arrived, so wait for the back link rather than reading it once.
         cut.WaitForAssertion(() =>
         {
-            var steps = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span[aria-current]").Select(step => step.TextContent.Trim()).ToArray();
-            Assert.Equal(expected, steps[^expected.Length..]);
+            Assert.Empty(cut.FindAll("nav.settings-breadcrumbs"));
+            var back = cut.FindAll("[data-testid='settings-back-link']");
+            if (backLabel is null)
+            {
+                Assert.Empty(back);
+            }
+            else
+            {
+                Assert.Equal(backLabel, back.Single().TextContent.Trim());
+            }
         });
         Assert.Equal(title, cut.Find(".app-page-header__title").TextContent.Trim());
         Assert.Equal(hasSubtitle, cut.FindAll(".app-page-header p").Count > 0);
-        if (subsection is not null)
-        {
-            Assert.Equal("/settings/libraries", cut.FindAll(".settings-breadcrumbs a").Last(link => link.TextContent.Trim() == "Libraries").GetAttribute("href"));
-        }
-
         Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb]"));
         // The Import folder panel and View's settings are unchanged panels with headings of their own; every other level has no page title of its own
         // (the area headings and the rules card title are section headings, level three).
