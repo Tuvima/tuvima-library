@@ -29,11 +29,13 @@ export function cssBlock(tokens) {
   return lines.join('\n');
 }
 
+const escapeRegExp = text => text.replace(/[\\^$.*+?()[\]{}|\/-]/g, '\\$&');
+
 /** Removes a hand-written duplicate of a generated token from the :root body (4-space indent, same value only). */
 function stripDuplicates(css, tokens) {
   let out = css;
   for (const t of tokens) {
-    const re = new RegExp(`^    ${t.css.replace(/[-]/g, '\\-')}:\\s*${cssValue(t).replace(/[#.]/g, '\\$&')};[^\\n]*\\r?\\n`, 'mi');
+    const re = new RegExp(`^    ${escapeRegExp(t.css)}:\\s*${escapeRegExp(cssValue(t))};[^\\n]*\\r?\\n`, 'mi');
     out = out.replace(re, '');
   }
   return out;
@@ -43,7 +45,7 @@ export function applyCss(css, tokens) {
   const eol = css.includes('\r\n') ? '\r\n' : '\n';
   const norm = css.replace(/\r\n/g, '\n');
   const block = cssBlock(tokens);
-  const re = new RegExp(`${begin.replace(/[()*./]/g, '\\$&')}[\\s\\S]*?${end.replace(/[*./]/g, '\\$&')}`);
+  const re = new RegExp(`${escapeRegExp(begin)}[\\s\\S]*?${escapeRegExp(end)}`);
   let next;
   if (re.test(norm)) {
     next = norm.replace(re, block);
