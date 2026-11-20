@@ -316,7 +316,11 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     // What the server keeps after a save: the stored settings with the request's sign-in switches applied.
     private static AuthSettingsDto Echo(AuthSettingsDto stored, UpdateAuthSettingsRequest? request)
     {
-        if (request is null) return stored;
+        if (request is null)
+        {
+            return stored;
+        }
+
         var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(stored))!.AsObject();
         json["mode"] = request.Mode;
         json["password_sign_in_enabled"] = request.PasswordSignInEnabled;
