@@ -65,6 +65,31 @@ public sealed partial class PhoneStandardsGuardrailTests
     }
 
     [Fact]
+    public void ControlScaleIsTheLookV32Scale()
+    {
+        var web = Path.Combine(RepoRoot, "src", "MediaEngine.Web");
+        var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
+        var fields = File.ReadAllText(Path.Combine(web, "wwwroot", "native-fields.css"));
+        var header = File.ReadAllText(Path.Combine(web, "Components", "Shared", "AppListPageHeader.razor.css"));
+
+        Assert.Contains("--tl-control-height-touch: 44px;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-control-height-main: 48px;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-control-radius: 10px;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-field-text-size: var(--tl-font-size-md);", tokens, StringComparison.Ordinal);
+        Assert.Contains("border-radius: var(--app-icon-button-radius,var(--tl-control-radius))", fields, StringComparison.Ordinal);
+        Assert.Contains("overflow-x: auto", header, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EveryDialogIsABottomSheetOnAPhoneWithoutOptingIn()
+    {
+        var frame = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Shared", "AppDialogFrame.razor"));
+
+        Assert.Contains("_ => _device?.IsPhone == true", frame, StringComparison.Ordinal);
+        Assert.Contains("Options.FullScreen != true", frame, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ScannerFlagsAHoverOnlyRevealAndAllowsAMouseOnlyOne()
     {
         Assert.Single(HoverOnlyReveals(".row:hover .actions { opacity: 1; }"));
