@@ -3,16 +3,17 @@ namespace MediaEngine.Web.Tests;
 public sealed class SettingsBreadcrumbGuardrailTests
 {
     [Fact]
-    public void SettingsShell_OwnsRouteAwareBreadcrumbsAndIngestionHeaderAction()
+    public void SettingsShell_OwnsTheBackLinkAndIngestionHeaderAction()
     {
         var settings = Read(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
         var frame = Read(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor");
         var frameCss = Read(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
         var metadata = Read(@"src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
 
-        Assert.Contains("<AppBreadcrumbs Class=\"settings-breadcrumbs\">", frame, StringComparison.Ordinal);
+        // settings-alignment D1: no breadcrumb on any width; a page below a page keeps one back link.
+        Assert.DoesNotContain("<AppBreadcrumbs", frame, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppBreadcrumbs", settings, StringComparison.Ordinal);
-        Assert.Contains("aria-current=\"page\"", frame, StringComparison.Ordinal);
+        Assert.Contains("settings-frame__back", frame, StringComparison.Ordinal);
         Assert.DoesNotContain("runId", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("IngestionBatchDisplay", settings, StringComparison.Ordinal);
         Assert.Contains("SettingsSection.LibraryRules => \"The rules every library follows", settings, StringComparison.Ordinal);
@@ -23,18 +24,13 @@ public sealed class SettingsBreadcrumbGuardrailTests
     }
 
     [Fact]
-    public void SettingsBreadcrumbLinks_KeepA44PixelTapTargetInTheSharedBlock()
+    public void SettingsBackLink_KeepsA44PixelTapTargetInTheSharedBlock()
     {
         var css = Read(@"src/MediaEngine.Web/wwwroot/app.css");
         var block = css[css.IndexOf("Shared 44px tap-target contract", StringComparison.Ordinal)..];
-        var rule = block[block.IndexOf(":root:root .app-breadcrumbs.settings-breadcrumbs a {", StringComparison.Ordinal)..];
-        rule = rule[..rule.IndexOf('}', StringComparison.Ordinal)];
 
-        Assert.Contains("min-width: var(--tl-tap-target-min);", rule, StringComparison.Ordinal);
-        Assert.Contains("min-height: var(--tl-tap-target-min);", rule, StringComparison.Ordinal);
-        Assert.Contains("justify-content: center;", rule, StringComparison.Ordinal);
-        // The base rule keeps the links inline-flex so the label is centred inside the target.
-        Assert.Contains(":root:root .settings-breadcrumbs a,", block, StringComparison.Ordinal);
+        Assert.Contains(":root:root .settings-frame__back,", block, StringComparison.Ordinal);
+        Assert.DoesNotContain("settings-breadcrumbs", css, StringComparison.Ordinal);
     }
 
     private static string Read(string relativePath) =>

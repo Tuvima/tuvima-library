@@ -3,7 +3,7 @@
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
-@* The one frame every Settings page sits in: administrator notices, breadcrumb, title and one-line description,
+@* The one frame every Settings page sits in: administrator notices, title and one-line description,
    an optional permanent page notice, optional in-page tabs, then the page content. Everything shares one left
    edge and one width, so pages never set their own outer width, margin or padding. *@
 <div class="settings-frame" data-settings-frame>
@@ -13,24 +13,15 @@
     }
 
     <div class="settings-frame__header" data-settings-frame-slot="header">
-        <AppBreadcrumbs Class="settings-breadcrumbs">
-            @for (var index = 0; index < Breadcrumbs.Count; index++)
-            {
-                var breadcrumb = Breadcrumbs[index];
-                if (index > 0)
-                {
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" aria-hidden="true" />
-                }
-                @if (!string.IsNullOrWhiteSpace(breadcrumb.Href))
-                {
-                    <a href="@breadcrumb.Href">@breadcrumb.Label</a>
-                }
-                else
-                {
-                    <span aria-current="page">@breadcrumb.Label</span>
-                }
-            }
-        </AppBreadcrumbs>
+        @if (!string.IsNullOrWhiteSpace(BackHref))
+        {
+            @* A page below a Settings page (one plugin, one person, one library folder) keeps one link back to its parent.
+               This is not a breadcrumb: the menu already says where you are (settings-alignment D1). *@
+            <a class="settings-frame__back" href="@BackHref" data-testid="settings-back-link">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronLeft" aria-hidden="true" />
+                <span>@BackLabel</span>
+            </a>
+        }
 
         <SidebarPageHeader Title="@Title" Subtitle="@Description" Actions="@_headerActions.Content" />
     </div>
@@ -72,7 +63,11 @@
     /// <summary>Administrator attention lines drawn above the breadcrumb. Nothing is drawn when null.</summary>
     [Parameter] public RenderFragment? Notices { get; set; }
 
-    [Parameter] public IReadOnlyList<SettingsBreadcrumb> Breadcrumbs { get; set; } = [];
+    /// <summary>For a page below a Settings page: where "back" goes. No back link is drawn when null.</summary>
+    [Parameter] public string? BackHref { get; set; }
+
+    /// <summary>The parent page's name, shown beside the back arrow.</summary>
+    [Parameter] public string? BackLabel { get; set; }
 
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
 

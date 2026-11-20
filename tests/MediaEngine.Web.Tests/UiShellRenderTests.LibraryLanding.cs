@@ -78,12 +78,7 @@ public sealed partial class UiShellRenderTests
 
         cut.WaitForAssertion(() =>
         {
-            var trail = cut.FindAll("nav.settings-breadcrumbs li, nav.settings-breadcrumbs > *")
-                .Select(item => item.TextContent.Trim())
-                .Where(text => text.Length > 0)
-                .Distinct()
-                .ToArray();
-            Assert.Equal(["Settings", "Server", "General", "Library activity"], trail);
+            Assert.Empty(cut.FindAll("nav.settings-breadcrumbs"));
             var links = cut.FindAll(".media-section-shell__tree-link");
             Assert.DoesNotContain(links, link => link.TextContent.Contains("Recently Added", StringComparison.Ordinal));
             Assert.DoesNotContain(links, link => link.TextContent.Contains("Activity", StringComparison.Ordinal));

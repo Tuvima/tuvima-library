@@ -3292,7 +3292,7 @@ button.app-menu-item {
     :root:root .shelf-header__link,
     :root:root .media-tile-shelf-link,
     :root:root .layout-shell__brand-link,
-    :root:root .settings-breadcrumbs a,
+    :root:root .settings-frame__back,
     :root:root .skip-to-content {
         display: inline-flex;
         align-items: center;
@@ -3304,14 +3304,6 @@ button.app-menu-item {
     :root:root .media-tile-shelf-link {
         min-width: var(--tl-tap-target-min);
         justify-content: flex-end;
-    }
-
-    /* Settings breadcrumb links: a short label such as "Profiles" is still a full 44 x 44 tap target. The extra class beats
-       the isolated rule's min-width: 0. */
-    :root:root .app-breadcrumbs.settings-breadcrumbs a {
-        min-width: var(--tl-tap-target-min);
-        min-height: var(--tl-tap-target-min);
-        justify-content: center;
     }
 
     /* Search overlay: the text field and each section's "See all" link. */

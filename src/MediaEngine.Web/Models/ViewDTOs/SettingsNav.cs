@@ -391,7 +391,7 @@ public static class SettingsNav
         [
             Page("General", AppMaterialIcons.Outlined.Settings, SettingsSection.General,
             [
-                Tab("General", AppMaterialIcons.Outlined.Settings, SettingsSection.General),
+                Tab("Name and address", AppMaterialIcons.Outlined.Settings, SettingsSection.General),
                 Tab("Notifications", AppMaterialIcons.Outlined.Mail, SettingsSection.General, NotificationsSubsection),
                 Tab("Library activity", AppMaterialIcons.Outlined.History, SettingsSection.General, LibraryActivitySubsection),
                 Tab("Playing now", AppMaterialIcons.Outlined.PlayCircle, SettingsSection.General, PlayingNowSubsection),
@@ -419,7 +419,7 @@ public static class SettingsNav
             Page("Integrations", AppMaterialIcons.Outlined.Link, SettingsSection.Integrations),
             Page("Backups", AppMaterialIcons.Outlined.Backup, SettingsSection.Backups,
             [
-                Tab("Backups", AppMaterialIcons.Outlined.Backup, SettingsSection.Backups),
+                Tab("Back up and restore", AppMaterialIcons.Outlined.Backup, SettingsSection.Backups),
                 Tab("Destinations", AppMaterialIcons.Outlined.Storage, SettingsSection.Backups, DestinationsSubsection),
                 AdvancedTab(SettingsSection.Backups),
             ]),

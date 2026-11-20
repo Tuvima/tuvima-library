@@ -8634,7 +8634,7 @@
     <value>Working</value>
   </data>
   <data name="SettingsLibrariesTabs_Libraries" xml:space="preserve">
-    <value>Libraries</value>
+    <value>Libraries list</value>
   </data>
   <data name="SettingsLibrariesTabs_NeedsReview" xml:space="preserve">
     <value>Needs Review</value>
@@ -15322,5 +15322,11 @@
   </data>
   <data name="MediaBrowseShell_NoPlaylistsMessage" xml:space="preserve">
     <value>Create a playlist or smart playlist to organize music for later.</value>
+  </data>
+  <data name="SettingsSaveBar_SaveChanges" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="SettingsSaveBar_Saving" xml:space="preserve">
+    <value>Saving…</value>
   </data>
 </root>
