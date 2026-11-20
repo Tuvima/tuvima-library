@@ -124,7 +124,7 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
                 Items = [Item("Movie", "X", 10, 1, MediaTileShape.Landscape)],
             }));
             var link = cut.Find("a.media-tile-shelf-link");
-            Assert.Equal("See All", link.TextContent.Trim());
+            Assert.Equal("View all", link.TextContent.Trim());
             Assert.Equal($"/{title.ToLowerInvariant()}", link.GetAttribute("href"));
             // The header is title then link, so the link sits on the right of the title.
             var header = cut.Find(".media-tile-shelf-header");

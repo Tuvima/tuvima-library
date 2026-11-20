@@ -3052,7 +3052,7 @@ button.app-menu-item {
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-chrome__bottom { bottom: max(6px, var(--tl-safe-area-bottom)); gap: 0; }
     .video-playback-host.is-expanded .playback-seek-rail--video { gap: 4px; }
 }
-@media (max-width: 720px){
+@media (max-width: 600px){
     .playback-panel .playback-context-tabs { gap: 4px; padding: 4px; border: 0; background: var(--playback-surface-hover); border-radius: 8px; }
     .playback-panel .playback-context-tabs [role="tab"] { flex: 1; border: 0; border-radius: 6px; }
     .playback-panel .playback-context-tabs [role="tab"][aria-selected="true"] { background: var(--playback-accent-soft); color: var(--playback-text); }
@@ -3254,6 +3254,13 @@ button.app-menu-item {
         min-height: var(--tl-tap-target-min);
     }
 
+    /* The general rule (Look v3.2 D2): every pressable thing gets the minimum touch box, so a new button needs no entry in the list above.
+       The list above stays for anchors and widgets that are not buttons. Hidden-from-view helpers are skipped. */
+    :root:root :where(button, summary, select, [role="button"], [role="switch"], [role="checkbox"], [role="radio"]):not(.sr-only, .visually-hidden) {
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+    }
+
     /* A tooltip on something that cannot take focus itself (an info icon, a status symbol, a disabled button) makes its holder
        focusable so keyboard users can read it (playback-tooltip.js). That holder is then a target too, so it gets the full
        44 x 44 box with the icon centred. */
@@ -3291,6 +3298,7 @@ button.app-menu-item {
 
     :root:root .shelf-header__link,
     :root:root .media-tile-shelf-link,
+    :root:root .recent-view-all,
     :root:root .layout-shell__brand-link,
     :root:root .settings-frame__back,
     :root:root .skip-to-content {
@@ -4223,7 +4231,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 @media (prefers-reduced-motion: reduce){
     .tl-enrichment-pending { animation: none; }
 }
-@media (max-width: 720px){
+@media (max-width: 600px){
     .playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__appbar,
     .playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__intent-dock {
         display: none !important;

@@ -191,7 +191,7 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
         Assert.Equal(2, cut.FindAll(".recent-item--settling").Count);
         var heading = cut.Find(".recent-feed-heading");
         Assert.Equal("H2", heading.Children[0].TagName);
-        Assert.Equal("See All", cut.Find(".recent-view-all").TextContent.Trim());
+        Assert.Equal("View all", cut.Find(".recent-view-all").TextContent.Trim());
     }
 
     [Fact]

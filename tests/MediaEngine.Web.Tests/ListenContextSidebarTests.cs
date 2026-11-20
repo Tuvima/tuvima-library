@@ -277,7 +277,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Single(cut.FindAll("button[aria-label='Add song to Favorites']"));
         Assert.Single(cut.FindAll("button[aria-label='More song actions']"));
         await cut.Find("button[aria-label='Open Now Playing']").ClickAsync();
-        // A desktop-width bar opens the Now playing page (unified player v2 D24); the phone's expanded player is covered by the 720 px boundary test.
+        // A desktop-width bar opens the Now playing page (unified player v2 D24); the phone's expanded player is covered by the 600 px boundary test.
         Assert.Equal(request, playback.PlaybackRequestVersion);
         Assert.Equal(NowPlayingRoute.Path, new Uri(Services.GetRequiredService<NavigationManager>().Uri).AbsolutePath);
         Assert.Equal(PlaybackPresentationSurface.Docked, playback.PresentationSurface);
@@ -287,10 +287,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     [Theory]
     [InlineData(840, false)]
     [InlineData(835, false)]
-    [InlineData(721, false)]
-    [InlineData(720, true)]
+    [InlineData(600, false)]
+    [InlineData(599, true)]
     [InlineData(390, true)]
-    public async Task AudioPlayerUses720BoundaryEvenWhenNavigationClassifiesTheTabletAsMobile(int width, bool phone)
+    public async Task AudioPlayerUses600BoundaryEvenWhenNavigationClassifiesTheTabletAsMobile(int width, bool phone)
     {
         var api = EngineApiClientStub.CreateDefault();
         var bookAsset = Guid.NewGuid();

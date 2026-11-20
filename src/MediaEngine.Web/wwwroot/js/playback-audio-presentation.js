@@ -2,7 +2,7 @@
 const observers = new Map();
 export function attach(id, owner) {
     if (!id || !owner || observers.has(id)) return;
-    const query = window.matchMedia('(max-width:720px)');
+    const query = window.matchMedia('(max-width:600px)');
     const changed = () => owner.invokeMethodAsync('SetAudioPresentationViewport', window.innerWidth).catch(() => {});
     query.addEventListener('change', changed);
     observers.set(id, { query, changed });

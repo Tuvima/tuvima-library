@@ -540,6 +540,16 @@ html[data-form-factor="phone"] .playback-app-frame ::deep .layout-shell__appbar 
     column-gap: 4px;
 }
 
+/* A phone page without section chips (everything except Home and the five areas) has the app bar alone above its content (Look v3.2 D4). */
+html[data-form-factor="phone"] .playback-app-frame--no-chips {
+    --tl-phone-chips-height: 0px;
+    --app-topbar-height: var(--tl-appbar-row-height);
+}
+
+html[data-form-factor="phone"] .playback-app-frame--no-chips ::deep .layout-shell__appbar .tl-toolbar {
+    grid-template-rows: var(--tl-appbar-row-height);
+}
+
 html[data-form-factor="phone"] .layout-shell__desktop-nav {
     display: none;
 }

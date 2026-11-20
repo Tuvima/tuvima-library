@@ -2,3 +2,11 @@
 .app-list-page-header__title { margin: 0; font-size: var(--tl-type-page-title-size); }
 .app-list-page-header__subtitle { margin: 4px 0 0; color: var(--tl-text-muted); }
 .app-list-page-header--actions-only { justify-content: flex-end; }
+/* One page action row (Look v3.2 D7): the main action first, the others after it at the same height; on a phone it stays one row and scrolls sideways. */
+.app-list-page-header__actions { display: flex; align-items: center; gap: 8px; }
+.app-list-page-header__actions > * { min-height: var(--tl-control-height-touch); }
+
+@media (max-width: 600px) {
+    .app-list-page-header__actions { flex-wrap: nowrap; width: 100%; overflow-x: auto; scrollbar-width: none; }
+    .app-list-page-header__actions > * { flex: 0 0 auto; }
+}

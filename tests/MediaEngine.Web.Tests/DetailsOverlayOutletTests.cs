@@ -122,7 +122,7 @@ public sealed class DetailsOverlayOutletTests : AsyncBunitContext
         var layout = File.ReadAllText(Path.Combine(FindWebRoot(), "Shared", "MainLayout.razor")).Replace("\r\n", "\n");
 
         Assert.Contains("@implements IDetailsOverlayOutletLayout", layout, StringComparison.Ordinal);
-        var frame = layout.IndexOf("<div class=\"playback-app-frame\">", StringComparison.Ordinal);
+        var frame = layout.IndexOf("<div class=\"@(IsPhoneShell && !ShowPhoneSectionChips ? \"playback-app-frame playback-app-frame--no-chips\" : \"playback-app-frame\")\">", StringComparison.Ordinal);
         var content = layout.IndexOf("<div class=\"playback-app-frame__content ", StringComparison.Ordinal);
         var layoutEnd = layout.IndexOf("</AppLayout>", StringComparison.Ordinal);
         var outlet = layout.IndexOf("<DetailsOverlayOutlet />", StringComparison.Ordinal);
