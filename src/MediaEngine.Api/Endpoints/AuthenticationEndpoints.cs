@@ -2,6 +2,7 @@ using System.Net.Mail;
 using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Notifications;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Authentication;
@@ -80,7 +81,7 @@ public static class AuthenticationEndpoints
         .RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/login", async (LocalLoginRequest request, IFirstPartyIdentityService identity,
-            DashboardAuthorityProjector projector, CancellationToken ct) =>
+            DashboardAuthorityProjector projector, [FromServices] SignInWatcher? watcher, CancellationToken ct) =>
         {
             var result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
                 request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.ParseCurrentKeepingEvidence(request.OriginalClientIngress)).ConfigureAwait(false);
@@ -96,12 +97,21 @@ public static class AuthenticationEndpoints
                 return Results.Accepted(value: new TwoStepRequiredResponse(true, result.TwoStepToken!));
             }
 
-            return result.Succeeded && result.IssuedSession is not null
-                ? Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct))
-                : ApiErrors.Problem(
-                    StatusCodes.Status401Unauthorized,
-                    "Authentication failed.",
-                    result.LockedOut ? "The credential is temporarily locked." : result.Error ?? "Invalid credentials.");
+            if (result.Succeeded && result.IssuedSession is not null)
+            {
+                if (watcher is not null)
+                {
+                    await watcher.SucceededAsync(result.IssuedSession, ct);
+                }
+
+                return Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct));
+            }
+
+            watcher?.Failed(request.Email);
+            return ApiErrors.Problem(
+                StatusCodes.Status401Unauthorized,
+                "Authentication failed.",
+                result.LockedOut ? "The credential is temporarily locked." : result.Error ?? "Invalid credentials.");
         })
         .Produces<AuthSessionResponse>()
         .Produces<TwoStepRequiredResponse>(StatusCodes.Status202Accepted)
@@ -116,7 +126,7 @@ public static class AuthenticationEndpoints
         // plus a code from the authenticator app (or a recovery code). The token works once, for five minutes, and only
         // from the kind of connection (home or outside) that entered the password.
         group.MapPost("/two-step/verify", async (CompleteTwoStepSignInRequest request, IFirstPartyIdentityService identity,
-            DashboardAuthorityProjector projector, CancellationToken ct) =>
+            DashboardAuthorityProjector projector, [FromServices] SignInWatcher? watcher, CancellationToken ct) =>
         {
             var result = await identity.CompleteTwoStepSignInAsync(request.PendingToken, request.Code, ct,
                 ClientIngress.ParseCurrentKeepingEvidence(request.OriginalClientIngress)).ConfigureAwait(false);
@@ -126,12 +136,20 @@ public static class AuthenticationEndpoints
                 return OutsideRefusal(refusalCode, result.Error!);
             }
 
-            return result.Succeeded && result.IssuedSession is not null
-                ? Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct))
-                : ApiErrors.Problem(
-                    StatusCodes.Status401Unauthorized,
-                    "Authentication failed.",
-                    result.LockedOut ? "The credential is temporarily locked." : result.Error ?? "Invalid code.");
+            if (result.Succeeded && result.IssuedSession is not null)
+            {
+                if (watcher is not null)
+                {
+                    await watcher.SucceededAsync(result.IssuedSession, ct);
+                }
+
+                return Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct));
+            }
+
+            return ApiErrors.Problem(
+                StatusCodes.Status401Unauthorized,
+                "Authentication failed.",
+                result.LockedOut ? "The credential is temporarily locked." : result.Error ?? "Invalid code.");
         })
         .WithName("CompleteTwoStepSignIn")
         .Produces<AuthSessionResponse>()

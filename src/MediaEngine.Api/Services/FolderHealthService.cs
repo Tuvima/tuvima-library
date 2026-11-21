@@ -19,20 +19,24 @@ public sealed class FolderHealthService : BackgroundService
     private readonly IOptionsMonitor<IngestionOptions> _options;
     private readonly IEventPublisher _publisher;
     private readonly ILogger<FolderHealthService> _logger;
+    private readonly INotificationPublisher _notifications;
     private readonly int _intervalSeconds;
 
     /// <summary>
     /// In-memory cache of the last-known health state per folder path.
     /// Only paths that change status trigger a SignalR broadcast.
     /// </summary>
+    private readonly HashSet<string> _seenAccessible = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, FolderState> _lastState = new(StringComparer.OrdinalIgnoreCase);
 
     public FolderHealthService(
         IOptionsMonitor<IngestionOptions> options,
         IEventPublisher publisher,
         IConfiguration config,
-        ILogger<FolderHealthService> logger)
+        ILogger<FolderHealthService> logger,
+        INotificationPublisher? notifications = null)
     {
+        _notifications = notifications ?? NullNotificationPublisher.Instance;
         _options = options;
         _publisher = publisher;
         _logger = logger;
@@ -90,7 +94,22 @@ public sealed class FolderHealthService : BackgroundService
             return;
         }
 
+        var wasAccessible = previous == default || previous.IsAccessible;
         _lastState[path] = current;
+
+        // Only a folder that was reachable and no longer is counts; the first look at start-up is not news.
+        if (!current.IsAccessible && wasAccessible && _lastState.Count > 0 && _seenAccessible.Contains(path))
+        {
+            _notifications.Publish(new NotificationRequest(
+                NotificationEventIds.LibraryDriveOffline,
+                Path.GetFileName(Path.TrimEndingDirectorySeparator(path)),
+                "A folder the Library reads from stopped answering. If it is on an external or network drive, check that it is plugged in and awake."));
+        }
+
+        if (current.IsAccessible)
+        {
+            _seenAccessible.Add(path);
+        }
 
         _logger.LogDebug(
             "FolderHealthChanged: {Path} → Accessible={Accessible} Read={Read} Write={Write}",

@@ -113,7 +113,7 @@ public sealed partial class SettingsSaveRuleGuardrailTests
 
         // The maintenance, backup and quiet-hours times are the native picker, which shows the region's 12 or 24-hour clock.
         Assert.Equal(1, TimePickers("BackupSchedulePanel.razor"));
-        Assert.Equal(2, TimePickers("NotificationsPanel.razor"));
+        Assert.Equal(3, TimePickers("NotificationsPanel.razor"));
         Assert.Equal(2, TimePickers("EncodeSettingsTab.razor"));
     }
 

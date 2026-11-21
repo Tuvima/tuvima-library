@@ -46,12 +46,13 @@ public sealed class ApplicationEventAcceptanceTests
             // Shared with notification routes (one event list): raised by the notification service.
             "account.invited", "backup.completed", "backup.failed", "disk.low", "plugin.broken", "plugin.update_available",
             "recycle_bin.keep_requested", "recycle_bin.leaving_soon", "review.waiting", "tool.missing",
+            "account.new_device", "security.failed_sign_ins", "library.drive_offline", "library.update_available", "encode.failed_repeatedly",
         };
 
         Assert.Equal(expected.Concat(new[] { "playback.started", "playback.paused", "playback.stopped", "playback.completed" })
             .Order(StringComparer.Ordinal), registry.ListAvailableTypes());
         Assert.Equal(4, registry.ListAvailableTypes().Count(value => value.StartsWith("playback.", StringComparison.Ordinal)));
-        Assert.Equal(27, registry.GetAll().Count);
+        Assert.Equal(32, registry.GetAll().Count);
     }
 
     [Fact]

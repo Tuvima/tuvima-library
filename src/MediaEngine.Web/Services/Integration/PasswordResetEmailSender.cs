@@ -5,17 +5,21 @@ using MediaEngine.Web.Services.Configuration;
 namespace MediaEngine.Web.Services.Integration;
 
 public sealed class PasswordResetEmailSender(
-    PasswordResetDeliverySettings settings,
     DashboardConfigurationReader configuration,
     ILogger<PasswordResetEmailSender> logger)
 {
     // Read on every use so a changed public address applies without restarting the Dashboard.
     private string PublicAddressValue => configuration.LoadNetwork().Remote.PublicHostname?.Trim() ?? string.Empty;
 
-    public bool IsConfigured => settings.Mode.Equals("Smtp", StringComparison.OrdinalIgnoreCase)
-        && !string.IsNullOrWhiteSpace(settings.SmtpHost)
-        && !string.IsNullOrWhiteSpace(settings.FromAddress)
+    // The mail server is set up from Settings > Notifications while the Library runs, so it is read on every use too.
+    private PasswordResetDeliverySettings Settings => configuration.LoadCore().Auth.PasswordReset;
+
+    public bool IsConfigured => IsServerConfigured(Settings)
         && PublicAddress.IsValid(PublicAddressValue);
+
+    private static bool IsServerConfigured(PasswordResetDeliverySettings settings) => settings.Mode.Equals("Smtp", StringComparison.OrdinalIgnoreCase)
+        && !string.IsNullOrWhiteSpace(settings.SmtpHost)
+        && !string.IsNullOrWhiteSpace(settings.FromAddress);
 
     public async Task<bool> SendAsync(string email, string token, CancellationToken ct)
     {
@@ -46,7 +50,7 @@ public sealed class PasswordResetEmailSender(
             return false;
         }
 
-        var result = await SmtpMailSender.SendAsync(settings, email, subject, body, ct).ConfigureAwait(false);
+        var result = await SmtpMailSender.SendAsync(Settings, email, subject, body, ct).ConfigureAwait(false);
         if (!result.Success)
         {
             logger.LogError("Password reset email delivery failed: {Reason}", result.Error);

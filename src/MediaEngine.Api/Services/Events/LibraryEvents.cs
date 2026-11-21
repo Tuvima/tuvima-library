@@ -5,7 +5,8 @@ using MediaEngine.Domain.Contracts;
 namespace MediaEngine.Api.Services.Events;
 
 /// <summary>How an event is offered as a notification: the generic line, what the routing setting is for, and where it goes until changed.</summary>
-internal sealed record LibraryEventNotification(string Title, string Description, bool AdminOnly, IReadOnlyList<string> DefaultChannels);
+/// <param name="Quiet">A calm, nothing-is-wrong kind of event that the optional daily summary may batch into one message.</param>
+internal sealed record LibraryEventNotification(string Title, string Description, bool AdminOnly, IReadOnlyList<string> DefaultChannels, bool Quiet = false);
 
 /// <summary>
 /// One event the Library can tell the outside about. <see cref="Notification"/> is set when administrators can also route it as
@@ -56,21 +57,31 @@ internal static class LibraryEvents
         new(NotificationEventIds.BackupFailed, ApplicationPermissionIds.SystemStatusRead, false,
             Notification: new("A backup did not finish", "A backup could not be written.", true, InboxAndEmail), PublishedByNotifications: true),
         new(NotificationEventIds.BackupCompleted, ApplicationPermissionIds.SystemStatusRead, false,
-            Notification: new("A backup finished", "A backup was written successfully.", true, Nowhere), PublishedByNotifications: true),
+            Notification: new("A backup finished", "A backup was written successfully.", true, Nowhere, Quiet: true), PublishedByNotifications: true),
         new(NotificationEventIds.ToolMissing, ApplicationPermissionIds.SystemStatusRead, false,
             Notification: new("A tool the Library needs is missing", "FFmpeg or another required tool is not ready, so some files are waiting.", true, InboxAndEmail), PublishedByNotifications: true),
         new(NotificationEventIds.PluginBroken, ApplicationPermissionIds.SystemStatusRead, false,
             Notification: new("A plugin stopped working", "A plugin has a problem that stops it doing its job.", true, InboxAndEmail), PublishedByNotifications: true),
         new(NotificationEventIds.PluginUpdateAvailable, ApplicationPermissionIds.SystemStatusRead, false,
-            Notification: new("A plugin update is available", "A newer version of an installed plugin is in the plugin directory.", true, InboxOnly), PublishedByNotifications: true),
+            Notification: new("A plugin update is available", "A newer version of an installed plugin is in the plugin directory.", true, InboxOnly, Quiet: true), PublishedByNotifications: true),
         new(NotificationEventIds.DiskLow, ApplicationPermissionIds.SystemStatusRead, false,
             Notification: new("Storage is running low", "A drive the Library uses is nearly full.", true, InboxAndEmail), PublishedByNotifications: true),
         new(NotificationEventIds.ReviewWaiting, ApplicationPermissionIds.ReviewRead, false,
-            Notification: new("Items are waiting in Needs Review", "The Library was not sure about some items and wants a person to look.", true, InboxOnly), PublishedByNotifications: true),
+            Notification: new("Items are waiting in Needs Review", "The Library was not sure about some items and wants a person to look.", true, InboxOnly, Quiet: true), PublishedByNotifications: true),
         new(NotificationEventIds.RecycleBinKeepRequested, ApplicationPermissionIds.SystemStatusRead, false,
             Notification: new("Someone asked to keep a deleted item", "A person asked for an item in the Recycle bin to be put back.", true, InboxOnly), PublishedByNotifications: true),
         new(NotificationEventIds.RecycleBinLeavingSoon, ApplicationPermissionIds.SystemStatusRead, false,
-            Notification: new("Items are about to leave the Recycle bin", "Some deleted items will be removed for good within days unless they are put back.", true, InboxOnly), PublishedByNotifications: true),
+            Notification: new("Items are about to leave the Recycle bin", "Some deleted items will be removed for good within days unless they are put back.", true, InboxOnly, Quiet: true), PublishedByNotifications: true),
+        new(NotificationEventIds.AccountNewDevice, ApplicationPermissionIds.SystemStatusRead, false,
+            Notification: new("A new device signed in", "Someone signed in to an account from a device that account had not used before.", true, InboxOnly), PublishedByNotifications: true),
+        new(NotificationEventIds.SecurityFailedSignIns, ApplicationPermissionIds.SystemStatusRead, false,
+            Notification: new("Several sign-ins failed in a row", "A run of failed sign-in attempts, which may be a mistyped password or someone guessing.", true, InboxOnly), PublishedByNotifications: true),
+        new(NotificationEventIds.LibraryDriveOffline, ApplicationPermissionIds.SystemStatusRead, false,
+            Notification: new("A library drive went offline", "A folder the Library reads from stopped answering, such as an unplugged or sleeping drive.", true, InboxOnly), PublishedByNotifications: true),
+        new(NotificationEventIds.LibraryUpdateAvailable, ApplicationPermissionIds.SystemStatusRead, false,
+            Notification: new("A Library update is available", "A newer version of Library is ready to install.", true, InboxOnly, Quiet: true), PublishedByNotifications: true),
+        new(NotificationEventIds.EncodeFailedRepeatedly, ApplicationPermissionIds.SystemStatusRead, false,
+            Notification: new("Video preparing keeps failing", "Several videos in a row could not be prepared for playback.", true, InboxOnly), PublishedByNotifications: true),
         new(NotificationEventIds.AccountInvited, ApplicationPermissionIds.SystemStatusRead, false,
             Notification: new("Someone was invited", "An invitation to join this Library was created.", true, Nowhere), PublishedByNotifications: true),
     ];

@@ -148,3 +148,15 @@
 .notifications-page__channel--needs_attention {
     border-color: var(--tl-status-warning);
 }
+
+.notifications-page__leaves {
+    color: var(--tl-text-muted);
+}
+
+.notifications-page__channel-details {
+    flex: 1 0 100%;
+}
+
+.notifications-page__add {
+    margin-top: 12px;
+}

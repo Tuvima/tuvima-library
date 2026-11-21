@@ -1,0 +1,32 @@
+{
+  "id": "gotify",
+  "name": "Gotify",
+  "order": 70,
+  "cost": "Free",
+  "effort": "Needs your own Gotify server",
+  "summary": "Free · your own server · Android",
+  "help": "Create an application in your Gotify server and copy its token.",
+  "what_leaves": "The alert text goes to your own Gotify server and stays there. It reaches phones only if you run Gotify where they can reach it.",
+  "fields": [
+    {
+      "key": "server",
+      "label": "Server address",
+      "kind": "url",
+      "required": true,
+      "placeholder": "http://192.168.1.10:8080"
+    },
+    {
+      "key": "app_token",
+      "label": "Application token",
+      "kind": "token",
+      "secret": true,
+      "required": true
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "{server}/message?token={app_token}",
+    "content_type": "application/json",
+    "body": "{\"title\":\"{title}\",\"message\":\"{body}\",\"priority\":5}"
+  }
+}

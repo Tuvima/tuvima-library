@@ -1,0 +1,97 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Notifications and delivery (Draft mock-ups)</title>
+<style>
+:root{--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--menu:#2F3039;--text:#F2F2F5;--mute:#9EA4BC;--acc:#8852FC;--line:#2a2b33;--ok:#4CC38A;--bad:#E5484D;--warn:#E8A317}
+*{box-sizing:border-box}body{margin:0;background:#0a0b0e;color:var(--text);font:14px/1.4 system-ui,sans-serif;padding:24px}
+h1{font-size:20px}h2{font-size:15px;margin:36px 0 8px;color:var(--mute);font-weight:600}
+.row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.desk{width:880px;background:var(--page);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+.phone{width:340px;background:var(--page);border:1px solid var(--line);border-radius:22px;overflow:hidden;position:relative;min-height:600px}
+.top{background:var(--nav);padding:12px 16px;display:flex;gap:18px;color:var(--mute);border-bottom:1px solid var(--line)}.top b{color:var(--text)}
+.body{display:flex}.rail{width:190px;background:var(--nav);padding:12px 8px;border-right:1px solid var(--line)}
+.rail div{min-height:44px;display:flex;align-items:center;padding:0 10px;border-radius:8px;color:var(--mute)}.rail .on{background:var(--hover);color:var(--text)}
+.main{flex:1;padding:18px;position:relative}.phone .main{padding:14px}
+.grp{background:var(--card);border-radius:10px;padding:14px;margin-bottom:14px;position:relative}
+.grp h3{margin:0 0 2px;font-size:15px}.grp p{margin:0 0 10px;color:var(--mute);font-size:13px}
+.ch{min-height:56px;display:flex;align-items:center;gap:12px;padding:6px 10px;border-radius:8px;background:var(--page);margin-top:8px;position:relative}
+.ch .t{flex:1}.ch .t small{display:block;color:var(--mute)}
+.btn{min-height:44px;padding:0 16px;border-radius:8px;background:var(--hover);display:inline-flex;align-items:center;color:var(--text);white-space:nowrap}
+.btn.p{background:var(--acc)}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.field{margin:10px 0}.field label{display:block;color:var(--mute);font-size:12px;margin-bottom:4px}.field .in{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--page);display:flex;align-items:center;padding:0 12px;color:var(--text)}
+.two{display:grid;grid-template-columns:2fr 1fr;gap:12px}.pill{display:inline-flex;min-height:44px;align-items:center;padding:0 16px;background:var(--page);border:1px solid var(--line);margin-right:8px;color:var(--mute)}.pill.on{border-color:var(--acc);color:var(--text)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.phone .tiles{grid-template-columns:1fr}
+.tile{background:var(--page);border:1px solid var(--line);border-radius:10px;padding:12px;position:relative;min-height:96px}.tile b{display:block}.tile span{color:var(--mute);font-size:12px}
+.note{border-left:3px solid var(--acc);background:var(--page);padding:8px 12px;border-radius:6px;color:var(--mute);font-size:13px;margin-top:10px}
+.n{position:absolute;width:22px;height:22px;border-radius:50%;background:#E8A317;color:#000;font-weight:700;font-size:12px;display:grid;place-items:center;z-index:5}
+.key{max-width:900px;color:var(--mute)}.key li{margin:4px 0}.key b{color:var(--text)}
+.sw{width:40px;height:22px;border-radius:11px;background:var(--acc);position:relative}.sw::after{content:"";position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff}.sw.off{background:var(--hover)}.sw.off::after{right:auto;left:3px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mute);font-weight:600}td.c,th.c{text-align:center;width:90px}
+</style></head><body>
+<h1>Notifications and delivery: Draft mock-ups (question range 180-189). Dark only</h1>
+<p class="key">Built from the real Settings &gt; Notifications page (Channels, What goes where, Quiet hours, Privacy, Inbox) with 44 px controls. The orange markers match the key under each mock-up. Icons are drawn as plain words here.</p>
+
+<h2>A. Desktop: the Channels group with the new "Add a channel" button</h2>
+<div class="desk"><div class="top"><b>Settings</b><span>Notifications</span></div><div class="body"><div class="rail"><div>General</div><div class="on">Notifications</div><div>Network</div><div>Security</div></div>
+<div class="main"><div class="grp"><h3>Channels</h3><p>Ways a message can reach you.</p>
+<div class="ch"><div class="t"><b>Dashboard inbox</b><small>Working. Always on.</small></div></div>
+<div class="ch"><div class="t"><b>Email</b><small class="ok">Working · last sent 2 hours ago · to 2 administrators</small></div><span class="btn">Edit</span><span class="btn">Send test</span><span class="n" style="left:-10px;top:-8px">1</span></div>
+<div class="ch"><div class="t"><b>Phone alerts (ntfy)</b><small class="warn">Switched off after repeated failures</small></div><span class="btn">Turn back on</span><span class="btn">Edit</span><span class="btn">Send test</span><span class="n" style="left:-10px;top:-8px">2</span></div>
+<div class="ch"><div class="t"><b>Family Discord</b><small class="ok">Working · titles only</small></div><span class="btn">Edit</span><span class="btn">Send test</span></div>
+<div style="margin-top:12px"><span class="btn p">Add a channel<span class="n" style="right:-8px;top:-8px">3</span></span></div></div>
+<div class="grp"><h3>What goes where</h3><p>One row per kind of event. Tick a channel to hear about it there.</p><table><tr><th>Event</th><th class="c">Inbox</th><th class="c">Email</th><th class="c">Phone</th><th class="c">Discord</th></tr>
+<tr><td>A backup did not finish</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td class="c"></td></tr><tr><td>Storage is running low</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td class="c"></td></tr><tr><td>New device signed in <span class="n" style="position:relative;display:inline-grid;margin-left:6px">4</span></td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td><td class="c"></td></tr></table></div></div></div></div>
+<ol class="key"><li><b>1</b> Every channel shows one line of real state: Working, Not set up, or Needs attention, plus last sent. New: how many people it reaches. Edit opens the same setup form as Add.</li>
+<li><b>2</b> A channel that failed five times in a row stays switched off (existing rule), now with a plain reason from the last error ("the server refused the password").</li>
+<li><b>3</b> New. One button opens the picker (mock B). Today a channel exists only if a plugin file was installed by hand.</li>
+<li><b>4</b> New events from the plan (security, drive offline, Library update) appear in the same table, inbox only until the person ticks more.</li></ol>
+
+<h2>B. Add a channel: the picker (desktop and phone)</h2>
+<div class="row"><div class="desk" style="width:620px"><div class="main"><div class="grp"><h3>Add a channel</h3><p>Pick where messages should go. You can add as many as you like.</p>
+<div class="tiles">
+<div class="tile"><b>Email</b><span>Free · any mail account · password reset uses it too</span><span class="n" style="right:-8px;top:-8px">5</span></div>
+<div class="tile"><b>Phone alerts (ntfy)</b><span>Free · app for iPhone and Android · can run on your own server</span></div>
+<div class="tile"><b>Discord</b><span>Free · a channel in your own server · just paste a link</span></div>
+<div class="tile"><b>Telegram</b><span>Free · a private bot chat</span></div>
+<div class="tile"><b>Pushover</b><span>One-time fee per phone · very reliable</span></div>
+<div class="tile"><b>Slack or Teams</b><span>Free · paste a link</span></div>
+<div class="tile"><b>Gotify</b><span>Free · your own server · Android</span></div>
+<div class="tile"><b>Web address (webhook)</b><span>Send to Home Assistant, n8n and other tools</span></div>
+<div class="tile"><b>Other services (Apprise)</b><span>Advanced · 100+ services through a gateway you run</span><span class="n" style="right:-8px;top:-8px">6</span></div></div></div></div></div>
+<div class="phone"><div class="top"><b>Settings › Notifications</b></div><div class="main"><div class="grp"><h3>Add a channel</h3>
+<div class="tiles"><div class="tile"><b>Email</b><span>Free · any mail account</span></div><div class="tile"><b>Phone alerts (ntfy)</b><span>Free · iPhone and Android</span></div><div class="tile"><b>Discord</b><span>Free · paste a link</span></div><div class="tile"><b>More…</b><span>Telegram, Pushover, Slack, Gotify, web address</span></div></div></div></div></div></div>
+<ol class="key"><li><b>5</b> Each tile says in words what it costs and what it needs. Cost and effort are the two things people ask first. Same tiles, one column on a phone, with the less common ones behind More.</li>
+<li><b>6</b> Apprise is a free helper program people run themselves; it is the one door to everything else (SMS, Matrix, Signal bridges). Hidden under Advanced if Shy chooses so (Q183).</li></ol>
+
+<h2>C. Email setup form (new; today this lives only in a config file)</h2>
+<div class="row"><div class="desk" style="width:620px"><div class="main"><div class="grp"><h3>Email</h3><p>Library signs in to your mail account to send. Used for notifications and password reset.</p>
+<div class="field"><label>Mail provider</label><div><span class="pill on">Gmail<span class="n" style="position:relative;display:inline-grid;margin-left:6px">7</span></span><span class="pill">Outlook</span><span class="pill">iCloud</span><span class="pill">Fastmail</span><span class="pill">Other</span></div></div>
+<div class="two"><div class="field"><label>Server</label><div class="in">smtp.gmail.com</div></div><div class="field"><label>Port</label><div class="in">587</div></div></div>
+<div class="field"><label>Security</label><div><span class="pill on">STARTTLS</span><span class="pill">SSL</span></div></div>
+<div class="field"><label>Username</label><div class="in">you@gmail.com</div></div>
+<div class="field"><label>Password or app password</label><div class="in">••••••••••••••••<span class="n" style="right:-8px;top:-8px">8</span></div></div>
+<div class="note">Gmail needs an app password, not your normal one. <u>How to make one</u> (opens in a small help sheet)</div>
+<div class="two"><div class="field"><label>Send as (name)</label><div class="in">Library</div></div><div class="field"><label>From address</label><div class="in">you@gmail.com</div></div></div>
+<div style="margin-top:12px"><span class="btn p">Send test to me<span class="n" style="right:-8px;top:-8px">9</span></span> <span class="btn">Save</span></div>
+<div class="ok" style="margin-top:10px">Test sent to you@gmail.com. Check your inbox.</div></div></div></div>
+<div class="phone"><div class="top"><b>‹ Email</b></div><div class="main"><div class="grp"><div class="field"><label>Mail provider</label><div class="in">Gmail ▾</div></div><div class="field"><label>Username</label><div class="in">you@gmail.com</div></div><div class="field"><label>App password</label><div class="in">••••••••••</div></div><div class="note">Server, port and security are filled in for Gmail. <u>Change</u></div><div style="margin-top:12px"><span class="btn p" style="width:100%;justify-content:center">Send test to me</span></div></div></div></div></div>
+<ol class="key"><li><b>7</b> Picking a provider fills server, port and security so most people only type an address and a password. "Other" shows the fields by hand. On a phone the filled fields collapse behind Change.</li>
+<li><b>8</b> The password is written once and never shown again (a stored value reads "Saved"; typing replaces it). It lives in the Library's secrets store, not in the config file.</li>
+<li><b>9</b> Save is blocked until a test succeeds once, so a typo never reaches password reset day. Errors are plain: "Gmail refused the password" or "Could not reach smtp.gmail.com". No toast; the result sits under the button.</li></ol>
+
+<h2>D. Phone alerts (ntfy) and Discord: one field each</h2>
+<div class="row"><div class="desk" style="width:620px"><div class="main"><div class="grp"><h3>Phone alerts (ntfy)</h3><p>Install the free ntfy app, subscribe to a topic name, and Library sends alerts to it.</p>
+<div class="field"><label>Server</label><div><span class="pill on">ntfy.sh (free, public)</span><span class="pill">My own server</span></div></div>
+<div class="field"><label>Topic (keep it private: anyone who knows it can read it)</label><div class="in">library-a8f3k2x9q1 <span style="margin-left:auto;color:var(--mute)">Suggest a new one</span></div></div>
+<div class="note">What leaves your computer: the alert text. With ntfy.sh it passes through their servers (and Apple or Google to reach an iPhone or Android). Titles only unless you turn on details below.<span class="n" style="right:-8px;top:-8px">10</span></div>
+<div class="field"><label>Include details (titles of what you own or watch)</label><div class="sw off"></div><span class="n" style="position:relative;display:inline-grid;margin-left:6px">11</span></div>
+<div style="margin-top:12px"><span class="btn p">Send test</span> <span class="btn">Save</span></div></div></div></div>
+<div class="phone"><div class="top"><b>‹ Discord</b></div><div class="main"><div class="grp"><p>In Discord: channel settings › Integrations › Webhooks › Copy link. Paste it here.</p><div class="field"><label>Webhook link</label><div class="in">https://discord.com/api/webhooks/…</div></div><div class="field"><label>Name shown in Discord</label><div class="in">Library</div></div><div class="field"><label>Include details</label><div class="sw off"></div></div><div class="note">Everyone who can read that Discord channel will see the alerts.</div></div></div></div></div>
+<ol class="key"><li><b>10</b> Every channel type carries a one-line plain statement of what leaves the computer and who sees it, written once per type.</li>
+<li><b>11</b> New: "Include details" moves from one global switch to each channel (default off). A private email can carry titles while a shared Discord channel stays generic.</li></ol>
+
+<h2>E. Phone: What goes where, and the digest</h2>
+<div class="row"><div class="phone"><div class="top"><b>Settings › Notifications</b></div><div class="main"><div class="grp"><h3>A backup did not finish</h3><p>Where should this go?</p><div class="ch"><div class="t">Inbox</div><div class="sw"></div></div><div class="ch"><div class="t">Email</div><div class="sw"></div></div><div class="ch"><div class="t">Phone alerts</div><div class="sw"></div></div><div class="ch"><div class="t">Family Discord</div><div class="sw off"></div></div></div>
+<div class="grp"><h3>Daily summary<span class="n" style="right:-4px;top:-4px">12</span></h3><p>Send the quiet events once a day instead of one by one.</p><div class="ch"><div class="t">Send at</div><span class="btn">8:00 AM</span></div></div></div></div>
+<div class="phone"><div class="top"><b>Settings › Notifications</b></div><div class="main"><div class="grp"><h3>Email</h3><p class="bad">Needs attention</p><div class="note" style="border-color:var(--bad)">Gmail refused the password. Make a new app password and enter it again.</div><div style="margin-top:10px"><span class="btn p">Fix email</span></div></div><div class="grp"><h3>Channels with no one to reach</h3><p>No administrator has an email address, so Email cannot send. Phone alerts do not need one.<span class="n" style="right:-4px;top:-4px">13</span></p></div></div></div></div>
+<ol class="key"><li><b>12</b> Optional daily summary: events marked "quiet" (items waiting in Needs Review, plugin update, Recycle bin leaving soon) are batched into one message at a time the person picks.</li>
+<li><b>13</b> Fixes today's gap: a push channel needs no email address, so it must still send when no administrator has one.</li></ol>
+</body></html>

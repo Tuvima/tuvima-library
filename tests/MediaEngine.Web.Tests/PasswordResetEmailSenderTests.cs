@@ -20,7 +20,7 @@ public sealed class PasswordResetEmailSenderTests
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var conversation = ReceiveOneMessageAsync(listener, timeout.Token);
-        var sender = new PasswordResetEmailSender(new PasswordResetDeliverySettings
+        var sender = new PasswordResetEmailSender(Reader(configDirectory, "https://library.example.test", new PasswordResetDeliverySettings
         {
             Mode = "Smtp",
             SmtpHost = "127.0.0.1",
@@ -28,7 +28,7 @@ public sealed class PasswordResetEmailSenderTests
             FromAddress = "library@example.test",
             FromName = "Library",
             UseStartTls = false,
-        }, Reader(configDirectory, "https://library.example.test"), NullLogger<PasswordResetEmailSender>.Instance);
+        }), NullLogger<PasswordResetEmailSender>.Instance);
 
         var identity = new DashboardIdentityClient(new AccountClientFactory("owner@example.test"));
         var sent = await DashboardAuthenticationEndpoints.SendCurrentAccountTestEmailAsync(
@@ -51,14 +51,14 @@ public sealed class PasswordResetEmailSenderTests
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var conversation = ReceiveOneMessageAsync(listener, timeout.Token);
-        var sender = new PasswordResetEmailSender(new PasswordResetDeliverySettings
+        var sender = new PasswordResetEmailSender(Reader(configDirectory, "https://library.example.test", new PasswordResetDeliverySettings
         {
             Mode = "Smtp",
             SmtpHost = "127.0.0.1",
             SmtpPort = port,
             FromAddress = "library@example.test",
             UseStartTls = false,
-        }, Reader(configDirectory, "https://library.example.test"), NullLogger<PasswordResetEmailSender>.Instance);
+        }), NullLogger<PasswordResetEmailSender>.Instance);
 
         var sent = await sender.SendAsync("owner@example.test", "reset-token", timeout.Token);
         // SMTP may quoted-printable encode "=" and soft-wrap long lines; undo both before comparing.
@@ -75,12 +75,12 @@ public sealed class PasswordResetEmailSenderTests
     public void SenderIsNotConfigured_WithoutAValidPublicAddress(string publicAddress)
     {
         using var configDirectory = new TempDirectory();
-        var sender = new PasswordResetEmailSender(new PasswordResetDeliverySettings
+        var sender = new PasswordResetEmailSender(Reader(configDirectory, publicAddress, new PasswordResetDeliverySettings
         {
             Mode = "Smtp",
             SmtpHost = "127.0.0.1",
             FromAddress = "library@example.test",
-        }, Reader(configDirectory, publicAddress), NullLogger<PasswordResetEmailSender>.Instance);
+        }), NullLogger<PasswordResetEmailSender>.Instance);
 
         Assert.False(sender.IsConfigured);
     }
@@ -89,13 +89,13 @@ public sealed class PasswordResetEmailSenderTests
     public void ChangedPublicAddressApplies_WithoutRestart()
     {
         using var configDirectory = new TempDirectory();
-        var reader = Reader(configDirectory, "");
-        var sender = new PasswordResetEmailSender(new PasswordResetDeliverySettings
+        var reader = Reader(configDirectory, "", new PasswordResetDeliverySettings
         {
             Mode = "Smtp",
             SmtpHost = "127.0.0.1",
             FromAddress = "library@example.test",
-        }, reader, NullLogger<PasswordResetEmailSender>.Instance);
+        });
+        var sender = new PasswordResetEmailSender(reader, NullLogger<PasswordResetEmailSender>.Instance);
         Assert.False(sender.IsConfigured);
 
         File.WriteAllText(Path.Combine(configDirectory.Path, "network.json"),
@@ -104,12 +104,35 @@ public sealed class PasswordResetEmailSenderTests
         Assert.True(sender.IsConfigured);
     }
 
-    private static DashboardConfigurationReader Reader(TempDirectory directory, string publicAddress)
+    [Fact]
+    public void MailServerSavedFromSettings_AppliesWithoutRestart()
+    {
+        using var configDirectory = new TempDirectory();
+        var reader = Reader(configDirectory, "https://library.example.test", new PasswordResetDeliverySettings());
+        var sender = new PasswordResetEmailSender(reader, NullLogger<PasswordResetEmailSender>.Instance);
+        Assert.False(sender.IsConfigured);
+
+        WriteCore(configDirectory, new PasswordResetDeliverySettings
+        {
+            Mode = "Smtp",
+            SmtpHost = "smtp.example.test",
+            FromAddress = "library@example.test",
+        });
+
+        Assert.True(sender.IsConfigured);
+    }
+
+    private static DashboardConfigurationReader Reader(TempDirectory directory, string publicAddress, PasswordResetDeliverySettings mail)
     {
         File.WriteAllText(Path.Combine(directory.Path, "network.json"),
             $"{{\"remote\":{{\"public_hostname\":\"{publicAddress}\"}}}}");
+        WriteCore(directory, mail);
         return new DashboardConfigurationReader(directory.Path);
     }
+
+    private static void WriteCore(TempDirectory directory, PasswordResetDeliverySettings mail) =>
+        File.WriteAllText(Path.Combine(directory.Path, "core.json"),
+            System.Text.Json.JsonSerializer.Serialize(new { auth = new { password_reset = mail } }));
 
     private sealed class TempDirectory : IDisposable
     {
