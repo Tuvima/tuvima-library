@@ -88,7 +88,7 @@
         }
         _open = true; _loading = true; _query = query; _notice = null; StateHasChanged();
         _result = await Api.GetTextTrackAlternativesAsync(asset, "lyrics", _cts.Token, null, query)
-            ?? new TextTrackAlternativesResponse { status = "Unavailable", message = L["EditorLyrics_LookupFailed"].Value };
+            ?? new TextTrackAlternativesResponse { message = L["EditorLyrics_LookupFailed"].Value };
         _results = _result.items.Select(ToResult).ToList();
         _loading = false;
     }
