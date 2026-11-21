@@ -9957,10 +9957,7 @@
     <value>Library scans this folder and its subfolders, and keeps it organized.</value>
   </data>
   <data name="FolderStep_Lead" xml:space="preserve">
-    <value>Pick the folder on the Library server that holds your {0}. Give it a friendly name if you like.</value>
-  </data>
-  <data name="ServerFolderPicker_FriendlyNameHint" xml:space="preserve">
-    <value>Names this folder, not the library.</value>
+    <value>Pick the folder on the Library server that holds your {0}.</value>
   </data>
   <data name="LibraryEditDialog_ColFolderName" xml:space="preserve">
     <value>Folder name</value>
@@ -13879,6 +13876,18 @@
   </data>
   <data name="PlaylistMembership_CreateFailed" xml:space="preserve">
     <value>The playlist could not be created.</value>
+  </data>
+  <data name="ViewSectionShell_GalleryDropFailed" xml:space="preserve">
+    <value>The photos could not be added to {0}.</value>
+  </data>
+  <data name="ViewSectionShell_GalleryDropFailedWhy" xml:space="preserve">
+    <value>The photos could not be added to {0}. {1}</value>
+  </data>
+  <data name="PlaylistMembership_CreateFailedWhy" xml:space="preserve">
+    <value>The playlist could not be created. {0}</value>
+  </data>
+  <data name="PlaylistMembership_AddFailedWhy" xml:space="preserve">
+    <value>The songs could not be added to {0}. {1}</value>
   </data>
   <data name="SongTable_Select" xml:space="preserve">
     <value>Select</value>

@@ -327,11 +327,13 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
                     Faces.FaceModelState.Problem => ToolRequirementStates.Problem,
                     _ => ToolRequirementStates.Missing,
                 };
-                rows.Add(Row(
+                // A plain name and one line on what it does; the technical name and the file name stay out of the row (issue 1238).
+                var row = Row(
                     runtime ? ToolRequirementIds.FaceRuntime : detection ? ToolRequirementIds.FaceDetection : ToolRequirementIds.FaceMatching,
-                    runtime ? "Face engine (ONNX Runtime)" : detection ? "Face finder (YuNet)" : "Face matcher (SFace)", "tool", ToolRequirementLevels.Optional,
-                    state, Copy.FaceModelEffect, model.Reason, Copy.FaceModelFix,
-                    state == ToolRequirementStates.Ready ? model.FileName : null, canLocate: false));
+                    runtime ? "Face engine" : detection ? "Face finder" : "Face matcher", "tool", ToolRequirementLevels.Optional,
+                    state, runtime ? Copy.FaceRuntimeEffect : detection ? Copy.FaceDetectionEffect : Copy.FaceMatchingEffect, model.Reason, Copy.FaceModelFix,
+                    null, canLocate: false);
+                rows.Add(state == ToolRequirementStates.Downloading ? row with { DownloadPercent = model.DownloadPercent } : row);
             }
         }
 
@@ -542,7 +544,9 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         public const string ExifToolEffect = "Photos, videos and PDFs in View keep the profile name in Library only until ExifTool is ready.";
         public const string ExifToolPerlFix = "Install Perl (for example `apt install perl`), then press Check again.";
         public const string ImageEngineEffect = "Covers and thumbnails can't be created.";
-        public const string FaceModelEffect = "People cannot find or group faces in your photos.";
+        public const string FaceDetectionEffect = "Finds faces in your photos so Library can group them by person.";
+        public const string FaceMatchingEffect = "Tells whether two faces are the same person, so Library can group photos by person.";
+        public const string FaceRuntimeEffect = "Runs the face finder and matcher on this computer.";
         public const string FaceModelFix = "Library gets this by itself, once, and tries again every hour. It needs the internet once.";
         public const string AiRuntimeEffect = "Local AI features are off.";
 

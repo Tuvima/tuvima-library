@@ -99,9 +99,12 @@ public static class PlaylistMembershipFlow
         ArgumentNullException.ThrowIfNull(strings);
         if (result.Added == 0 && result.AlreadyThere == 0)
         {
-            return new PlaylistFlowNotice(
-                result.Creating ? strings["PlaylistMembership_CreateFailed"].Value : strings["PlaylistMembership_AddFailed", result.PlaylistName].Value,
-                AppSeverity.Error);
+            // The Engine's own explanation goes after the sentence when it gave one, so "could not be created" says why.
+            var why = EngineFailureText.Plain(result.Reason);
+            var told = result.Creating
+                ? why is null ? strings["PlaylistMembership_CreateFailed"].Value : strings["PlaylistMembership_CreateFailedWhy", why].Value
+                : why is null ? strings["PlaylistMembership_AddFailed", result.PlaylistName].Value : strings["PlaylistMembership_AddFailedWhy", result.PlaylistName, why].Value;
+            return new PlaylistFlowNotice(told, AppSeverity.Error);
         }
 
         if (result.Failed > 0)

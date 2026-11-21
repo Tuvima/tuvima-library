@@ -219,7 +219,6 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     // The folder window's friendly name field (Libraries v3 D18); the library itself is never named by the person.
-    private AngleSharp.Dom.IElement FolderNameInput => _dialogs.Find("[data-folder-name] input");
 
     [Fact]
     public void PlainVideosOffersManagedAndAKindWithoutItsOwnColorFollowsItsAreaColor()
@@ -594,7 +593,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         Assert.DoesNotContain("never changed", Text(_dialogs.Find("[data-scan-line]")), StringComparison.Ordinal);
         // The scan line is the one message line, directly under the handling choice.
         Assert.True(_dialogs.Find("[data-folder-handling]").NextElementSibling!.HasAttribute("data-picker-message"));
-        Assert.Equal("Names this folder, not the library.", Text(_dialogs.Find(".server-folder-picker__name-hint")));
+        Assert.Empty(_dialogs.FindAll("[data-folder-name], .server-folder-picker__name-hint"));
         Assert.Equal("Where is it? · TV Shows", Text(_dialogs.Find(".app-dialog-shell__title")));
         Assert.Equal(["Watch", "TV Shows"], _dialogs.Find("[data-picker-chips]").QuerySelectorAll("span").Select(Text).ToArray());
     }
@@ -954,18 +953,17 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFolderGetsItsFriendlyNameFromTheFolderUntilTheyTypeOne()
+    public async Task TheFolderTakesItsNameFromTheFolderYouPick()
     {
         await OpenAsync(area: "listen", kind: "music");
-        _dialogs.WaitForAssertion(() => Assert.Equal("Films", FolderNameInput.GetAttribute("value")));
-        FolderNameInput.Input("Mum's music");
+        _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll("[data-folder-name]")));
         _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
 
         CreateButton.Click();
 
         _dialogs.WaitForAssertion(() => Assert.Single(_mutations));
         Assert.Equal("Music", _mutations[0].Library!.Name);
-        Assert.Equal("Mum's music", Assert.Single(_mutations[0].Library!.Sources).Label);
+        Assert.Equal("Films", Assert.Single(_mutations[0].Library!.Sources).Label);
     }
 
     [Fact]
