@@ -114,7 +114,7 @@ button.playback-lyrics__line:focus-visible, .playback-lyrics ::deep button.playb
 .playback-lyrics__line.is-active, .playback-lyrics ::deep .playback-lyrics__line.is-active {
     border-left-color: var(--playback-accent);
     color: var(--playback-text);
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .playback-lyrics__word {
@@ -300,11 +300,17 @@ button.playback-lyrics__line:focus-visible, .playback-lyrics ::deep button.playb
     outline-offset: -2px;
 }
 
-/* When the Now playing page (or a pop-out) places the lyrics with their own footer, it sits under a hairline like the panel's. */
+/* When a pop-out places the lyrics with their own footer, it sits under a hairline like the panel's. The Now playing page draws the same footer as a quiet
+   line under the lyrics, with no box or hairline around it (mockup screen 13; #1259). */
 .playback-lyrics__footer {
     align-items: center;
     border-top: 1px solid var(--playback-hairline);
     display: flex;
     flex: none;
     padding: 10px 16px;
+}
+
+.playback-lyrics--page .playback-lyrics__footer {
+    border-top: 0;
+    padding: 4px 0 0;
 }

@@ -110,6 +110,13 @@ public partial class ListenNowPlayingBar
         {
             Playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
         }
+        else if (isPhone && IsNowPlayingPage && Playback.HasQueue && !Playback.IsVideoMode)
+        {
+            // A desktop window narrowed to phone width while the Now playing page is open: a phone has no page, its Now playing is the expanded player, so go back to
+            // where the person came from and open it, the same as if the window had been phone width from the start (#1259).
+            Nav.NavigateTo(NowPlayingRoute.ReturnTarget(Nav, Overlay));
+            Playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
+        }
     }
 
     private void HandleLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args) =>

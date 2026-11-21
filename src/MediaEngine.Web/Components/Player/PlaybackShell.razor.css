@@ -133,6 +133,9 @@
    finishes, the tools never wrap or push Play off centre: the zone scrolls sideways instead of hiding a tool. */
 
 @media (max-width: 1180px) {
+    /* At 1024 wide the equal outer columns left the song title about 50 px beside its four buttons, so it wrapped and the artist was cut off. The identity side takes
+       more of the room here (the tools already scroll sideways); the title then shows on one line with an ellipsis (#1259). Play moves a little off the exact centre. */
+    .playback-shell--surface-dock:not(.playback-shell--compact) .playback-shell__row { grid-template-columns: minmax(0, 1.6fr) auto minmax(0, 1fr); }
     /* The inner padding keeps the 2 px focus ring (2 px offset) inside the scroll box, which clips both axes. */
     .playback-shell__tools { overflow-x: auto; scrollbar-width: none; padding: 4px; margin: -4px; justify-content: flex-start; }
     /* Right-aligned when everything fits, yet scrollable from the first tool when it does not (flex-end would clip the tools at the start). */
@@ -149,13 +152,14 @@
     --playback-control-glyph: 24px;
     --playback-play-target: 48px;
     --playback-play-glyph: 32px;
-    padding-bottom: calc(6px + var(--tl-safe-area-bottom, 0px));
+    /* Mockup screen 15 marker 1: 64 px tall, 12 px at the sides, no timeline row, the cover at the left edge. 1 px hairline + 57 px row + 6 px below = 64 px. */
+    padding: 0 12px calc(6px + var(--tl-safe-area-bottom, 0px));
 }
 
 .playback-shell--compact .playback-shell__row {
-    gap: 4px;
+    gap: 10px;
     grid-template-columns: minmax(0, 1fr) auto;
-    min-height: 56px;
+    min-height: 57px;
 }
 
 /* Over the picture the timeline is the video rail itself, in the flow. */
@@ -164,16 +168,6 @@
     position: static;
 }
 
-/* Phone: the collapsed bar has no timeline row of its own beyond a thin rail (the rail's 28 px row is centred on a 12 px slot); the safe area keeps it
-   clear of the home indicator. The phone packet finishes this layout. */
-.playback-shell--compact .playback-shell__timeline {
-    height: 12px;
-}
-
-.playback-shell--compact .playback-shell__timeline ::deep .playback-seek-rail {
-    inset: -8px 0 auto 0;
-    position: absolute;
-}
 
 /* A video player on a phone (D26): no identity zone (the header above holds the title), so the transport and the tool row stack in one column at every width.
    The tool row is the four tools centered under the five transport buttons. */
