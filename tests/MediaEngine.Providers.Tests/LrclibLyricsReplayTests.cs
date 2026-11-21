@@ -122,6 +122,22 @@ public sealed class LrclibLyricsReplayTests
     }
 
     [Fact]
+    public async Task WhenAPersonIsChoosingAnother_ASongOfTheRightTitleAndArtistButAnotherLength_IsStillOffered_AfterTheOnesThatFit()
+    {
+        var list = List(
+            Entry("Silhouettes", "Smile Empty Soul", 190, id: 4),
+            Entry("Silhouettes", "Smile Empty Soul", 125, id: 3),
+            Entry("Silhouettes", "Another Band", 125, id: 1));
+        var (provider, _) = Build(SearchAnswers(list));
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul") with { Interactive = true });
+
+        // Both of the artist's songs are listed, the one of the song's length first; the other band's is still left out.
+        Assert.Equal(["3", "4"], found.Select(candidate => candidate.SourceId).ToArray());
+        Assert.True(found[1].DurationMatchScore < 0);
+    }
+
+    [Fact]
     public async Task ATitleThatOnlySharesAPrefix_DoesNotMatch_AndIsLoggedAsNoMatch()
     {
         var (provider, log) = Build(SearchAnswers(List(Entry("Yesterday", "The Beatles", 125))));

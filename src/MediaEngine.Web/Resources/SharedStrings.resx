@@ -10754,6 +10754,9 @@
   <data name="PlaybackLyrics_WordsOnly" xml:space="preserve">
     <value>Words only</value>
   </data>
+  <data name="PlaybackLyrics_LengthDiffers" xml:space="preserve">
+    <value>Length differs from the song</value>
+  </data>
   <data name="PlaybackLyrics_InUse" xml:space="preserve">
     <value>In use</value>
   </data>

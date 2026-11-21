@@ -200,7 +200,8 @@ public sealed partial class TextTrackProviderAdapter
         var durationScore = ScoreDuration(root, lookup.DurationSeconds);
         var duration = rules.Duration;
         var strict = string.Equals(format, duration.StrictFormat, StringComparison.OrdinalIgnoreCase);
-        if (strict && durationScore is < 0)
+        // A person choosing among results is shown a song of the wrong length too (marked by its negative length score); the automatic pick is not.
+        if (strict && durationScore is < 0 && !lookup.Interactive)
         {
             tally.Outcome = LyricsOutcome.LengthTooDifferent;
             return null;
@@ -364,6 +365,12 @@ public sealed partial class TextTrackProviderAdapter
 
         // An exact answer's length is judged with its format (a timed entry too far off is dropped, plain text is kept), so only a list entry is rejected here.
         var duration = ScoreDuration(entry, lookup.DurationSeconds);
+        if (fromList && duration is < 0 && lookup.Interactive)
+        {
+            // Title and artist agree, so it is offered, after every entry whose length fits.
+            return score;
+        }
+
         if (fromList && duration is < 0)
         {
             if (titled)

@@ -54,6 +54,8 @@
     private AppPickResult ToResult(TextTrackAlternativeDto offer, string? cover)
     {
         var kind = offer.is_timed ? L["PlaybackLyrics_TimedToTheSong"].Value : L["PlaybackLyrics_WordsOnly"].Value;
+        // A negative length score means the source's song is a different length from this one; it is still offered, with that said.
+        if (offer.duration_match_score is < 0) kind = $"{kind} · {L["PlaybackLyrics_LengthDiffers"].Value}";
         var second = string.IsNullOrWhiteSpace(offer.preview) ? kind : $"{kind} · {offer.preview}";
         return new AppPickResult(
             $"{offer.provider}:{offer.source_id}",

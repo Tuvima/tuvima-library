@@ -89,7 +89,8 @@ public sealed partial class TextTrackProviderAdapter
 
             var ranked = candidates.OrderByDescending(candidate => candidate.Confidence).ToList();
             // A person looking through a list of results picks one, so nothing is withheld for being tied and the list is not cut short here.
-            if (byText)
+            // "Find another" (Interactive) is the same: the person is choosing, so ties are listed and the list is not cut to the automatic pick's few.
+            if (byText || lookup.Interactive)
             {
                 if (ranked.Count == 0)
                 {
