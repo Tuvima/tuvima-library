@@ -182,7 +182,7 @@ public sealed class SubdlTextTrackProviderTests
         {
             urls.Add(request.RequestUri!.PathAndQuery);
             return request.RequestUri.Query.Contains("film_name", StringComparison.Ordinal)
-                ? Json("""{"status":true,"results":[{"type":"movie","name":"Dune: Part Two","year":"2024"}],"subtitles":[{"release_name":"Dune.2024","name":"Dune.srt","subtitlePage":"/s/info/abc123","language":"EN","hi":false,"unpack_files":[{"file_n_id":"f1","name":"Dune.2024.srt","language":"EN","url":"/subtitle/abc123/f1"}]}]}""")
+                ? Json("""{"status":true,"results":[{"type":"movie","name":"Dune: Part Two","year":"2024"}],"subtitles":[{"release_name":"Dune.2024","name":"Dune.srt","subtitlePage":"/s/info/abc123","language":"EN","hi":false,"unpack_files":[{"file_n_id":"f1","name":"Dune.2024.srt","language":"EN","url":"/subtitle/abc123/f1?api_key=example-key"}]}]}""")
                 : Json("""{"status":true,"results":[{"type":"movie","tmdb_id":693134}],"subtitles":[]}""");
         });
         var lookup = Lookup(MediaType.Movies, new SubtitleLookupContext(Movie: new MovieSubtitleIdentity(null, "693134")));
