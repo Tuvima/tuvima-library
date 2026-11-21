@@ -48,10 +48,14 @@ public static class DetailEndpoints
             parsedType = await composer.ResolveVideoSeriesTypeAsync(parsedType, id, ct);
             var presentationContext = DetailComposerService.ParseContext(context);
             var resolver = httpContext.RequestServices.GetRequiredService<IRequestAuthorityResolver>();
-            var authority = await resolver.ResolveAsync(httpContext, ct);
-            var authorizedWorks = IsWorkDetail(parsedType) || parsedType is DetailEntityType.Person
-                ? await display.LoadDetailWorksAsync(id, ct)
-                : await display.LoadWorksAsync(ct);
+            // Who is asking and which works they may see do not depend on each other, so they are read side by side.
+            var authorityTask = resolver.ResolveAsync(httpContext, ct).AsTask();
+            var authorizedWorksTask = IsWorkDetail(parsedType) || parsedType is DetailEntityType.Person
+                ? display.LoadDetailWorksAsync(id, ct)
+                : display.LoadWorksAsync(ct);
+            await Task.WhenAll(authorityTask, authorizedWorksTask);
+            var authority = await authorityTask;
+            var authorizedWorks = await authorizedWorksTask;
             var projectionMs = timing.Elapsed.TotalMilliseconds;
             IReadOnlyList<Guid>? authorizedAssetIds = null;
             if (IsWorkDetail(parsedType))
@@ -83,19 +87,25 @@ public static class DetailEndpoints
                     ? await httpContext.RequestServices.GetRequiredService<IViewerAccessService>().GetCatalogueAsync(ct)
                     : null);
             var compositionMs = timing.Elapsed.TotalMilliseconds - projectionMs;
+            var extrasStart = timing.Elapsed.TotalMilliseconds;
             if (detail is not null)
             {
-                await readiness.ApplyAsync(detail, ct);
-                // Single-item pages only (authorizedAssetIds is set for them): an administrator sees the item's Unmatched state and actions.
-                await unmatchedState.ApplyAsync(detail, authorizedAssetIds, actionAuthorization, ct);
-                // A title's Extras (guidebooks, picture folders, clips) ride on its page, so they carry the page's own access rules.
-                await detailExtras.ApplyAsync(detail, authorizedAssetIds, ct);
-                // The Your copy row: the chips and File details panel of the title's own files (or a show's, album's summary), never for a Kids profile or the Vault.
-                await yourCopy.ApplyAsync(detail, authorizedAssetIds, authorizedWorks, authority.ActiveProfileId, actionAuthorization, ct);
+                // Four independent add-ons, each writing only its own part of the page, so they run side by side instead of one after another:
+                // credit readiness; the item's Unmatched state and actions (administrators, single-item pages only); the title's Extras (they carry the
+                // page's own access rules); and the Your copy row (chips and File details of the title's own files, never for a Kids profile or the Vault).
+                await Task.WhenAll(
+                    readiness.ApplyAsync(detail, ct),
+                    unmatchedState.ApplyAsync(detail, authorizedAssetIds, actionAuthorization, ct),
+                    detailExtras.ApplyAsync(detail, authorizedAssetIds, ct),
+                    yourCopy.ApplyAsync(detail, authorizedAssetIds, authorizedWorks, authority.ActiveProfileId, actionAuthorization, ct));
             }
+            var extrasMs = timing.Elapsed.TotalMilliseconds - extrasStart;
+            // The browser's network panel shows this under Timing, so a slow page can be told apart (Engine work or the trip to the phone).
+            httpContext.Response.Headers.Append("Server-Timing",
+                FormattableString.Invariant($"projection;dur={projectionMs:F0}, compose;dur={compositionMs:F0}, addons;dur={extrasMs:F0}, total;dur={timing.Elapsed.TotalMilliseconds:F0}"));
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("DetailPerformance")
-                .LogInformation("Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, total {TotalMs:F0} ms",
-                    parsedType, projectionMs, compositionMs, timing.Elapsed.TotalMilliseconds);
+                .LogInformation("Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, add-ons {AddOnsMs:F0} ms, total {TotalMs:F0} ms",
+                    parsedType, projectionMs, compositionMs, extrasMs, timing.Elapsed.TotalMilliseconds);
             return detail is null
                 ? ApiErrors.NotFound($"No detail page found for {entityType} '{id}'.")
                 : Results.Ok(detail);

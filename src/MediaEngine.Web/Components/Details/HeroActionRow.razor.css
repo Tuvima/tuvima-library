@@ -21,6 +21,8 @@ html[data-form-factor="phone"] .tl-detail-action-hint, html[data-form-factor="tv
     .tl-detail-actions ::deep .tl-detail-action--primary { flex:1 1 auto; width:100%; }
     .tl-detail-secondary-actions { flex-wrap:wrap; gap:4px 18px; }
 }
+/* Phone details (issues 1261, 1182): the main button gives up its desktop minimum width and takes the room left beside the round companions, so it is never wider than the screen. */
+html[data-form-factor="phone"] .tl-detail-actions ::deep .tl-detail-action--primary { flex:1 1 auto; width:100%; min-width:0; max-width:100%; padding-inline:14px; }
 /* Detail page: facts, then the main button, then one row of companions with their names underneath. The Home hero keeps button and companions on one line, without the names. */
 .cinematic-hero--landing .tl-detail-actions { flex-direction:row; align-items:center; }
 .tl-detail-actions:has(.media-rate-control.is-open) { position:relative; z-index:40; }
