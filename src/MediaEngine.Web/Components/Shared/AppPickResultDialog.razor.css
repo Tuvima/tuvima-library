@@ -30,7 +30,7 @@
     gap: var(--tl-space-3);
     width: 100%;
     height: auto;
-    min-height: calc(var(--tl-tap-target-min, 44px) + var(--tl-space-2));
+    min-height: var(--tl-tap-target-min, 44px);
     padding: var(--tl-space-2) var(--tl-space-3);
     color: var(--tl-text-primary);
     font: inherit;

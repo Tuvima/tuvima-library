@@ -41,13 +41,14 @@
                             <button type="button" role="radio" aria-checked="@(selected ? "true" : "false")" disabled="@Busy"
                                     class="@(selected ? "app-pick-result__row is-selected" : "app-pick-result__row")"
                                     data-pick-result="@result.Key" data-pick-selected="@(selected ? "true" : null)" @onclick="@(() => _selectedKey = result.Key)">
-                                <span class="app-pick-result__cover" aria-hidden="true">
-                                    @if (!string.IsNullOrWhiteSpace(result.CoverUrl))
-                                    {
+                                @* A result with no picture has no cover box at all (a lyrics or subtitle result does not name an album or a poster). *@
+                                @if (!string.IsNullOrWhiteSpace(result.CoverUrl))
+                                {
+                                    <span class="app-pick-result__cover" aria-hidden="true">
                                         <img class="app-pick-result__picture" alt="" loading="lazy" decoding="async"
                                              src="@MediaTileArtworkUrl.ForDrawnSize(result.CoverUrl, 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(result.CoverUrl, 96)" />
-                                    }
-                                </span>
+                                    </span>
+                                }
                                 <span class="app-pick-result__copy">
                                     <strong class="app-pick-result__title" data-overflow-tooltip="@result.Title">@result.Title</strong>
                                     @if (!string.IsNullOrWhiteSpace(result.Subtitle))

@@ -136,7 +136,8 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
         Assert.Equal("WEB-DL.720p", rows[2].QuerySelector(".app-pick-result__title")!.TextContent);
         Assert.Equal("Different release", rows[2].QuerySelector("[data-pick-sub]")!.TextContent);
         Assert.Equal("Same release", rows[0].QuerySelector("[data-pick-sub]")!.TextContent);
-        Assert.NotEmpty(rows[0].QuerySelectorAll("img"));
+        // A subtitle result does not say which poster it belongs to, so a row has no picture.
+        Assert.Empty(rows[0].QuerySelectorAll("img"));
         Assert.Equal("Your choice applies to everyone watching this title.", cut.Find("[data-sfv-note]").TextContent);
     }
 

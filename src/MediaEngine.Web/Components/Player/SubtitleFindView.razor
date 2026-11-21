@@ -122,7 +122,7 @@
         parts.Add(item.confidence >= SameReleaseConfidence ? L["SubtitleFind_SameRelease"].Value : L["SubtitleFind_DifferentRelease"].Value);
         if (item.is_hearing_impaired) parts.Add(L["SubtitleFind_HearingImpaired"].Value);
         return new AppPickResult(KeyOf(item), string.IsNullOrWhiteSpace(item.release_name) ? item.provider_name : item.release_name!,
-            string.Join(" · ", parts), CoverUrl, item.is_current ? L["SubtitleFind_InUse"].Value : null, item.is_current);
+            string.Join(" · ", parts), null, item.is_current ? L["SubtitleFind_InUse"].Value : null, item.is_current);
     }
 
     private string Kind => IsEpisode ? L["SubtitleFind_Episode"].Value : L["SubtitleFind_Movie"].Value;

@@ -33,8 +33,8 @@
             if (!ReferenceEquals(_mapped, Presenter.Alternatives))
             {
                 _mapped = Presenter.Alternatives;
-                var cover = Item is null ? null : PlaybackArtworkUrl.ForDrawnSize(Item, 96);
-                _results = Presenter.Alternatives?.items.Select(offer => ToResult(offer, cover)).ToList() ?? [];
+                // No album art: a lyrics result does not say which album it belongs to.
+                _results = Presenter.Alternatives?.items.Select(offer => ToResult(offer, null)).ToList() ?? [];
             }
             return _results;
         }
