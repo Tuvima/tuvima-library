@@ -30,6 +30,19 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
         Assert.Single(cut.FindAll(".media-tile-fallback"));
     }
 
+    [Theory]
+    [InlineData("/v/folder.jpg", null, "/v/folder.jpg")]
+    [InlineData(null, "/v/frame.jpg", "/v/frame.jpg")]
+    public void AFolderOfVideosWithNoChosenCover_DrawsItsFolderPictureOrAFrameFromItsVideos(string? tileImage, string? memberImage, string expected)
+    {
+        var item = Group(memberImage is null ? [] : Covers(memberImage), mediaKind: MediaEngine.Domain.Services.VideoFolderWording.FolderMediaType, tileImage: tileImage);
+
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, item));
+
+        Assert.Empty(cut.FindAll(".media-tile-fallback"));
+        Assert.Contains(cut.FindAll("img"), img => (img.GetAttribute("src") ?? string.Empty).Contains(expected, StringComparison.Ordinal));
+    }
+
     [Fact]
     public void TheKindWordIsTheTopLeftLabel_AndAStatusLabelTakesTheSlotFirst()
     {
@@ -223,7 +236,9 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
         MediaTileShape shape = MediaTileShape.Portrait,
         MediaTileGroupKind kind = MediaTileGroupKind.Collection,
         string? customCover = null,
-        string? newLabel = null) => new()
+        string? newLabel = null,
+        string? mediaKind = null,
+        string? tileImage = null) => new()
         {
             Id = Guid.NewGuid(),
             CollectionId = Guid.NewGuid(),
@@ -234,6 +249,8 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
             Shape = shape,
             NewLabel = newLabel,
             CustomCoverUrl = customCover,
+            MediaKind = mediaKind ?? string.Empty,
+            TileImageUrl = tileImage,
             ArtworkStackItems = covers,
             NavigationUrl = "/details/collection/group",
             PreviewTotalCount = covers.Count,
