@@ -402,7 +402,7 @@ else if (!_removed)
 
     private string? VideoCollectionFallbackUrl => !string.IsNullOrWhiteSpace(Item.TileImageUrl)
         ? Item.TileImageUrl
-        : Item.ArtworkStackItems.Select(member => member.ImageUrl).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
+        : Item.ArtworkStackItems.FirstOrDefault(member => !string.IsNullOrWhiteSpace(member.ImageUrl))?.ImageUrl;
 
     private bool HasArtworkSurface => ShowBrandLogo || ShowCollectionBanner || (!ShowCollage && !string.IsNullOrWhiteSpace(CardImageUrl)) || ShowQuadrants;
 
