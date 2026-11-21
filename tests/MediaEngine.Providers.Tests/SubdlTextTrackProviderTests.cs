@@ -164,7 +164,8 @@ public sealed class SubdlTextTrackProviderTests
         });
         // No title, so only the search by id is possible (a title adds the name-and-year search as a second request).
         var lookup = Lookup(MediaType.Movies,
-            new SubtitleLookupContext(Movie: new MovieSubtitleIdentity(null, "693134"))) with { Title = null };
+            new SubtitleLookupContext(Movie: new MovieSubtitleIdentity(null, "693134"))) with
+        { Title = null };
 
         Assert.Empty(await provider.SearchAsync(lookup));
         Assert.Empty(await provider.SearchAsync(lookup));
