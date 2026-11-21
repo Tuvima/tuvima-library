@@ -122,7 +122,7 @@ public sealed class CollectionCatalogReadService(
         using (var conn = db.CreateConnection())
         {
             var isSong = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
-                "SELECT COUNT(*) FROM works WHERE id = @sourceWorkId AND media_type = 'Music' AND work_kind <> 'parent';",
+                "-- readiness: an id lookup of one work the caller already named\nSELECT COUNT(*) FROM works WHERE id = @sourceWorkId AND media_type = 'Music' AND work_kind <> 'parent';",
                 new { sourceWorkId },
                 cancellationToken: ct)).ConfigureAwait(false);
             if (isSong > 0)
