@@ -635,7 +635,7 @@
         var outcome = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest
         {
             SignIn = UsesThisComputer ? SetupSignInModes.ThisComputer : SetupSignInModes.Password,
-            OriginalClientIngress = ClientForwarded ? ClientIngressValues.Remote : (ClientIngress ?? ClientIngressValues.Remote),
+            OriginalClientIngress = ClientForwarded ? ClientIngressValues.Outside : (ClientIngress ?? ClientIngressValues.Remote),
             Email = _email, Password = UsesThisComputer ? string.Empty : _password,
             Pin = UsesThisComputer || string.IsNullOrEmpty(_pin) ? null : _pin,
             DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser",
