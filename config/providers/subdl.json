@@ -317,6 +317,9 @@
           "n_id",
           "nId"
         ],
+        "id_link_paths": [
+          "subtitlePage"
+        ],
         "release_paths": [
           "release_name",
           "name"

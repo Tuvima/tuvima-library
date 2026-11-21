@@ -21,12 +21,15 @@
     overscroll-behavior: contain;
 }
 
+/* A row is one flex line: cover, then the text taking the free room, then the pills at the right edge, so every row lines up whatever pills it has.
+   The row grows to hold its cover (a button does not size a grid by its picture) and never shrinks inside the scrolling list. */
 .app-pick-result__row {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    display: flex;
     align-items: center;
+    flex: none;
     gap: var(--tl-space-3);
     width: 100%;
+    height: auto;
     min-height: var(--tl-tap-target-min, 44px);
     padding: var(--tl-space-2) var(--tl-space-3);
     color: var(--tl-text-primary);
@@ -61,16 +64,17 @@
 /* The small cover: portrait for video, square for songs. */
 .app-pick-result__cover {
     display: block;
+    flex: none;
     width: 2.5rem;
-    aspect-ratio: 2 / 3;
+    height: 3.75rem;
     overflow: hidden;
     border-radius: var(--tl-radius-sm);
     background: var(--tl-bg-surface-raised);
 }
 
 [data-pick-cover="square"] .app-pick-result__cover {
-    width: 3rem;
-    aspect-ratio: 1 / 1;
+    width: 2.75rem;
+    height: 2.75rem;
 }
 
 .app-pick-result__picture {
@@ -81,6 +85,7 @@
 }
 
 .app-pick-result__copy {
+    flex: 1 1 auto;
     display: grid;
     gap: 0.15rem;
     min-width: 0;
@@ -99,7 +104,7 @@
 }
 
 .app-pick-result__pill {
-    justify-self: end;
+    flex: none;
     padding: 0.125rem 0.625rem;
     border-radius: var(--tl-radius-pill);
     color: var(--tl-accent-primary);
@@ -129,11 +134,14 @@
 /* Phone sheet: the pills drop under the text so the title keeps its room. */
 @media (max-width: 600px) {
     .app-pick-result__row {
-        grid-template-columns: auto minmax(0, 1fr);
+        flex-wrap: wrap;
+    }
+
+    .app-pick-result__copy {
+        flex-basis: calc(100% - 4.5rem);
     }
 
     .app-pick-result__pill {
-        grid-column: 2;
-        justify-self: start;
+        margin-left: 3.5rem;
     }
 }

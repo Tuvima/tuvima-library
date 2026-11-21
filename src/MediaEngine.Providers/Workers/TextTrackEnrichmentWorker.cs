@@ -25,6 +25,7 @@ public sealed partial class TextTrackEnrichmentWorker
     private readonly IMediaAssetRepository _assetRepo;
     private readonly IWorkRepository _workRepo;
     private readonly ICanonicalValueRepository _canonicalRepo;
+    private readonly ICanonicalValueArrayRepository? _arrayRepo;
     private readonly IBridgeIdRepository _bridgeRepo;
     private readonly ITextTrackRepository _trackRepo;
     private readonly IEnumerable<ITextTrackProvider> _providers;
@@ -49,8 +50,10 @@ public sealed partial class TextTrackEnrichmentWorker
         IConfigurationLoader? configurationLoader = null,
         ITvEpisodeCrosswalk? episodeCrosswalk = null,
         ILibraryKindSource? kindSource = null,
-        IPluginAccessGate? accessGate = null)
+        IPluginAccessGate? accessGate = null,
+        ICanonicalValueArrayRepository? arrayRepo = null)
     {
+        _arrayRepo = arrayRepo;
         _accessGate = accessGate;
         _kindSource = kindSource;
         _assetRepo = assetRepo;
@@ -607,6 +610,30 @@ public sealed partial class TextTrackEnrichmentWorker
                 if (!string.IsNullOrWhiteSpace(entry.Value))
                 {
                     values.TryAdd(entry.Key, entry.Value);
+                }
+            }
+        }
+
+        // A song's artist is a multi-valued field, so it lives with the lists, not with the single values (issue 1277): without this
+        // the artist was always missing and a lookup went by the title alone, offering other artists' songs of the same name.
+        if (_arrayRepo is not null)
+        {
+            var arrays = await _arrayRepo.GetAllByEntitiesAsync(entityIds.Distinct().ToList(), ct).ConfigureAwait(false);
+            foreach (var entityId in precedence.Distinct())
+            {
+                if (!arrays.TryGetValue(entityId, out var byKey))
+                {
+                    continue;
+                }
+
+                foreach (var key in new[] { MetadataFieldConstants.Artist, "album_artist", MetadataFieldConstants.Author })
+                {
+                    if (!values.ContainsKey(key)
+                        && byKey.TryGetValue(key, out var entries)
+                        && entries.OrderBy(entry => entry.Ordinal).Select(entry => entry.Value).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) is { } first)
+                    {
+                        values[key] = first;
+                    }
                 }
             }
         }

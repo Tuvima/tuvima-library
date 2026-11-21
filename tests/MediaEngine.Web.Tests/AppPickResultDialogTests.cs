@@ -219,10 +219,10 @@ public sealed class FindDialogSearchTextTests
     public void AVideoWithNoYearIsJustItsTitle() => Assert.Equal("Ferrari", FindDialogSearchText.ForVideo(" Ferrari ", null));
 
     [Fact]
-    public void ASongStartsWithItsTitleAndArtist() => Assert.Equal("Stay a Little Longer The Midnight Coast", FindDialogSearchText.ForSong("Stay a Little Longer", "The Midnight Coast", "Someone Else"));
+    public void ASongStartsWithItsArtistThenItsTitle() => Assert.Equal("The Midnight Coast Stay a Little Longer", FindDialogSearchText.ForSong("Stay a Little Longer", "The Midnight Coast", "Someone Else"));
 
     [Fact]
-    public void ASongWithNoArtistFallsBackToTheAlbumArtist() => Assert.Equal("Stay a Little Longer Album Band", FindDialogSearchText.ForSong("Stay a Little Longer", null, "Album Band"));
+    public void ASongWithNoArtistFallsBackToTheAlbumArtist() => Assert.Equal("Album Band Stay a Little Longer", FindDialogSearchText.ForSong("Stay a Little Longer", null, "Album Band"));
 
     [Fact]
     public void ABoxLeftAsFilledIn_IsNotAnEdit() => Assert.Null(FindDialogSearchText.EditedOrNull("Ferrari 2023", " ferrari   2023 "));
