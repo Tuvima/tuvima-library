@@ -116,3 +116,11 @@
 .media-tile-video-collection__foot { margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:10px; border-top:1px solid color-mix(in srgb, var(--tl-accent-primary) 50%, transparent); }
 .media-tile-video-collection__count { display:inline-flex; align-items:center; gap:6px; font-size: var(--tl-type-secondary-size); color:var(--tl-text-primary); }
 .media-tile-video-collection__play { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; border:2px solid var(--tl-accent-primary); color:var(--tl-accent-primary); }
+/* The compact (phone) tile is 112 px wide and 168 px tall: the same card with the kind and creator lines and the play mark left out, so the picture, title and count keep their room instead of collapsing. */
+.media-tile-video-collection { container-type:inline-size; }
+@container (max-width: 150px) {
+    .media-tile-video-collection__art { flex:0 0 auto; margin-top:20px; }
+    .media-tile-video-collection__kind, .media-tile-video-collection__creator, .media-tile-video-collection__play { display:none; }
+    .media-tile-video-collection__title { flex:0 0 auto; font-size:var(--tl-type-secondary-size); }
+    .media-tile-video-collection__foot { padding-top:6px; }
+}
