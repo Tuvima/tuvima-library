@@ -104,6 +104,12 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             </section>
         }
 
+        @if (canEdit && !fields.IsSeries && fields.ScopeChain.LastOrDefault() is { Kind: EditTrailKinds.Track } song)
+        {
+            @* A song's lyrics (issue 1258): the player's Edit lyrics lands here. *@
+            <EditorLyricsSection WorkId="@song.EntityId" Title="@song.Title" />
+        }
+
         @ChildContent
     </div>
     <EditorQuickFacts Fields="fields" Phone="Phone" />
