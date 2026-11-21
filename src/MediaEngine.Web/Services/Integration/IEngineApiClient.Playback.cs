@@ -26,7 +26,8 @@ public partial interface IEngineApiClient
         PlaybackConnectionContextDto? connection = null,
         bool adaptive = false,
         int? burnSubtitleStream = null,
-        double? startSeconds = null);
+        double? startSeconds = null,
+        bool subtitlesOnly = false);
 
     /// <summary>
     /// PUT /api/v1/playback/browser-capabilities  -  tells the Engine what this browser measured about the video it can play (playback-path spec D12).

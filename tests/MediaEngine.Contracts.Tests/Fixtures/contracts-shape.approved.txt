@@ -8543,6 +8543,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackManifestDt
   Profile: MediaEngine.Contracts.Playback.PlaybackProfileDto | nullability=not-null | accessors=get,init
   AudioTracks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PlaybackTrackDto> | nullability=not-null | accessors=get,init
   SubtitleTracks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PlaybackSubtitleTrackDto> | nullability=not-null | accessors=get,init
+  SubtitlesPreparing: System.Boolean | nullability=not-null | accessors=get,init
   Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PlaybackChapterDto> | nullability=not-null | accessors=get,init
   OfflineVariants: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.OfflineVariantDto> | nullability=not-null | accessors=get,init
   Resume: MediaEngine.Contracts.Playback.PlaybackResumeDto | nullability=nullable | accessors=get,init

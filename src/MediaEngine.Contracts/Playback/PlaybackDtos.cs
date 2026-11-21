@@ -26,6 +26,8 @@ public sealed record PlaybackManifestDto
     public PlaybackProfileDto Profile { get; init; } = new();
     public IReadOnlyList<PlaybackTrackDto> AudioTracks { get; init; } = [];
     public IReadOnlyList<PlaybackSubtitleTrackDto> SubtitleTracks { get; init; } = [];
+    /// <summary>True while the Engine is still reading text subtitles out of the video file. They are listed in <see cref="SubtitleTracks"/> only once they can be shown, so a player asks for the manifest again until this is false.</summary>
+    public bool SubtitlesPreparing { get; init; }
     public IReadOnlyList<PlaybackChapterDto> Chapters { get; init; } = [];
     public IReadOnlyList<OfflineVariantDto> OfflineVariants { get; init; } = [];
     public PlaybackResumeDto? Resume { get; init; }
