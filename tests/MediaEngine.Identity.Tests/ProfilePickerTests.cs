@@ -105,8 +105,9 @@ public sealed class ProfilePickerTests : IDisposable
         var mom = await AddUserInHouseholdOfAsync(dad.Account.Id, "Mom");
 
         var dadPasskey = await _service.CreatePasskeySessionAsync(dad.Account.Id, "tv", "TV", "Dashboard");
-        var momPasskey = await _service.CreatePasskeySessionAsync(mom.Id, "tv", "TV", "Dashboard");
-        var momOutside = await _service.CreateExternalSessionAsync(mom.Id, "google", "phone", "Phone", "Dashboard");
+        // Mom has no password yet, so she signs in at home (the same pre-selection holds whatever the way in).
+        var momPasskey = await _service.CreatePasskeySessionAsync(mom.Id, "tv", "TV", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        var momOutside = await _service.CreateExternalSessionAsync(mom.Id, "google", "phone", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
 
         Assert.All(new[] { dadPasskey, momPasskey, momOutside }, issued =>
         {

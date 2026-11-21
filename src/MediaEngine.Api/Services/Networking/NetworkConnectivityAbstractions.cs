@@ -51,7 +51,8 @@ public sealed record RemoteProviderSnapshot(
     RemoteProviderState State,
     string? PublicAddress,
     string Message,
-    bool SecureHttps = false);
+    bool SecureHttps = false,
+    bool NotInstalled = false);
 
 public interface IRemoteConnectivityProvider
 {

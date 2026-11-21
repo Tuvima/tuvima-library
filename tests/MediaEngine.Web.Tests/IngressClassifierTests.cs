@@ -67,7 +67,7 @@ public sealed class IngressClassifierTests
     }
 
     [Fact]
-    public void ForwardedRequest_IsRemoteEvenFromLoopback()
+    public void ForwardedRequest_IsOutsideEvenFromLoopback()
     {
         var services = new ServiceCollection().AddSingleton(new IngressClassifier(null, [])).BuildServiceProvider();
         var context = new DefaultHttpContext { RequestServices = services };
@@ -78,7 +78,70 @@ public sealed class IngressClassifierTests
 
         context.Request.Headers["X-Forwarded-For"] = "203.0.113.9";
 
+        // Never local, and marked as clearly outside so the away-from-home switch can turn it away.
+        Assert.Equal("outside", context.ClientIngress());
+        Assert.Equal(IngressKind.Remote, IngressClassifierExtensions.FromWireValue(context.ClientIngress()));
+    }
+
+    [Fact]
+    public void ContainerGatewayAddress_NotForwarded_IsRemoteButNotClearlyOutside()
+    {
+        // A home install behind Docker NAT: every visitor, at home or not, shows the bridge gateway.
+        var gateway = IPAddress.Parse("172.17.0.1");
+        var context = ContextFrom(new IngressClassifier(null, [], null, null, [gateway]), gateway, MainPort);
+
         Assert.Equal("remote", context.ClientIngress());
+    }
+
+    [Theory]
+    [InlineData("8.8.8.8")]
+    [InlineData("2606:4700:4700::1111")]
+    public void APublicAddress_IsClearlyOutside(string address)
+    {
+        var context = ContextFrom(new IngressClassifier(null, []), IPAddress.Parse(address), MainPort);
+
+        Assert.Equal("outside", context.ClientIngress());
+    }
+
+    [Fact]
+    public void ADirectTailscaleAddress_IsRemoteButNotClearlyOutside()
+    {
+        // 100.64.0.0/10 (carrier-grade NAT, which Tailscale uses): not a private address to the classifier, not a public one either.
+        var context = ContextFrom(new IngressClassifier(null, []), IPAddress.Parse("100.101.102.103"), MainPort);
+
+        Assert.Equal("remote", context.ClientIngress());
+    }
+
+    [Fact]
+    public void AnythingOnTheProxyPort_IsClearlyOutside_EvenWithoutForwardingHeaders()
+    {
+        var context = ContextFrom(new IngressClassifier(ProxyPort, []), IPAddress.Parse("100.101.102.103"), ProxyPort);
+
+        Assert.Equal("outside", context.ClientIngress());
+    }
+
+    [Fact]
+    public void AConfiguredProxyOnTheMainPort_IsClearlyOutside()
+    {
+        var context = ContextFrom(new IngressClassifier(ProxyPort, [], ["192.168.1.2"]), IPAddress.Parse("192.168.1.2"), MainPort);
+
+        Assert.Equal("outside", context.ClientIngress());
+    }
+
+    [Fact]
+    public void AHomeNetworkAddress_StaysTheHomeNetwork_NotOutside()
+    {
+        Assert.Equal("home_network", ContextFrom(new IngressClassifier(null, []), IPAddress.Parse("192.168.1.20"), MainPort).ClientIngress());
+        Assert.Equal("this_computer", ContextFrom(new IngressClassifier(null, []), IPAddress.Loopback, MainPort).ClientIngress());
+    }
+
+    private static DefaultHttpContext ContextFrom(IngressClassifier classifier, IPAddress address, int localPort)
+    {
+        var services = new ServiceCollection().AddSingleton(classifier).BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Connection.RemoteIpAddress = address;
+        context.Connection.LocalPort = localPort;
+        return context;
     }
 
     [Fact]

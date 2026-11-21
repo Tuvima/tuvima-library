@@ -33,6 +33,18 @@ public sealed partial class EngineApiClient
     public Task<NetworkTestResultDto?> TestRemoteNetworkAsync(CancellationToken ct = default) =>
         PostNetworkAsync<NetworkTestResultDto>("POST /network/tests/remote", "/network/tests/remote", new { }, ct);
 
+    public Task<RemoteCheckResultDto?> GetRemoteCheckAsync(CancellationToken ct = default) =>
+        GetAsync<RemoteCheckResultDto>("GET /network/remote-check", "/network/remote-check", ct: ct);
+
+    public async Task<IReadOnlyList<OutsideSignInDto>?> GetOutsideSignInsAsync(CancellationToken ct = default) =>
+        await GetAsync<List<OutsideSignInDto>>("GET /network/outside-sign-ins", "/network/outside-sign-ins", ct: ct);
+
+    public Task<RemoteOffResultDto?> TurnRemoteOffAsync(CancellationToken ct = default) =>
+        PostNetworkAsync<RemoteOffResultDto>("POST /network/remote-off", "/network/remote-off", new { }, ct);
+
+    public Task<RemoteFixResultDto?> TrustRemoteProxyAsync(CancellationToken ct = default) =>
+        PostNetworkAsync<RemoteFixResultDto>("POST /network/remote-fix/trust-proxy", "/network/remote-fix/trust-proxy", new { }, ct);
+
     public Task<NetworkBandwidthStatusDto?> TestNetworkBandwidthAsync(CancellationToken ct = default) =>
         PostNetworkAsync<NetworkBandwidthStatusDto>("POST /network/bandwidth-test", "/network/bandwidth-test", new { }, ct);
 

@@ -45,7 +45,20 @@ public sealed class TailscaleRemoteConnectivityProviderTests
         var result = await provider.GetStateAsync(CancellationToken.None);
 
         Assert.Equal(RemoteProviderState.Unconfigured, result.State);
+        Assert.True(result.NotInstalled);
         Assert.Contains("not installed", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SignedOutClientIsUnconfiguredButNotReportedAsMissing()
+    {
+        var provider = Create(new FakeRunner(
+            new CommandResult(0, "{\"BackendState\":\"NeedsLogin\"}", string.Empty)));
+
+        var result = await provider.GetStateAsync(CancellationToken.None);
+
+        Assert.Equal(RemoteProviderState.Unconfigured, result.State);
+        Assert.False(result.NotInstalled);
     }
 
     private static TailscaleRemoteConnectivityProvider Create(ICommandRunner runner) => new(

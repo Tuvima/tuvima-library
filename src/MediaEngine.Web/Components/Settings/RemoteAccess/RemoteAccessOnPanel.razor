@@ -1,0 +1,183 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient ApiClient
+@inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
+
+@* What the person sees while away-from-home access is on (spec remote-access section 4 "On"; mock-ups, picture 7): a QR code so a
+   phone off the home network can try the address, the few most recent outside sign-ins (who, how, when, and the refused ones
+   marked plainly), and the one switch that turns outside access off at once. The switch asks once ("Are you sure") like every other
+   destructive step, then the Engine puts the way in back to home only; home access is never touched. The panel reads its own
+   data and has nothing to save: it only tells its host when access was turned off. *@
+<div class="ra-on" data-remote-on>
+    <RemoteAccessCard Key="phone-qr" Title="@L["RemoteAccessOnPanel_PhoneTitle"].Value">
+        @if (string.IsNullOrWhiteSpace(_address))
+        {
+            <p class="ra-on__text" data-remote-no-address>@L["RemoteAccessOnPanel_NoAddress"]</p>
+        }
+        else
+        {
+            <p class="ra-on__text">@L["RemoteAccessOnPanel_PhoneIntro"]</p>
+            <div class="ra-on__qr-row">
+                <div class="ra-on__qr" data-remote-qr="address">@((MarkupString)_qr)</div>
+                <div class="ra-on__address">
+                    <code data-remote-address>@_address</code>
+                    <div class="ra-on__address-actions">
+                        <AppCopyButton Label="@L["RemoteAccessOnPanel_CopyAddress"].Value" Text="@_address" What="@L["RemoteAccessOnPanel_CopyAddressWhat"].Value"
+                                       CopyFailed="ShowCopyFailure" UserAttributes="@CopyAttributes" />
+                        <AppButton Label="@L["RemoteAccessOnPanel_OpenAddress"].Value" Href="@_address" Target="_blank" data-remote-action="open-address" />
+                    </div>
+                </div>
+            </div>
+            @if (_copyFailure is not null)
+            {
+                <p class="ra-on__failure" role="alert" data-copy-failure>@_copyFailure</p>
+            }
+        }
+    </RemoteAccessCard>
+
+    <RemoteAccessCard Key="sign-ins" Title="@L["RemoteAccessOnPanel_SignInsTitle"].Value">
+        @if (_loading)
+        {
+            <div class="ra-on__busy" role="status">
+                <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
+                <span>@L["RemoteAccessOnPanel_SignInsLoading"]</span>
+            </div>
+        }
+        else if (_signIns is null)
+        {
+            <p class="ra-on__text" data-remote-sign-ins-unavailable>@L["RemoteAccessOnPanel_SignInsUnavailable"]</p>
+            <AppButton Label="@L["RemoteAccessCheckStep_CheckAgain"].Value" OnClick="RefreshAsync" data-remote-action="refresh-sign-ins" />
+        }
+        else if (_signIns.Count == 0)
+        {
+            <p class="ra-on__text" data-remote-sign-ins-empty>@L["RemoteAccessOnPanel_SignInsEmpty"]</p>
+        }
+        else
+        {
+            @foreach (var signIn in _signIns)
+            {
+                <RemoteAccessRow Key="@(signIn.Succeeded ? "sign-in" : "sign-in-refused")" Tone="@(signIn.Succeeded ? AppStatusDotTone.Working : AppStatusDotTone.Broken)"
+                                 StatusText="@(signIn.Succeeded ? L["RemoteAccessOnPanel_SignedIn"].Value : L["RemoteAccessOnPanel_Refused"].Value)"
+                                 Title="@TitleFor(signIn)" Detail="@DetailFor(signIn)" />
+            }
+        }
+    </RemoteAccessCard>
+
+    <RemoteAccessCard Key="off-switch">
+        <div data-remote-switch="allow-outside">
+            <AppSwitchRow Label="@L["RemoteAccessOnPanel_OffTitle"].Value" Description="@L["RemoteAccessOnPanel_OffText"].Value"
+                          Value="true" ValueChanged="TurnOffAsync" Disabled="@_turningOff" />
+        </div>
+        @if (_offFailure is not null)
+        {
+            <p class="ra-on__failure" role="alert" data-remote-off-failure>@_offFailure</p>
+        }
+    </RemoteAccessCard>
+</div>
+
+@code {
+    private static readonly Dictionary<string, object> CopyAttributes = new() { ["data-remote-action"] = "copy-address" };
+
+    /// <summary>Raised once the Engine has put the way in back to home only, so the host can leave the screen that no longer applies.</summary>
+    [Parameter] public EventCallback TurnedOff { get; set; }
+
+    private IReadOnlyList<OutsideSignInDto>? _signIns;
+    private string? _address;
+    private string _qr = string.Empty;
+    private string? _copyFailure;
+    private string? _offFailure;
+    private bool _loading = true;
+    private bool _turningOff;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var addresses = await ApiClient.GetNetworkAppAddressesAsync();
+        _address = string.IsNullOrWhiteSpace(addresses?.AwayFromHome) ? null : addresses.AwayFromHome.Trim();
+        _qr = _address is null ? string.Empty : QrCodeSvg.Render(_address);
+        await RefreshAsync();
+    }
+
+    /// <summary>Reads the recent outside sign-ins again (the host calls this after a test).</summary>
+    public async Task RefreshAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _signIns = await ApiClient.GetOutsideSignInsAsync();
+        _loading = false;
+        StateHasChanged();
+    }
+
+    // The switch only ever goes one way here. Cancelling leaves the value at on, so the next render puts the switch back.
+    private async Task TurnOffAsync(bool value)
+    {
+        if (value || _turningOff)
+        {
+            return;
+        }
+
+        _offFailure = null;
+        var answer = await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            L["RemoteAccessOnPanel_ConfirmTitle"].Value,
+            L["RemoteAccessOnPanel_ConfirmMessage"].Value,
+            primaryLabel: L["RemoteAccessOnPanel_ConfirmTurnOff"].Value,
+            secondaryLabel: L["RemoteAccessOnPanel_ConfirmKeep"].Value,
+            primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        _turningOff = true;
+        try
+        {
+            if (await ApiClient.TurnRemoteOffAsync() is null)
+            {
+                _offFailure = L["RemoteAccessOnPanel_OffFailed"].Value;
+                return;
+            }
+        }
+        finally
+        {
+            _turningOff = false;
+        }
+
+        await TurnedOff.InvokeAsync();
+    }
+
+    private void ShowCopyFailure(string message) => _copyFailure = message;
+
+    private string TitleFor(OutsideSignInDto signIn) =>
+        $"{(string.IsNullOrWhiteSpace(signIn.ProfileName) ? L["RemoteAccessOnPanel_UnknownPerson"].Value : signIn.ProfileName)} · {MethodWords(signIn.Method)}";
+
+    private string DetailFor(OutsideSignInDto signIn)
+    {
+        var when = WhenWords(signIn.At.ToLocalTime());
+        if (signIn.Succeeded)
+        {
+            return when;
+        }
+
+        var reason = string.IsNullOrWhiteSpace(signIn.RefusalReason) ? string.Empty : $" {signIn.RefusalReason}";
+        return $"{when} · {L["RemoteAccessOnPanel_RefusedPlain"].Value}{reason}";
+    }
+
+    private string MethodWords(string method) => method switch
+    {
+        OutsideSignInMethods.Passkey => L["RemoteAccessOnPanel_MethodPasskey"].Value,
+        OutsideSignInMethods.LinkedAccount => L["RemoteAccessOnPanel_MethodLinkedAccount"].Value,
+        OutsideSignInMethods.NoPassword => L["RemoteAccessOnPanel_MethodNoPassword"].Value,
+        _ => L["RemoteAccessOnPanel_MethodPassword"].Value,
+    };
+
+    private string WhenWords(DateTimeOffset local)
+    {
+        var today = DateTimeOffset.Now.Date;
+        return local.Date == today ? string.Format(L["RemoteAccessOnPanel_Today"].Value, $"{local:t}")
+            : local.Date == today.AddDays(-1) ? string.Format(L["RemoteAccessOnPanel_Yesterday"].Value, $"{local:t}")
+            : $"{local:d} {local:t}";
+    }
+}

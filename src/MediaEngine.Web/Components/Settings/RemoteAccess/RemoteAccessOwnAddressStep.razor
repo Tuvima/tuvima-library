@@ -1,0 +1,60 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+
+@* The public https address on its own, for someone who already runs a proxy or tunnel (reached from the start page's "I already have a proxy
+   or tunnel"): Save and verify, and the remote test. The guided way in with its four screens is RemoteAccessDomainWizard. *@
+<div class="ra-own" data-remote-screen="own-address">
+    <RemoteAccessCard Key="address" Title="@L["RemoteAccessOwnAddressStep_PublicAddress"].Value" Intro="@L["RemoteAccessOwnAddressStep_PublicAddressText"].Value">
+        <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname"
+                      Label="@L["RemoteAccessOwnAddressStep_PublicHttpsAddress"].Value" Placeholder="https://tuvima.example.com"
+                      HelpText="@L["RemoteAccessOwnAddressStep_AddressHelp"].Value" />
+        <div class="ra-own__actions">
+            <AppButton Label="@L["RemoteAccessOwnAddressStep_SaveAndVerify"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveAddressAsync" data-remote-action="save-address" />
+            <AppButton Label="@L["RemoteAccessOwnAddressStep_TestRemoteAccess"].Value" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestRemoteAsync" data-remote-action="test-remote" />
+        </div>
+    </RemoteAccessCard>
+
+    <div class="ra-own__actions">
+        <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+    </div>
+</div>
+
+<NetworkTestDialog @bind-Visible="_testDialogOpen" Busy="@_testing" Result="@_testResult" />
+
+@code {
+    [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
+
+    [Parameter] public EventCallback SaveRequested { get; set; }
+    [Parameter] public EventCallback StatusRefreshRequested { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+
+    private bool _testDialogOpen;
+    private bool _testing;
+    private NetworkTestResultDto? _testResult;
+
+    // Saving an address means the own-address way in is on: a proxy or tunnel ("custom"), or the router door ("direct-only") when that is what Advanced set.
+    private async Task SaveAddressAsync()
+    {
+        var mode = Settings.Remote.ConnectionMode?.Trim().ToLowerInvariant();
+        if (mode is not ("custom" or "direct-only"))
+        {
+            Settings.Remote.ConnectionMode = "custom";
+            Settings.Remote.AutomaticRouterConfiguration = false;
+        }
+
+        await SaveRequested.InvokeAsync();
+        await StatusRefreshRequested.InvokeAsync();
+    }
+
+    private async Task TestRemoteAsync()
+    {
+        _testDialogOpen = true;
+        _testing = true;
+        _testResult = await ApiClient.TestRemoteNetworkAsync();
+        _testing = false;
+        await StatusRefreshRequested.InvokeAsync();
+    }
+}

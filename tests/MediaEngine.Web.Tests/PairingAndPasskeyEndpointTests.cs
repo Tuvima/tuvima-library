@@ -155,6 +155,7 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("name=\"code\"", html);
+        Assert.Equal("no-referrer", Assert.Single(response.Headers.GetValues("Referrer-Policy")));
     }
 
     [Fact]
@@ -175,6 +176,7 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("KQ7M4-XH2TA", previewBody);
+        Assert.Equal("no-referrer", Assert.Single(response.Headers.GetValues("Referrer-Policy")));
         Assert.Contains("value=\"friend@example.test\" readonly", html);
         Assert.Contains("name=\"code\" value=\"KQ7M4-XH2TA\"", html);
         Assert.Contains("name=\"password\"", html);
@@ -196,6 +198,7 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("name=\"code\"", html);
+        Assert.Equal("no-referrer", Assert.Single(response.Headers.GetValues("Referrer-Policy")));
         Assert.Contains("not valid, has expired, or was already used", html);
         Assert.DoesNotContain("name=\"password\"", html);
     }

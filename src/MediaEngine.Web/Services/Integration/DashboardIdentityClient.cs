@@ -886,11 +886,14 @@ public sealed partial class DashboardIdentityClient(
         IngressClassifierExtensions.FromWireValue(
             string.IsNullOrEmpty(knownIngress) ? CurrentIngress(contextAccessor?.HttpContext) : knownIngress) == IngressKind.Remote;
 
-    // No classifier or no request means the caller cannot be placed, so it is treated as remote (fail closed).
+    // No classifier or no request means the caller cannot be placed, so it is treated as remote (fail closed). A forwarded
+    // request, or one the classifier finds clearly outside, is sent as "outside" so the Engine's off switch can turn it away.
     private string CurrentIngress(HttpContext? context) =>
-        context is not null && ingress is not null && !context.WasForwarded()
-            ? ingress.Classify(context).ToWireValue()
-            : ClientIngressValues.Remote;
+        context is null
+            ? ClientIngressValues.Remote
+            : ingress is not null
+                ? ingress.ToWirePlace(context)
+                : context.WasForwarded() ? ClientIngressValues.Outside : ClientIngressValues.Remote;
 
     private (string Ingress, bool IsHttps) GetOriginalClientContext()
     {

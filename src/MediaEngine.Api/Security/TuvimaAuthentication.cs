@@ -65,7 +65,8 @@ public sealed class TuvimaAuthenticationHandler(
     UrlEncoder encoder,
     IFirstPartyIdentityService identity,
     ClientAuthorizationService clientAuthorization,
-    IApplicationRepository applications)
+    IApplicationRepository applications,
+    IOutsideAccessPolicy? outsideAccess = null)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -77,6 +78,13 @@ public sealed class TuvimaAuthenticationHandler(
             && Request.Headers.Authorization.ToString() is { } authorization
             && authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
+            // A paired app is turned away from outside while away-from-home access is off (spec remote-access D6). Its tokens are not
+            // revoked: the same token keeps working at home, and again when outside access is switched back on.
+            if (RequestIngress.DeviceRefusedWhileOutsideAccessOff(Context, outsideAccess))
+            {
+                return AuthenticateResult.Fail("Away-from-home access is off.");
+            }
+
             var rawToken = authorization["Bearer ".Length..].Trim();
             var client = await clientAuthorization.ValidateAccessTokenAsync(rawToken, Context.RequestAborted).ConfigureAwait(false);
             if (client is null)
@@ -135,10 +143,7 @@ public sealed class TuvimaAuthenticationHandler(
                 && !string.IsNullOrWhiteSpace(sessionValues.ToString()))
             {
                 // The Dashboard says where the visitor is; a no-password account is only valid on this computer or the home network.
-                var claimedIngress = Request.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
-                    && !string.IsNullOrWhiteSpace(ingressValues.ToString())
-                    ? ClientIngress.ParseCurrent(ingressValues.ToString())
-                    : null;
+                var claimedIngress = RequestIngress.CurrentOrNull(Request);
                 session = await identity.ValidateSessionAsync(sessionValues.ToString(), true, Context.RequestAborted, claimedIngress).ConfigureAwait(false);
                 if (session is null)
                 {

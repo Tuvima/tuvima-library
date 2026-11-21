@@ -170,7 +170,7 @@ public sealed class PermissionsGroundworkTests
 
         foreach (var account in new[] { world.A.Owner, world.A.OwnSignIn })
         {
-            var session = await world.Identity.CreatePasskeySessionAsync(account.Id, $"device-{account.Id:N}", "Test", "Dashboard");
+            var session = await world.Identity.CreatePasskeySessionAsync(account.Id, $"device-{account.Id:N}", "Test", "Dashboard", ingress: ClientIngress.HomeNetwork);
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
                 world.Identity.SwitchActiveProfileAsync(session.PlaintextToken, world.B.Person.Id, null));
 
@@ -187,7 +187,7 @@ public sealed class PermissionsGroundworkTests
         var housemate = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
             new AddHouseholdPersonCommand(home, "Housemate", null, false, null));
 
-        var session = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-admin", "Test", "Dashboard");
+        var session = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-admin", "Test", "Dashboard", ingress: ClientIngress.HomeNetwork);
         var switched = await world.Identity.SwitchActiveProfileAsync(session.PlaintextToken, housemate.Id, null);
 
         Assert.Equal(housemate.Id, switched.ActiveProfile.Id);
@@ -479,8 +479,8 @@ public sealed class PermissionsGroundworkTests
         await using var world = await World.CreateAsync();
         // The administrator is a household of one, which goes straight in unless its profile has a PIN to enter.
         await world.Identity.SetProfilePinAsync((await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value, "2468");
-        var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-pick", "Test", "Dashboard");
-        var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-pick", "Test", "Dashboard");
+        var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-pick", "Test", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-pick", "Test", "Dashboard", ingress: ClientIngress.HomeNetwork);
 
         Assert.True(member.Session.ProfilePending);
         Assert.True(administrator.Session.ProfilePending);
@@ -497,8 +497,8 @@ public sealed class PermissionsGroundworkTests
     {
         await using var world = await World.CreateAsync();
 
-        var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-own", "Test", "Dashboard");
-        var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-own", "Test", "Dashboard");
+        var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-own", "Test", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-own", "Test", "Dashboard", ingress: ClientIngress.HomeNetwork);
 
         Assert.Equal((await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value, member.ActiveProfile.Id);
         Assert.Equal(world.A.Id, member.ActiveProfile.HouseholdId);

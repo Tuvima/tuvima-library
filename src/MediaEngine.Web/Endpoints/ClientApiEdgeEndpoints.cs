@@ -215,6 +215,8 @@ public static class ClientApiEdgeEndpoints
             using var upstream = new ClientWebSocket();
             upstream.Options.CollectHttpResponseDetails = true;
             upstream.Options.SetRequestHeader("Authorization", "Bearer " + bearer);
+            // Where the visitor really is (the Engine only sees this computer): the Engine turns a clearly-outside app away while away-from-home access is off.
+            upstream.Options.SetRequestHeader(ClientIngressValues.ValidateHeader, context.ClientIngress());
             foreach (var protocol in context.WebSockets.WebSocketRequestedProtocols)
             {
                 upstream.Options.AddSubProtocol(protocol);
@@ -268,6 +270,7 @@ public static class ClientApiEdgeEndpoints
             }
         }
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, context.ClientIngress());
         using var response = await clients.CreateClient("ClientApiProxy")
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
         context.Response.StatusCode = (int)response.StatusCode;
@@ -387,6 +390,8 @@ public static class ClientApiEdgeEndpoints
         }
 
         CopyRequestHeader(context.Request, request, "Authorization");
+        // Where the visitor really is (the Engine only sees this computer). Only the Dashboard sets it; it is never copied from the app.
+        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, context.ClientIngress());
         CopyRequestHeader(context.Request, request, "Accept");
         CopyRequestHeader(context.Request, request, "Range");
         CopyRequestHeader(context.Request, request, "If-Range");

@@ -288,6 +288,8 @@ builder.Services.AddScoped<DevelopmentToolsState>();
 builder.Services.AddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
 builder.Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
 builder.Services.AddScoped<MediaEngine.Web.Services.Settings.ImportUploadState>();
+builder.Services.AddScoped<MediaEngine.Web.Services.Settings.RemoteAccessFlowState>();
+builder.Services.AddScoped<MediaEngine.Web.Services.Settings.IFriendInviteService, MediaEngine.Web.Services.Settings.FriendInviteService>();
 builder.Services.AddScoped<MediaEngine.Web.Services.MediaTiles.BrowseLibrariesState>();
 builder.Services.AddScoped<IItsYouConfirmer, DialogItsYouConfirmer>();
 builder.Services.AddScoped<ConfirmedActionRunner>();

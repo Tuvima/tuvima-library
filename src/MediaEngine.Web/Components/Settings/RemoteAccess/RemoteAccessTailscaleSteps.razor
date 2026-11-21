@@ -1,0 +1,185 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Settings
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* Step 4 for Tailscale, with live ticks (mock-ups, picture 5; spec WP4). Each line ticks itself when the check sees it is done, so
+   the person never wonders whether it worked: Library looks again on its own while the page is open, and every unfinished line
+   offers Check again. A command carries a Copy button and the small "On the server computer" tag says where to run it. The last
+   line has a QR code that opens Tailscale's download page on the phone. Nothing here contacts Tailscale: the links are only
+   opened by the person. *@
+<div class="ra-tailscale" data-remote-screen="connect-tailscale" data-tailscale-progress="@Progress.ToString().ToLowerInvariant()">
+    <RemoteAccessCard Key="proxy-port" Tone="AppUiTone.Info">
+        <span data-remote-proxy-port-note>@string.Format(L["RemoteAccessTailscaleSteps_ProxyPortNote"].Value, ProxyPort)</span>
+    </RemoteAccessCard>
+
+    <RemoteAccessCard Key="tailscale-steps">
+        <RemoteAccessRow Key="install" Tag="@L["RemoteAccessTailscaleSteps_ServerTag"].Value" Title="@L["RemoteAccessTailscaleSteps_Install"].Value"
+                         Tone="@ToneFor(TailscaleProgress.NotSignedIn)" StatusText="@StatusFor(TailscaleProgress.NotSignedIn)" Number="1" Current="@IsCurrent(TailscaleProgress.Unknown, TailscaleProgress.NotInstalled)"
+                         Detail="@(Reached(TailscaleProgress.NotSignedIn) ? L["RemoteAccessTailscaleSteps_InstallDone"].Value : L["RemoteAccessTailscaleSteps_InstallTodo"].Value)">
+            <ChildContent>
+                @if (!Reached(TailscaleProgress.NotSignedIn))
+                {
+                    <a class="ra-tailscale__link" href="@DownloadAddress" target="_blank" rel="noopener noreferrer" data-remote-link="download">@L["RemoteAccessTailscaleSteps_DownloadLink"]</a>
+                }
+            </ChildContent>
+            <Actions>@CheckAgainButton(IsCurrent(TailscaleProgress.Unknown, TailscaleProgress.NotInstalled))</Actions>
+        </RemoteAccessRow>
+
+        <RemoteAccessRow Key="sign-in" Tag="@L["RemoteAccessTailscaleSteps_ServerTag"].Value" Title="@L["RemoteAccessTailscaleSteps_SignIn"].Value"
+                         Tone="@ToneFor(TailscaleProgress.HttpsOff)" StatusText="@StatusFor(TailscaleProgress.HttpsOff)" Number="2" Current="@IsCurrent(TailscaleProgress.NotSignedIn)"
+                         Detail="@(Reached(TailscaleProgress.HttpsOff) ? L["RemoteAccessTailscaleSteps_SignInDone"].Value : L["RemoteAccessTailscaleSteps_SignInTodo"].Value)">
+            <ChildContent>
+                @if (!Reached(TailscaleProgress.HttpsOff))
+                {
+                    @Command(SignInCommand)
+                }
+            </ChildContent>
+            <Actions>@CheckAgainButton(IsCurrent(TailscaleProgress.NotSignedIn))</Actions>
+        </RemoteAccessRow>
+
+        <RemoteAccessRow Key="secure-address" Tag="@L["RemoteAccessTailscaleSteps_ServerTag"].Value" Title="@L["RemoteAccessTailscaleSteps_SecureAddress"].Value"
+                         Tone="@ToneFor(TailscaleProgress.Ready)" StatusText="@StatusFor(TailscaleProgress.Ready)" Number="3" Current="@IsCurrent(TailscaleProgress.HttpsOff)"
+                         Detail="@SecureAddressDetail">
+            <ChildContent>
+                @if (!Reached(TailscaleProgress.Ready))
+                {
+                    @Command(ServeCommand)
+                }
+            </ChildContent>
+            <Actions>@CheckAgainButton(IsCurrent(TailscaleProgress.HttpsOff))</Actions>
+        </RemoteAccessRow>
+
+        <RemoteAccessRow Key="phone" Title="@L["RemoteAccessTailscaleSteps_Phone"].Value" Number="4" Detail="@L["RemoteAccessTailscaleSteps_PhoneText"].Value">
+            <ChildContent>
+                <a class="ra-tailscale__link" href="@DownloadAddress" target="_blank" rel="noopener noreferrer" data-remote-link="phone-download">@L["RemoteAccessTailscaleSteps_PhoneLink"]</a>
+            </ChildContent>
+            <Actions><div class="ra-tailscale__qr" data-remote-qr="phone">@((MarkupString)_qr)</div></Actions>
+        </RemoteAccessRow>
+
+        @if (_copyFailure is not null)
+        {
+            <p class="ra-tailscale__failure" role="alert" data-copy-failure>@_copyFailure</p>
+        }
+    </RemoteAccessCard>
+
+    <div class="ra-tailscale__actions">
+        <AppButton Label="@L["Common_Continue"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!Reached(TailscaleProgress.Ready))"
+                   OnClick="ContinueRequested" data-remote-action="continue" />
+        <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+        @if (!string.IsNullOrWhiteSpace(SendLink))
+        {
+            <AppCopyButton Label="@L["RemoteAccessTailscaleSteps_SendSteps"].Value" Text="@SendLink" What="@L["RemoteAccessTailscaleSteps_SendStepsWhat"].Value"
+                           CopyFailed="ShowCopyFailure" UserAttributes="@SendAttributes" />
+        }
+    </div>
+</div>
+
+@code {
+    private const string DownloadAddress = "https://tailscale.com/download";
+    private const string SignInCommand = "tailscale up";
+    private static readonly Dictionary<string, object> SendAttributes = new() { ["data-remote-action"] = "send-steps" };
+
+    [Parameter] public RemoteCheckResultDto? Result { get; set; }
+
+    /// <summary>The port Tailscale Serve hands the Dashboard's traffic to (the Dashboard's proxy port).</summary>
+    [Parameter] public int ProxyPort { get; set; } = 5017;
+
+    /// <summary>How often the page looks again on its own; zero or less turns that off.</summary>
+    [Parameter] public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>The address to open on the server computer (shown as "Send me these steps" on a phone), or empty to hide it.</summary>
+    [Parameter] public string? SendLink { get; set; }
+
+    [Parameter] public EventCallback CheckAgainRequested { get; set; }
+
+    /// <summary>Raised on the timer so the host can read the check again quietly.</summary>
+    [Parameter] public EventCallback PollRequested { get; set; }
+    [Parameter] public EventCallback ContinueRequested { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+
+    private CancellationTokenSource? _polling;
+    private string? _copyFailure;
+    private string _qr = string.Empty;
+
+    private TailscaleProgress Progress => TailscaleProgressReader.Read(Result);
+
+    private string ServeCommand => $"tailscale serve --bg {ProxyPort}";
+
+    protected override void OnInitialized()
+    {
+        _qr = QrCodeSvg.Render(DownloadAddress);
+        if (PollInterval > TimeSpan.Zero)
+        {
+            _polling = new CancellationTokenSource();
+            _ = PollAsync(_polling.Token);
+        }
+    }
+
+    // A line is done once the check has reached the stage after it.
+    private bool Reached(TailscaleProgress stage) => Progress >= stage;
+
+    private bool IsCurrent(params TailscaleProgress[] stages) => stages.Contains(Progress);
+
+    private AppStatusDotTone? ToneFor(TailscaleProgress stage) => Reached(stage) ? AppStatusDotTone.Working : null;
+
+    private string? StatusFor(TailscaleProgress stage) => Reached(stage) ? L["RemoteAccessTailscaleSteps_Done"].Value : null;
+
+    private string SecureAddressDetail
+    {
+        get
+        {
+            if (!Reached(TailscaleProgress.Ready))
+            {
+                return L["RemoteAccessTailscaleSteps_SecureAddressTodo"].Value;
+            }
+
+            var ready = Result?.Findings.FirstOrDefault(finding => finding.Key == RemoteCheckFindingKeys.TailscaleReady);
+            return string.IsNullOrWhiteSpace(ready?.Detail) ? L["RemoteAccessTailscaleSteps_SecureAddressDone"].Value : ready.Detail;
+        }
+    }
+
+    private RenderFragment CheckAgainButton(bool show) => @<text>
+        @if (show)
+        {
+            <AppButton Label="@L["RemoteAccessCheckStep_CheckAgain"].Value" OnClick="CheckAgainRequested" data-remote-action="check-again" />
+        }
+    </text>;
+
+    private RenderFragment Command(string command) => @<div class="ra-tailscale__command">
+        <code>@command</code>
+        <AppCopyButton Label="@L["Common_Copy"].Value" Text="@command" What="@L["RemoteAccessTailscaleSteps_CommandWhat"].Value" Size="AppControlSize.Compact" CopyFailed="ShowCopyFailure" />
+    </div>;
+
+    private void ShowCopyFailure(string message) => _copyFailure = message;
+
+    // Looks again every few seconds while the page is open and something is still to do; the host reads the check quietly.
+    private async Task PollAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(PollInterval);
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                if (Reached(TailscaleProgress.Ready))
+                {
+                    break;
+                }
+
+                await PollRequested.InvokeAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left, which is what stops the looking.
+        }
+    }
+
+    public void Dispose()
+    {
+        _polling?.Cancel();
+        _polling?.Dispose();
+    }
+}

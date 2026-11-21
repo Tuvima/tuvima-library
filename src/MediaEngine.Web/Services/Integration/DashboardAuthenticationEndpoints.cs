@@ -5,6 +5,7 @@ using System.Text.Json;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Web.Services.Configuration;
+using MediaEngine.Web.Services.Settings;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -321,8 +322,10 @@ public static class DashboardAuthenticationEndpoints
             return Results.Content(ok ? Shell("<h1>Password changed</h1><p><a class=\"button\" href=\"/auth/login\">Sign in</a></p>") : LoginFailurePage("That reset link is invalid or expired."), "text/html", Encoding.UTF8, ok ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest);
         }).AllowAnonymous();
 
-        app.MapGet("/auth/invite", async (HttpContext context, IAntiforgery antiforgery, DashboardIdentityClient identity, string? code) =>
+        app.MapGet("/auth/invite", async (HttpContext context, IAntiforgery antiforgery, DashboardIdentityClient identity, DashboardConfigurationReader configuration, string? code) =>
         {
+            // The invitation code is in this address, so no link on the page may carry it to another site as a referrer.
+            context.Response.Headers["Referrer-Policy"] = "no-referrer";
             if (string.IsNullOrWhiteSpace(code))
             {
                 // Someone who was handed a code rather than a link: ask for it, then continue with the same page.
@@ -343,7 +346,9 @@ public static class DashboardAuthenticationEndpoints
             }
 
             var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
-            return Results.Content(Shell(InvitePasswordBody(anti, EnsureDeviceCookie(context), code.Trim(), preview.Email, null)), "text/html", Encoding.UTF8);
+            // The page is served from the address the friend was given, so that address is the one the app is told to use.
+            var handoff = InviteAppHandoff.Render($"{context.Request.Scheme}://{context.Request.Host}", code.Trim(), context.Request.Headers.UserAgent.ToString(), configuration.LoadAppStoreLinks());
+            return Results.Content(Shell(handoff + InvitePasswordBody(anti, EnsureDeviceCookie(context), code.Trim(), preview.Email, null)), "text/html", Encoding.UTF8);
         }).AllowAnonymous();
         app.MapPost("/auth/invite", async (HttpContext context, DashboardConfigurationReader configuration,
             DashboardIdentityClient identity, IAntiforgery antiforgery) =>

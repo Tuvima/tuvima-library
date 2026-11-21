@@ -22,7 +22,7 @@ public sealed partial class SettingsSaveRuleGuardrailTests
         ["ManagedAccessUsers.razor|Save email"] = "A drawer form with Cancel: changing a sign-in's email is one deliberate step, not a Settings page value.",
         ["ManagedAccessApplications.razor|Save application"] = "The create and edit form of an application, with Cancel.",
         ["ManagedApplicationWebhooks.razor|Save webhook"] = "The create and edit form of a webhook (a URL and its events together), with Cancel.",
-        ["RemoteAccessSettingsPanel.razor|Save and verify"] = "An action, not a plain save: it saves the public address and then checks that the outside world can reach it.",
+        ["RemoteAccessOwnAddressStep.razor|Save and verify"] = "An action, not a plain save: it saves the public address and then checks that the outside world can reach it.",
         ["DocumentRuleEditorDialog.razor|Save rule"] = "A dialog: the rule editor, with Cancel.",
     };
 
@@ -31,7 +31,7 @@ public sealed partial class SettingsSaveRuleGuardrailTests
     {
         "ManagedAccessUsers_SaveEmail",
         "ManagedApplicationWebhooks_SaveWebhook",
-        "RemoteAccessSettingsPanel_SaveAndVerify",
+        "RemoteAccessOwnAddressStep_SaveAndVerify",
         "DocumentRuleEditorDialog_SaveRule",
     };
 

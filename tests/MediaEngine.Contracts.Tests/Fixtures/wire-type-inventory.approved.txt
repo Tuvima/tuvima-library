@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1609; api=0; web-client=56
+# scopes: contracts=1614; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13208,6 +13208,15 @@
   Templates: System.Collections.Generic.Dictionary<System.String, System.String> | json=templates | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"template":"sample","preview":"sample","templates":{}}
 
+[contracts] MediaEngine.Contracts.Settings.OutsideSignInDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  At: System.DateTimeOffset | json=at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileName: System.String | json=profile_name | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Succeeded: System.Boolean | json=succeeded | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Method: System.String | json=method | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RefusalReason: System.String | json=refusal_reason | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"at":"2025-01-02T03:04:05+00:00","profile_name":"sample","succeeded":true,"method":"sample","refusal_reason":"sample"}
+
 [contracts] MediaEngine.Contracts.Settings.PasswordResetDeliveryDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Mode: System.String | json=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -13529,6 +13538,32 @@
   Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"success":true,"response_time_ms":7,"sample_fields":[],"message":"sample","status":"sample"}
 
+[contracts] MediaEngine.Contracts.Settings.RemoteCheckFindingDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Status: System.String | json=status | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Detail: System.String | json=detail | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NextStep: System.String | json=next_step | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FixAction: System.String | json=fix_action | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","status":"sample","title":"sample","detail":"sample","next_step":"sample","fix_action":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.RemoteCheckResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CheckedAt: System.DateTimeOffset | json=checked_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Suggestion: System.String | json=suggestion | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SuggestionReason: System.String | json=suggestion_reason | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Findings: System.Collections.Generic.List<MediaEngine.Contracts.Settings.RemoteCheckFindingDto> | json=findings | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"checked_at":"2025-01-02T03:04:05+00:00","suggestion":"sample","suggestion_reason":"sample","findings":[]}
+
+[contracts] MediaEngine.Contracts.Settings.RemoteFixResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Action: System.String | json=action | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Changed: System.Boolean | json=changed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProxyPort: System.Int32? | json=proxy_port | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RestartRequired: System.Boolean | json=restart_required | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"action":"sample","changed":true,"proxy_port":7,"restart_required":true}
+
 [contracts] MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
   ConnectionMode: System.String | json=connection_mode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -13540,6 +13575,12 @@
   TrustedProxies: System.Collections.Generic.List<System.String> | json=trusted_proxies | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TrustedProxyNetworks: System.Collections.Generic.List<System.String> | json=trusted_proxy_networks | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"connection_mode":"sample","automatic_router_configuration":true,"external_port":7,"tls_termination_port":7,"public_hostname":"sample","proxy_port":7,"trusted_proxies":[],"trusted_proxy_networks":[]}
+
+[contracts] MediaEngine.Contracts.Settings.RemoteOffResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  WasOn: System.Boolean | json=was_on | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ConnectionMode: System.String | json=connection_mode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"was_on":true,"connection_mode":"sample"}
 
 [contracts] MediaEngine.Contracts.Settings.ResolvedUISettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default

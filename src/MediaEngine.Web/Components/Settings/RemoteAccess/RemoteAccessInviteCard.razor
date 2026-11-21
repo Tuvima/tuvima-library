@@ -1,0 +1,229 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Services.Settings
+@inject IFriendInviteService Invites
+@inject IStringLocalizer<SharedStrings> L
+
+@* "Share with friends" (spec remote-access D13 and D15, mock-ups 6b D): the server administrator makes a one-time invitation for a friend,
+   shown as a link and a QR code. It uses the existing invitation system and the same household and library choices as adding a person.
+   The link carries the away-from-home address and the one-time code; the page it opens offers the Library app first and a browser
+   as the fallback. The friend always chooses their own password. The code is shown once, here, and is never written to a log. *@
+@if (_ready && Invites.CanInvite)
+{
+    <RemoteAccessCard Key="invite" Title="@L["RemoteAccessInvite_Title"].Value" Intro="@(_options.AwayAddress is null ? L["RemoteAccessInvite_NotYet"].Value : L["RemoteAccessInvite_Intro"].Value)">
+        @if (_options.AwayAddress is not null)
+        {
+            @if (_link is not null)
+            {
+                <div data-invite-result>
+                    <InvitationShare Code="@_code" ExpiresAt="@_expires" PublicAddress="@_options.AwayAddress" />
+                    <div class="ra-invite__buttons">
+                        <a class="ra-invite__mail" href="@MailAddress" data-remote-action="invite-email">@L["RemoteAccessInvite_SendByEmail"]</a>
+                    </div>
+                </div>
+                <RemoteAccessRow Key="invite-household" Title="@L["RemoteAccessInvite_Household"].Value" Detail="@_summaryHousehold" />
+                <RemoteAccessRow Key="invite-libraries" Title="@L["RemoteAccessInvite_Libraries"].Value" Detail="@_summaryLibraries" />
+                <p class="ra-invite__note">@L["RemoteAccessInvite_Cancel"]</p>
+                <div class="ra-invite__buttons">
+                    <AppButton Label="@L["RemoteAccessInvite_Another"].Value" OnClick="Another" data-remote-action="invite-another" />
+                </div>
+            }
+            else if (!_open)
+            {
+                <div class="ra-invite__buttons">
+                    <AppButton Label="@L["RemoteAccessInvite_Open"].Value" OnClick="Open" data-remote-action="invite-open" />
+                </div>
+            }
+            else
+            {
+                <div class="ra-invite__form" data-invite-form>
+                    <AppTextField T="string" @bind-Value="_name" Label="@L["RemoteAccessInvite_Name"].Value" data-invite-field="name" />
+                    <AppTextField T="string" @bind-Value="_email" Label="@L["RemoteAccessInvite_Email"].Value" HelpText="@L["RemoteAccessInvite_EmailHelp"].Value" data-invite-field="email" />
+                    <AppSelect Native="true" Value="@_household" ValueChanged="@(value => SetHousehold(value))" aria-label="@L["Common_Household"].Value">
+                        @foreach (var household in _options.Households)
+                        {
+                            <option value="@household.Id">@household.Name</option>
+                        }
+                        <option value="@NewHousehold">@L["RemoteAccessInvite_NewHousehold"]</option>
+                    </AppSelect>
+                    @if (_household == NewHousehold)
+                    {
+                        <AppTextField T="string" @bind-Value="_newHouseholdName" Label="@L["ManagedAccessUserInvite_NewHouseholdName"].Value" data-invite-field="household-name" />
+                        @if (_options.LibrariesUnavailable)
+                        {
+                            <p class="ra-invite__problem" role="alert">@L["HouseholdLibraryCeiling_TheLibrariesCouldnTBe"]</p>
+                        }
+                        else
+                        {
+                            <div class="ra-invite__libraries" data-invite-libraries role="group" aria-label="@L["RemoteAccessInvite_Libraries"].Value">
+                                @foreach (var area in Areas)
+                                {
+                                    <h5 class="ra-invite__area">@area.Label</h5>
+                                    @foreach (var library in area.Libraries)
+                                    {
+                                        <AppCheckbox Value="@(!_hidden.Contains(library.Id))" ValueChanged="@((bool ticked) => SetTick(library.Id, ticked))"
+                                                     Label="@library.DisplayName" data-library-id="@library.Id" />
+                                    }
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="ra-invite__existing" data-invite-existing-libraries>@ExistingLibraries(_household)</p>
+                    }
+                    <p class="ra-invite__note">@L["RemoteAccessInvite_Lifetime"]</p>
+                    @if (!string.IsNullOrWhiteSpace(_error))
+                    {
+                        <p class="ra-invite__problem" role="alert" data-invite-error>@_error</p>
+                    }
+                    <div class="ra-invite__buttons">
+                        <AppButton Label="@L["RemoteAccessInvite_Create"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || !CanCreate)"
+                                   OnClick="CreateAsync" data-remote-action="invite-create" />
+                        <AppButton Label="@L["Search_Cancel"].Value" Disabled="@_saving" OnClick="Close" data-remote-action="invite-cancel" />
+                    </div>
+                </div>
+            }
+        }
+    </RemoteAccessCard>
+}
+
+@code {
+    private const string NewHousehold = "new-household";
+
+    private sealed record AreaGroup(string Label, List<AccessLibraryOptionDto> Libraries);
+
+    private FriendInviteOptions _options = new(null, [], [], false);
+    private bool _ready;
+    private bool _open;
+    private bool _saving;
+    private string _name = string.Empty;
+    private string _email = string.Empty;
+    private string _household = NewHousehold;
+    private string _newHouseholdName = "Friends";
+    private readonly HashSet<Guid> _hidden = [];
+    private string? _error;
+    private string? _link;
+    private string? _code;
+    private DateTimeOffset _expires;
+    private string _summaryHousehold = string.Empty;
+    private string _summaryLibraries = string.Empty;
+
+    private bool CanCreate => !string.IsNullOrWhiteSpace(_name) && !string.IsNullOrWhiteSpace(_email) && _options.AwayAddress is not null
+        && (_household == NewHousehold ? !string.IsNullOrWhiteSpace(_newHouseholdName) && !_options.LibrariesUnavailable : Guid.TryParse(_household, out _));
+
+    private string MailAddress =>
+        $"mailto:{Uri.EscapeDataString(_email.Trim())}?subject={Uri.EscapeDataString(L["RemoteAccessInvite_MailSubject"].Value)}&body={Uri.EscapeDataString(string.Format(L["RemoteAccessInvite_MailBody"].Value, _link))}";
+
+    // The same grouping and order as the household's own library picker: libraries under their area, the Vault never listed.
+    private IReadOnlyList<AreaGroup> Areas => AccessAreas.All
+        .Select(area => new AreaGroup(area.Label, AccessAreas.InOrder(_options.Libraries
+            .Where(library => string.Equals(library.Area, area.Key, StringComparison.OrdinalIgnoreCase)), library => library.DisplayName).ToList()))
+        .Where(group => group.Libraries.Count > 0)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Invites.CanInvite)
+        {
+            _options = await Invites.LoadAsync();
+            _household = _options.Households.Count > 0 ? _options.Households[0].Id.ToString() : NewHousehold;
+        }
+
+        _ready = true;
+    }
+
+    private void Open()
+    {
+        _open = true;
+        _error = null;
+    }
+
+    private void Close()
+    {
+        _open = false;
+        _error = null;
+    }
+
+    private void Another()
+    {
+        _link = null;
+        _code = null;
+        _name = string.Empty;
+        _email = string.Empty;
+        _open = true;
+    }
+
+    private void SetHousehold(string? value)
+    {
+        _household = string.IsNullOrWhiteSpace(value) ? NewHousehold : value;
+        _error = null;
+    }
+
+    private void SetTick(Guid libraryId, bool ticked)
+    {
+        if (ticked)
+        {
+            _hidden.Remove(libraryId);
+        }
+        else
+        {
+            _hidden.Add(libraryId);
+        }
+    }
+
+    // An existing household keeps the libraries it has; changing them is done under Users and Sign-in, never as a side effect of an invitation.
+    private string ExistingLibraries(string household)
+    {
+        if (!Guid.TryParse(household, out var id) || _options.Households.FirstOrDefault(candidate => candidate.Id == id) is not { } chosen)
+        {
+            return string.Empty;
+        }
+
+        var hidden = (chosen.HiddenLibraryIds ?? []).ToHashSet();
+        var visible = _options.Libraries.Where(library => !hidden.Contains(library.Id)).Select(library => library.DisplayName).Order().ToList();
+        return visible.Count == 0
+            ? L["RemoteAccessInvite_NoLibraries"].Value
+            : hidden.Count == 0 ? L["Common_AllLibraries"].Value : string.Join(", ", visible);
+    }
+
+    private async Task CreateAsync()
+    {
+        if (_saving || !CanCreate)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            var existing = _household != NewHousehold && Guid.TryParse(_household, out var id) ? id : (Guid?)null;
+            var result = await Invites.CreateAsync(new FriendInviteRequest(
+                _name, _email, existing, existing is null ? _newHouseholdName : null, existing is null ? _hidden.Order().ToList() : []));
+            if (!result.Succeeded || result.Link is null)
+            {
+                _error = result.Message ?? L["RemoteAccessInvite_Failed"].Value;
+                return;
+            }
+
+            _link = result.Link;
+            _code = result.Code;
+            _expires = result.ExpiresAt ?? DateTimeOffset.UtcNow.AddDays(7);
+            _summaryHousehold = existing is null ? _newHouseholdName.Trim() : _options.Households.First(household => household.Id == existing).Name;
+            _summaryLibraries = existing is null
+                ? (_hidden.Count == 0 ? L["Common_AllLibraries"].Value : string.Join(", ", _options.Libraries.Where(library => !_hidden.Contains(library.Id)).Select(library => library.DisplayName).Order()))
+                : ExistingLibraries(_household);
+            if (string.IsNullOrWhiteSpace(_summaryLibraries))
+            {
+                _summaryLibraries = L["RemoteAccessInvite_NoLibraries"].Value;
+            }
+
+            _open = false;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}
