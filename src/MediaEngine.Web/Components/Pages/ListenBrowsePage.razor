@@ -376,13 +376,14 @@
         if (_pendingPlaylistDrop is { } carried)
         {
             // Songs were dropped on New playlist: the playlist is made already holding them, and the sentence goes to their table.
-            _pendingPlaylistDrop = null;
             var made = await SongDrop.CreatePlaylistAsync(createEvent.Name, carried);
             if (!made.Created)
             {
+                // The songs stay with the name box, so a second try (another name, or after fixing what the Engine said) still has them.
                 return false;
             }
 
+            _pendingPlaylistDrop = null;
             _notice = null;
             await ReloadPlaylistsAsync();
             return true;
