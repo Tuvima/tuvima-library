@@ -311,6 +311,96 @@ public sealed class PlaylistActionEndpointTests : IDisposable
         Assert.True(response.StatusCode == expected, $"Expected {expected} but got {response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
     }
 
+    [Fact]
+    public async Task AddingSongsToAnEmptyPlaylist_Works()
+    {
+        var song = SeedSong("First");
+        var playlist = SeedPlaylist("Brand new");
+        await using var app = await StartAsync();
+
+        using var response = await app.Client.PostAsJsonAsync(
+            $"/collections/{playlist:D}/items", new CollectionItemAddRequest { WorkIds = [song] });
+
+        await AssertStatusAsync(HttpStatusCode.OK, response);
+        Assert.Equal([song], WorkIdsInOrder(playlist));
+    }
+
+    [Fact]
+    public async Task DeletingAnEmptyPlaylist_Works()
+    {
+        var playlist = SeedPlaylist("Brand new");
+        await using var app = await StartAsync();
+
+        using var response = await app.Client.DeleteAsync($"/collections/{playlist:D}");
+
+        await AssertStatusAsync(HttpStatusCode.OK, response);
+        Assert.Equal(0, Scalar<int>("SELECT is_enabled FROM collections WHERE id = @playlist", new { playlist }));
+    }
+
+    [Fact]
+    public async Task CreatingAPlaylistFromAlbumTracks_KeepsTheTracks()
+    {
+        var tracks = new[] { SeedMusicTrack("One"), SeedMusicTrack("Two") };
+        await using var app = await StartAsync();
+
+        using var response = await app.Client.PostAsJsonAsync("/collections", new CollectionCreateRequest
+        {
+            Name = "From a drag",
+            CollectionType = "Playlist",
+            OwnerKind = "Library",
+            Audience = "Everyone",
+            Visibility = "shared",
+            WorkIds = tracks.ToList(),
+        });
+
+        await AssertStatusAsync(HttpStatusCode.Created, response);
+        var created = (await response.Content.ReadFromJsonAsync<CollectionCreatedResponse>())!;
+        Assert.Equal(tracks, WorkIdsInOrder(created.id));
+    }
+
+    [Fact]
+    public async Task AddingAlbumTracksToAPlaylist_KeepsTheTracks()
+    {
+        var tracks = new[] { SeedMusicTrack("One"), SeedMusicTrack("Two") };
+        var playlist = SeedPlaylist("Mine", SeedSong("Existing"));
+        await using var app = await StartAsync();
+
+        using var response = await app.Client.PostAsJsonAsync(
+            $"/collections/{playlist:D}/items", new CollectionItemAddRequest { WorkIds = tracks.ToList() });
+
+        await AssertStatusAsync(HttpStatusCode.OK, response);
+        Assert.Equal(new CollectionItemsAddedResponse(2, 0), await response.Content.ReadFromJsonAsync<CollectionItemsAddedResponse>());
+    }
+
+    private Guid SeedMusicTrack(string title)
+    {
+        var album = Guid.NewGuid();
+        var track = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@album, 'Music', 'parent', 'accepted');
+            INSERT INTO works (id, media_type, work_kind, parent_work_id, curator_state) VALUES (@track, 'Music', 'child', @album, 'accepted');
+            INSERT INTO editions (id, work_id) VALUES (@editionId, @track);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)
+            VALUES (@assetId, @editionId, @hash, @path, CURRENT_TIMESTAMP, @library);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+            VALUES (@assetId, 'title', @title, CURRENT_TIMESTAMP);
+            """, new
+        {
+            album,
+            track,
+            editionId,
+            assetId,
+            hash = Guid.NewGuid().ToString("N"),
+            path = $"C:/library/{assetId:N}.flac",
+            library = _library.ToString("D"),
+            title,
+        });
+        return track;
+    }
+
     private Guid SeedSong(string title, double? durationSeconds = null)
     {
         var workId = Guid.NewGuid();

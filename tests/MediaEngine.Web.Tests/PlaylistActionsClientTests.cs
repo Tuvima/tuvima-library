@@ -27,6 +27,25 @@ public sealed class PlaylistActionsClientTests
     };
 
     [Fact]
+    public async Task ARefusedPlaylistCreate_KeepsTheEnginesReasonAndStatus_SoTheScreenCanSayWhy()
+    {
+        using var client = Client(_ => new HttpResponseMessage(HttpStatusCode.Forbidden)
+        {
+            Content = new StringContent(
+                "{\"title\":\"Access denied.\",\"status\":403,\"detail\":\"The requested work is outside the caller's available libraries.\"}",
+                Encoding.UTF8,
+                "application/json"),
+        });
+
+        var id = await client.CreateCollectionWithItemsAsync(
+            "Mix", null, null, "Playlist", new MediaEngine.Web.Models.ViewDTOs.CollectionRuleDefinitionViewModel(), "title", "asc", "private", [Guid.NewGuid()]);
+
+        Assert.Null(id);
+        Assert.Equal(403, client.LastStatusCode);
+        Assert.Equal("The requested work is outside the caller's available libraries.", EngineFailureText.FromClient(client));
+    }
+
+    [Fact]
     public async Task ReorderingAPlaylistByADrag_SendsOneMoveWithThePositionAndNeverTheWholeList()
     {
         var ids = Enumerable.Range(1, 6).Select(_ => Guid.NewGuid()).ToList();

@@ -117,6 +117,20 @@ public sealed class CollectionCatalogReadService(
 
     public async Task<Guid> ResolveMembershipWorkIdAsync(Guid sourceWorkId, CancellationToken ct = default)
     {
+        // A song is a playlist member as itself. Collapsing it to its album would put an album (which no profile "sees" as a work of
+        // its own) into the playlist and the Engine would refuse the song as outside the caller's libraries.
+        using (var conn = db.CreateConnection())
+        {
+            var isSong = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+                "SELECT COUNT(*) FROM works WHERE id = @sourceWorkId AND media_type = 'Music' AND work_kind <> 'parent';",
+                new { sourceWorkId },
+                cancellationToken: ct)).ConfigureAwait(false);
+            if (isSong > 0)
+            {
+                return sourceWorkId;
+            }
+        }
+
         var displayIds = await GetCollectionCatalogDisplayWorkIdsAsync([sourceWorkId], ct).ConfigureAwait(false);
         return displayIds.Count == 0 ? sourceWorkId : displayIds[0];
     }
