@@ -75,6 +75,12 @@ public static class ClientAuthorizationEndpoints
                 return OAuthError("access_denied", "Away-from-home access is off. Connect from home to sign in again.");
             }
 
+            // A refresh token from a no-password account's device is a home-only token too: it cannot be exchanged from outside.
+            if (RequestIngress.HomeOnlyTokenRefused(httpRequest.HttpContext, request.RefreshToken))
+            {
+                return OAuthError("access_denied", "This device can only be used on the home network.");
+            }
+
             httpResponse.Headers.CacheControl = "no-store";
             httpResponse.Headers.Pragma = "no-cache";
             var result = await authorization.ExchangeAsync(request, ct);

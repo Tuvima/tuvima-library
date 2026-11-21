@@ -39,13 +39,16 @@ public sealed class SetupSessionService(
                 return SetupBeginResult.AlreadyConfigured;
             }
 
-            var ingress = ClientIngress.Parse(clientIngress);
-            if (!ClientIngress.IsLocal(ingress))
+            // Only clear evidence of an outside visitor is refused (forwarded, proxy port, public address): a plain "remote" place can be
+            // someone at home behind Docker NAT, so it is not turned away here. Parse folds everything else into the home network.
+            if (ClientIngress.IsClearlyOutside(clientIngress))
             {
                 return SetupBeginResult.Refused(
                     SetupBeginRefusalReasons.RemoteRefused,
                     "Setup has to be finished from your home network.");
             }
+
+            var ingress = ClientIngress.Parse(clientIngress);
 
             var plaintextSession = Token(32);
             var sessionHash = Convert.ToHexStringLower(Hash(plaintextSession));

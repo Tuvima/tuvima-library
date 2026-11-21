@@ -112,7 +112,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         // Home network spec D8: only the computer that runs Library, never a phone or laptop on the home network.
         Assert.Contains("== MediaEngine.Web.Services.Configuration.IngressKind.ThisComputer\n        && !ClientForwarded;", source, StringComparison.Ordinal);
         Assert.Contains("SignIn = UsesThisComputer ? SetupSignInModes.ThisComputer : SetupSignInModes.Password,", source, StringComparison.Ordinal);
-        Assert.Contains("OriginalClientIngress = ClientForwarded ? ClientIngressValues.Remote : (ClientIngress ?? ClientIngressValues.Remote),", source, StringComparison.Ordinal);
+        Assert.Contains("OriginalClientIngress = ClientForwarded ? ClientIngressValues.Outside : (ClientIngress ?? ClientIngressValues.Remote),", source, StringComparison.Ordinal);
     }
 
     [Fact]

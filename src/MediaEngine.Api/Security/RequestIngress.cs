@@ -53,6 +53,16 @@ internal static class RequestIngress
             : Current(request);
 
     /// <summary>
+    /// True when a home-network-only token (one from a no-password account's approved device) is presented from anywhere but this
+    /// computer or the home network. The Dashboard's front door refuses these too; the Engine checks again because it is the
+    /// one that issues and validates the token, so a call that skips the front door cannot use such a token from outside.
+    /// The place is the Dashboard's reading (the header is read from any caller, so this is a second line of defence: public addresses and forwarding headers are still caught here), and a missing or unknown place counts as outside (fail closed).
+    /// </summary>
+    public static bool HomeOnlyTokenRefused(HttpContext context, string? token) =>
+        ClientIngress.IsLanOnlyToken(token)
+        && !ClientIngress.TokenMayBeUsedFrom(token, CurrentForDevice(context.Request, context.Connection.RemoteIpAddress));
+
+    /// <summary>
     /// True when outside access is off and this device-token request is clearly from outside. A paired app is still fine at home:
     /// the same token keeps working there, and switching outside access off revokes nothing.
     /// </summary>
