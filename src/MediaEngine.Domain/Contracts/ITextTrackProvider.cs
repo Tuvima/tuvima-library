@@ -91,7 +91,8 @@ public sealed record TextTrackCandidate(
     object? Payload = null,
     bool IsForced = false,
     string? ReleaseName = null,
-    bool IsInstrumental = false);
+    bool IsInstrumental = false,
+    double? MatchScore = null);
 
 public sealed record TextTrackDownload(
     TextTrackCandidate Candidate,

@@ -104,6 +104,24 @@ public sealed class LrclibLyricsReplayTests
     }
 
     [Fact]
+    public async Task EverySongOfTheSameTitleAndArtist_IsOffered_BestFirst_AndAnotherArtistsIsLeftOut()
+    {
+        var otherAlbum = Entry("Silhouettes", "Smile Empty Soul", 124, id: 2).Replace("\"albumName\":\"Album\"", "\"albumName\":\"Compilation\"", StringComparison.Ordinal);
+        var list = List(
+            Entry("Silhouettes", "Another Band", 125, id: 1),
+            otherAlbum,
+            Entry("Silhouettes", "Smile Empty Soul", 125, id: 3),
+            Entry("Silhouettes", "Smile Empty Soul", 190, id: 4));
+        var (provider, _) = Build(SearchAnswers(list));
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul"));
+
+        // The one on the song's own album and length leads; the compilation follows; the other band's song and the far-off length are not offered.
+        Assert.Equal(["3", "2"], found.Select(candidate => candidate.SourceId).ToArray());
+        Assert.True(found[0].MatchScore > found[1].MatchScore);
+    }
+
+    [Fact]
     public async Task ATitleThatOnlySharesAPrefix_DoesNotMatch_AndIsLoggedAsNoMatch()
     {
         var (provider, log) = Build(SearchAnswers(List(Entry("Yesterday", "The Beatles", 125))));
@@ -183,7 +201,7 @@ public sealed class LrclibLyricsReplayTests
     [Fact]
     public async Task AnExactAnswerThatIsInstrumental_IsLoggedAsInstrumental()
     {
-        var instrumental = """{"id":9,"trackName":"Song","artistName":"A","duration":125,"instrumental":true,"plainLyrics":null,"syncedLyrics":null}""";
+        var instrumental = """{"id":9,"trackName":"Song","artistName":"The Beatles","duration":125,"instrumental":true,"plainLyrics":null,"syncedLyrics":null}""";
         var (provider, log) = Build(new RecordingHandler(_ => RecordingHandler.Json(instrumental)));
 
         var found = Assert.Single(await provider.SearchAsync(Song("Song")));

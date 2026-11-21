@@ -15,11 +15,6 @@
    under the lyrics. *@
 <div class="playback-lyrics-footer" data-playback-lyrics-footer>
     <span class="playback-lyrics-footer__source" data-lyrics-source>@SourceText</span>
-    @if (Presenter.Offers("find_lyrics") && Presenter.Lines.Count > 0)
-    {
-        @* Where lyrics show, changing them is one obvious press (issue 1187): it opens Find lyrics with the song's title and artist filled in. *@
-        <AppButton ButtonStyle="AppButtonStyle.Text" Label="@L["PlaybackLyrics_NotTheseLyrics"].Value" OnClick="@(() => Presenter.OpenAlternativesAsync())" data-lyrics-find-link="true" />
-    }
     @if (_editNotice is not null)
     {
         @* Edit lyrics that is not available for this song: said here, in place, until the next try or the close button. *@
@@ -152,12 +147,17 @@
             || snapshot.CurrentIndex < 0 || snapshot.CurrentIndex >= snapshot.Queue.Count)
             return;
         var item = snapshot.Queue[snapshot.CurrentIndex];
-        var album = item.AlbumWorkId is { } albumId && albumId != Guid.Empty ? albumId : (Guid?)null;
-        var row = new BulkEditRow(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, album, "Music");
         _editNotice = null;
-        if (Services.GetService<ListEditLauncher>() is { } launcher
-            && !await launcher.OpenRowAsync(row, MediaEngine.Contracts.Details.DetailPresentationContext.Listen, "lyrics"))
-            _editNotice = launcher.LastNotice;
+        // The one song editor, on its Lyrics area (issue 1258): not a list of ticked rows.
+        var target = new ListEditTarget(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, "Music",
+            MediaEngine.Contracts.Details.DetailPresentationContext.Listen);
+        if (Services.GetService<ListEditLauncher>() is { } launcher)
+        {
+            if (await launcher.OpenAsync(target, EditTool.Details))
+                Services.GetService<EditorHost>()?.RequestFocus("lyrics");
+            else
+                _editNotice = launcher.LastNotice;
+        }
     }
 
     private string? _editNotice;
