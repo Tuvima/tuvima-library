@@ -606,11 +606,15 @@ public sealed class AdaptiveHlsService
         return await _ffmpeg.RunAsync(arguments, ct).ConfigureAwait(false);
     }
 
-    /// <summary>The H.264 level (as ffmpeg writes it) an output of this height is encoded at.</summary>
+    /// <summary>
+    /// The H.264 level (as ffmpeg writes it) an output of this height is encoded at and announced at. Each step has room for 60 frames a
+    /// second, because announcing less than the stream really uses is what makes strict players refuse it; graphics encoders choose their
+    /// own level, which is never above these.
+    /// </summary>
     internal static string AvcLevelFor(int height) => height switch
     {
-        <= 576 => "3.0",
-        <= 720 => "3.1",
+        <= 576 => "3.1",
+        <= 720 => "3.2",
         <= 1080 => "4.2",
         _ => "5.1",
     };
@@ -621,7 +625,7 @@ public sealed class AdaptiveHlsService
     /// </summary>
     internal static string AvcCodecFor(int height)
     {
-        var levelByte = AvcLevelFor(height) switch { "3.0" => 0x1e, "3.1" => 0x1f, "4.2" => 0x2a, _ => 0x33 };
+        var levelByte = AvcLevelFor(height) switch { "3.1" => 0x1f, "3.2" => 0x20, "4.2" => 0x2a, _ => 0x33 };
         return $"avc1.4d40{levelByte:x2}";
     }
 
@@ -698,8 +702,16 @@ public sealed class AdaptiveHlsService
         var ordered = probe.SubtitleStreams.OrderBy(stream => stream.StreamIndex).ToList();
         // The text streams are read out of the film once, together, in the background (EmbeddedSubtitleCache); the captions of this start are cut
         // from those saved copies, so a big film is no longer read once more for every caption (issue 1166).
-        await EmbeddedSubtitleCache.EnsureStarted(_ffmpeg, _logger, assetId, sourcePath,
-            ordered.Where(stream => stream.IsText).Select(stream => stream.StreamIndex).ToList()).WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await EmbeddedSubtitleCache.EnsureStarted(_ffmpeg, _logger, assetId, sourcePath,
+                ordered.Where(stream => stream.IsText).Select(stream => stream.StreamIndex).ToList()).WaitAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            // Captions never stop a film from playing: without the saved subtitles the converted stream simply has none of its own.
+            _logger.LogWarning(ex, "Embedded captions for asset {AssetId} could not be prepared", assetId);
+        }
         for (var streamIndex = 0; streamIndex < ordered.Count; streamIndex++)
         {
             var stream = ordered[streamIndex];

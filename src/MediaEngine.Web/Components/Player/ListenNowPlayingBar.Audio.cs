@@ -180,6 +180,11 @@ public partial class ListenNowPlayingBar
         {
             // The browser could not say what happened: treat it as a real failure below.
         }
+        catch (JSDisconnectedException)
+        {
+            // The page is closing (the browser is gone): nothing to show.
+            return;
+        }
         catch (InvalidOperationException)
         {
             // The page is closing (no browser to ask): nothing to show.

@@ -74,11 +74,12 @@ public sealed class EmbeddedSubtitleReadinessTests : IDisposable
     [Fact]
     public void TheAnnouncedPictureLevelMatchesTheSizeOfThePicture()
     {
-        Assert.Equal("avc1.4d401f", AdaptiveHlsService.AvcCodecFor(720));
+        Assert.Equal("avc1.4d4020", AdaptiveHlsService.AvcCodecFor(720));
+        Assert.Equal("avc1.4d401f", AdaptiveHlsService.AvcCodecFor(480));
         Assert.Equal("avc1.4d402a", AdaptiveHlsService.AvcCodecFor(1080));
         Assert.Equal("avc1.4d4033", AdaptiveHlsService.AvcCodecFor(2160));
         Assert.Equal("4.2", AdaptiveHlsService.AvcLevelFor(1080));
-        Assert.Equal("3.0", AdaptiveHlsService.AvcLevelFor(480));
+        Assert.Equal("3.1", AdaptiveHlsService.AvcLevelFor(480));
     }
 
     private string MakeFilmWithTwoTextSubtitles()

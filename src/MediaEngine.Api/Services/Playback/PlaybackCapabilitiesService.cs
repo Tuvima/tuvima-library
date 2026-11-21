@@ -86,7 +86,8 @@ public sealed class PlaybackCapabilitiesService
         bool forceAdaptive = false,
         PlaybackChoices? choices = null,
         int? burnSubtitleStream = null,
-        double? startSeconds = null)
+        double? startSeconds = null,
+        bool subtitlesOnly = false)
     {
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
@@ -235,7 +236,8 @@ public sealed class PlaybackCapabilitiesService
         PlaybackPathDto? playbackPath = decision is { Rung: PlaybackRungs.Direct } ? PlaybackPathBuilder.ForDirect(decision) : null;
         var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, profileId, ct), durationSeconds);
         double? streamStartSeconds = null;
-        if (recommendedDelivery == PlaybackDeliveryModes.Hls)
+        // A subtitles-only read (the player asking again while subtitles are being read out of the file) never starts or looks at a conversion.
+        if (recommendedDelivery == PlaybackDeliveryModes.Hls && !subtitlesOnly)
         {
             if (!_ffmpeg.HardwareCapabilities.AdaptiveHlsReady)
             {
@@ -981,7 +983,7 @@ public sealed class PlaybackCapabilitiesService
         var all = BuildEmbeddedSubtitleTracks(assetId, streams);
         var asset = streams.Any(stream => stream.IsText) ? await _assets.FindByIdAsync(assetId, ct).ConfigureAwait(false) : null;
         var path = asset?.FilePathRoot;
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path) || !_ffmpeg.IsAvailable)
         {
             // Nothing to read the words from: offer only the picture tracks, which the Engine draws itself.
             return (all.Where(track => track.IsPicture).ToList(), false);

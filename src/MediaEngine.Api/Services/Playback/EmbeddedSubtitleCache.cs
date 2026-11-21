@@ -21,7 +21,7 @@ internal static class EmbeddedSubtitleCache
     private static readonly TimeSpan ExtractionLimit = TimeSpan.FromMinutes(20);
 
     // One background job per film at a time, shared by everyone who needs any of its streams.
-    private static readonly ConcurrentDictionary<string, Task> InFlight = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, Lazy<Task>> InFlight = new(StringComparer.Ordinal);
 
     // Streams ffmpeg could not read as text (so they are not offered and not tried again until the file changes or the Engine restarts).
     private static readonly ConcurrentDictionary<string, bool> Unreadable = new(StringComparer.Ordinal);
@@ -71,7 +71,7 @@ internal static class EmbeddedSubtitleCache
         }
 
         var key = JobKey(assetId, filePath);
-        return InFlight.GetOrAdd(key, _ => Task.Run(async () =>
+        return InFlight.GetOrAdd(key, _ => new Lazy<Task>(() => Task.Run(async () =>
         {
             try
             {
@@ -80,17 +80,21 @@ internal static class EmbeddedSubtitleCache
             }
             catch (OperationCanceledException)
             {
+                // Too slow to read this film: remember it so every later play does not read the whole file again from the start.
                 logger.LogInformation("Reading the embedded subtitles of asset {AssetId} took longer than {Minutes} minutes and was stopped", assetId, ExtractionLimit.TotalMinutes);
+                MarkUnreadable(assetId, filePath, missing);
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
+                // No ffmpeg, or the temporary folder cannot be written: the subtitles are left out and playback carries on without them.
                 logger.LogWarning(ex, "Reading the embedded subtitles of asset {AssetId} failed", assetId);
+                MarkUnreadable(assetId, filePath, missing);
             }
             finally
             {
-                InFlight.TryRemove(key, out Task? _);
+                InFlight.TryRemove(key, out Lazy<Task>? _);
             }
-        }));
+        }))).Value;
     }
 
     /// <summary>
@@ -112,7 +116,7 @@ internal static class EmbeddedSubtitleCache
         // A read of this film may already be running for its other streams: wait for it, then check again.
         if (InFlight.TryGetValue(JobKey(assetId, filePath), out var running))
         {
-            await running.WaitAsync(ct).ConfigureAwait(false);
+            await running.Value.WaitAsync(ct).ConfigureAwait(false);
         }
 
         if (TryGetReady(assetId, filePath, streamIndex) is { } afterWait)
@@ -127,6 +131,14 @@ internal static class EmbeddedSubtitleCache
 
         await EnsureStarted(ffmpeg, logger, assetId, filePath, [streamIndex]).WaitAsync(ct).ConfigureAwait(false);
         return TryGetReady(assetId, filePath, streamIndex);
+    }
+
+    private static void MarkUnreadable(Guid assetId, string filePath, IEnumerable<int> streamIndexes)
+    {
+        foreach (var index in streamIndexes.Where(index => TryGetReady(assetId, filePath, index) is null))
+        {
+            Unreadable[TargetFor(assetId, filePath, index)] = true;
+        }
     }
 
     private static string JobKey(Guid assetId, string filePath)

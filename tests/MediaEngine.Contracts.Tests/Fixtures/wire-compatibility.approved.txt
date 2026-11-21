@@ -1534,6 +1534,7 @@
   input adaptive | default=False | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
   input burnSubtitleStream | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351
   input startSeconds | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351
+  input subtitlesOnly | default=False | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
   response | shape=357022fc6cf6cc5f47eab33fbb39e7df8a80fabb66443dfc7dc290584563a4c9
 
 [method] GetPlaybackSettingsAsync

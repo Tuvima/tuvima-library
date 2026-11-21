@@ -2695,23 +2695,31 @@ public sealed partial class PlaybackSessionController
     /// the subtitle list it returns, so each subtitle appears in the player's menu as soon as it can be shown (issue 1166). Only the
     /// subtitle list changes; the stream the title is playing from is never swapped. Stops when another title is playing.
     /// </summary>
-    private async Task WatchSubtitlePreparationAsync(Guid assetId)
+    private CancellationTokenSource? _subtitleWatch;
+
+    /// <summary>Starts the one watch for the playing title; an earlier watch (another title, or the same title started again) is stopped first.</summary>
+    private void BeginWatchingSubtitlePreparation(Guid assetId)
+    {
+        _subtitleWatch?.Cancel();
+        _subtitleWatch = new CancellationTokenSource();
+        _ = WatchSubtitlePreparationAsync(assetId, _subtitleWatch.Token);
+    }
+
+    private async Task WatchSubtitlePreparationAsync(Guid assetId, CancellationToken ct)
     {
         try
         {
             for (var attempt = 0; attempt < 240; attempt++)
             {
-                await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(5), ct);
                 var index = _queue.FindIndex(candidate => candidate.AssetId == assetId);
-                if (index < 0 || CurrentItem?.AssetId != assetId || _queue[index].Manifest is not { } current)
+                if (index < 0 || CurrentItem?.AssetId != assetId || _queue[index].Manifest is null)
                 {
                     return;
                 }
 
-                var refreshed = await _apiClient.GetPlaybackManifestAsync(assetId, _clientContext.Client, null, CancellationToken.None, ToConnectionContext(),
-                    adaptive: _adaptiveAudioAssets.Contains(assetId),
-                    burnSubtitleStream: _burnChoices.GetValueOrDefault(assetId, -1),
-                    startSeconds: current.StreamStartSeconds ?? 0).ConfigureAwait(false);
+                // Subtitles only: this read never starts, replaces or stops a conversion.
+                var refreshed = await _apiClient.GetPlaybackManifestAsync(assetId, _clientContext.Client, null, ct, subtitlesOnly: true);
                 index = _queue.FindIndex(candidate => candidate.AssetId == assetId);
                 if (refreshed is null || index < 0 || CurrentItem?.AssetId != assetId || _queue[index].Manifest is not { } latest)
                 {
@@ -2734,9 +2742,9 @@ public sealed partial class PlaybackSessionController
         {
             // The Engine could not be reached: the subtitles that were already offered stay, and nothing is retried until the next start.
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
-            // Same as above: a request that timed out ends the wait quietly.
+            // A newer watch, or a request that timed out, ends this one quietly.
         }
     }
 
@@ -2815,7 +2823,7 @@ public sealed partial class PlaybackSessionController
             if (item.Manifest.SubtitlesPreparing && item.AssetId is { } subtitleAsset)
             {
                 // The Engine offers a text subtitle only once it has read it out of the file, which takes a while for a big film.
-                _ = WatchSubtitlePreparationAsync(subtitleAsset);
+                BeginWatchingSubtitlePreparation(subtitleAsset);
             }
             return;
         }
