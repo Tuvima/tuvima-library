@@ -159,14 +159,39 @@ public partial class ListenNowPlayingBar
         await Playback.ReportHeartbeatAsync(force: true);
     }
 
-    private Task HandleAudioErrorAsync()
+    private async Task HandleAudioErrorAsync()
     {
         if (Playback.IsVideoMode)
         {
-            return Task.CompletedTask;
+            return;
+        }
+
+        // Pressing Next swaps the source: the old one is aborted or cleared, and the element reports that as an error for a moment. That is not
+        // a track that failed, so no red text is shown for it (issue 1257). A real failure still is.
+        try
+        {
+            var state = await JS.InvokeAsync<AudioErrorState>("listenPlayback.audioErrorState", _audioRef);
+            if (state.Code == MediaErrorAborted || !state.HasSource)
+            {
+                return;
+            }
+        }
+        catch (JSException)
+        {
+            // The browser could not say what happened: treat it as a real failure below.
+        }
+        catch (InvalidOperationException)
+        {
+            // The page is closing (no browser to ask): nothing to show.
+            return;
         }
 
         Playback.MarkCurrentFailed("This audio source failed to load or play.");
-        return Task.CompletedTask;
     }
+
+    private const int MediaErrorAborted = 1;
+
+    private sealed record AudioErrorState(
+        [property: System.Text.Json.Serialization.JsonPropertyName("code")] int Code,
+        [property: System.Text.Json.Serialization.JsonPropertyName("hasSource")] bool HasSource);
 }

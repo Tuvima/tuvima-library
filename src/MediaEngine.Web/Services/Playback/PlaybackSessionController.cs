@@ -2690,6 +2690,56 @@ public sealed partial class PlaybackSessionController
         }
     }
 
+    /// <summary>
+    /// While the Engine is still reading text subtitles out of the video file, asks for the manifest again every few seconds and adopts
+    /// the subtitle list it returns, so each subtitle appears in the player's menu as soon as it can be shown (issue 1166). Only the
+    /// subtitle list changes; the stream the title is playing from is never swapped. Stops when another title is playing.
+    /// </summary>
+    private async Task WatchSubtitlePreparationAsync(Guid assetId)
+    {
+        try
+        {
+            for (var attempt = 0; attempt < 240; attempt++)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                var index = _queue.FindIndex(candidate => candidate.AssetId == assetId);
+                if (index < 0 || CurrentItem?.AssetId != assetId || _queue[index].Manifest is not { } current)
+                {
+                    return;
+                }
+
+                var refreshed = await _apiClient.GetPlaybackManifestAsync(assetId, _clientContext.Client, null, CancellationToken.None, ToConnectionContext(),
+                    adaptive: _adaptiveAudioAssets.Contains(assetId),
+                    burnSubtitleStream: _burnChoices.GetValueOrDefault(assetId, -1),
+                    startSeconds: current.StreamStartSeconds ?? 0).ConfigureAwait(false);
+                index = _queue.FindIndex(candidate => candidate.AssetId == assetId);
+                if (refreshed is null || index < 0 || CurrentItem?.AssetId != assetId || _queue[index].Manifest is not { } latest)
+                {
+                    continue;
+                }
+
+                if (refreshed.SubtitleTracks.Count != latest.SubtitleTracks.Count || refreshed.SubtitlesPreparing != latest.SubtitlesPreparing)
+                {
+                    _queue[index] = _queue[index] with { Manifest = latest with { SubtitleTracks = refreshed.SubtitleTracks, SubtitlesPreparing = refreshed.SubtitlesPreparing } };
+                    NotifyChanged();
+                }
+
+                if (!refreshed.SubtitlesPreparing)
+                {
+                    return;
+                }
+            }
+        }
+        catch (HttpRequestException)
+        {
+            // The Engine could not be reached: the subtitles that were already offered stay, and nothing is retried until the next start.
+        }
+        catch (TaskCanceledException)
+        {
+            // Same as above: a request that timed out ends the wait quietly.
+        }
+    }
+
     private async Task EnsurePlayableAsync(int index, CancellationToken ct, PlaybackRequestGuard? guard = null)
     {
         if (guard is not null && !IsCurrentRequest(guard))
@@ -2762,6 +2812,11 @@ public sealed partial class PlaybackSessionController
                 StreamUrl = NormalizeStreamUrl(manifestStream),
                 Chapters = NormalizeChapters(item.Manifest.Chapters),
             };
+            if (item.Manifest.SubtitlesPreparing && item.AssetId is { } subtitleAsset)
+            {
+                // The Engine offers a text subtitle only once it has read it out of the file, which takes a while for a big film.
+                _ = WatchSubtitlePreparationAsync(subtitleAsset);
+            }
             return;
         }
 

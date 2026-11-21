@@ -447,6 +447,7 @@
         Nav.LocationChanged += OnLocationChanged;
         State.OnStateChanged += OnUniverseStateChanged;
         Orchestrator.OnEngineConnectionStateChanged += OnEngineConnectionStateChanged;
+        TrackLiveUpdatesDown(Orchestrator.EngineConnectionState);
         Playback.Changed += OnPlaybackChanged;
         ContextSidebar.Changed += OnContextSidebarChanged;
         _session.OnAuthorityChanged += OnAuthorityChanged;
@@ -1023,6 +1024,7 @@
         Notices.Changed -= OnNoticesChanged;
         AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
         _authorityRefreshCancellation.Cancel();
+        _liveUpdatesQuietTimer?.Dispose();
         try
         {
             await JS.InvokeVoidAsync("tuvimaResponsive.unregisterDeviceClassObserver", _deviceObserverOwner);
@@ -1084,11 +1086,52 @@
         });
     }
 
-    private bool ShouldShowEngineStatusBanner =>
-        Orchestrator.EngineConnectionState is EngineConnectionState.Offline
-            or EngineConnectionState.Degraded
-            or EngineConnectionState.Reconnecting
-            or EngineConnectionState.LiveUpdatesDisconnected;
+    // A live-updates connection that drops while the page is idle (a paused video, a tab in the background) comes back by itself within
+    // seconds, so the message is only shown when the connection has stayed down for a while, and never over the video player: live updates
+    // are not needed there and a message over the picture reads as a failure (issue 1255).
+    private static readonly TimeSpan LiveUpdatesQuietPeriod = TimeSpan.FromSeconds(20);
+    private DateTimeOffset? _liveUpdatesDownSince;
+    private System.Threading.Timer? _liveUpdatesQuietTimer;
+
+    private bool ShouldShowEngineStatusBanner
+    {
+        get
+        {
+            var state = Orchestrator.EngineConnectionState;
+            if (state is EngineConnectionState.Offline or EngineConnectionState.Degraded)
+            {
+                return true;
+            }
+
+            if (state is not (EngineConnectionState.Reconnecting or EngineConnectionState.LiveUpdatesDisconnected))
+            {
+                return false;
+            }
+
+            return !Playback.IsVideoMode
+                && _liveUpdatesDownSince is { } since
+                && DateTimeOffset.UtcNow - since >= LiveUpdatesQuietPeriod;
+        }
+    }
+
+    private void TrackLiveUpdatesDown(EngineConnectionState state)
+    {
+        if (state is EngineConnectionState.Reconnecting or EngineConnectionState.LiveUpdatesDisconnected)
+        {
+            if (_liveUpdatesDownSince is null)
+            {
+                _liveUpdatesDownSince = DateTimeOffset.UtcNow;
+                _liveUpdatesQuietTimer?.Dispose();
+                _liveUpdatesQuietTimer = new System.Threading.Timer(_ => RequestRenderIfAlive(), null, LiveUpdatesQuietPeriod + TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
+            }
+        }
+        else
+        {
+            _liveUpdatesDownSince = null;
+            _liveUpdatesQuietTimer?.Dispose();
+            _liveUpdatesQuietTimer = null;
+        }
+    }
 
     private string GetEngineStatusBannerText() => Orchestrator.EngineConnectionState switch
     {
@@ -1101,6 +1144,7 @@
 
     private void OnEngineConnectionStateChanged(EngineConnectionState state)
     {
+        TrackLiveUpdatesDown(state);
         RequestRenderIfAlive();
     }
 

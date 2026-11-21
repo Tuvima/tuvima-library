@@ -34,6 +34,7 @@ public sealed class AdaptiveHlsService
     private readonly ConcurrentDictionary<Guid, AdaptiveHlsRunInfo> _runs = new();
     /// <summary>Starts that are running now, so a jump to another point can drop the one the same viewer had (seek-past-prepared-stream D3).</summary>
     private readonly ConcurrentDictionary<Guid, RunningStart> _running = new();
+    private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _stopTokens = new();
     private readonly PlaybackStateRepository? _inspection;
     private readonly PlaybackActivityRegistry? _activity;
 
@@ -74,6 +75,27 @@ public sealed class AdaptiveHlsService
         plan ??= HlsStartPlan.EncodeDefault;
         var profileKey = BuildProfileKey(settings.AdaptiveHls, plan);
         var existing = await _packages.FindAsync(assetId, sourceHash, profileKey, ct).ConfigureAwait(false);
+        // A conversion that was stopped (Stop in Playing now, a jump, a cancel in Activity) is still tidying up for a moment: its folder is being
+        // removed and its record deleted. A start that asks in that moment used to be handed that doomed stream and failed (resume after a
+        // cancel, issue 1183). It now waits for the tidy-up to finish and then starts a fresh conversion.
+        if (existing is not null && _stopTokens.TryGetValue(existing.Id, out var stopping) && stopping.IsCancellationRequested
+            && _preparations.TryGetValue(existing.Id, out var tidying))
+        {
+            try
+            {
+                await tidying.Value.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogWarning("A stopped conversion of asset {AssetId} was still tidying up after 30 seconds", assetId);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // The stopped conversion ended by being cancelled, which is the expected way for it to end.
+            }
+
+            existing = await _packages.FindAsync(assetId, sourceHash, profileKey, ct).ConfigureAwait(false);
+        }
         // A failed package is reported for a minute (so a player that keeps asking is not made to wait), then the next Play tries again:
         // a failure that came from a stopped graphics card, a busy machine or a moved file must not make the title unplayable for good (issue 1166).
         if (existing is { Status: "failed" } && !FailureIsOldEnoughToRetry(existing))
@@ -273,6 +295,7 @@ public sealed class AdaptiveHlsService
             (_, _) => new AdaptiveHlsRunInfo { WaitingForSlot = true });
         // Every encode owns its own cancel handle, so Stop in Playing now ends this one alone (playing-now spec WP1).
         using var preparationCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _stopTokens[package.Id] = preparationCancellation;
         ct = preparationCancellation.Token;
         _running[package.Id] = new RunningStart(package.AssetId, plan.Owner, plan.StartSeconds, () => preparationCancellation.CancelAsync());
         var tracked = _activity?.BeginEncode(
@@ -453,6 +476,7 @@ public sealed class AdaptiveHlsService
         {
             _preparations.TryRemove(package.Id, out _);
             _running.TryRemove(package.Id, out _);
+            _stopTokens.TryRemove(package.Id, out _);
             _activity?.EndEncode(package.Id);
             if (slotHeld)
             {
@@ -569,7 +593,8 @@ public sealed class AdaptiveHlsService
 
         if (encoder == "libx264")
         {
-            arguments.InsertRange(arguments.IndexOf("-c:v") + 2, ["-preset", "veryfast", "-profile:v", "main"]);
+            // The level is set to the one the master playlist announces, so a phone's decoder is told the truth about the picture (issue 1181).
+            arguments.InsertRange(arguments.IndexOf("-c:v") + 2, ["-preset", "veryfast", "-profile:v", "main", "-level:v", AvcLevelFor(rendition.Height)]);
         }
         else
         {
@@ -579,6 +604,25 @@ public sealed class AdaptiveHlsService
         }
 
         return await _ffmpeg.RunAsync(arguments, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>The H.264 level (as ffmpeg writes it) an output of this height is encoded at.</summary>
+    internal static string AvcLevelFor(int height) => height switch
+    {
+        <= 576 => "3.0",
+        <= 720 => "3.1",
+        <= 1080 => "4.2",
+        _ => "5.1",
+    };
+
+    /// <summary>
+    /// The CODECS value announced for the converted picture: Main profile and the level it is encoded at. A fixed level 3.1 was announced for
+    /// every size, which is wrong for a 1080p picture, and strict phone players refuse a stream that exceeds what it declared (issue 1181).
+    /// </summary>
+    internal static string AvcCodecFor(int height)
+    {
+        var levelByte = AvcLevelFor(height) switch { "3.0" => 0x1e, "3.1" => 0x1f, "4.2" => 0x2a, _ => 0x33 };
+        return $"avc1.4d40{levelByte:x2}";
     }
 
     /// <summary>
@@ -652,6 +696,10 @@ public sealed class AdaptiveHlsService
         // become text, so they are not listed here; they are burned into the picture when a person chooses one.
         var embedded = PlaybackCapabilitiesService.BuildEmbeddedSubtitleTracks(assetId, probe.SubtitleStreams);
         var ordered = probe.SubtitleStreams.OrderBy(stream => stream.StreamIndex).ToList();
+        // The text streams are read out of the film once, together, in the background (EmbeddedSubtitleCache); the captions of this start are cut
+        // from those saved copies, so a big film is no longer read once more for every caption (issue 1166).
+        await EmbeddedSubtitleCache.EnsureStarted(_ffmpeg, _logger, assetId, sourcePath,
+            ordered.Where(stream => stream.IsText).Select(stream => stream.StreamIndex).ToList()).WaitAsync(ct).ConfigureAwait(false);
         for (var streamIndex = 0; streamIndex < ordered.Count; streamIndex++)
         {
             var stream = ordered[streamIndex];
@@ -661,15 +709,28 @@ public sealed class AdaptiveHlsService
                     stream.StreamIndex, assetId, stream.Codec ?? "unknown");
                 continue;
             }
+            var saved = EmbeddedSubtitleCache.TryGetReady(assetId, sourcePath, stream.StreamIndex);
+            if (saved is null)
+            {
+                _logger.LogInformation("Embedded caption {StreamIndex} of asset {AssetId} could not be read as text and is left out", stream.StreamIndex, assetId);
+                continue;
+            }
             var directory = Path.Combine(root, $"s{captions.Count}");
             Directory.CreateDirectory(directory);
             var target = Path.Combine(directory, "caption.vtt");
-            var conversion = await ConvertCaptionAsync(sourcePath, $"0:s:{streamIndex}", target, startSeconds, ct).ConfigureAwait(false);
-            if (conversion.ExitCode != 0)
+            if (startSeconds <= 0)
             {
-                _logger.LogWarning("Embedded caption conversion failed for asset {AssetId} stream {StreamIndex}: {Error}", assetId, stream.StreamIndex, Tail(conversion.Error));
-                DeleteDirectory(directory);
-                continue;
+                File.Copy(saved, target, overwrite: true);
+            }
+            else
+            {
+                var conversion = await ConvertCaptionAsync(saved, "0:s:0", target, startSeconds, ct).ConfigureAwait(false);
+                if (conversion.ExitCode != 0)
+                {
+                    _logger.LogWarning("Embedded caption conversion failed for asset {AssetId} stream {StreamIndex}: {Error}", assetId, stream.StreamIndex, Tail(conversion.Error));
+                    DeleteDirectory(directory);
+                    continue;
+                }
             }
             await WriteCaptionPlaylistAsync(directory, captionSeconds, ct).ConfigureAwait(false);
             var language = string.IsNullOrWhiteSpace(stream.Language) ? "und" : stream.Language;
@@ -749,9 +810,10 @@ public sealed class AdaptiveHlsService
             // A copied picture keeps the file's own codec and level, which are not known here, so no CODECS guess is written for it.
             if (!copiedVideo)
             {
+                var video = AvcCodecFor(rendition.Height);
                 builder.Append(audioTracks.Count > 0
-                    ? ",CODECS=\"avc1.4d401f,mp4a.40.2\""
-                    : ",CODECS=\"avc1.4d401f\"");
+                    ? $",CODECS=\"{video},mp4a.40.2\""
+                    : $",CODECS=\"{video}\"");
             }
             if (audioTracks.Count > 0)
             {
