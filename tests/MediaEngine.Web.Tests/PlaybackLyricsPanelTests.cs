@@ -237,18 +237,9 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task WhereLyricsShow_ThereIsAnObviousLinkToFindDifferentLyrics()
+    public async Task TheLyricsPopUpHasNoNotTheseLyricsLink_BecauseTheMenuAlreadyHasFindAnother()
     {
         var cut = await OpenAsync(Api([Track(_track, "local", userOwned: true)], findLyrics: true));
-        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
-
-        Assert.Equal("Not these lyrics? Find different lyrics", cut.Find("[data-lyrics-find-link]").TextContent.Trim());
-    }
-
-    [Fact]
-    public async Task WithNoFindSourceThereIsNoFindDifferentLyricsLink()
-    {
-        var cut = await OpenAsync(Api([Track(_track, "local", userOwned: true)]));
         cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
 
         Assert.Empty(cut.FindAll("[data-lyrics-find-link]"));
