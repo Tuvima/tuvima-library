@@ -257,6 +257,13 @@ public sealed class TextTrackItemConfiguration
     [JsonPropertyName("id_paths")]
     public List<string> IdPaths { get; set; } = [];
 
+    /// <summary>
+    /// Fields holding a link to the release's own page, tried when none of <see cref="IdPaths"/> is present: the last part of the link is the
+    /// release's id (a source that stopped sending a plain id but still links to the release).
+    /// </summary>
+    [JsonPropertyName("id_link_paths")]
+    public List<string> IdLinkPaths { get; set; } = [];
+
     [JsonPropertyName("release_paths")]
     public List<string> ReleasePaths { get; set; } = [];
 

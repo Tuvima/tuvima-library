@@ -259,7 +259,8 @@ public sealed class TextTrackRecordingTests
         var handler = new RecordingHandler(request => RecordingHandler.Json(
             """{"status":true,"results":[{"type":"movie","tmdb_id":693134}],"subtitles":[]}"""));
         var provider = ShippedProviderHarness.Subdl(handler);
-        var lookup = SubtitleLookup(MediaType.Movies, Movie(null, "693134"));
+        // No title, so only the search by id is possible (a title adds the name-and-year search as a second request).
+        var lookup = SubtitleLookup(MediaType.Movies, Movie(null, "693134")) with { Title = null };
 
         var lines = new List<string>();
         lines.AddRange(await RunAsync(provider, lookup));

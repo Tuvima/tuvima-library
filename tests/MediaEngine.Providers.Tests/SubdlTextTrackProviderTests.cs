@@ -162,8 +162,9 @@ public sealed class SubdlTextTrackProviderTests
             Assert.Equal(calls == 1 ? "example-key" : "rotated-key", request.Headers.Authorization?.Parameter);
             return Json("""{"status":true,"results":[{"type":"movie","tmdb_id":693134}],"subtitles":[]}""");
         });
+        // No title, so only the search by id is possible (a title adds the name-and-year search as a second request).
         var lookup = Lookup(MediaType.Movies,
-            new SubtitleLookupContext(Movie: new MovieSubtitleIdentity(null, "693134")));
+            new SubtitleLookupContext(Movie: new MovieSubtitleIdentity(null, "693134"))) with { Title = null };
 
         Assert.Empty(await provider.SearchAsync(lookup));
         Assert.Empty(await provider.SearchAsync(lookup));
@@ -171,6 +172,26 @@ public sealed class SubdlTextTrackProviderTests
         provider.ApplyCredentials(new Dictionary<string, string?> { ["api_key"] = "rotated-key" });
         Assert.Empty(await provider.SearchAsync(lookup));
         Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task AReleaseTheSourceOnlyLinksToItsPageFor_IsStillOffered_AndAnEmptyIdSearchFallsBackToNameAndYear()
+    {
+        var urls = new List<string>();
+        var provider = CreateProvider(request =>
+        {
+            urls.Add(request.RequestUri!.PathAndQuery);
+            return request.RequestUri.Query.Contains("film_name", StringComparison.Ordinal)
+                ? Json("""{"status":true,"results":[{"type":"movie","name":"Dune: Part Two","year":"2024"}],"subtitles":[{"release_name":"Dune.2024","name":"Dune.srt","subtitlePage":"/s/info/abc123","language":"EN","hi":false,"unpack_files":[{"file_n_id":"f1","name":"Dune.2024.srt","language":"EN","url":"/subtitle/abc123/f1"}]}]}""")
+                : Json("""{"status":true,"results":[{"type":"movie","tmdb_id":693134}],"subtitles":[]}""");
+        });
+        var lookup = Lookup(MediaType.Movies, new SubtitleLookupContext(Movie: new MovieSubtitleIdentity(null, "693134")));
+
+        var found = await provider.SearchAsync(lookup);
+
+        Assert.Equal("abc123/f1", Assert.Single(found).SourceId);
+        Assert.Contains(urls, url => url.Contains("tmdb_id=693134", StringComparison.Ordinal));
+        Assert.Contains(urls, url => url.Contains("film_name=", StringComparison.Ordinal));
     }
 
     private static TextTrackLookup Lookup(MediaType type, SubtitleLookupContext? context) => new(
