@@ -829,7 +829,9 @@ public sealed class FirstPartyIdentityService(
             return new AuthenticationAttemptResult(false, false, OutsideSignInRefusedException.AccessOffMessage, null);
         }
 
-        var currentIngress = ClientIngress.Parse(ingress);
+        // Compare the place as it really is (this computer, home network or not home), not the folded one that treats
+        // every non-local place as home: a code started at home must not finish from outside, or the other way round.
+        var currentIngress = ClientIngress.ParseCurrent(ingress);
         if (!string.Equals(challenge.Ingress, currentIngress, StringComparison.Ordinal))
         {
             // The token turned up somewhere other than where the password was entered: it is dead.
@@ -1035,7 +1037,7 @@ public sealed class FirstPartyIdentityService(
             Id = Guid.NewGuid(),
             AccountId = account.Id,
             TokenHash = HashToken(token),
-            Ingress = ClientIngress.Parse(ingress),
+            Ingress = ClientIngress.ParseCurrent(ingress),
             DeviceId = Sanitize(deviceId, 100, "unknown"),
             DeviceName = Sanitize(deviceName, 100, "Unknown device"),
             Client = Sanitize(client, 200, "Dashboard"),

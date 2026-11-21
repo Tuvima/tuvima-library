@@ -86,6 +86,11 @@ public sealed class TuvimaAuthenticationHandler(
             }
 
             var rawToken = authorization["Bearer ".Length..].Trim();
+            if (RequestIngress.HomeOnlyTokenRefused(Context, rawToken))
+            {
+                return AuthenticateResult.Fail("This device can only be used on the home network.");
+            }
+
             var client = await clientAuthorization.ValidateAccessTokenAsync(rawToken, Context.RequestAborted).ConfigureAwait(false);
             if (client is null)
             {

@@ -192,6 +192,14 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
+            // The first administrator is never created for a visitor with clear evidence of being outside the home network.
+            if (MediaEngine.Domain.Authorization.ClientIngress.IsClearlyOutside(request.OriginalClientIngress))
+            {
+                return Results.Json(
+                    new SetupBeginRefusalDto(SetupBeginRefusalReasons.RemoteRefused, "Setup has to be finished from your home network."),
+                    statusCode: StatusCodes.Status403Forbidden);
+            }
+
             if (await identity.IsAdministratorConfiguredAsync(ct).ConfigureAwait(false))
             {
                 await onboarding.SetStepAsync("profile", "passed", "Administrator account is configured.", null, null, ct).ConfigureAwait(false);

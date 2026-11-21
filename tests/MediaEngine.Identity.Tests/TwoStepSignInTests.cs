@@ -135,6 +135,22 @@ public sealed class TwoStepSignInTests : IDisposable
         Assert.Equal(2, (await _service.GetSessionsAsync(owner.Account.Id)).Count);
     }
 
+    [Theory]
+    [InlineData(ClientIngress.HomeNetwork, ClientIngress.Remote)]
+    [InlineData(ClientIngress.Remote, ClientIngress.HomeNetwork)]
+    public async Task CodeFromADifferentPlace_NeverFinishesTheSignIn(string started, string finished)
+    {
+        var owner = await SignUpAsync();
+        var secret = await TurnOnAsync(owner.Account.Id);
+        _clock.Advance(TimeSpan.FromSeconds(31));
+        var first = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: started);
+
+        var second = await _service.CompleteTwoStepSignInAsync(first.TwoStepToken!, CodeFor(secret), ingress: finished);
+
+        Assert.False(second.Succeeded);
+        Assert.Null(second.IssuedSession);
+    }
+
     [Fact]
     public async Task AWrongPassword_NeverReachesTheCodeStep()
     {
