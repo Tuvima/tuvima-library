@@ -3,7 +3,7 @@
 export function focusField(key) {
     if (typeof key !== 'string' || key.length === 0) return false;
     const row = document.querySelector(`.tl-editor-window [data-field-key="${CSS.escape(key)}"]`);
-    const input = row?.querySelector('textarea, input, [contenteditable="true"]');
+    const input = row?.querySelector('textarea, input, [contenteditable="true"]') ?? row?.querySelector('button:not([disabled])');
     if (!input) return false;
     input.scrollIntoView({ block: 'center' });
     input.focus({ preventScroll: true });

@@ -228,6 +228,7 @@ public sealed partial class TextTrackEnrichmentWorker
                          .Where(candidate => !rejected.Contains((candidate.Provider, candidate.SourceId)))
                          .OrderBy(candidate => candidate.IsForced)
                          .ThenBy(candidate => candidate.IsHearingImpaired)
+                         .ThenByDescending(candidate => candidate.MatchScore ?? 0)
                          .ThenByDescending(candidate => candidate.Confidence)
                          .Take(1))
             {

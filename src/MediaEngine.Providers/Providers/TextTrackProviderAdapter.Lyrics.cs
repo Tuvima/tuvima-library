@@ -87,10 +87,11 @@ public sealed partial class TextTrackProviderAdapter
         var rules = _text.Search.Lyrics;
 
         // Requests are tried best first: an exact lookup when every detail is known, then a search when one is missing
-        // or the exact lookup finds nothing. "Not found" is an ordinary empty answer, never an error.
-        string? url = null;
-        JsonElement root = default;
-        JsonDocument? doc = null;
+        // or the exact lookup finds nothing. "Not found" is an ordinary empty answer, never an error. The first request
+        // that yields any acceptable entry ends the search, and every acceptable entry it holds is kept, best first, so the
+        // person can choose among the close matches (issue 1256).
+        var found = new List<(double Score, TextTrackCandidate Candidate)>();
+        var accepted = false;
         foreach (var request in MatchingRequests(lookup.MediaType, values))
         {
             var candidateUrl = baseUrl + BuildPath(request, values);
@@ -122,29 +123,40 @@ public sealed partial class TextTrackProviderAdapter
                 continue;
             }
 
-            JsonElement? picked;
-            if (parsed.RootElement.ValueKind == JsonValueKind.Array)
+            using (parsed)
             {
-                picked = PickBestListEntry(parsed.RootElement, lookup, rules, tally);
-            }
-            else
-            {
-                tally.Candidates++;
-                picked = parsed.RootElement;
+                var entries = parsed.RootElement.ValueKind == JsonValueKind.Array
+                    ? parsed.RootElement.EnumerateArray().ToList()
+                    : [parsed.RootElement];
+                foreach (var entry in entries)
+                {
+                    tally.Candidates++;
+                    if (ScoreEntry(entry, lookup, rules, tally, parsed.RootElement.ValueKind == JsonValueKind.Array) is not { } score)
+                    {
+                        continue;
+                    }
+
+                    accepted = true;
+                    if (LyricsCandidateFrom(entry, candidateUrl, lookup, rules, tally, score) is { } candidate)
+                    {
+                        found.Add((score, candidate));
+                    }
+                }
             }
 
-            if (picked is { } element && HasLyricsOrInstrumental(element, rules))
+            if (accepted)
             {
-                doc = parsed;
-                root = element;
-                url = candidateUrl;
                 break;
             }
-
-            parsed.Dispose();
         }
 
-        if (doc is null || url is null)
+        if (found.Count == 0 && accepted)
+        {
+            // The source's entry was the song's but its timed lyrics are too far off in length (the outcome already says so).
+            return [];
+        }
+
+        if (found.Count == 0)
         {
             tally.Outcome = tally.Requests == 0 ? LyricsOutcome.MissingDetails
                 : tally.Failures == tally.Requests ? LyricsOutcome.SourceUnreachable
@@ -155,9 +167,13 @@ public sealed partial class TextTrackProviderAdapter
             return [];
         }
 
-        using var _ = doc;
-        var candidate = LyricsCandidateFrom(root, url, lookup, rules, tally);
-        return candidate is null ? [] : [candidate];
+        tally.Outcome = found.All(item => item.Candidate.IsInstrumental) ? LyricsOutcome.Instrumental : LyricsOutcome.Found;
+        return found
+            .OrderByDescending(item => item.Score)
+            .Select(item => item.Candidate)
+            .DistinctBy(item => item.SourceId)
+            .Take(MaxTextSearchResults)
+            .ToList();
     }
 
     /// <summary>
@@ -165,7 +181,7 @@ public sealed partial class TextTrackProviderAdapter
     /// song's. <c>null</c> when a timed entry is too different in length (the outcome says so).
     /// </summary>
     private TextTrackCandidate? LyricsCandidateFrom(
-        JsonElement root, string url, TextTrackLookup lookup, TextTrackLyricsConfiguration rules, LyricsTally tally)
+        JsonElement root, string url, TextTrackLookup lookup, TextTrackLyricsConfiguration rules, LyricsTally tally, double? matchScore = null)
     {
         var format = rules.FallbackFormat;
         string? lyrics = null;
@@ -190,8 +206,6 @@ public sealed partial class TextTrackProviderAdapter
             return null;
         }
 
-        tally.Outcome = instrumental ? LyricsOutcome.Instrumental : LyricsOutcome.Found;
-
         var confidence = durationScore.HasValue
             ? strict ? Math.Max(0, durationScore.Value) : Math.Max(duration.LenientFloor, durationScore.Value)
             : duration.DefaultConfidence;
@@ -206,7 +220,8 @@ public sealed partial class TextTrackProviderAdapter
             IsHearingImpaired: false,
             DurationMatchScore: durationScore,
             Payload: lyrics,
-            IsInstrumental: instrumental);
+            IsInstrumental: instrumental,
+            MatchScore: matchScore);
     }
 
     /// <summary>The most results one text search offers (the caller shows fewer).</summary>
@@ -297,77 +312,69 @@ public sealed partial class TextTrackProviderAdapter
             || (!string.IsNullOrEmpty(rules.InstrumentalPath) && ReadBool(entry, rules.InstrumentalPath) == true));
 
     /// <summary>
-    /// From a list of search hits, the one whose title matches and whose length is closest to the song's; hits whose
-    /// length is beyond the rejection limit are skipped. <c>null</c> when none is good enough.
+    /// How well one source entry fits the song, or <c>null</c> when it must not be offered as the song's own lyrics. The Library only offers an
+    /// entry whose title and artist both match the song's (issue 1187); length (beyond the rejection limit rejects) and album then rank the rest.
     /// </summary>
-    private JsonElement? PickBestListEntry(
-        JsonElement list, TextTrackLookup lookup, TextTrackLyricsConfiguration rules, LyricsTally tally)
+    private double? ScoreEntry(JsonElement entry, TextTrackLookup lookup, TextTrackLyricsConfiguration rules, LyricsTally tally, bool fromList)
     {
         var matcher = LyricsMatcher;
         var match = rules.Match;
-        JsonElement? best = null;
-        var bestScore = double.MinValue;
-        foreach (var entry in list.EnumerateArray())
+        if (!HasLyricsOrInstrumental(entry, rules))
         {
-            tally.Candidates++;
-            if (!HasLyricsOrInstrumental(entry, rules))
-            {
-                continue;
-            }
-
-            var score = 0d;
-            var titled = false;
-            if (!string.IsNullOrWhiteSpace(lookup.Title) && TryPath(entry, match.TitlePath, out var name)
-                && name.ValueKind == JsonValueKind.String)
-            {
-                if (!matcher.Matches(name.GetString(), lookup.Title))
-                {
-                    continue;
-                }
-
-                titled = true;
-                score += 1;
-            }
-
-            // The Library picks lyrics by itself only when the artist is the song's own as well as the title (issue 1187): another artist's song of the
-            // same name is not offered as the answer. A person who wants it finds it by hand in Find lyrics.
-            if (!string.IsNullOrWhiteSpace(lookup.Artist) && TryPath(entry, match.ArtistPath, out var artist)
-                && artist.ValueKind == JsonValueKind.String
-                && !string.IsNullOrWhiteSpace(artist.GetString()))
-            {
-                if (!matcher.Matches(artist.GetString(), lookup.Artist))
-                {
-                    continue;
-                }
-
-                score += 1;
-            }
-
-            if (titled)
-            {
-                tally.TitleMatches++;
-            }
-
-            var duration = ScoreDuration(entry, lookup.DurationSeconds);
-            if (duration is < 0)
-            {
-                if (titled)
-                {
-                    tally.LengthRejected++;
-                }
-
-                continue;
-            }
-
-            score += duration ?? 0.5;
-            if (score > bestScore)
-            {
-                bestScore = score;
-                best = entry;
-            }
+            return null;
         }
 
-        return best;
+        var score = 0d;
+        var titled = false;
+        if (!string.IsNullOrWhiteSpace(lookup.Title) && TryPath(entry, match.TitlePath, out var name)
+            && name.ValueKind == JsonValueKind.String)
+        {
+            if (!matcher.Matches(name.GetString(), lookup.Title))
+            {
+                return null;
+            }
+
+            titled = true;
+            score += 1;
+        }
+
+        if (!string.IsNullOrWhiteSpace(lookup.Artist) && TryPath(entry, match.ArtistPath, out var artist)
+            && artist.ValueKind == JsonValueKind.String
+            && !string.IsNullOrWhiteSpace(artist.GetString()))
+        {
+            if (!matcher.Matches(artist.GetString(), lookup.Artist))
+            {
+                return null;
+            }
+
+            score += 1;
+        }
+
+        if (titled)
+        {
+            tally.TitleMatches++;
+        }
+
+        // The album is a tie-breaker only: the same song often sits on several albums and a compilation must still be offered.
+        if (!string.IsNullOrWhiteSpace(lookup.Album) && TryPath(entry, "albumName", out var album)
+            && album.ValueKind == JsonValueKind.String && matcher.Matches(album.GetString(), lookup.Album))
+        {
+            score += 0.5;
+        }
+
+        // An exact answer's length is judged with its format (a timed entry too far off is dropped, plain text is kept), so only a list entry is rejected here.
+        var duration = ScoreDuration(entry, lookup.DurationSeconds);
+        if (fromList && duration is < 0)
+        {
+            if (titled)
+            {
+                tally.LengthRejected++;
+            }
+
+            return null;
+        }
+
+        return score + Math.Max(0, duration ?? 0.5);
     }
 
     /// <summary>Fetches the answer, remembering it when the file asks for the shared response cache.</summary>
