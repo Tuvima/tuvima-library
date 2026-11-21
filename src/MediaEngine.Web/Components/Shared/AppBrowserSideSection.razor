@@ -6,7 +6,7 @@
 {
     <hr class="app-browser-side__rule" />
 }
-<div class="app-browser-side__section" @attributes="AdditionalAttributes">
+<div @attributes="AdditionalAttributes" class="@SectionClass">
     @if (!string.IsNullOrWhiteSpace(Heading))
     {
         <h3 class="app-browser-side__heading">@Heading</h3>
@@ -23,4 +23,9 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    // A class passed by the caller is added to, never swapped for, the section's own class.
+    private string SectionClass => AdditionalAttributes is not null && AdditionalAttributes.TryGetValue("class", out var extra) && extra is string text && text.Length > 0
+        ? $"app-browser-side__section {text}"
+        : "app-browser-side__section";
 }

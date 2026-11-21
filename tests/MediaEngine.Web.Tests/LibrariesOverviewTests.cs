@@ -422,7 +422,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var title = host.FindAll(".app-dialog-shell__title").Last();
         Assert.Equal("Where is it? · Movies", Text(title));
         Assert.Equal(["Watch", "Movies"], host.Find("[data-picker-chips]").QuerySelectorAll("span").Select(Text).ToArray());
-        Assert.NotNull(host.Find("[data-folder-name]"));
+        Assert.Empty(host.FindAll("[data-folder-name]"));
         Assert.NotNull(host.Find("[data-folder-handling]"));
         Assert.Empty(host.FindAll("[data-picker-safety]"));
         var buttons = host.FindAll(".server-folder-picker__footer button").Select(Text).ToArray();

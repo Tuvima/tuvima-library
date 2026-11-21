@@ -25,3 +25,10 @@
     height: 6px;
     width: 6px;
 }
+
+/* On the Now playing page the chip sits beside 15 px tabs and is drawn at the same size (mockup screen 13; #1259). */
+.playback-lyrics-chip--large {
+    --playback-chip-large-size: 15px;
+    font: 600 var(--playback-chip-large-size)/1.45 var(--font-ui);
+    padding: 2px 10px;
+}

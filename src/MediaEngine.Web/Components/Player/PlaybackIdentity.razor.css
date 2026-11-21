@@ -10,6 +10,11 @@
     min-width: 240px;
 }
 
+/* The song and artist keep real room beside the buttons: one line each, an ellipsis when they must shrink (#1259). */
+.playback-identity:not(.playback-identity--compact) .playback-identity__text {
+    min-width: 96px;
+}
+
 .playback-identity--compact {
     min-width: 0;
 }
@@ -150,7 +155,7 @@
     display: flex;
     flex: 1 1 auto;
     gap: 10px;
-    min-height: 56px;
+    min-height: 57px;
     min-width: 0;
     padding: 0;
     text-align: left;

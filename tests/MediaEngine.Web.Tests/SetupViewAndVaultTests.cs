@@ -210,7 +210,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.Empty(_dialogs.FindAll(".add-view-folder [aria-label='More information'], .add-view-folder .app-info-tip"));
         Assert.Empty(_dialogs.FindAll("[data-view-storage]"));
         Assert.DoesNotContain("Library scans this folder and its subfolders.", _dialogs.Markup, StringComparison.Ordinal);
-        Assert.Contains("Friendly name", Text(_dialogs.Find(".add-view-folder")), StringComparison.Ordinal);
+        Assert.DoesNotContain("Friendly name", Text(_dialogs.Find(".add-view-folder")), StringComparison.Ordinal);
     }
 
     [Fact]

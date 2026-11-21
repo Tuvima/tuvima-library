@@ -82,7 +82,7 @@
                     <PlaybackListTabs Tabs="@Tabs" Active="@ActiveTab" ActiveChanged="SelectTabAsync" AriaLabel="@L["NowPlayingPage_Sections"].Value" IdPrefix="np" Flush="true" />
                     @if (ActiveTab == LyricsTab)
                     {
-                        <PlaybackLyricsChip />
+                        <PlaybackLyricsChip Large="true" />
                     }
                 </div>
                 <div class="np__panel" id="@PlaybackListTabs.PanelId("np")" role="tabpanel" aria-labelledby="@PlaybackListTabs.TabId("np", ActiveTab)" data-now-playing-panel="@ActiveTab">

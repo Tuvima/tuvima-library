@@ -5250,6 +5250,32 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     color: var(--tl-text-secondary);
 }
 
+/* The Series dropdown triggers (AppRowButtons, so their root carries no component scope): the same box as the Season and episode dropdowns of every
+   other item (.tl-hnav__trigger in EditorHeaderNav), so the Series header looks and sizes the same (issue 1250). */
+.tl-snav__trigger {
+    gap: 0.625rem;
+    height: var(--tl-control-height-md);
+    min-width: 12.5rem;
+    max-width: 100%;
+    padding: 0 0.75rem 0 0.625rem;
+    border: 1px solid var(--tl-border-strong);
+    border-radius: var(--tl-radius-md);
+    background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent);
+    color: var(--tl-text-primary);
+}
+
+.tl-snav__trigger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--tl-bg-surface-hover) 85%, transparent);
+}
+
+.tl-snav__trigger.is-open {
+    border-color: var(--tl-accent-primary);
+}
+
+.tl-snav--stacked .tl-snav__trigger {
+    width: 100%;
+}
+
 .tl-hnav__home.is-current {
     box-shadow: 0 0 0 2px var(--tl-accent-primary-hover);
 }
@@ -6053,11 +6079,6 @@ html[data-form-factor="phone"] .tl-detail-page {
     --tl-hero-action-icon-size: 20px;
 }
 
-/* Only the hero's round buttons shrink to 40 px; other large controls on the page keep the shared tap-target size. */
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions {
-    --tl-control-height-lg: 40px;
-}
-
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__inner {
     padding: calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 0.5rem) 16px 1rem;
     align-items: flex-end;
@@ -6084,76 +6105,124 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__
     text-wrap: balance;
 }
 
-/* Fact rows wrap as chips instead of scrolling sideways. */
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-metadata-stack,
+/* Facts line and genres, sized for a phone (issues 1261, 1182; approved mock: 12 px facts with a small boxed rating, one line that wraps, never sideways).
+   The selectors are written long on purpose: the hero's own scoped rules (nowrap facts, 16 px text) are more specific than a short phone rule. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-metadata-stack,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero--watch .tl-detail-metadata-stack {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     overflow: visible;
     justify-items: start;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-metadata-row,
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-row,
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-row--facts {
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-row,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-watch-metadata-row,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-watch-metadata-row--facts {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     flex-wrap: wrap;
-    gap: 0.4rem;
-    font-size: var(--tl-font-size-sm);
+    justify-content: flex-start;
+    gap: 0.15rem 0.45rem;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    font-size: var(--tl-font-size-xs);
+    font-weight: var(--tl-font-weight-regular, 400);
+    line-height: 16px;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-separator {
-    display: none;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-item:not(.tl-detail-watch-metadata-item--classification) {
-    padding: 0.28rem 0.65rem;
-    border: 1px solid var(--tl-wash-light-5);
-    border-radius: var(--tl-radius-pill);
-    background: var(--tl-scrim-dark-3);
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-watch-metadata-item,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-metadata-item,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-metadata-item__value {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: var(--tl-font-size-xs);
+    line-height: 16px;
     white-space: normal;
 }
 
-/* Genre chips keep a 44px tap box; the visible pill is drawn smaller inside it. */
+/* Only the rating (the classification) is boxed, as a small boxed mark. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero--watch .tl-detail-watch-metadata-item--classification {
+    padding: 0 5px;
+    border: 1px solid var(--tl-wash-light-5);
+    border-radius: 4px;
+    background: transparent;
+    font-size: var(--tl-font-size-xs);
+    line-height: 16px;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-watch-metadata-item .tl-icon-root {
+    font-size: var(--tl-icon-size-xs);
+}
+
+/* Genre chips keep a 44 px tap box; the visible pill inside it is a small 26 px one. */
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genres {
     flex-wrap: wrap;
-    gap: 0 0.45rem;
-    margin-top: 0.25rem;
+    gap: 0 0.4rem;
+    margin-top: 0;
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre {
     position: relative;
     isolation: isolate;
     min-height: var(--tl-tap-target-min, 44px);
-    padding-inline: 0.9rem;
+    padding: 0 0.7rem;
     border: 0;
     background: transparent;
     backdrop-filter: none;
     box-shadow: none;
+    font-size: var(--tl-font-size-xs);
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre::before {
     content: "";
     position: absolute;
-    z-index: 0;
-    inset: 0.4rem 0;
+    z-index: -1;
+    inset: 9px 0;
     border: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 48%, var(--tl-wash-light-5));
-    border-radius: var(--tl-radius-round);
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-scrim-dark-3);
 }
 
-/* Actions: one full-width primary button, then a row of 44px round icons with their names underneath. */
+/* Actions (approved mock): one line. A wide Resume button takes the room that is left, with the round companions beside it, without their names
+   (each keeps its spoken name and long-press tooltip). Nothing is wider than the screen. */
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions {
-    --media-rate-trigger-size: 44px;
-    flex-direction: column;
-    align-items: stretch;
+    /* Only the hero's round buttons shrink to 40 px; other large controls on the page keep the shared tap-target size. */
+    --tl-control-height-lg: 40px;
+    --media-rate-trigger-size: 40px;
+    flex-direction: row;
+    align-items: flex-start;
     flex-wrap: nowrap;
-    gap: 0.9rem;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-actions {
-    width: 100%;
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-primary-actions {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-secondary-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-secondary-actions .app-icon-button__label {
+    display: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero__copy,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero__identity {
+    min-width: 0;
 }
 
 /* The More menu is a bottom sheet on phones. */

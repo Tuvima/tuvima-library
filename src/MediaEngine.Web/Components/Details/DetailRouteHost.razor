@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Services.Navigation
 @using Microsoft.AspNetCore.WebUtilities
 @inject IEngineApiClient ApiClient
+@inject ILogger<DetailRouteHost> Logger
 @inject NavigationManager Nav
 @inject IServiceProvider Services
 @implements IDisposable
@@ -152,6 +153,7 @@ else
             return;
         }
 
+        var loadTimer = System.Diagnostics.Stopwatch.StartNew();
         var result = await ApiClient.LoadDetailPageAsync(
             entityType,
             Request.EntityId,
@@ -163,6 +165,8 @@ else
         if (ct.IsCancellationRequested || loadVersion != _loadVersion)
             return;
 
+        // How long the Dashboard waited for the Engine (the Engine's own split is in its "DetailPerformance" log line and Server-Timing header).
+        Logger.LogInformation("Details page {Type} loaded in {ElapsedMs} ms", entityType, loadTimer.ElapsedMilliseconds);
         _detail = result.Detail;
         _preview = null;
         _failure = result.Detail is null && result.Failure == DetailPageLoadFailure.None

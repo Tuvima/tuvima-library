@@ -20,24 +20,17 @@
 
 .server-folder-picker__target { margin: 0; color: var(--tl-text-secondary); }
 
-/* The row above the list: the friendly name with its hint beside it, and the host's own context (the area and kind chips) at the far end. */
+/* The row above the list: the host's own context (the area and kind chips) at the far end. */
 .server-folder-picker__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--tl-space-2) var(--tl-space-4); min-width: 0; }
-.server-folder-picker__name-row { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: flex-end; gap: var(--tl-space-1) var(--tl-space-4); min-width: 0; }
-.server-folder-picker__name-row > .server-folder-picker__name { flex: 0 1 22.5rem; }
 
 /* Host fields above the list: the library name is large and the first thing you type (D5). */
 .server-folder-picker__top { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-3); order: 2; margin-left: auto; }
 .server-folder-picker__top ::deep input { font-size: var(--tl-field-text-size); }
 
-/* The friendly name is the only text box (Editor v5 D32); it names the folder, never the library (Libraries v3 D18). */
-.server-folder-picker__name { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tl-space-1); max-width: 22.5rem; }
-.server-folder-picker__name-hint { margin-bottom: 0.7rem; color: var(--tl-text-secondary); font-size: var(--tl-type-secondary-size); }
-
-/* Under the path: the path with its pencil, the small typed-path box when the pencil is pressed, then the friendly name (issue 1041). */
+/* Under the path: the path with its pencil and the small typed-path box when the pencil is pressed (issue 1041). */
 .server-folder-picker__inside { display: grid; gap: var(--tl-space-2); min-width: 0; }
 .server-folder-picker__path-row { display: flex; align-items: center; gap: var(--tl-space-1); min-width: 0; }
 .server-folder-picker__path { flex: 1 1 auto; min-width: 0; }
-.server-folder-picker__inside .server-folder-picker__name-row { padding-top: var(--tl-space-1); }
 
 /* The folder you are inside, named above the list. */
 .server-folder-picker__selected { color: var(--tl-text-primary); overflow-wrap: anywhere; }
@@ -105,11 +98,6 @@
 .server-folder-picker__result strong, .server-folder-picker__result p { color: inherit; }
 .server-folder-picker__result p { color: var(--tl-text-secondary); }
 .server-folder-picker__validation-progress { display: grid; gap: 6px; color: var(--tl-text-muted); }
-
-/* Under 840px (the one card breakpoint shared with the Libraries panel) the friendly name takes the whole row. */
-@media (max-width: 840px) {
-    .server-folder-picker__name { max-width: none; }
-}
 
 /* On touch the "i" is a full tap target. */
 @media (hover: none), (pointer: coarse), (max-width: 1023px) {

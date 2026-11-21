@@ -117,20 +117,20 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheCollapsedBarIs56PixelsTallWithA44PixelPictureAndA15PixelTitle()
+    public void TheCollapsedBarIs64PixelsTallWithA44PixelPictureAndA15PixelTitle()
     {
         var shell = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor.css");
         var identity = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css");
 
         var row = shell.Split(".playback-shell--compact .playback-shell__row {", StringSplitOptions.None)[1].Split('}')[0];
-        Assert.Contains("min-height: 56px;", row);
+        Assert.Contains("min-height: 57px;", row); // hairline 1 + row 57 + 6 below = the mockup's 64 px (#1259)
         var art = identity.Split(".playback-identity--compact .playback-identity__art {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("height: 44px;", art);
         Assert.Contains("width: 44px;", art);
         var title = identity.Split(".playback-identity--compact .playback-identity__title {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("font-size: 15px;", title);
         var button = identity.Split(".playback-identity ::deep .playback-identity__expand {", StringSplitOptions.None)[1].Split('}')[0];
-        Assert.Contains("min-height: 56px;", button);
+        Assert.Contains("min-height: 57px;", button);
     }
 
     [Fact]

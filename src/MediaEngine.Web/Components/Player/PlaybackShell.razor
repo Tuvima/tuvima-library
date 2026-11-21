@@ -11,7 +11,8 @@
    VideoPlaybackHost) keep the playback wiring, the media elements and the panels, and slot their own pieces in (the timeline, the identity
    links and actions, and any tool whose panel they own through HostedTools and ToolContent). *@
 <section class="@RootClass" aria-label="@AriaLabel" data-playback-shell data-playback-media="@MediaName" data-playback-surface="@NormalizedSurface" @attributes="AdditionalAttributes">
-    @if (TimelineContent is not null)
+    @* The phone's collapsed bar has no timeline row (mockup screen 15 marker 1); the expanded player has the timeline. *@
+    @if (TimelineContent is not null && !Compact)
     {
         <div class="playback-shell__timeline" data-playback-zone="timeline">@TimelineContent</div>
     }

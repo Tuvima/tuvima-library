@@ -263,6 +263,55 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
         Assert.Contains("var(--cinematic-hero-phone-min-height, 100svh)", Read("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css"));
     }
 
+    [Fact]
+    public void PhoneFactsWrapAtASmallSizeAndGenresAreSmallPills()
+    {
+        var appCss = Read("src/MediaEngine.Web/wwwroot/app.css");
+
+        // The hero's own scoped rule keeps the facts on one line (nowrap, 16 px); the phone rule must be at least as specific and wrap them (issue 1261).
+        var facts = RuleFor(appCss, "html[data-form-factor=\"phone\"] .tl-detail-page .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-row,");
+        Assert.Contains("flex-wrap: wrap", facts);
+        Assert.Contains("max-width: 100%", facts);
+        Assert.Contains("font-size: var(--tl-font-size-xs)", facts);
+
+        // Genre pills: a 44 px tap box with a small visible pill drawn inside it.
+        var genre = RuleFor(appCss, "html[data-form-factor=\"phone\"] .tl-detail-page .tl-detail-hero-genre {");
+        Assert.Contains("font-size: var(--tl-font-size-xs)", genre);
+        var pill = RuleFor(appCss, "html[data-form-factor=\"phone\"] .tl-detail-page .tl-detail-hero-genre::before");
+        Assert.Contains("inset: 9px 0", pill);
+    }
+
+    [Fact]
+    public void PhoneActionRowIsOneLineWithAWideMainButtonAndNoSidewaysOverflow()
+    {
+        var appCss = Read("src/MediaEngine.Web/wwwroot/app.css");
+
+        var row = RuleFor(appCss, "html[data-form-factor=\"phone\"] .tl-detail-page .tl-detail-actions {");
+        Assert.Contains("flex-direction: row", row);
+        Assert.Contains("flex-wrap: nowrap", row);
+        Assert.Contains("max-width: 100%", row);
+
+        // The main button gives up its 180 px desktop minimum so it can never be wider than the screen (issue 1261). Its rule lives with the shared hero row.
+        var rowCss = Read("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css");
+        Assert.Contains("html[data-form-factor=\"phone\"] .tl-detail-actions ::deep .tl-detail-action--primary { flex:1 1 auto; width:100%; min-width:0; max-width:100%;", rowCss);
+
+        var names = RuleFor(appCss, "html[data-form-factor=\"phone\"] .tl-detail-page .tl-detail-actions .tl-detail-secondary-actions .app-icon-button__label");
+        Assert.Contains("display: none", names);
+    }
+
+    [Fact]
+    public void DetailPageDrawsTheHeroBeforeTheRestOfThePage()
+    {
+        // Hero first (issue 1262): everything under the hero and tabs waits for the render after the first.
+        var page = Read("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var gate = page.IndexOf("@if (_belowHeroReady)", StringComparison.Ordinal);
+        Assert.True(gate > 0, "The below-the-hero gate is missing from DetailPage.razor.");
+        Assert.True(page.IndexOf("<DetailHero Model=", StringComparison.Ordinal) < gate, "The hero must be drawn before the gate.");
+        Assert.True(page.IndexOf("<DetailTabs ", StringComparison.Ordinal) < gate, "The tabs must be drawn before the gate.");
+        Assert.True(page.IndexOf("tl-detail-body", StringComparison.Ordinal) > gate, "The page body must sit behind the gate.");
+        Assert.Contains("_belowHeroReady = true;", Read("src/MediaEngine.Web/Components/Details/DetailPage.razor.cs"));
+    }
+
     private static string Read(string relativePath) => File.ReadAllText(Path.Combine(RepoRoot, relativePath));
 
     private static string RuleFor(string css, string selector)

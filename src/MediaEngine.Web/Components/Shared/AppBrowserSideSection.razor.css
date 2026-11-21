@@ -25,3 +25,12 @@
     border: 0;
     border-top: 1px solid var(--tl-border-default);
 }
+
+/* A group that stays visible at the bottom of a scrolling list. */
+.app-browser-side__pinned {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    padding-bottom: var(--tl-space-1);
+    background: var(--tl-bg-surface);
+}

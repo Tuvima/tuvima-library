@@ -216,7 +216,10 @@ function Wait-ForDashboard {
         [string]$ErrorLog
     )
 
-    $deadline = [DateTimeOffset]::Now.AddSeconds(60)
+    $startedAt = [DateTimeOffset]::Now
+    $nextProgressAt = $startedAt
+    # The first Dashboard start on a fresh data store can be slow; wait up to 5 minutes.
+    $deadline = [DateTimeOffset]::Now.AddSeconds(300)
     while ([DateTimeOffset]::Now -lt $deadline) {
         if ($Process.HasExited) {
             Write-Host "Dashboard exited before becoming ready. Exit code: $($Process.ExitCode)"
@@ -233,10 +236,16 @@ function Wait-ForDashboard {
             exit $Process.ExitCode
         }
 
+        if ([DateTimeOffset]::Now -ge $nextProgressAt) {
+            $elapsed = [int]([DateTimeOffset]::Now - $startedAt).TotalSeconds
+            Write-Host "Waiting for Dashboard startup ($elapsed seconds)..."
+            $nextProgressAt = [DateTimeOffset]::Now.AddSeconds(15)
+        }
+
         try {
             $status = Invoke-RestMethod -Uri "http://localhost:5016/health/ready" -TimeoutSec 2
             if ([string]$status -in @("healthy", "degraded")) {
-                return
+                return $true
             }
         }
         catch {
@@ -244,11 +253,12 @@ function Wait-ForDashboard {
         }
     }
 
-    Write-Host "Timed out waiting for Dashboard readiness at http://localhost:5016/health/ready."
+    # Not an error that justifies stopping everything: the Dashboard is still running and may just be slow.
+    Write-Host "The Dashboard has not answered its readiness check yet (waited 5 minutes)."
+    Write-Host "It is still running and the app is left up; try http://localhost:5016 in a minute."
     Write-Host "Dashboard output log: $OutputLog"
     Write-Host "Dashboard error log:  $ErrorLog"
-    Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
-    exit 1
+    return $false
 }
 
 if ($Role -eq "Both") {
@@ -302,10 +312,10 @@ if ($Role -eq "Both") {
                 -RedirectStandardError $dashboardErr `
                 -WorkingDirectory $RepoRoot
 
-            Wait-ForDashboard -Process $dashboardProcess -OutputLog $dashboardOut -ErrorLog $dashboardErr
+            $dashboardReady = Wait-ForDashboard -Process $dashboardProcess -OutputLog $dashboardOut -ErrorLog $dashboardErr
 
             Write-Host ""
-            Write-Host "Tuvima Library is ready."
+            Write-Host $(if ($dashboardReady) { "Tuvima Library is ready." } else { "Tuvima Library is running (the Dashboard is still starting)." })
             Write-Host "Engine:    http://localhost:61495 (this computer only)"
             Write-Host "Dashboard: http://localhost:5016 (phones and TVs on your home network can open it too)"
             Write-Host "Logs:      $LogDir"

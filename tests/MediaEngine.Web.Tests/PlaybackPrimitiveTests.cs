@@ -358,7 +358,9 @@ public sealed class PlaybackPrimitiveTests
         // The phone's collapsed bar is the shell's compact form: art and text, then Play and Next, with the rail in its own thin row.
         Assert.Contains(".playback-shell--compact .playback-shell__row", shellStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto;", shellStyles, StringComparison.Ordinal);
-        Assert.Contains(".playback-shell--compact .playback-shell__timeline", shellStyles, StringComparison.Ordinal);
+        // The collapsed bar has no timeline row at all (mockup screen 15 marker 1; #1259): the shell does not draw it when compact.
+        Assert.DoesNotContain(".playback-shell--compact .playback-shell__timeline", shellStyles, StringComparison.Ordinal);
+        Assert.Contains("TimelineContent is not null && !Compact", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Player/PlaybackShell.razor")), StringComparison.Ordinal);
         Assert.Contains("@media(max-width:600px) { .listen-player-shell--expanded ::deep .listen-player { display:none; } }", styles, StringComparison.Ordinal);
     }
 
