@@ -47,7 +47,7 @@ public sealed record TextTrackAlternativesResult(
 /// </summary>
 public sealed partial class TextTrackEnrichmentWorker
 {
-    private const int MaxAlternatives = 5;
+    private const int MaxAlternatives = 8;
     private const int PreviewLines = 2;
 
     public async Task<TextTrackAlternativesResult> FindAlternativesAsync(
@@ -136,7 +136,8 @@ public sealed partial class TextTrackEnrichmentWorker
 
             foreach (var candidate in candidates
                          .Where(candidate => !candidate.IsInstrumental && !rejected.Contains((candidate.Provider, candidate.SourceId)))
-                         .OrderByDescending(candidate => candidate.DurationMatchScore ?? 0)
+                         .OrderByDescending(candidate => candidate.MatchScore ?? 0)
+                         .ThenByDescending(candidate => candidate.DurationMatchScore ?? 0)
                          .ThenByDescending(candidate => candidate.Confidence)
                          .Take(MaxAlternatives))
             {

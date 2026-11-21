@@ -1381,6 +1381,10 @@ public sealed class UIOrchestratorService : IAsyncDisposable
                 options.AccessTokenProvider = GetIntercomAccessTokenAsync;
             })
             .WithAutomaticReconnect(RetryPolicy)
+            // A busy computer (a film being converted) or an idle, throttled page can miss the default 30 second window and be dropped for
+            // nothing; a longer wait keeps the connection through that (issue 1255). The Engine's own limit is raised to match.
+            .WithKeepAliveInterval(TimeSpan.FromSeconds(15))
+            .WithServerTimeout(TimeSpan.FromSeconds(120))
             .Build();
 
         // -- "MediaAdded" ------------------------------------------------------

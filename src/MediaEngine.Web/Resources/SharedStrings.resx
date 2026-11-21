@@ -1613,9 +1613,6 @@
   <data name="PlaybackLyrics_HideTheseLyrics" xml:space="preserve">
     <value>Hide these lyrics for this song</value>
   </data>
-  <data name="PlaybackLyrics_NotTheseLyrics" xml:space="preserve">
-    <value>Not these lyrics? Find different lyrics</value>
-  </data>
   <data name="PlaybackLyrics_LyricLines" xml:space="preserve">
     <value>Lyric lines</value>
   </data>
@@ -16075,5 +16072,20 @@
   </data>
   <data name="NotificationsPanel_SendAt" xml:space="preserve">
     <value>Send at</value>
+  </data>
+  <data name="EditorLyrics_Heading" xml:space="preserve">
+    <value>Lyrics</value>
+  </data>
+  <data name="EditorLyrics_None" xml:space="preserve">
+    <value>No song file to attach lyrics to.</value>
+  </data>
+  <data name="EditorLyrics_NoneChosen" xml:space="preserve">
+    <value>Lyrics from the song's tags or a file next to it, or none yet.</value>
+  </data>
+  <data name="EditorLyrics_NotSaved" xml:space="preserve">
+    <value>Those lyrics could not be saved.</value>
+  </data>
+  <data name="EditorLyrics_LookupFailed" xml:space="preserve">
+    <value>Other lyrics could not be looked up right now.</value>
   </data>
 </root>
