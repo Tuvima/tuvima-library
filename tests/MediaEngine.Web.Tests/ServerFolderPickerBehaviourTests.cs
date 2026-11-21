@@ -231,6 +231,25 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheFolderNameFollowsTheNewFolderEvenWhenTheHostPassesAnOldName()
+    {
+        _root = WholeDrive;
+        var host = Render<AppDialogHost>();
+        var names = new List<string>();
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { picker => picker.ShowFolderName, true },
+            { picker => picker.FolderName, "Films" },
+            { picker => picker.FolderNameChanged, EventCallback.Factory.Create<string>(this, name => names.Add(name)) },
+        };
+        await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
+        host.WaitForElement(FolderRows);
+
+        Row(host, "Movies").Click();
+        host.WaitForAssertion(() => Assert.Equal("Movies", names.LastOrDefault()));
+    }
+
+    [Fact]
     public async Task BrowsingNeverChecksAFolderAndNeverShowsAnOverlapMessage()
     {
         var host = await OpenPickerAsync();

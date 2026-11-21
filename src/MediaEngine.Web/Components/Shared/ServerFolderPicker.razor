@@ -306,9 +306,9 @@ else
 
 
     [Parameter] public string? SetupSession { get; set; }
-    /// <summary>Shows the folder's friendly name at the top (pre-filled from the last part of the path, editable); every folder window that adds a folder turns it on.</summary>
+    /// <summary>Reports the folder's name (the last part of the chosen path) through <see cref="FolderNameChanged"/>; there is no name box (issue 1241). Every folder window that adds a folder turns it on.</summary>
     [Parameter] public bool ShowFolderName { get; set; }
-    /// <summary>The friendly name as the host last knew it; the picker fills it from the path until the person types their own.</summary>
+    /// <summary>Kept for hosts that still pass it; the name always follows the folder chosen.</summary>
     [Parameter] public string? FolderName { get; set; }
     [Parameter] public EventCallback<string> FolderNameChanged { get; set; }
     /// <summary>Shows the Read-only / Managed choice (Libraries v3 D19); Read-only is selected until the person picks Managed.</summary>
@@ -374,7 +374,6 @@ else
     private bool _managedChoice;
     private bool _handlingManaged;
     private string _folderName = string.Empty;
-    private bool _folderNameTouched;
 
     private async Task SetHandlingAsync(bool managed)
     {
@@ -484,12 +483,6 @@ else
 
     protected override Task OnInitializedAsync()
     {
-        if (!string.IsNullOrWhiteSpace(FolderName))
-        {
-            _folderName = FolderName;
-            _folderNameTouched = true;
-        }
-
         _handlingManaged = InitialManaged && OfferHandling && ManagedAllowed;
         return LoadAsync();
     }
@@ -767,7 +760,7 @@ else
         if (!string.Equals(_reportedPath, _selectedPathText, StringComparison.Ordinal))
         {
             _reportedPath = _selectedPathText;
-            if (ShowFolderName && !_folderNameTouched)
+            if (ShowFolderName)
             {
                 _folderName = FolderHandlingWords.NameFromPath(_selectedPathText);
                 await FolderNameChanged.InvokeAsync(_folderName);
