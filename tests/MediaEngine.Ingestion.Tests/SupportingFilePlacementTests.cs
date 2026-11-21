@@ -108,6 +108,18 @@ public sealed class SupportingFilePlacementTests : IDisposable
     }
 
     [Fact]
+    public void AHandbookBesideALoneVideo_IsShownAlongsideThatVideo_SoItsOwnPageListsIt()
+    {
+        Touch("Lotus Emira/Lotus Emira walkaround.mp4");
+        Touch("Lotus Emira/Owners handbook.pdf");
+
+        var handbook = Placed(Course(), "Lotus Emira", "Lotus Emira/Owners handbook.pdf");
+
+        Assert.Equal(ExtraScope.Root, handbook.Scope);
+        Assert.Equal(ExtraScope.ForFile("Lotus Emira walkaround.mp4"), handbook.Alongside);
+    }
+
+    [Fact]
     public void AFileAtTheTopOfACourse_BelongsToTheCourse_AndSitsAlongsideNothingUnlessItsNameSaysWhich()
     {
         Touch("Course/Section 1/01 Welcome.mkv");
