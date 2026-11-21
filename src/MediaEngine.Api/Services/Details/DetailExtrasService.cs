@@ -52,6 +52,8 @@ public sealed class DetailExtrasService(
         var isEpisode = EpisodeTypes.Contains(detail.EntityType);
         if (!TitleTypes.Contains(detail.EntityType) && !isEpisode)
         {
+            // Pages of other kinds never get Extras; the log says so when one of them was expected to (issue 1242).
+            logger?.LogDebug("Extras for {Type} {Id}: this kind of page has no Extras row.", detail.EntityType, detail.Id);
             return;
         }
 
@@ -153,6 +155,8 @@ public sealed class DetailExtrasService(
             extra => extra.EffectiveAlongside is { } alongside ? lessons(extra, alongside) : null,
             cardsPerGroup,
             extra => lessons(extra, extra.EffectiveScope));
+
+        logger?.LogInformation("Extras for {Type} {Id}: {Cards} cards on the page.", detail.EntityType, detail.Id, detail.Extras?.Count ?? 0);
 
         // An episode's or lesson's own page lists every file it has, so it has no "See all" and no cap (0); a title's page caps each group.
         detail.ExtrasCardsPerGroup = isEpisode ? 0 : cardsPerGroup;

@@ -5251,8 +5251,8 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 }
 
 /* The Series dropdown triggers (AppRowButtons, so their root carries no component scope): the same box as the Season and episode dropdowns of every
-   other item (.tl-hnav__trigger in EditorHeaderNav), so the Series header looks and sizes the same (issue 1250). */
-.tl-snav__trigger {
+   other item (.tl-hnav__trigger in EditorHeaderNav), so the Series header looks and sizes the same (issue 1250). The element is named so the rule outranks the shared button's own reset (a scoped rule that sits later in the page). */
+button.tl-snav__trigger {
     gap: 0.625rem;
     height: var(--tl-control-height-md);
     min-width: 12.5rem;
@@ -5264,15 +5264,15 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     color: var(--tl-text-primary);
 }
 
-.tl-snav__trigger:hover:not(:disabled) {
+button.tl-snav__trigger:hover:not(:disabled) {
     background: color-mix(in srgb, var(--tl-bg-surface-hover) 85%, transparent);
 }
 
-.tl-snav__trigger.is-open {
+button.tl-snav__trigger.is-open {
     border-color: var(--tl-accent-primary);
 }
 
-.tl-snav--stacked .tl-snav__trigger {
+.tl-snav--stacked button.tl-snav__trigger {
     width: 100%;
 }
 
