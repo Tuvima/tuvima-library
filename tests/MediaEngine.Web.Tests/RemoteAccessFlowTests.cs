@@ -1,8 +1,8 @@
 using AngleSharp.Dom;
 using Bunit;
 using MediaEngine.Contracts.Settings;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Settings;
@@ -608,8 +608,11 @@ public sealed class RemoteAccessFlowTests : AsyncBunitContext
         var cut = RenderStandalonePasswords(Check(RemoteCheckSuggestions.Tailscale,
             new RemoteCheckFindingDto
             {
-                Key = RemoteCheckFindingKeys.AdminWithoutPassword, Status = RemoteCheckStatuses.Fail, Title = "The server administrator has no password",
-                Detail = "Nobody who looks after Library has one yet.", NextStep = "Add a password or passkey to the server administrator's sign-in.",
+                Key = RemoteCheckFindingKeys.AdminWithoutPassword,
+                Status = RemoteCheckStatuses.Fail,
+                Title = "The server administrator has no password",
+                Detail = "Nobody who looks after Library has one yet.",
+                NextStep = "Add a password or passkey to the server administrator's sign-in.",
             }));
 
         Assert.Contains("Add a password or passkey to the server administrator's sign-in.", cut.Find("[data-remote-next-step]").TextContent, StringComparison.Ordinal);

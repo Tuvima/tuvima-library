@@ -43,6 +43,7 @@ public static class NetworkEndpoints
             [FromServices] RecentSignInGuard recentSignIn,
             IOutsideAccessGate outsideAccess,
             [FromServices] IOutsideSessionEnder outsideSessions,
+            [FromServices] IOutsideAccessPolicy outsidePolicy,
             CancellationToken ct) =>
         {
             if (await recentSignIn.RefuseHumanIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
@@ -77,6 +78,8 @@ public static class NetworkEndpoints
             try
             {
                 configuration.SaveNetwork(proposed);
+                // The kept answer to "is outside access on?" is dropped so the new setting applies to the very next request.
+                outsidePolicy.Invalidate();
                 if (!proposed.Remote.HasOutsidePath)
                 {
                     // Outside access is off: anyone still signed in from outside is signed out now, and home is not touched.
@@ -174,6 +177,7 @@ public static class NetworkEndpoints
             IConfigurationLoader configuration,
             RouterPortMappingCoordinator routerMappings,
             [FromServices] IOutsideSessionEnder outsideSessions,
+            [FromServices] IOutsideAccessPolicy outsidePolicy,
             CancellationToken ct) =>
         {
             var current = configuration.LoadNetwork();
@@ -191,6 +195,9 @@ public static class NetworkEndpoints
                     return ApiErrors.BadRequest(string.Join(" ", ex.ValidationMessages));
                 }
             }
+
+            // Dropped even when nothing was saved, so "off" never waits for the kept answer to run out.
+            outsidePolicy.Invalidate();
 
             // The Engine refuses outside sign-ins and outside requests from now on; everyone already signed in from outside is
             // signed out. Home sessions are not touched. Safe to repeat.
@@ -308,10 +315,11 @@ public static class NetworkEndpoints
         .Produces<NetworkRuntimeStatusDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
 
-        network.MapPost("/reset", (IConfigurationLoader configuration) =>
+        network.MapPost("/reset", (IConfigurationLoader configuration, [FromServices] IOutsideAccessPolicy outsidePolicy) =>
         {
             var defaults = new NetworkSettings();
             configuration.SaveNetwork(defaults);
+            outsidePolicy.Invalidate();
             return Results.Ok(NetworkContractMapper.ToContract(defaults));
         })
         .WithName("ResetNetworkSettings")

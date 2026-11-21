@@ -67,7 +67,7 @@ public static class AuthenticationEndpoints
             // request is never local. The answer to the caller stays the same plain 404 either way.
             var issued = request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
                 ? await identity.SignInThisComputerAccountAsync(body.DeviceId, body.DeviceName, body.Client,
-                    WasForwarded(request) ? ClientIngress.Remote : request.Headers[ClientIngressValues.ValidateHeader].ToString(), ct).ConfigureAwait(false)
+                    RequestIngress.Current(request), ct).ConfigureAwait(false)
                 : null;
             return issued is null
                 ? ApiErrors.NotFound("Not found.")
@@ -83,7 +83,7 @@ public static class AuthenticationEndpoints
             DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             var result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
-                request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false);
+                request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.ParseCurrentKeepingEvidence(request.OriginalClientIngress)).ConfigureAwait(false);
 
             if (OutsideSignInRefusedException.CodeForMessage(result.Error) is { } refusalCode)
             {
@@ -119,7 +119,7 @@ public static class AuthenticationEndpoints
             DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             var result = await identity.CompleteTwoStepSignInAsync(request.PendingToken, request.Code, ct,
-                ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false);
+                ClientIngress.ParseCurrentKeepingEvidence(request.OriginalClientIngress)).ConfigureAwait(false);
 
             if (OutsideSignInRefusedException.CodeForMessage(result.Error) is { } refusalCode)
             {
@@ -214,7 +214,7 @@ public static class AuthenticationEndpoints
 
                 await externalLogins.RecordLoginAsync(linked.Id, ct).ConfigureAwait(false);
                 return Results.Ok(await ToResponseAsync(await identity.CreateExternalSessionAsync(
-                    linked.AccountId, verified.Provider, request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
+                    linked.AccountId, verified.Provider, request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.ParseCurrentKeepingEvidence(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
             }
             catch (OutsideSignInRefusedException refused) { return OutsideRefusal(refused.ReasonCode, refused.Message); }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
@@ -302,7 +302,7 @@ public static class AuthenticationEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Code, request.Password, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
+            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Code, request.Password, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.ParseCurrentKeepingEvidence(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
             catch (OutsideSignInRefusedException refused) { return OutsideRefusal(refused.ReasonCode, refused.Message); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
@@ -395,7 +395,7 @@ public static class AuthenticationEndpoints
                 var issued = await identity.ChangeTemporaryPasswordAsync(
                     RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), request.CurrentPassword, request.NewPassword,
                     request.DeviceId, request.DeviceName, "Library Dashboard", ct,
-                    ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false);
+                    ClientIngress.ParseCurrentKeepingEvidence(request.OriginalClientIngress)).ConfigureAwait(false);
                 return Results.Ok(await ToResponseAsync(issued, projector, ct));
             }
             catch (OutsideSignInRefusedException refused) { return OutsideRefusal(refused.ReasonCode, refused.Message); }
@@ -584,7 +584,7 @@ public static class AuthenticationEndpoints
             await users.AddOrUpdatePasskeyAsync(result.User, result.Passkey).ConfigureAwait(false);
             try
             {
-                return Results.Ok(await ToResponseAsync(await identity.CreatePasskeySessionAsync(result.User.Id, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.ParseCurrent(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
+                return Results.Ok(await ToResponseAsync(await identity.CreatePasskeySessionAsync(result.User.Id, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.ParseCurrentKeepingEvidence(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
             }
             catch (OutsideSignInRefusedException refused) { return OutsideRefusal(refused.ReasonCode, refused.Message); }
         }).Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);

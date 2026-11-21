@@ -342,10 +342,11 @@ public sealed class FirstPartyIdentityService(
             return null;
         }
 
-        // While away-from-home access is off, nothing is served to a visitor from outside, and a session that was signed in
-        // from outside is ended the moment it is seen (the config is only read for those two cases, never on a home request).
-        var fromOutside = currentIngress is not null && ClientIngress.ParseCurrent(currentIngress) == ClientIngress.Remote;
-        if ((fromOutside || session.IssuedIngress == ClientIngress.Remote) && !IsOutsideAccessOn())
+        // While away-from-home access is off, nothing is served to a request that is clearly from outside (not merely "not known
+        // to be home": a Docker bridge or Tailscale address can be someone at home), and a session that was signed in from
+        // outside is ended the moment it is seen (the config is only read for those two cases, never on a home request).
+        var clearlyOutside = ClientIngress.IsClearlyOutside(currentIngress);
+        if ((clearlyOutside || session.IssuedIngress == ClientIngress.Remote) && !IsOutsideAccessOn())
         {
             if (session.IssuedIngress == ClientIngress.Remote)
             {
@@ -1172,10 +1173,13 @@ public sealed class FirstPartyIdentityService(
         // computer): from anywhere that is not this computer or the home network (a forwarded, proxied or tunnelled visitor
         // included), a person with no password or passkey is refused, whatever the way in. Missing or unknown places count as outside.
         var outside = !ClientIngress.IsOnLocalNetwork(ingress);
+        var clearlyOutside = ClientIngress.IsClearlyOutside(ingress);
 
-        // Away-from-home access switched off (remote-access spec D6): nobody signs in from outside, whatever the way in. It is
-        // not written to the outside history, so turned-away attempts cannot crowd out the record of who got in.
-        if (outside && !duringSetup && !IsOutsideAccessOn())
+        // Away-from-home access switched off (remote-access spec D6): nobody signs in from clearly outside, whatever the way in.
+        // A request that is only "not known to be home" (a Docker bridge address, say) is not refused for the switch alone; the
+        // password rule below still applies to it. Not written to the outside history, so turned-away attempts cannot crowd out
+        // the record of who got in.
+        if (clearlyOutside && !duringSetup && !IsOutsideAccessOn())
         {
             throw OutsideSignInRefusedException.AccessOff();
         }
@@ -1186,7 +1190,7 @@ public sealed class FirstPartyIdentityService(
             throw new OutsideSignInRefusedException();
         }
 
-        var issued = await IssueSessionAsync(account, profile, stamp, method, deviceId, deviceName, client, ingress, ct, fromOutside: outside && !duringSetup).ConfigureAwait(false);
+        var issued = await IssueSessionAsync(account, profile, stamp, method, deviceId, deviceName, client, ingress, ct, fromOutside: clearlyOutside && !duringSetup).ConfigureAwait(false);
         if (outside)
         {
             await identities.WriteOutsideSignInAsync(account.Id, profile.Id, issued.Session.Id, true, ClientIngress.ParseCurrent(ingress), method, UtcNow, ct).ConfigureAwait(false);
@@ -1249,7 +1253,8 @@ public sealed class FirstPartyIdentityService(
                 DeviceName = Sanitize(deviceName, 100, "Unknown device"),
                 Client = Sanitize(client, 200, "Dashboard"),
                 AuthenticationMethod = method,
-                // A session signed in from outside carries that place, so switching outside access off can end exactly those.
+                // A session signed in from clearly outside carries that place, so switching outside access off can end exactly those;
+                // a session from a place that is only "not known to be home" keeps the home place and survives the switch.
                 IssuedIngress = fromOutside ? ClientIngress.Remote : ClientIngress.Parse(ingress),
                 SecurityStamp = stamp,
                 CreatedAt = now,
@@ -1273,7 +1278,9 @@ public sealed class FirstPartyIdentityService(
     // (a password or passkey is needed) still hold. The Engine always wires the configuration-backed policy.
     private bool IsOutsideAccessOn() => outsideAccess?.IsOutsideAccessOn() ?? true;
 
-    private bool OutsideAccessIsOffFor(string ingress) => !ClientIngress.IsOnLocalNetwork(ingress) && !IsOutsideAccessOn();
+    // The off switch turns away only a request that is clearly from outside (ClientIngress.IsClearlyOutside); the password rule for
+    // outside sign-ins is separate and still applies to every place that is not this computer or the home network.
+    private bool OutsideAccessIsOffFor(string ingress) => ClientIngress.IsClearlyOutside(ingress) && !IsOutsideAccessOn();
 
     private void RefuseOutsideWhileOff(string ingress)
     {

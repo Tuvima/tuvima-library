@@ -1,5 +1,7 @@
+using System.Net;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Identity.Contracts;
 
 namespace MediaEngine.Api.Security;
 
@@ -19,11 +21,15 @@ internal static class RequestIngress
         || request.Headers.ContainsKey("X-Forwarded-For")
         || request.Headers.ContainsKey("Forwarded");
 
-    /// <summary>The place to judge the request by: forwarded, missing, blank or unknown all count as outside.</summary>
+    /// <summary>
+    /// The place to judge the request by: forwarded, missing, blank or unknown all count as outside (never local). A forwarded
+    /// request, or one the Dashboard marked clearly outside, comes back as <see cref="ClientIngress.Outside"/> so the
+    /// "outside access is off" refusal can tell it from a place that is only "not known to be home".
+    /// </summary>
     public static string Current(HttpRequest request) =>
         WasForwarded(request)
-            ? ClientIngress.Remote
-            : ClientIngress.ParseCurrent(request.Headers[ClientIngressValues.ValidateHeader].ToString());
+            ? ClientIngress.Outside
+            : ClientIngress.ParseCurrentKeepingEvidence(request.Headers[ClientIngressValues.ValidateHeader].ToString());
 
     /// <summary>
     /// Like <see cref="Current"/>, but null when the Dashboard said nothing about the place at all and the request was not
@@ -34,4 +40,24 @@ internal static class RequestIngress
             && !string.IsNullOrWhiteSpace(values.ToString()))
             ? Current(request)
             : null;
+
+    /// <summary>
+    /// The place to judge a request made straight with a device token. The Dashboard's edge puts its own reading in the header (it
+    /// sees the visitor's real address); this also looks at the Engine's own connection and forwarding headers. Evidence only
+    /// ever adds: a header that says "home" never clears a public address or a forwarding header.
+    /// </summary>
+    public static string CurrentForDevice(HttpRequest request, IPAddress? connectionAddress) =>
+        ClientIngress.IsClearlyOutside(Current(request))
+        || OutsideRequestEvidence.IsPubliclyRoutable(connectionAddress)
+            ? ClientIngress.Outside
+            : Current(request);
+
+    /// <summary>
+    /// True when outside access is off and this device-token request is clearly from outside. A paired app is still fine at home:
+    /// the same token keeps working there, and switching outside access off revokes nothing.
+    /// </summary>
+    public static bool DeviceRefusedWhileOutsideAccessOff(HttpContext context, IOutsideAccessPolicy? policy) =>
+        policy is not null
+        && ClientIngress.IsClearlyOutside(CurrentForDevice(context.Request, context.Connection.RemoteIpAddress))
+        && !policy.IsOutsideAccessOn();
 }

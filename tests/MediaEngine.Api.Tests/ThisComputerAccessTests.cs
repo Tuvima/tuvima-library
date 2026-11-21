@@ -49,6 +49,8 @@ public sealed class ThisComputerAccessTests : IDisposable
     private readonly SetupSessionService _setupSessions;
     private readonly FakeContainerProbe _container = new();
     private readonly SpyRouterMapper _routerMapper = new();
+    private readonly AdjustableTime _policyTime = new();
+    private readonly ConfigurationOutsideAccessPolicy _outsidePolicy;
 
     public ThisComputerAccessTests()
     {
@@ -59,6 +61,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         _accounts = new AccountRepository(_database);
         _identities = new IdentityRepository(_database);
         _onboarding = new OnboardingRepository(_database);
+        _outsidePolicy = new ConfigurationOutsideAccessPolicy(_configuration, _policyTime);
         _identity = new FirstPartyIdentityService(
             _identities, _accounts, new ProfileRepository(_database),
             new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
@@ -67,7 +70,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         _identityWithPolicy = new FirstPartyIdentityService(
             _identities, _accounts, new ProfileRepository(_database),
             new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
-            TimeProvider.System, new FixedPolicy(), outsideAccess: new ConfigurationOutsideAccessPolicy(_configuration));
+            TimeProvider.System, new FixedPolicy(), outsideAccess: _outsidePolicy);
         _setupSessions = new SetupSessionService(_onboarding, _identity, TimeProvider.System);
     }
 
@@ -535,7 +538,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     public async Task SwitchingOutsideAccessOffOrSavingOtherSettings_NeverWaitsForAPassword()
     {
         await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
-        _configuration.SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
+        SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
         await using var app = BuildNetworkApplication();
 
         var unchangedWay = await SendAsync(app, "PUT", "/settings/network/", NetworkWith(NetworkConnectionModes.Tailscale, serverName: "renamed"));
@@ -642,7 +645,7 @@ public sealed class ThisComputerAccessTests : IDisposable
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(7),
         });
         // An invitation from outside works only while away-from-home access is on (spec remote-access WP5b).
-        _configuration.SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
+        SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
         await using var app = BuildAuthenticationApplication();
 
         var response = await SendAsync(app, "POST", "/auth/invitations/accept",
@@ -700,7 +703,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     [Fact]
     public async Task RemoteOff_PutsOutsideAccessBackToLocalOnlyAndClosesTheRouterDoor_ButClearsNothingElse()
     {
-        _configuration.SaveNetwork(new NetworkSettings
+        SaveNetwork(new NetworkSettings
         {
             Local = { Port = 5016, DiscoveryEnabled = true, ReachOtherDevices = true, PreferredServerName = "home-server" },
             Remote =
@@ -741,7 +744,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     [Fact]
     public async Task RemoteOff_IsSafeToRepeat_AndSaysItWasAlreadyOff()
     {
-        _configuration.SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
+        SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
         await using var app = BuildNetworkApplication();
 
         var first = await SendAsync(app, "POST", "/network/remote-off");
@@ -763,7 +766,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         await using var app = BuildAuthenticationApplication(withOutsideAccessRule: true);
 
         var response = await SendAsync(app, "POST", "/auth/login",
-            new LocalLoginRequest { Email = "owner@example.com", Password = StrongPassword, DeviceId = "d", DeviceName = "Phone", Client = "Dashboard", OriginalClientIngress = ClientIngress.Remote });
+            new LocalLoginRequest { Email = "owner@example.com", Password = StrongPassword, DeviceId = "d", DeviceName = "Phone", Client = "Dashboard", OriginalClientIngress = ClientIngress.Outside });
 
         Assert.Equal(StatusCodes.Status403Forbidden, response.Status);
         Assert.Equal("outside_access_off", response.Json.GetProperty("code").GetString());
@@ -775,7 +778,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     public async Task PasswordSignInFromOutside_Works_WhileOutsideAccessIsOn_ForAPersonWithAPassword()
     {
         await _identityWithPolicy.BootstrapAdministratorAsync("owner@example.com", StrongPassword, "Owner", "d", "Browser", "Dashboard", ingress: ClientIngress.HomeNetwork);
-        _configuration.SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
+        SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
         await using var app = BuildAuthenticationApplication(withOutsideAccessRule: true);
 
         var response = await SendAsync(app, "POST", "/auth/login",
@@ -800,10 +803,10 @@ public sealed class ThisComputerAccessTests : IDisposable
     public async Task RemoteOff_EndsSessionsSignedInFromOutside_AndLeavesHomeSessionsAlone()
     {
         await _identityWithPolicy.BootstrapAdministratorAsync("owner@example.com", StrongPassword, "Owner", "d", "Browser", "Dashboard", ingress: ClientIngress.HomeNetwork);
-        _configuration.SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
+        SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
         var home = await SignInAsync(ClientIngress.HomeNetwork, "tv");
-        var outside = await SignInAsync(ClientIngress.Remote, "phone");
-        Assert.NotNull(await _identityWithPolicy.ValidateSessionAsync(outside.PlaintextToken, false, currentIngress: ClientIngress.Remote));
+        var outside = await SignInAsync(ClientIngress.Outside, "phone");
+        Assert.NotNull(await _identityWithPolicy.ValidateSessionAsync(outside.PlaintextToken, false, currentIngress: ClientIngress.Outside));
         await using var app = BuildNetworkApplication();
 
         var response = await SendAsync(app, "POST", "/network/remote-off");
@@ -819,8 +822,8 @@ public sealed class ThisComputerAccessTests : IDisposable
     public async Task SavingLocalOnlySettings_EndsSessionsSignedInFromOutside_Too()
     {
         await _identityWithPolicy.BootstrapAdministratorAsync("owner@example.com", StrongPassword, "Owner", "d", "Browser", "Dashboard", ingress: ClientIngress.HomeNetwork);
-        _configuration.SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
-        var outside = await SignInAsync(ClientIngress.Remote, "phone");
+        SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
+        var outside = await SignInAsync(ClientIngress.Outside, "phone");
         await using var app = BuildNetworkApplication();
 
         var response = await SendAsync(app, "PUT", "/settings/network/", NetworkWith(NetworkConnectionModes.LocalOnly));
@@ -833,13 +836,14 @@ public sealed class ThisComputerAccessTests : IDisposable
     public async Task ASessionFromOutside_StopsWorkingFromOutside_TheMomentOutsideAccessIsOff_EvenIfNothingEndedIt()
     {
         await _identityWithPolicy.BootstrapAdministratorAsync("owner@example.com", StrongPassword, "Owner", "d", "Browser", "Dashboard", ingress: ClientIngress.HomeNetwork);
-        _configuration.SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
-        var outside = await SignInAsync(ClientIngress.Remote, "phone");
+        SaveNetwork(new NetworkSettings { Remote = { ConnectionMode = NetworkConnectionModes.Tailscale } });
+        var outside = await SignInAsync(ClientIngress.Outside, "phone");
         var homeSession = await SignInAsync(ClientIngress.HomeNetwork, "tv");
 
         _configuration.SaveNetwork(new NetworkSettings()); // switched off by hand, not through the Engine action
+        _policyTime.Advance(ConfigurationOutsideAccessPolicy.CacheLifetime); // the kept answer runs out on its own
 
-        Assert.Null(await _identityWithPolicy.ValidateSessionAsync(homeSession.PlaintextToken, false, currentIngress: ClientIngress.Remote));
+        Assert.Null(await _identityWithPolicy.ValidateSessionAsync(homeSession.PlaintextToken, false, currentIngress: ClientIngress.Outside));
         Assert.NotNull(await _identityWithPolicy.ValidateSessionAsync(homeSession.PlaintextToken, false, currentIngress: ClientIngress.HomeNetwork));
         Assert.Null(await _identityWithPolicy.ValidateSessionAsync(outside.PlaintextToken, false, currentIngress: ClientIngress.HomeNetwork));
         Assert.False((await _identities.GetSessionByIdAsync(outside.Session.Id))!.IsActive(DateTimeOffset.UtcNow));
@@ -857,6 +861,13 @@ public sealed class ThisComputerAccessTests : IDisposable
 
         Assert.Equal("authentication", limiter?.PolicyName);
         await Task.CompletedTask;
+    }
+
+    // Saving through the loader directly is what the Engine's endpoints do too, then they clear the policy's kept answer.
+    private void SaveNetwork(NetworkSettings settings)
+    {
+        _configuration.SaveNetwork(settings);
+        _outsidePolicy.Invalidate();
     }
 
     private async Task<SessionIssueResult> SignInAsync(string ingress, string device)
@@ -984,6 +995,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton<IConfigurationLoader>(_configuration);
         builder.Services.AddSingleton<IFirstPartyIdentityService>(_identity);
         builder.Services.AddSingleton<IOutsideSessionEnder>(_identity);
+        builder.Services.AddSingleton<IOutsideAccessPolicy>(_outsidePolicy);
         builder.Services.AddScoped<MediaEngine.Api.Services.Security.RecentSignInGuard>();
         builder.Services.AddSingleton(CreateGate());
         builder.Services.AddSingleton<NetworkStatusService>(_ => null!);
@@ -1009,6 +1021,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddScoped<MediaEngine.Api.Services.Security.RecentSignInGuard>();
         builder.Services.AddSingleton(CreateGate());
         builder.Services.AddSingleton(new ClientAuthorizationService(null!, null!, null!, null!, TimeProvider.System));
+        builder.Services.AddSingleton<IOutsideAccessPolicy>(_outsidePolicy);
         var app = builder.Build();
         app.MapClientAuthorizationEndpoints();
         return app;
@@ -1199,6 +1212,18 @@ public sealed class ThisComputerAccessTests : IDisposable
     {
         public bool InContainer { get; set; }
         public bool IsContainer() => InContainer;
+    }
+
+    // A clock the test moves by hand, so the policy's kept answer can be run out without waiting.
+    private sealed class AdjustableTime : TimeProvider
+    {
+        private long _ticks;
+
+        public override long TimestampFrequency => 1000;
+
+        public override long GetTimestamp() => _ticks;
+
+        public void Advance(TimeSpan by) => _ticks += (long)by.TotalMilliseconds + 1;
     }
 
     private sealed class FixedPolicy : IAuthenticationPolicyProvider

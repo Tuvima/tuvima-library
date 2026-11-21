@@ -10,6 +10,23 @@ public static class ClientIngress
     public const string HomeNetwork = "home_network";
     public const string Remote = "remote";
 
+    /// <summary>
+    /// A remote request with clear evidence that it really came from outside the home: it carried forwarding headers, arrived
+    /// through the proxy port, or came from a publicly routable address (see <see cref="OutsideRequestEvidence"/>). Everywhere
+    /// except the "away-from-home access is off" refusal it behaves exactly like <see cref="Remote"/> (never local). Plain
+    /// <see cref="Remote"/> is only "not known to be home": a container bridge gateway or a Tailscale address can be someone at home.
+    /// </summary>
+    public const string Outside = "outside";
+
+    /// <summary>
+    /// True only for <see cref="Outside"/>. The one question "may the off switch turn this request away?" is answered here: an
+    /// unknown, missing or plain remote place is never refused for the switch alone, so a home install behind Docker NAT is not locked out.
+    /// </summary>
+    public static bool IsClearlyOutside(string? value) => string.Equals(value?.Trim(), Outside, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Like <see cref="ParseCurrent"/>, but a clearly-outside place stays <see cref="Outside"/> instead of folding into <see cref="Remote"/>.</summary>
+    public static string ParseCurrentKeepingEvidence(string? value) => IsClearlyOutside(value) ? Outside : ParseCurrent(value);
+
     /// <summary>Normalises a wire value; anything other than this computer becomes the home network.</summary>
     public static string Parse(string? value) => value?.Trim().ToLowerInvariant() switch
     {

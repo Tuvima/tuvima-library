@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 
 namespace MediaEngine.Web.Services.Configuration;
@@ -132,6 +133,35 @@ public sealed class IngressClassifier
         return IsPrivate(address) ? IngressKind.HomeNetwork : IngressKind.Remote;
     }
 
+    /// <summary>
+    /// Clear evidence that a request came from outside the home, not merely that it is not known to be home: it carried forwarding
+    /// headers, arrived on the proxy port or straight from a configured reverse proxy, or its own address is publicly routable.
+    /// A container bridge gateway, a private address and a Tailscale address (100.64.0.0/10) are not evidence on their own.
+    /// </summary>
+    public bool HasOutsideEvidence(HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        var address = context.Connection.RemoteIpAddress;
+        var port = context.Connection.LocalPort;
+        return OutsideRequestEvidence.IsClearlyOutside(
+            context.WasForwarded(),
+            (_proxyPort is int proxyPort && port == proxyPort) || IsProxyOnMainPort(address, port),
+            address,
+            _containerGateways);
+    }
+
+    /// <summary>
+    /// The wire value to send the Engine for this request: this computer, the home network, <see cref="ClientIngressValues.Outside"/>
+    /// (remote with clear evidence, or any forwarded request) or plain remote (not known to be home).
+    /// </summary>
+    public string ToWirePlace(HttpContext context)
+    {
+        var kind = Classify(context);
+        return context.WasForwarded() || (kind == IngressKind.Remote && HasOutsideEvidence(context))
+            ? ClientIngressValues.Outside
+            : kind.ToWireValue();
+    }
+
     private bool IsConfiguredProxy(IPAddress address) =>
         _proxyAddresses.Any(proxy => proxy.Equals(address)) || IsInAny(_proxyNetworks, address);
 
@@ -185,7 +215,7 @@ public static class IngressClassifierExtensions
         _ => ClientIngressValues.Remote,
     };
 
-    /// <summary>Reads a wire value back into a place. Anything unrecognised counts as remote (fail closed).</summary>
+    /// <summary>Reads a wire value back into a place. Anything unrecognised, including "outside", counts as remote (fail closed).</summary>
     public static IngressKind FromWireValue(string? value) => value switch
     {
         ClientIngressValues.ThisComputer => IngressKind.ThisComputer,
@@ -195,10 +225,9 @@ public static class IngressClassifierExtensions
 
     /// <summary>Where this request came from, as the Engine's wire value.</summary>
     public static string ClientIngress(this HttpContext context) =>
-        // A forwarded request came through a tunnel or proxy, so it is never trusted as this computer or the home network.
-        context.WasForwarded()
-            ? ClientIngressValues.Remote
-            : context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context).ToWireValue();
+        // A forwarded request came through a tunnel or proxy, so it is never trusted as this computer or the home network;
+        // it, and a remote request with a public address or the proxy port, is marked clearly outside for the off switch.
+        context.RequestServices.GetRequiredService<IngressClassifier>().ToWirePlace(context);
 
     /// <summary>
     /// True when the visitor's own request carried forwarding headers. A tunnel or proxy running on this computer looks
