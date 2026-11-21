@@ -69,7 +69,7 @@
         {
             <section class="media-section-shell__rail-group @(IsFlatTree ? "is-flat" : null)" aria-labelledby="@GroupId(group)">
                 <div class="media-section-shell__rail-heading"
-                     data-song-drop="@(group.CreateOptions?.ManualDropTarget is NewPlaylistNavigationDropTarget ? "new-playlist" : null)"
+                     data-song-drop="@(group.CreateOptions?.ManualDropTarget is NewPlaylistNavigationDropTarget ? "new-playlist" : group.CreateOptions?.ManualDropTarget is NewGalleryNavigationDropTarget ? "new-gallery" : null)"
                      @ondragover:preventDefault="@(group.CreateOptions?.ManualDropTarget is not null)"
                      @ondrop:preventDefault="@(group.CreateOptions?.ManualDropTarget is not null)"
                      @ondrop="@(() => DropOnCreateGroupAsync(group))">
@@ -184,7 +184,7 @@
                                                         <AppNativeButton Type="button" Class="is-delete" AriaLabel="@($"Delete {child.Label}")" OnClick="@(_ => BeginDelete(child))">@L["Common_Delete"]</AppNativeButton>
                                                     }
                                                 </div>
-                                                <div class="media-section-shell__managed-main">
+                                                <div class="media-section-shell__managed-main @(management.CanReorder && InReorder(management) ? "has-grip" : null)">
                                                     @if (_renameRoute == child.Route)
                                                     {
                                                         <div class="media-section-shell__rename-row">
@@ -305,7 +305,7 @@
                                     <AppNativeButton Type="button" Class="is-delete" AriaLabel="@($"Delete {item.Label}")" OnClick="@(_ => BeginDelete(item))">@L["Common_Delete"]</AppNativeButton>
                                 }
                             </div>
-                            <div class="media-section-shell__managed-main">
+                            <div class="media-section-shell__managed-main @(management.CanReorder && InReorder(management) ? "has-grip" : null)">
                                 @if (_renameRoute == item.Route)
                                 {
                                     <div class="media-section-shell__rename-row">
@@ -1018,10 +1018,14 @@
     private static string? DropClass(MediaSectionNavigationItem item) =>
         item.DropTarget is null ? null : "is-drop-target";
 
-    // Where dragged songs are accepted (Listen music spec D10): a hand-made playlist in the rail. The attribute is what the song table's
+    // Where dragged songs and photos are accepted (Listen music spec D10): a hand-made playlist or Gallery in the rail. The attribute is what the song table's
     // script highlights while the songs hover; a rule-based or system playlist carries none.
-    private static string? SongDropKind(MediaSectionNavigationItem item) =>
-        item.DropTarget is PlaylistNavigationDropTarget ? "playlist" : null;
+    private static string? SongDropKind(MediaSectionNavigationItem item) => item.DropTarget switch
+    {
+        PlaylistNavigationDropTarget => "playlist",
+        ManualGalleryNavigationDropTarget => "gallery",
+        _ => null,
+    };
 
     private static string? SectionBreakClass(MediaSectionNavigationItem item) =>
         item.SectionBreakBefore ? "media-section-shell__rail-item--section-break" : null;

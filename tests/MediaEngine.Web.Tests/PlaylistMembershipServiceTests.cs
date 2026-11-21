@@ -147,6 +147,34 @@ public sealed class PlaylistMembershipServiceTests : LocalizedBunitContext
         Assert.Equal(severity.ToString(), notice.Severity.ToString());
     }
 
+    [Theory]
+    [InlineData(true, "The playlist could not be created. A playlist needs a name.")]
+    [InlineData(false, "The songs could not be added to Road trip. The playlist is full.")]
+    public void AFailedResult_SaysWhy_WhenTheEngineGaveAReason(bool creating, string sentence)
+    {
+        var strings = Services.GetRequiredService<IStringLocalizer<SharedStrings>>();
+        var reason = creating ? "HTTP 400: Invalid request. A playlist needs a name. Trace: 0HNQ7:0000000F" : "The playlist is full.";
+
+        var notice = PlaylistMembershipFlow.Describe(new PlaylistAddResult("Road trip", 0, 0, 3, Created: false, Creating: creating, Reason: reason), strings);
+
+        Assert.Equal(sentence, notice.Message);
+    }
+
+    [Fact]
+    public async Task ARefusedAdd_KeepsTheEnginesReason_ForTheSentence()
+    {
+        var engine = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemsAsync), _ => Task.FromResult<CollectionItemsAddedResponse?>(null));
+            stub.SetHandler("get_LastError", _ => "The active profile cannot edit this collection.");
+        });
+
+        var result = await PlaylistMembership.AddAsync(engine, Playlist, "Road trip", Songs(2), null);
+
+        Assert.Equal(2, result.Failed);
+        Assert.Equal("The active profile cannot edit this collection.", result.Reason);
+    }
+
     /// <summary>The severities the sentence can carry, named so the test data reads as words.</summary>
     public enum AppSeverityName
     {

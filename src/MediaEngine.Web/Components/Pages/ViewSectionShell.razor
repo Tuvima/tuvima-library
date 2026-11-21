@@ -156,6 +156,16 @@
                 Ribbon.Add(GalleryResult(result), AppSeverity.Success);
                 await Workspace.LoadGalleriesAsync(force: true);
             }
+            else
+            {
+                // The Engine refused (for example a photo from the Shared Library cannot go into a Gallery of your own): say so, with its reason.
+                var why = EngineFailureText.Plain(ApiClient.LastError);
+                Ribbon.Add(
+                    string.IsNullOrWhiteSpace(why)
+                        ? L["ViewSectionShell_GalleryDropFailed", gallery.Name].Value
+                        : L["ViewSectionShell_GalleryDropFailedWhy", gallery.Name, why].Value,
+                    AppSeverity.Error);
+            }
             if (OnNavigationItemDrop.HasDelegate)
                 await OnNavigationItemDrop.InvokeAsync(dropEvent);
         }

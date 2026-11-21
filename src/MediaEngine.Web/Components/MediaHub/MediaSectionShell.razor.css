@@ -242,11 +242,18 @@
     position: relative;
     z-index: 1;
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) 30px;
+    /* The label takes all the room and the "..." menu sits at the end. The 28 px grip column exists only while the list is being reordered
+       (has-grip): without it the label used to fall into the grip's column, so a playlist or Gallery you made by hand was squeezed to an
+       icon with the menu drawn over its name, and a song or photo dropped on it landed on the menu instead of the row. */
+    grid-template-columns: minmax(0, 1fr) 30px;
     align-items: center;
     min-height: 44px;
     background: var(--tl-bg-shell);
     transition: transform 160ms ease;
+}
+
+.media-section-shell__managed-main.has-grip {
+    grid-template-columns: 28px minmax(0, 1fr) 30px;
 }
 
 .media-section-shell__managed-row.is-swiped .media-section-shell__managed-main {

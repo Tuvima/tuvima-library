@@ -5972,7 +5972,10 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 }
 
 /* Dragging songs onto a playlist (Listen music spec D10): song-table.js adds .is-song-drop-over to the [data-song-drop] target under the pointer, and the picture a ticked row drags with. */
-[data-song-drop].is-song-drop-over{outline:2px solid var(--tl-accent-primary);outline-offset:-2px;border-radius:var(--tl-radius-sm,6px);background:color-mix(in srgb,var(--tl-accent-primary) 22%,transparent)}
+/* While songs or photos are being dragged, every place that takes them shows a quiet dashed outline, so you can see where to let go; the one under the
+   pointer turns solid purple with a soft fill. Look v3 tokens only; no movement, so the rail does not jump under the pointer. */
+body.is-song-dragging [data-song-drop]{outline:1px dashed var(--tl-accent-primary-border);outline-offset:-1px;border-radius:var(--tl-radius-xs);transition:outline-color 120ms ease,background-color 120ms ease}
+body [data-song-drop].is-song-drop-over{outline:2px solid var(--tl-accent-primary);outline-offset:-2px;border-radius:var(--tl-radius-xs);background:var(--tl-accent-primary-soft)}
 .song-table__drag-picture{padding:6px 12px;border-radius:var(--tl-radius-sm,6px);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font-family:var(--font-ui,sans-serif);font-size:var(--tl-type-control-size);font-weight:600}
 /* The folder picker on a phone (issue 1155): the drives are a row of chips across the top instead of a column on the left, so the folder list has the whole width,
    and the access choice and buttons stay pinned under the list. Global because the sidebar belongs to the shared browser frame, not to the picker. */
