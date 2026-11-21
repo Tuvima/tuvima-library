@@ -566,6 +566,45 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
         Assert.Equal(("lyrics", "lrclib", "3"), (request.kind, request.provider, request.source_id));
     }
 
+    [Fact]
+    public async Task AfterAResultIsChosen_ThePanelShowsTheNewLyrics_EvenWhenTheOldTrackIsStillListedAsTheOneBefore()
+    {
+        var oldTrack = _track;
+        var newTrack = Guid.NewGuid();
+        var chosen = false;
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.ChooseTextTrackAlternativeAsync), _ =>
+            {
+                chosen = true;
+                return Task.FromResult<TextTrackChoiceResponse?>(new() { status = "Updated" });
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>(chosen
+                ? [new() { Id = oldTrack, Kind = "Lyrics", Provider = "lrclib", IsPreferred = false }, new() { Id = newTrack, Kind = "Lyrics", Provider = "lrclib", IsPreferred = true }]
+                : [Track(oldTrack, "lrclib")]));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), args =>
+                Task.FromResult<string?>((Guid)args![1]! == newTrack ? "[00:01.00]The right words" : "[00:01.00]The wrong words"));
+            stub.SetHandler(nameof(IEngineApiClient.GetPlayerPluginActionsAsync), _ =>
+                Task.FromResult<IReadOnlyList<PlayerPluginActionDto>>([new() { kind = "find_lyrics", slot = "player_core" }]));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), _ =>
+                Task.FromResult<TextTrackAlternativesResponse?>(new()
+                {
+                    status = "Found",
+                    items = [new() { provider = "lrclib", provider_name = "LRCLIB", source_id = "9" }],
+                }));
+        });
+        var cut = await OpenAsync(api);
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+        Assert.Equal(["The wrong words"], cut.FindAll("button.playback-lyrics__line").Select(line => line.TextContent.Trim()));
+        await OpenFooterMenuAsync(cut);
+        await cut.ClickAsync("[data-lyrics-action='find-another']");
+        cut.WaitForElement("[data-pick-results]");
+        await cut.ClickAsync("[data-pick-result='lrclib:9']");
+        await cut.ClickAsync("[data-pick-action='use']");
+
+        cut.WaitForAssertion(() => Assert.Equal(["The right words"], cut.FindAll("button.playback-lyrics__line").Select(line => line.TextContent.Trim())));
+    }
+
     // ---- A song change while the panel is open ----
 
     [Fact]

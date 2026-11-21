@@ -243,7 +243,10 @@ public sealed partial class PlaybackLyricsPresenter
             Status = failure; Changed?.Invoke();
             return;
         }
+        // The result just picked (or the one that came back after "this one is wrong") is now the preferred track; the track that was showing
+        // may still be listed as "the one before", so the old choice is let go or the panel would keep showing the old lyrics.
         _tracksLoaded = false; _contentLoaded = false; _probed = false;
+        SelectedTrackId = null; _projectedChoice = null;
         if (_commands is not null)
         {
             await EnsureAsync(_snapshot, _commands);
