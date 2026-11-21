@@ -167,6 +167,7 @@ public sealed class PlaylistMembershipServiceTests : LocalizedBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemsAsync), _ => Task.FromResult<CollectionItemsAddedResponse?>(null));
             stub.SetHandler("get_LastError", _ => "The active profile cannot edit this collection.");
+            stub.SetHandler("get_LastStatusCode", _ => (int?)403);
         });
 
         var result = await PlaylistMembership.AddAsync(engine, Playlist, "Road trip", Songs(2), null);

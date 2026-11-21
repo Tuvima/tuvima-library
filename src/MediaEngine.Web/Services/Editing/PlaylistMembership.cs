@@ -149,7 +149,7 @@ public static class PlaylistMembership
             if (answer is null)
             {
                 failed += batch.Length;
-                reason ??= api.LastError;
+                reason ??= EngineFailureText.FromClient(api);
                 continue;
             }
 
@@ -226,7 +226,7 @@ public static class PlaylistMembership
             profileId,
             ct);
         return id is null
-            ? new PlaylistAddResult(name, 0, 0, wanted.Count, Created: false, Creating: true, Reason: api.LastError)
+            ? new PlaylistAddResult(name, 0, 0, wanted.Count, Created: false, Creating: true, Reason: EngineFailureText.FromClient(api))
             : new PlaylistAddResult(name, wanted.Count, 0, 0, Created: true, Creating: true);
     }
 

@@ -20,6 +20,16 @@ public static partial class EngineFailureText
     [GeneratedRegex(@"\s*Trace:\s*\S+\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex TraceTail();
 
+    /// <summary>
+    /// The Engine's explanation for the client's last failure, only when the Engine actually answered (an HTTP status is recorded). A failure to reach the
+    /// Engine at all keeps a technical message ("Connection refused") that is not worth showing, so it gives null.
+    /// </summary>
+    public static string? FromClient(IEngineApiClient api)
+    {
+        ArgumentNullException.ThrowIfNull(api);
+        return api.LastStatusCode is null ? null : Plain(api.LastError);
+    }
+
     /// <summary>The explanation alone, or null when there is nothing a person could use.</summary>
     public static string? Plain(string? lastError)
     {

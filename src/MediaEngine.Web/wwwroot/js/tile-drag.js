@@ -1,5 +1,5 @@
 // Dragging photos from the View timeline onto a Gallery in the sidebar (and onto its New Gallery heading). The tiles are plain draggable elements whose
-// start and end .NET hears through Blazor events; what the browser itself needs while the pointer is down is the same as for songs, so this reuses the song
+// start and end .NET hears through Blazor events; what the browser itself needs while the pointer is down is the same as for songs (the drag carries an empty text, which is enough for Firefox), so this reuses the song
 // table's drag (song-table.js wireDragOut): the drag carries some data (Firefox will not start a drag without it), every place that takes the photos
 // (an element with data-song-drop) shows where to let go, and the one under the pointer is highlighted and accepts the drop.
 import { wireDragOut } from './song-table.js';
@@ -15,7 +15,6 @@ export function wire(root) {
 
     wirings.set(root, wireDragOut(root, null, {
         rowSelector: '.view-tile[draggable="true"]',
-        titleSelector: '.view-tile__title',
         alwaysOut: true,
     }));
 }

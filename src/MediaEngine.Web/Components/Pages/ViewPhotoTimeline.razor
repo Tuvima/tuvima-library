@@ -206,7 +206,7 @@
 
             await _dragModule.DisposeAsync();
         }
-        catch (JSDisconnectedException exception)
+        catch (Exception exception) when (exception is JSDisconnectedException or JSException or TaskCanceledException)
         {
             Logger.LogDebug(exception, "The browser went away before the photo timeline let go of dragging photos.");
         }
