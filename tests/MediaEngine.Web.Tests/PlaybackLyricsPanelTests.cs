@@ -517,7 +517,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task FindAnother_StartsWithTitleAndArtist_SearchAgainSendsTheEditedText_AndUseThisChoosesTheSelectedOffer()
+    public async Task FindAnother_StartsWithArtistThenTitle_SearchAgainSendsTheEditedText_AndUseThisChoosesTheSelectedOffer()
     {
         var queries = new List<string?>();
         var chosen = new List<ChooseTextTrackAlternativeRequest>();
@@ -549,7 +549,7 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
         await cut.ClickAsync("[data-lyrics-action='find-another']");
 
         cut.WaitForElement("[data-pick-results]");
-        Assert.Equal("Stay a Little Longer The Midnight Coast", cut.Find("[data-pick-box]").GetAttribute("value"));
+        Assert.Equal("The Midnight Coast Stay a Little Longer", cut.Find("[data-pick-box]").GetAttribute("value"));
         Assert.Equal([(string?)null], queries);
 
         cut.Find("[data-pick-box]").Input("Stay a Little Longer Midnight");
