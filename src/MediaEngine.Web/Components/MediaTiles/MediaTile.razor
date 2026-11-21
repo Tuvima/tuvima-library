@@ -394,9 +394,15 @@ else if (!_removed)
         : $"{L["MediaTile_StandIn_Tooltip"].Value} {L["MediaTile_StandIn_NextCheck", Item.StandInRetryAfter].Value}";
 
     // A group draws only a cover somebody chose for it; otherwise it is the four-cover grid (or the plain tile with none).
+    // A folder of videos is the exception: with no chosen cover it takes the picture the Engine sent for the folder (its own or
+    // folder image, an online thumbnail or an extracted frame), then a frame from one of its own videos, before the empty film icon.
     private string CardImageUrl => IsGroup
-        ? Item.CustomCoverUrl ?? string.Empty
+        ? Item.CustomCoverUrl ?? (IsVideoCollection ? VideoCollectionFallbackUrl : null) ?? string.Empty
         : Item.TileImageUrl ?? string.Empty;
+
+    private string? VideoCollectionFallbackUrl => !string.IsNullOrWhiteSpace(Item.TileImageUrl)
+        ? Item.TileImageUrl
+        : Item.ArtworkStackItems.Select(member => member.ImageUrl).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
 
     private bool HasArtworkSurface => ShowBrandLogo || ShowCollectionBanner || (!ShowCollage && !string.IsNullOrWhiteSpace(CardImageUrl)) || ShowQuadrants;
 
