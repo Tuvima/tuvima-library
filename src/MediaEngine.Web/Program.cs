@@ -42,6 +42,13 @@ if (!processInstanceLease.IsAcquired)
 }
 
 var builder = WebApplication.CreateBuilder(args);
+// Started from a build folder without the Development setting, the style and script files of the app and its
+// shared libraries are not found and the browser gets a page instead of a file (a white screen). Load them
+// the same way Development does; a published copy has them beside the app and needs nothing.
+if (!builder.Environment.IsDevelopment())
+{
+    builder.WebHost.UseStaticWebAssets();
+}
 builder.Services.AddHttpContextAccessor();
 SettingsNav.ConfigureEnvironment(builder.Environment.IsProduction());
 

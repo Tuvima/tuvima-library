@@ -5250,6 +5250,32 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     color: var(--tl-text-secondary);
 }
 
+/* The Series dropdown triggers (AppRowButtons, so their root carries no component scope): the same box as the Season and episode dropdowns of every
+   other item (.tl-hnav__trigger in EditorHeaderNav), so the Series header looks and sizes the same (issue 1250). */
+.tl-snav__trigger {
+    gap: 0.625rem;
+    height: var(--tl-control-height-md);
+    min-width: 12.5rem;
+    max-width: 100%;
+    padding: 0 0.75rem 0 0.625rem;
+    border: 1px solid var(--tl-border-strong);
+    border-radius: var(--tl-radius-md);
+    background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent);
+    color: var(--tl-text-primary);
+}
+
+.tl-snav__trigger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--tl-bg-surface-hover) 85%, transparent);
+}
+
+.tl-snav__trigger.is-open {
+    border-color: var(--tl-accent-primary);
+}
+
+.tl-snav--stacked .tl-snav__trigger {
+    width: 100%;
+}
+
 .tl-hnav__home.is-current {
     box-shadow: 0 0 0 2px var(--tl-accent-primary-hover);
 }

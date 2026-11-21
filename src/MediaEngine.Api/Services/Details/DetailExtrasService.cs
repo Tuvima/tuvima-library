@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.Details;
 
@@ -20,7 +21,8 @@ public sealed class DetailExtrasService(
     ILibraryFolderResolver libraries,
     IExtrasConfigurationSource? rules = null,
     IEditorConfigurationSource? editorConfig = null,
-    ISupportingFileTitleResolver? titleFolders = null)
+    ISupportingFileTitleResolver? titleFolders = null,
+    ILogger<DetailExtrasService>? logger = null)
 {
     // How many of the page's files are looked up to find the folders Extras sit in. One batched lookup, so the cost is the folder walk, not a
     // query per file; 500 covers a long course (every lesson then gets its chip) and still bounds a page that lists thousands of files.
@@ -123,6 +125,10 @@ public sealed class DetailExtrasService(
 
         if (folders.Count == 0)
         {
+            // Says why a page has no Extras row, so a missing row can be traced from the Engine log (issue 1242): no folder was worked out for the page.
+            logger?.LogInformation(
+                "Extras for {Type} {Id}: no title folder could be worked out ({Assets} files looked at, {Paths} paths found).",
+                detail.EntityType, detail.Id, distinct.Count, paths.Count);
             return;
         }
 
@@ -134,6 +140,8 @@ public sealed class DetailExtrasService(
 
         if (found.Count == 0)
         {
+            logger?.LogInformation(
+                "Extras for {Type} {Id}: {Folders} folders looked in, no Extras stored for them.", detail.EntityType, detail.Id, folders.Count);
             return;
         }
 

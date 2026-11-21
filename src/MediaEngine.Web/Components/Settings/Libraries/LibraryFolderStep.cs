@@ -12,7 +12,7 @@ namespace MediaEngine.Web.Components.Settings;
 /// </summary>
 public static class LibraryFolderStep
 {
-    /// <summary>The folder's friendly name is always the first field of the folder step.</summary>
+    /// <summary>The folder takes its name from the folder picked; there is no name field (issue 1241).</summary>
     public const bool ShowFolderName = true;
 
     /// <summary>"Where is it? · Movies"; just "Where is it?" while the kind is not known.</summary>

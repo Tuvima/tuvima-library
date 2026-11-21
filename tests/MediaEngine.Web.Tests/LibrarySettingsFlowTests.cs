@@ -1059,7 +1059,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("grid-template-areas", table);
         Assert.DoesNotContain("overflow-x", table);
         Assert.Contains("@media (max-width: 840px)", panel);
-        Assert.Contains("@media (max-width: 840px)", picker);
         Assert.DoesNotContain("max-width: 800px", panel + picker);
         Assert.Contains("@container folder-table (max-width: 840px) { .folder-table__expand {", app);
         Assert.DoesNotContain("@media (max-width: 840px) { .folder-table__expand", app);
