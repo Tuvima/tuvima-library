@@ -287,7 +287,7 @@ Where the build differs from the text above, and why:
 - **D5, D6:** song action gaps are 6 px and panel titles 17 px, as drawn in the mockup, rather than the 8 px and 20 px in the text (Shy: controls about 1:1 with the mock).
 - **D10:** the volume slider slides out over the tools instead of pushing them, so the speaker never moves under the pointer.
 - **D16:** music has no sleep timer; the fixed presets replace the profile's sleep-timer list and default length in Settings › Listening.
-- **D21, D22:** bookmark names and notes allow 200 characters (the shared note limit), not 120. Music has Bookmarks on the bar too, with the album cover on each row.
+- **D21, D22:** bookmark names and notes allow 200 characters (the shared note limit), not 120. Music has Bookmarks on the bar too, with the album cover on each row. **Superseded (Shy, 2026-11-21, issue #1259):** music has no Bookmarks tool, as global bookmarks V5-D4 decided; the mock and the built bar agree.
 - **Settings › Playback** keeps the chapter marks switch, the second and third subtitle languages and the lyrics language beside the rows D14 lists, because nothing else in the player sets them.
 - **D26:** the phone player has no Close button, matching mock screen 15.
 - **D5 (Shy 2026-11-10 15:54Z and 15:58Z):** Favorite means "added to a list" and Like stays separate, so later taste learning reads only Like and Dislike. The heart saves the item (`profile_saved_items`): a song goes to Favorites, anything else to My List. The Love reaction is gone (upgrade step 0085 moved old Love rows to saved items), and Rate offers Like and Dislike only. This replaces the follow-up below about one shared reaction value.
