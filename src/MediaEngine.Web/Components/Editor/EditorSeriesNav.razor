@@ -16,39 +16,37 @@
     var current = Current;
     <nav class="@(Stacked ? "tl-snav tl-snav--stacked" : "tl-snav")" aria-label="@L["EditorNav_Label"].Value" data-testid="series-nav">
         <div class="tl-snav__level">
-            <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                       Tone="AppUiTone.Neutral"
-                       Size="AppControlSize.Large"
-                       FullWidth="true"
-                       id="tl-snav-kind"
-                       aria-haspopup="listbox"
-                       aria-expanded="@(_open == Kind ? "true" : "false")"
-                       data-testid="series-nav-kind"
-                       OnClick="@(() => Toggle(Kind))">
+            @* The same trigger as the Season and episode dropdowns of every other item (issue 1250): one look, one size. *@
+            <AppRowButton Class="@(_open == Kind ? "tl-snav__trigger is-open" : "tl-snav__trigger")"
+                          id="tl-snav-kind"
+                          aria-haspopup="listbox"
+                          aria-expanded="@(_open == Kind ? "true" : "false")"
+                          data-testid="series-nav-kind"
+                          OnClick="@(() => Toggle(Kind))">
                 <span class="tl-snav__text"><small>@L["EditorSeriesNav_Kind"]</small><span>@(current?.Label ?? L["EditorSeriesNav_ChooseKind"].Value)</span></span>
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppIconSize.Control20" />
-            </AppButton>
+            </AppRowButton>
             @if (_open == Kind)
             {
-                <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Kind))" Class="tl-snav__surface">
+                <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Kind))" Class="tl-hnav__surface tl-hnav__surface--second">
                     <div class="tl-snav__panel" role="listbox" aria-label="@L["EditorSeriesNav_Kind"].Value" @onkeydown="OnKeyDown">
                         <ul class="tl-snav__options">
                             @foreach (var type in Fields.SeriesMediaTypes)
                             {
                                 var selected = type.Key == _kind;
                                 <li @key="@($"kind{type.Key}")">
-                                    <AppButton ButtonStyle="AppButtonStyle.Text"
-                                               Tone="@(selected ? AppUiTone.Primary : AppUiTone.Neutral)"
-                                               Size="AppControlSize.Large"
-                                               FullWidth="true"
-                                               EndIcon="@(selected ? AppMaterialIcons.Outlined.Check : null)"
-                                               role="option"
-                                               aria-selected="@(selected ? "true" : "false")"
-                                               data-kind-key="@type.Key"
-                                               OnClick="@(() => PickKindAsync(type.Key))">
+                                    <AppRowButton Class="@(selected ? "tl-hnav__option is-selected" : "tl-hnav__option")"
+                                                  role="option"
+                                                  aria-selected="@(selected ? "true" : "false")"
+                                                  data-kind-key="@type.Key"
+                                                  OnClick="@(() => PickKindAsync(type.Key))">
                                         <span class="tl-snav__text"><span>@type.Label</span></span>
                                         <small class="tl-snav__count">@type.OwnedCount</small>
-                                    </AppButton>
+                                        @if (selected)
+                                        {
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppIconSize.Control20" />
+                                        }
+                                    </AppRowButton>
                                 </li>
                             }
                         </ul>
@@ -57,22 +55,19 @@
             }
         </div>
         <div class="tl-snav__level">
-            <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                       Tone="AppUiTone.Neutral"
-                       Size="AppControlSize.Large"
-                       FullWidth="true"
-                       id="tl-snav-title"
-                       Disabled="@(_kind is null)"
-                       aria-haspopup="listbox"
-                       aria-expanded="@(_open == Title ? "true" : "false")"
-                       data-testid="series-nav-title"
-                       OnClick="@(() => ToggleTitlesAsync())">
+            <AppRowButton Class="@(_open == Title ? "tl-snav__trigger is-open" : "tl-snav__trigger")"
+                          id="tl-snav-title"
+                          Disabled="@(_kind is null)"
+                          aria-haspopup="listbox"
+                          aria-expanded="@(_open == Title ? "true" : "false")"
+                          data-testid="series-nav-title"
+                          OnClick="@(() => ToggleTitlesAsync())">
                 <span class="tl-snav__text"><small>@L["EditorSeriesNav_Title"]</small><span>@L["EditorSeriesNav_ChooseTitle"]</span></span>
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppIconSize.Control20" />
-            </AppButton>
+            </AppRowButton>
             @if (_open == Title)
             {
-                <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Title))" Class="tl-snav__surface">
+                <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Title))" Class="tl-hnav__surface tl-hnav__surface--second">
                     <div class="tl-snav__panel" role="listbox" aria-label="@L["EditorSeriesNav_Title"].Value" @onkeydown="OnKeyDown">
                         <div class="tl-snav__search">
                             <AppSearchField Value="@_query"
@@ -89,17 +84,14 @@
                                 <li @key="@($"title{title.Id}{title.Title}")">
                                     @if (title.Owned && title.Id is { } id)
                                     {
-                                        <AppButton ButtonStyle="AppButtonStyle.Text"
-                                                   Tone="AppUiTone.Neutral"
-                                                   Size="AppControlSize.Large"
-                                                   FullWidth="true"
-                                                   role="option"
-                                                   aria-selected="false"
-                                                   data-title-id="@id.ToString("N")"
-                                                   Disabled="@(Flow is null || Flow.Saving || Flow.Switching)"
-                                                   OnClick="@(() => PickTitleAsync(id, title.Title))">
+                                        <AppRowButton Class="tl-hnav__option"
+                                                      role="option"
+                                                      aria-selected="false"
+                                                      data-title-id="@id.ToString("N")"
+                                                      Disabled="@(Flow is null || Flow.Saving || Flow.Switching)"
+                                                      OnClick="@(() => PickTitleAsync(id, title.Title))">
                                             @TitleText(title)
-                                        </AppButton>
+                                        </AppRowButton>
                                     }
                                     else
                                     {

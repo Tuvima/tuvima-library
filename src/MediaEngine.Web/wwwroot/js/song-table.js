@@ -100,7 +100,9 @@ export function dragPictureLabel(row, root) {
 }
 
 // Wires the drag for one table: `root` is the .song-table element. Returns a function that removes everything it added.
-export function wireDragOut(root, dotnetRef) {
+// `options` lets another surface (the View photo timeline, tile-drag.js) reuse the same drag: `rowSelector` finds the dragged item, `titleSelector`
+// the words carried with it, and `alwaysOut` skips the table's data-song-drag-out switch because the surface only draws draggable items when allowed.
+export function wireDragOut(root, dotnetRef, options) {
     if (!root) {
         return () => { };
     }
@@ -188,16 +190,16 @@ export function wireDragOut(root, dotnetRef) {
     };
 
     const onDragStart = (event) => {
-        const row = event.target?.closest?.('[data-song-row-id]');
+        const row = event.target?.closest?.(options?.rowSelector ?? '[data-song-row-id]');
         const transfer = event.dataTransfer;
         if (!row || !root.contains(row) || !transfer) {
             return;
         }
 
-        const title = row.querySelector('.song-table__title')?.textContent?.trim() ?? '';
+        const title = row.querySelector(options?.titleSelector ?? '.song-table__title')?.textContent?.trim() ?? '';
         const label = dragPictureLabel(row, root);
         transfer.setData('text/plain', label ?? title);
-        if (root.dataset.songDragOut !== 'true') {
+        if (!options?.alwaysOut && root.dataset.songDragOut !== 'true') {
             return;
         }
 

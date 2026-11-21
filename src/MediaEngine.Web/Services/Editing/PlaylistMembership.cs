@@ -15,9 +15,10 @@ public sealed record PlaylistChoice(Guid? PlaylistId, string Name)
 
 /// <summary>
 /// How an add to a playlist went: how many songs went in, how many were already there, how many the Engine refused. <c>Creating</c> says the
-/// request was "New playlist" (so a failure is worded as "could not be created"); <c>Created</c> says that playlist was made.
+/// request was "New playlist" (so a failure is worded as "could not be created"); <c>Created</c> says that playlist was made. <c>Reason</c> is the
+/// Engine's own explanation when a request was refused, so the sentence can say why.
 /// </summary>
-public sealed record PlaylistAddResult(string PlaylistName, int Added, int AlreadyThere, int Failed, bool Created, bool Creating = false);
+public sealed record PlaylistAddResult(string PlaylistName, int Added, int AlreadyThere, int Failed, bool Created, bool Creating = false, string? Reason = null);
 
 /// <summary>
 /// Putting songs into a hand-made playlist, the one add every entry point goes through (Listen playlists spec WP2, D5, D6): the song menu,
@@ -141,12 +142,14 @@ public static class PlaylistMembership
         var added = 0;
         var already = 0;
         var failed = 0;
+        string? reason = null;
         foreach (var batch in wanted.Chunk(AddBatchSize))
         {
             var answer = await api.AddCollectionItemsAsync(playlistId, batch, profileId, ct);
             if (answer is null)
             {
                 failed += batch.Length;
+                reason ??= EngineFailureText.FromClient(api);
                 continue;
             }
 
@@ -154,7 +157,7 @@ public static class PlaylistMembership
             already += answer.already_there;
         }
 
-        return new PlaylistAddResult(playlistName, added, already, failed, Created: false);
+        return new PlaylistAddResult(playlistName, added, already, failed, Created: false, Reason: failed > 0 ? reason : null);
     }
 
     /// <summary>
@@ -223,7 +226,7 @@ public static class PlaylistMembership
             profileId,
             ct);
         return id is null
-            ? new PlaylistAddResult(name, 0, 0, wanted.Count, Created: false, Creating: true)
+            ? new PlaylistAddResult(name, 0, 0, wanted.Count, Created: false, Creating: true, Reason: EngineFailureText.FromClient(api))
             : new PlaylistAddResult(name, wanted.Count, 0, 0, Created: true, Creating: true);
     }
 

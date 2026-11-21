@@ -23,7 +23,7 @@ public enum FaceModelState
 }
 
 /// <summary>One face model as the Tools page shows it.</summary>
-public sealed record FaceModelStatus(string FileName, FaceModelState State, string? Reason, bool IsRuntime = false);
+public sealed record FaceModelStatus(string FileName, FaceModelState State, string? Reason, bool IsRuntime = false, int? DownloadPercent = null);
 
 /// <summary>
 /// The two face models and the native runtime that runs them, kept in <c>&lt;data&gt;/tools/faces/</c>: found, verified and fetched once. The files are never in the repository or the
@@ -37,6 +37,8 @@ public sealed class FaceModelProvider(
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, (FaceModelState State, string? Reason)> _states = new(StringComparer.OrdinalIgnoreCase);
+    // How far each running download has got (0 to 100), when the host said how big the file is.
+    private readonly Dictionary<string, int> _progress = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The folder holding the downloaded models.</summary>
     public string Directory => Path.Combine(paths.DataRoot, "tools", "faces");
@@ -105,7 +107,8 @@ public sealed class FaceModelProvider(
             {
                 if (_states.TryGetValue(model.Name, out var known) && known.State is FaceModelState.Downloading or FaceModelState.Problem)
                 {
-                    result.Add(new FaceModelStatus(model.Name, known.State, known.Reason, isRuntime));
+                    result.Add(new FaceModelStatus(model.Name, known.State, known.Reason, isRuntime,
+                        known.State == FaceModelState.Downloading && _progress.TryGetValue(model.Name, out var percent) ? percent : null));
                     continue;
                 }
             }
@@ -186,7 +189,21 @@ public sealed class FaceModelProvider(
             await using (var download = await source.OpenAsync(new Uri(model.Url), ct).ConfigureAwait(false))
             await using (var file = File.Create(temporary))
             {
-                await download.Content.CopyToAsync(file, ct).ConfigureAwait(false);
+                var buffer = new byte[81920];
+                long copied = 0;
+                int read;
+                while ((read = await download.Content.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+                {
+                    await file.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                    copied += read;
+                    if (download.Length is > 0 and var total)
+                    {
+                        lock (_gate)
+                        {
+                            _progress[model.Name] = (int)Math.Clamp(copied * 100 / total, 0, 100);
+                        }
+                    }
+                }
             }
 
             string hash;
@@ -204,6 +221,7 @@ public sealed class FaceModelProvider(
             lock (_gate)
             {
                 _states.Remove(model.Name);
+                _progress.Remove(model.Name);
             }
 
             logger.LogInformation("The face tool {File} was downloaded and verified.", model.Name);
@@ -230,6 +248,10 @@ public sealed class FaceModelProvider(
         lock (_gate)
         {
             _states[name] = (state, reason);
+            if (state != FaceModelState.Downloading)
+            {
+                _progress.Remove(name);
+            }
         }
     }
 

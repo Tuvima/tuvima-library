@@ -43,6 +43,20 @@ public sealed class StartupLauncherGuardrailTests
     }
 
     [Fact]
+    public void CombinedLauncher_LeavesTheAppRunningWhenTheSlowDashboardHasNotAnsweredYet()
+    {
+        var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "tools", "Start-TuvimaApp.ps1"));
+        var start = source.IndexOf("function Wait-ForDashboard", StringComparison.Ordinal);
+        var end = source.IndexOf("if ($Role -eq \"Both\")", start, StringComparison.Ordinal);
+        var dashboardWait = source[start..end];
+
+        // A first Dashboard start on a fresh data store can be slow: wait minutes, and on a timeout say so plainly and keep both programs running.
+        Assert.Contains("AddSeconds(300)", dashboardWait, StringComparison.Ordinal);
+        Assert.Contains("the app is left up", dashboardWait, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stop-Process", dashboardWait, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CombinedLauncher_SerializesLaunchesAndWaitsForPriorPortsToRelease()
     {
         var source = File.ReadAllText(Path.Combine(
