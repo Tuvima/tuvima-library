@@ -698,7 +698,7 @@ window.listenPlayback = (function () {
             } catch (error) {
                 if (controller.signal.aborted) return;
             }
-            if (++attempts < 150) element._tuvimaCaptionTimer = setTimeout(poll, 2000);
+            if (++attempts < 240) element._tuvimaCaptionTimer = setTimeout(poll, 5000);
         };
         element._tuvimaCaptionTimer = setTimeout(poll, 2000);
     }
@@ -1410,6 +1410,14 @@ window.listenPlayback = (function () {
         },
         startAudio: startAudioElement,
         startFailure: function (element) { return element?.dataset.playbackStartFailure || "PlaybackError"; },
+        // What the element's error event really was (issue 1257): an aborted load (code 1) and the error a cleared source raises while the next
+        // track is being set up are not failures a person should see.
+        audioErrorState: function (element) {
+            return {
+                code: element?.error?.code || 0,
+                hasSource: !!(element && (element.currentSrc || element.getAttribute('src') || element._tuvimaHls))
+            };
+        },
         pauseAudio: function (element) {
             if (!element) return;
             raiseStartToken(element);

@@ -86,7 +86,8 @@ public sealed class PlaybackCapabilitiesService
         bool forceAdaptive = false,
         PlaybackChoices? choices = null,
         int? burnSubtitleStream = null,
-        double? startSeconds = null)
+        double? startSeconds = null,
+        bool subtitlesOnly = false)
     {
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
@@ -235,7 +236,8 @@ public sealed class PlaybackCapabilitiesService
         PlaybackPathDto? playbackPath = decision is { Rung: PlaybackRungs.Direct } ? PlaybackPathBuilder.ForDirect(decision) : null;
         var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, profileId, ct), durationSeconds);
         double? streamStartSeconds = null;
-        if (recommendedDelivery == PlaybackDeliveryModes.Hls)
+        // A subtitles-only read (the player asking again while subtitles are being read out of the file) never starts or looks at a conversion.
+        if (recommendedDelivery == PlaybackDeliveryModes.Hls && !subtitlesOnly)
         {
             if (!_ffmpeg.HardwareCapabilities.AdaptiveHlsReady)
             {
@@ -303,6 +305,7 @@ public sealed class PlaybackCapabilitiesService
             }
         }
 
+        var (subtitleTracks, subtitlesPreparing) = await BuildSubtitleTracksAsync(assetId, probe, ct);
         return new PlaybackManifestDto
         {
             DurationSeconds = durationSeconds,
@@ -320,7 +323,8 @@ public sealed class PlaybackCapabilitiesService
             HlsExpiresAt = hlsExpiresAt,
             Profile = profile,
             AudioTracks = audioTracks,
-            SubtitleTracks = await BuildSubtitleTracksAsync(assetId, probe, ct),
+            SubtitleTracks = subtitleTracks,
+            SubtitlesPreparing = subtitlesPreparing,
             Chapters = chapters,
             OfflineVariants = variants,
             Resume = resume,
@@ -952,17 +956,71 @@ public sealed class PlaybackCapabilitiesService
         _ => null,
     };
 
-    private async Task<IReadOnlyList<PlaybackSubtitleTrackDto>> BuildSubtitleTracksAsync(
+    private async Task<(IReadOnlyList<PlaybackSubtitleTrackDto> Tracks, bool Preparing)> BuildSubtitleTracksAsync(
         Guid assetId,
         MediaProbeResult? probe,
         CancellationToken ct)
     {
         // Every subtitle track inside the file is listed with its own name and flags, never reduced to one per language (issue 1058). Text tracks
-        // can be shown by the browser; picture tracks (PGS, DVD) are listed too and are burned into the video when chosen.
+        // can be shown by the browser once the Engine has read them out of the file; picture tracks (PGS, DVD) are listed too and are burned
+        // into the video when chosen.
         if (probe?.SubtitleStreams.Count is > 0)
         {
-            return BuildEmbeddedSubtitleTracks(assetId, probe.SubtitleStreams);
+            return await BuildEmbeddedSubtitleTracksWhenReadyAsync(assetId, probe.SubtitleStreams, ct);
         }
+
+        return (await BuildOtherSubtitleTracksAsync(assetId, probe, ct), false);
+    }
+
+    /// <summary>
+    /// A text subtitle is offered only once its words have been read out of the file (issue 1166): reading takes the whole file, so all the
+    /// text streams are read together in the background starting now, and the player is told to ask again while that runs. A stream that
+    /// cannot be read as text is never offered, so every listed subtitle shows something when chosen.
+    /// </summary>
+    private async Task<(IReadOnlyList<PlaybackSubtitleTrackDto> Tracks, bool Preparing)> BuildEmbeddedSubtitleTracksWhenReadyAsync(
+        Guid assetId, IReadOnlyList<EmbeddedSubtitleStream> streams, CancellationToken ct)
+    {
+        var all = BuildEmbeddedSubtitleTracks(assetId, streams);
+        var asset = streams.Any(stream => stream.IsText) ? await _assets.FindByIdAsync(assetId, ct).ConfigureAwait(false) : null;
+        var path = asset?.FilePathRoot;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path) || !_ffmpeg.IsAvailable)
+        {
+            // Nothing to read the words from: offer only the picture tracks, which the Engine draws itself.
+            return (all.Where(track => track.IsPicture).ToList(), false);
+        }
+
+        var textStreams = streams.Where(stream => stream.IsText).Select(stream => stream.StreamIndex).ToList();
+        var preparing = false;
+        var offered = new List<PlaybackSubtitleTrackDto>();
+        foreach (var track in all)
+        {
+            if (track.IsPicture)
+            {
+                offered.Add(track);
+            }
+            else if (track.StreamIndex is { } index && EmbeddedSubtitleCache.TryGetReady(assetId, path, index) is not null)
+            {
+                offered.Add(track);
+            }
+            else if (track.StreamIndex is { } pending && !EmbeddedSubtitleCache.IsUnreadable(assetId, path, pending))
+            {
+                preparing = true;
+            }
+        }
+
+        if (preparing)
+        {
+            _ = EmbeddedSubtitleCache.EnsureStarted(_ffmpeg, _logger, assetId, path, textStreams);
+        }
+
+        return (offered, preparing);
+    }
+
+    private async Task<IReadOnlyList<PlaybackSubtitleTrackDto>> BuildOtherSubtitleTracksAsync(
+        Guid assetId,
+        MediaProbeResult? probe,
+        CancellationToken ct)
+    {
 
         var managedTracks = await _textTracks.GetByAssetAsync(assetId, TextTrackKind.Subtitles, ct);
         if (managedTracks.Count > 0)

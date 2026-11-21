@@ -185,6 +185,17 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ASubtitlesOnlyRead_NeverLooksAtOrStartsAConversion()
+    {
+        var assetId = await SeedVideoAsync("subtitles-only.mp4", "h264", "aac", 1080, durationSeconds: 3600);
+
+        var manifest = await _playback.BuildManifestAsync(assetId, "web", forceAdaptive: true, subtitlesOnly: true);
+
+        Assert.Null(manifest!.HlsStatus);
+        Assert.Null(manifest.HlsUrl);
+    }
+
+    [Fact]
     public async Task EachProfileResumesFromItsOwnPositionOnASharedTitle()
     {
         var assetId = await SeedVideoAsync("shared.mp4", "h264", "aac", 1080, durationSeconds: 7200);

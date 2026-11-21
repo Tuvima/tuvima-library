@@ -210,6 +210,9 @@ builder.Services.AddCors(options =>
 builder.Services.AddSignalR(options =>
 {
     options.AddFilter<IntercomAuthFilter>();
+    // Matches the Dashboard's longer wait, so an idle or briefly starved connection is not dropped for nothing (issue 1255).
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(120);
 });
 builder.Services.AddSingleton<IEventPublisher, SignalREventPublisher>();
 builder.Services.AddDataProtection()
