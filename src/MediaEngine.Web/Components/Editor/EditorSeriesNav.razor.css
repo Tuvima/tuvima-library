@@ -17,14 +17,12 @@
 
 .tl-snav__level {
     position: relative;
-    flex: 1 1 10rem;
-    max-width: 16rem;
+    flex: 0 1 auto;
     min-width: 0;
 }
 
 .tl-snav--stacked .tl-snav__level {
     flex: 0 0 auto;
-    max-width: none;
 }
 
 .tl-snav__text {

@@ -55,24 +55,10 @@ else
                              OnOpenRow="OpenHighlightedAsync"
                              ShowState="@ShowListState">
                 <TopContent>
-                    @if ((ShowFolderName && !ShowBrowser) || TopContent is not null || !string.IsNullOrWhiteSpace(TargetLabel))
+                    @if (TopContent is not null || !string.IsNullOrWhiteSpace(TargetLabel))
                     {
-                        @* One row above the list: the friendly name with its hint beside it, and the host's own context (the area and kind chips) at the far end. *@
+                        @* One row above the list: the host's own context (the area and kind chips) at the far end. *@
                         <div class="server-folder-picker__head">
-                            @if (ShowFolderName && !ShowBrowser)
-                            {
-                                @* The folder's friendly name, first thing in the folder step (Libraries v3 D18): it names the folder, never the library. It is the only text box. *@
-                                <div class="server-folder-picker__name-row">
-                                    <div class="server-folder-picker__name" data-folder-name>
-                                        <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
-                                                      Size="AppControlSize.Compact"
-                                                      Value="@_folderName"
-                                                      ValueChanged="FolderNameEdited"
-                                                      MaxLength="@FolderHandlingWords.MaxFolderNameLength" />
-                                    </div>
-                                    <span class="server-folder-picker__name-hint">@L["ServerFolderPicker_FriendlyNameHint"]</span>
-                                </div>
-                            }
                             @if (TopContent is not null)
                             {
                                 @* The host's own context (Add library puts the area and kind here). *@
@@ -159,20 +145,6 @@ else
                                     {
                                         <div id="@_pathErrorId" class="app-field__help tl-field-error" role="alert">@_pathMessage</div>
                                     }
-                                </div>
-                            }
-                            @if (ShowFolderName)
-                            {
-                                @* The folder's friendly name, first thing in the folder step (Libraries v3 D18): it names the folder, never the library. It is the only text box. *@
-                                <div class="server-folder-picker__name-row">
-                                    <div class="server-folder-picker__name" data-folder-name>
-                                        <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
-                                                      Size="AppControlSize.Compact"
-                                                      Value="@_folderName"
-                                                      ValueChanged="FolderNameEdited"
-                                                      MaxLength="@FolderHandlingWords.MaxFolderNameLength" />
-                                    </div>
-                                    <span class="server-folder-picker__name-hint">@L["ServerFolderPicker_FriendlyNameHint"]</span>
                                 </div>
                             }
                         </div>
@@ -413,12 +385,6 @@ else
         InvalidateValidation();
     }
 
-    private async Task FolderNameEdited(string? value)
-    {
-        _folderName = value ?? string.Empty;
-        _folderNameTouched = true;
-        await FolderNameChanged.InvokeAsync(_folderName);
-    }
     private string EffectiveMode => _managedChoice || _handlingManaged ? ServerFolderSelectionModes.ManagedLibrary : SelectionMode;
 
     private async Task SetManagedChoiceAsync(bool value)

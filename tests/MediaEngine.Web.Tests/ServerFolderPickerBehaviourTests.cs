@@ -211,18 +211,23 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFriendlyNameStartsEmptyOnABareDriveRootAndFollowsAChosenFolder()
+    public async Task ThereIsNoFriendlyNameBoxAndTheFolderNameFollowsTheChosenFolder()
     {
         _root = WholeDrive;
         var host = Render<AppDialogHost>();
-        var parameters = new AppDialogParameters<ServerFolderPicker> { { picker => picker.ShowFolderName, true } };
+        var names = new List<string>();
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { picker => picker.ShowFolderName, true },
+            { picker => picker.FolderNameChanged, EventCallback.Factory.Create<string>(this, name => names.Add(name)) },
+        };
         await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
         host.WaitForElement(FolderRows);
 
-        Assert.Equal(string.Empty, host.Find("[data-folder-name] input").GetAttribute("value") ?? string.Empty);
+        Assert.Empty(host.FindAll("[data-folder-name]"));
 
         Row(host, "Movies").Click();
-        host.WaitForAssertion(() => Assert.Equal("Movies", host.Find("[data-folder-name] input").GetAttribute("value")));
+        host.WaitForAssertion(() => Assert.Equal("Movies", names.LastOrDefault()));
     }
 
     [Fact]
@@ -380,14 +385,14 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFriendlyNameIsTheOnlyTextBoxUntilTypeAPathIsChosen()
+    public async Task NoTextBoxShowsUntilTypeAPathIsChosen()
     {
         var host = Render<AppDialogHost>();
         var parameters = new AppDialogParameters<ServerFolderPicker> { { picker => picker.ShowFolderName, true } };
         await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
         host.WaitForElement(FolderRows);
 
-        Assert.Single(host.FindAll("[data-folder-name] input"));
+        Assert.Empty(host.FindAll("[data-folder-name] input"));
         Assert.Empty(host.FindAll("input[aria-label='Folder path']"));
     }
 

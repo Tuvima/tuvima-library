@@ -9960,10 +9960,7 @@
     <value>Library scans this folder and its subfolders, and keeps it organized.</value>
   </data>
   <data name="FolderStep_Lead" xml:space="preserve">
-    <value>Pick the folder on the Library server that holds your {0}. Give it a friendly name if you like.</value>
-  </data>
-  <data name="ServerFolderPicker_FriendlyNameHint" xml:space="preserve">
-    <value>Names this folder, not the library.</value>
+    <value>Pick the folder on the Library server that holds your {0}.</value>
   </data>
   <data name="LibraryEditDialog_ColFolderName" xml:space="preserve">
     <value>Folder name</value>

@@ -36,7 +36,8 @@
 
     @if (!ReadOnly)
     {
-        <AppBrowserSideSection RuleAbove="true">
+        @* Pinned to the bottom of the list so the way to Folders and files is never scrolled out of sight or cut off (issue 1243). *@
+        <AppBrowserSideSection RuleAbove="true" class="app-browser-side__pinned">
             <AppBrowserSideItem Label="@L["EditorBrowser_FoldersAndFiles"].Value" Icon="@AppMaterialIcons.Outlined.Folder" TrailingIcon="@AppMaterialIcons.Outlined.ChevronRight"
                                 Link="true" data-view-switch="folders" OnClick="State.ShowFoldersAsync" />
         </AppBrowserSideSection>

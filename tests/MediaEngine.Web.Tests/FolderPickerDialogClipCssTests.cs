@@ -57,7 +57,6 @@ public sealed class FolderPickerDialogClipCssTests
 
     [Theory]
     [InlineData(PickerCss, ".server-folder-picker__top")]
-    [InlineData(PickerCss, ".server-folder-picker__name")]
     [InlineData(CreateDialogCss, ".create-library")]
     [InlineData(CreateDialogCss, ".create-library__picker")]
     public void FolderStepGrids_UseAShrinkableSingleColumn(string file, string selector)
