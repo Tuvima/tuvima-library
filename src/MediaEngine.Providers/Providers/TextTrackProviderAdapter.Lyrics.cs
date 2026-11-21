@@ -92,7 +92,7 @@ public sealed partial class TextTrackProviderAdapter
         // person can choose among the close matches (issue 1256).
         var found = new List<(double Score, TextTrackCandidate Candidate)>();
         var accepted = false;
-        foreach (var request in MatchingRequests(lookup.MediaType, values))
+        foreach (var request in MatchingRequests(lookup.MediaType, values, lookup.Interactive))
         {
             var candidateUrl = baseUrl + BuildPath(request, values);
             var answer = await GetJsonAsync(candidateUrl, ct).ConfigureAwait(false);
@@ -144,7 +144,9 @@ public sealed partial class TextTrackProviderAdapter
                 }
             }
 
-            if (accepted)
+            // The automatic pick stops at the first request that has an acceptable entry; a person choosing asks every request, because
+            // each one finds entries the others miss (a source's search is cut to its first few entries).
+            if (accepted && !lookup.Interactive)
             {
                 break;
             }
@@ -237,7 +239,7 @@ public sealed partial class TextTrackProviderAdapter
         // The song's own length must not reject the song a person went looking for instead.
         lookup = lookup with { Title = null, Artist = null, Album = null, Year = null, DurationSeconds = null };
         var values = LookupValues(lookup);
-        var request = MatchingRequests(lookup.MediaType, values).FirstOrDefault();
+        var request = MatchingRequests(lookup.MediaType, values, true).FirstOrDefault(entry => !entry.InteractiveOnly);
         if (request is null)
         {
             _logger.LogInformation("{Provider} lyrics search by text skipped: the source has no search by text", Name);
@@ -300,9 +302,11 @@ public sealed partial class TextTrackProviderAdapter
     }
 
     /// <summary>The requests that fit the media type and have every value they need, in file order.</summary>
-    private IEnumerable<TextTrackRequestConfiguration> MatchingRequests(MediaType mediaType, IReadOnlyDictionary<string, string> values) =>
+    private IEnumerable<TextTrackRequestConfiguration> MatchingRequests(
+        MediaType mediaType, IReadOnlyDictionary<string, string> values, bool interactive = false) =>
         _text.Search.Requests.Where(request =>
-            (string.IsNullOrEmpty(request.WhenMediaType)
+            (interactive || !request.InteractiveOnly)
+            && (string.IsNullOrEmpty(request.WhenMediaType)
                 || string.Equals(request.WhenMediaType, mediaType.ToString(), StringComparison.OrdinalIgnoreCase))
             && request.Needs.All(values.ContainsKey));
 
@@ -330,7 +334,10 @@ public sealed partial class TextTrackProviderAdapter
         if (!string.IsNullOrWhiteSpace(lookup.Title) && TryPath(entry, match.TitlePath, out var name)
             && name.ValueKind == JsonValueKind.String)
         {
-            if (!matcher.Matches(name.GetString(), lookup.Title))
+            var entryArtist = TryPath(entry, match.ArtistPath, out var entryArtistNode) && entryArtistNode.ValueKind == JsonValueKind.String
+                ? entryArtistNode.GetString()
+                : null;
+            if (!matcher.MatchesTitle(name.GetString(), entryArtist, lookup.Title))
             {
                 return null;
             }

@@ -138,6 +138,32 @@ public sealed class LrclibLyricsReplayTests
     }
 
     [Fact]
+    public async Task ATitleWrittenAsArtistDashTitle_MatchesTheBareTitle_WhenTheArtistIsTheEntrysOwn()
+    {
+        var (provider, _) = Build(SearchAnswers(List(Entry("Smile Empty Soul - Silhouettes", "Smile Empty Soul", 125, id: 7))));
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul"));
+
+        Assert.Equal("7", Assert.Single(found).SourceId);
+    }
+
+    [Fact]
+    public async Task WhenAPersonIsChoosingAnother_EveryRequestIsAsked_SoAnEntryOnlyTheWordSearchFindsIsOffered()
+    {
+        var handler = new RecordingHandler(request =>
+            request.Uri.AbsolutePath == "/api/get"
+                ? RecordingHandler.Json(NotFound, HttpStatusCode.NotFound)
+                : RecordingHandler.Json(request.Uri.Query.Contains("track_name", StringComparison.Ordinal)
+                    ? List(Entry("Silhouettes", "Smile Empty Soul", 125, id: 1))
+                    : List(Entry("Smile Empty Soul - Silhouettes", "Smile Empty Soul", 125, id: 2))));
+        var (provider, _) = Build(handler);
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul") with { Interactive = true });
+
+        Assert.Equal(["1", "2"], found.Select(candidate => candidate.SourceId).Order().ToArray());
+    }
+
+    [Fact]
     public async Task ATitleThatOnlySharesAPrefix_DoesNotMatch_AndIsLoggedAsNoMatch()
     {
         var (provider, log) = Build(SearchAnswers(List(Entry("Yesterday", "The Beatles", 125))));

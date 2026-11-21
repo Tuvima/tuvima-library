@@ -193,6 +193,13 @@ public sealed class TextTrackRequestConfiguration
     public string Path { get; set; } = string.Empty;
 
     /// <summary>
+    /// True for a request that is asked only when a person is choosing among results ("Find another"), never for the automatic pick:
+    /// it widens the list without changing what is chosen by itself.
+    /// </summary>
+    [JsonPropertyName("interactive_only")]
+    public bool InteractiveOnly { get; set; }
+
+    /// <summary>
     /// Query pairs <c>[name, value]</c> in order; values are templates over the lookup values
     /// (<c>{title}</c>, <c>{tmdb_id}</c> …) and are URI-escaped. A pair whose template names a blank
     /// value is left out.
