@@ -117,6 +117,18 @@ public partial class DetailPage
         }
     }
 
+    // The part of the page under the hero and tabs waits one render, so the hero and Play reach the screen first (issue 1262).
+    private bool _belowHeroReady;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && !_belowHeroReady && !_disposed)
+        {
+            _belowHeroReady = true;
+            StateHasChanged();
+        }
+    }
+
     private Guid? _setSummaryFor;
     private CollectionManagementCatalogViewModel? _setSummary;
 
