@@ -377,6 +377,8 @@ internal sealed partial class DetailCompositionOrchestrator
         }
 
         var placement = seedDetail.SequencePlacement;
+        // The Series tile counts every owned member; the page's pill and "You own" line must say the same number (issue 1191).
+        placement?.OwnedCount = group.PreviewItems.DistinctBy(item => item.WorkId).Count();
         var seriesTitle = FormatSequenceContainerTitle(placement?.ContainerTitle)
             ?? FormatSequenceContainerTitle(group.DisplayName)
             ?? group.DisplayName;
