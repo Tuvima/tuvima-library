@@ -413,7 +413,7 @@ public sealed class CollectionListsAndSetsPageTests : AsyncBunitContext
 
         var cut = RenderPage(ListPage(TwoOfFour()));
 
-        Assert.Contains("You own 2 of 4", cut.Find(".tl-detail-metadata-stack").TextContent);
+        Assert.Contains("You own 2 of 4", cut.Find(".tl-detail-group-pills").TextContent);
     }
 
     [Fact]

@@ -103,6 +103,26 @@
     </header>
     }
 
+    @if (MemberGrid)
+    {
+        @* A Series' own page: every member as a cover with its number, in order; a title not in the library is dimmed (spec group-pages-and-tiles D4). *@
+        <GroupMemberGrid AriaLabel="@($"{Placement.ContainerTitle} order")">
+            @foreach (var item in ActiveItems)
+            {
+                <GroupMemberCell @key="item.Id"
+                                 Title="@SequenceItemTitle(item)"
+                                 Number="@SequenceNumberOrNull(item)"
+                                 ArtworkUrl="@item.ArtworkUrl"
+                                 Detail="@SequenceItemDate(item)"
+                                 IsOwned="item.IsOwned"
+                                 Route="@SequenceItemRoute(item)"
+                                 Shape="@GroupPageRules.MemberShape(item.EntityType)"
+                                 Icon="@MissingIcon" />
+            }
+        </GroupMemberGrid>
+    }
+    else
+    {
     <div class="tl-series-detail__carousel">
         <AppIconButton Class="@LeftArrowClass"
                        Icon="@AppMaterialIcons.Outlined.ChevronLeft"
@@ -162,11 +182,13 @@
                        Disabled="@(!CanPageRight)"
                        OnClick="PageRight" />
     </div>
+    }
 
     @if (TotalItems > 0)
     {
-        @* No heading line on any page: "N episodes owned" sits on its own line under the tiles, with the collection tile icon (spec details-and-tile-fixes D9, issue 1172). *@
-        <DetailOwnedLine Text="@OwnedLineText" />
+        @* No heading line on any page: "N episodes owned" sits on its own line under the tiles, with the collection tile icon (spec details-and-tile-fixes D9, issue 1172).
+           A Series' own page says "You own 10 of 11 books." instead (spec group-pages-and-tiles D4). *@
+        <DetailOwnedLine Text="@(MemberGrid ? GroupPageRules.OwnedLine(Placement) : OwnedLineText)" />
     }
 
     @if (AlsoItems.Count > 0)
@@ -511,6 +533,9 @@ else
     [Parameter] public bool Compact { get; set; }
     [Parameter] public bool DetailSurface { get; set; }
 
+    /// <summary>True on a Series' own page: the members are a numbered cover grid in order, and the line under it says "You own 10 of 11 books." (spec group-pages-and-tiles D4).</summary>
+    [Parameter] public bool MemberGrid { get; set; }
+
     /// <summary>The title's supporting files; one shown alongside an episode or lesson of this list gets a chip under that row (universal editor v5 D31).</summary>
     [Parameter] public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
 
@@ -715,7 +740,8 @@ else
     // A Series that is missing some entries offers the Show missing check mark; there is no Library-wide setting behind it.
     private bool CanShowMissingToggle => MissingCount > 0;
     private bool IsLongSequence => TotalItems >= LongSequenceThreshold;
-    private bool ShowJumpSelector => ActiveItems.Count > 10;
+    // The grid shows every member at once, so it needs no Jump to.
+    private bool ShowJumpSelector => !MemberGrid && ActiveItems.Count > 10;
     private string? JumpSelectionValue => _jumpSelectionValue;
     private IReadOnlyList<AppSelectOption> JumpSelectOptions => ActiveItems
         .Select((item, index) => $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}")
@@ -776,7 +802,7 @@ else
     private int WindowStart => Math.Clamp(_windowCenterIndex - (VisibleCount / 2), 0, Math.Max(0, ActiveItems.Count - VisibleCount));
     // Episodes and a movie Series scroll as one full-width rail; other runs page through a window of six.
     private bool UsesScrollingRail => IsSeasonContainer
-        || (DetailSurface && Placement.CurrentItem.EntityType is DetailEntityType.Movie or DetailEntityType.MovieSeries);
+        || (DetailSurface && !MemberGrid && Placement.CurrentItem.EntityType is DetailEntityType.Movie or DetailEntityType.MovieSeries);
     private IReadOnlyList<SequenceItemViewModel> VisibleItems => UsesScrollingRail ? ActiveItems : ActiveItems.Skip(WindowStart).Take(VisibleCount).ToList();
     private bool CanPageLeft => UsesScrollingRail ? !_episodeAtStart : WindowStart > 0;
     private bool CanPageRight => UsesScrollingRail ? !_episodeAtEnd : WindowStart + VisibleCount < ActiveItems.Count;

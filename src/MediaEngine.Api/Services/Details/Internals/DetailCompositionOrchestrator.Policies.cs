@@ -222,6 +222,8 @@ internal sealed partial class DetailCompositionOrchestrator
     private static string ToTabLabel(string key, DetailEntityType entityType) => (key, entityType) switch
     {
         ("people", _) => "Credits",
+        // A Series or collection page opens on its members in order (group-pages-and-tiles D4).
+        ("overview", DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries or DetailEntityType.Collection) => "In order",
         ("media", DetailEntityType.MovieSeries) => "Films",
         ("media", _) => "Media in Library",
         ("works", DetailEntityType.BookSeries) => "Books",
