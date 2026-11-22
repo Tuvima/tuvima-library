@@ -375,6 +375,7 @@
                   "properties": {
                     "title_path": { "type": "string", "minLength": 1 },
                     "artist_path": { "type": "string", "minLength": 1 },
+                    "album_path": { "type": "string", "minLength": 1 },
                     "ignore_case": { "type": "boolean" },
                     "ignore_punctuation": { "type": "boolean" },
                     "ignore_bracketed": { "type": "boolean" },

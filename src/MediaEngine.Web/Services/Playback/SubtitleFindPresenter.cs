@@ -59,6 +59,15 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
     /// <summary>What went wrong on <see cref="FailedSourceId"/>: <c>download</c> or <c>remove</c>.</summary>
     public string? FailedAction { get; private set; }
 
+    /// <summary>The row being read now (its source id), or null.</summary>
+    public string? ReadingSourceId { get; private set; }
+
+    /// <summary>The row that could not be read, so it says so; the row can still be used.</summary>
+    public string? PreviewFailedSourceId { get; private set; }
+
+    /// <summary>Changes whenever a row's reading state changes, so a view can tell that its rows need drawing again.</summary>
+    public int PreviewVersion { get; private set; }
+
     private static string DefaultLanguageName
     {
         get
@@ -96,6 +105,7 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         CancelSearch();
         Loading = false; StillSearching = false; Response = null; Failed = false; SourceName = null;
         ChoosingSourceId = null; FailedSourceId = null; FailedAction = null;
+        ReadingSourceId = null; PreviewFailedSourceId = null; PreviewVersion++;
         _query = null;
         Raise();
     }
@@ -155,6 +165,7 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         var token = _search.Token;
         Loading = true; StillSearching = false; Response = null; Failed = false;
         ChoosingSourceId = null; FailedSourceId = null; FailedAction = null;
+        ReadingSourceId = null; PreviewFailedSourceId = null; PreviewVersion++;
         Raise();
         _ = WatchAsync(generation, token);
         TextTrackAlternativesResponse? answer;
@@ -177,6 +188,52 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         {
             SourceName = answer.source_name;
         }
+        Raise();
+    }
+
+    /// <summary>
+    /// Reads one result's first lines and where its file ends (Find another results v2 D10). The best match was read with the list, so a row
+    /// that already carries its lines is not read again; one tap reads exactly one file.
+    /// </summary>
+    public async Task PreviewAsync(TextTrackAlternativeDto item)
+    {
+        if (_assetId is not Guid assetId || Response is null || item.preview_lines.Count > 0
+            || ReadingSourceId is not null || ChoosingSourceId is not null)
+        {
+            return;
+        }
+        var generation = _generation;
+        ReadingSourceId = item.source_id; PreviewFailedSourceId = null; PreviewVersion++;
+        Raise();
+        TextTrackAlternativePreviewResponse? read = null;
+        try
+        {
+            read = await api.GetTextTrackAlternativePreviewAsync(assetId, SubtitlesKind, item.provider, item.source_id, _search.Token, Language, _query);
+        }
+        catch (OperationCanceledException)
+        {
+            // A new search started while the file was being read; its answer replaces this list.
+        }
+        if (_disposed || generation != _generation || Response is null)
+        {
+            return;
+        }
+        ReadingSourceId = null; PreviewVersion++;
+        if (read is not { status: "Found", item: { } fresh })
+        {
+            PreviewFailedSourceId = item.source_id;
+            Raise();
+            return;
+        }
+        Response = Response with
+        {
+            items = Response.items
+                .Select(other => string.Equals(other.provider, item.provider, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(other.source_id, item.source_id, StringComparison.OrdinalIgnoreCase)
+                        ? fresh with { is_current = other.is_current }
+                        : other)
+                .ToList(),
+        };
         Raise();
     }
 

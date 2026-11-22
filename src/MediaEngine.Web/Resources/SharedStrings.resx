@@ -10454,15 +10454,6 @@
   <data name="SubtitleFind_InUse" xml:space="preserve">
     <value>In use now</value>
   </data>
-  <data name="SubtitleFind_HearingImpaired" xml:space="preserve">
-    <value>Hearing impaired</value>
-  </data>
-  <data name="SubtitleFind_SameRelease" xml:space="preserve">
-    <value>Same release</value>
-  </data>
-  <data name="SubtitleFind_DifferentRelease" xml:space="preserve">
-    <value>Different release</value>
-  </data>
   <data name="SubtitleFind_ThisOneIsWrong" xml:space="preserve">
     <value>This one is wrong</value>
   </data>
@@ -10747,15 +10738,6 @@
   </data>
   <data name="PlaybackLyrics_SourceLrclib" xml:space="preserve">
     <value>LRCLIB</value>
-  </data>
-  <data name="PlaybackLyrics_TimedToTheSong" xml:space="preserve">
-    <value>Timed to the song</value>
-  </data>
-  <data name="PlaybackLyrics_WordsOnly" xml:space="preserve">
-    <value>Words only</value>
-  </data>
-  <data name="PlaybackLyrics_LengthDiffers" xml:space="preserve">
-    <value>Length differs from the song</value>
   </data>
   <data name="PlaybackLyrics_InUse" xml:space="preserve">
     <value>In use</value>
@@ -16102,5 +16084,53 @@
   </data>
   <data name="EditorLyrics_LookupFailed" xml:space="preserve">
     <value>Other lyrics could not be looked up right now.</value>
+  </data>
+  <data name="PickResult_Synced" xml:space="preserve">
+    <value>Synced</value>
+  </data>
+  <data name="PickResult_WordsOnlyNotTimed" xml:space="preserve">
+    <value>Words only, not timed</value>
+  </data>
+  <data name="PickResult_FitsTheSong" xml:space="preserve">
+    <value>Fits the song</value>
+  </data>
+  <data name="PickResult_SecondsLongerThanSong" xml:space="preserve">
+    <value>{0} seconds longer than the song</value>
+  </data>
+  <data name="PickResult_SecondsShorterThanSong" xml:space="preserve">
+    <value>{0} seconds shorter than the song</value>
+  </data>
+  <data name="PickResult_MadeForYourFile" xml:space="preserve">
+    <value>Made for your file</value>
+  </data>
+  <data name="PickResult_DifferentReleaseMayBeOutOfStep" xml:space="preserve">
+    <value>A different release, may be out of step</value>
+  </data>
+  <data name="PickResult_FitsTheFilm" xml:space="preserve">
+    <value>Fits the film</value>
+  </data>
+  <data name="PickResult_EndsMinutesShortOfFilm" xml:space="preserve">
+    <value>Ends {0} minutes short of the film</value>
+  </data>
+  <data name="PickResult_EndsMinutesPastFilm" xml:space="preserve">
+    <value>Ends {0} minutes past the film</value>
+  </data>
+  <data name="PickResult_Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="PickResult_Reading" xml:space="preserve">
+    <value>Reading…</value>
+  </data>
+  <data name="PickResult_CouldNotRead" xml:space="preserve">
+    <value>Could not read this one</value>
+  </data>
+  <data name="PickResult_PanePrompt" xml:space="preserve">
+    <value>Choose a result to see its words.</value>
+  </data>
+  <data name="PickResult_PaneNotRead" xml:space="preserve">
+    <value>Select this result to read its first lines.</value>
+  </data>
+  <data name="PickResult_HearingImpaired" xml:space="preserve">
+    <value>Hearing impaired</value>
   </data>
 </root>

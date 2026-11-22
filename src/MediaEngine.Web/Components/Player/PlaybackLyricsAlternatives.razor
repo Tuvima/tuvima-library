@@ -51,17 +51,7 @@
 
     private void Changed() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
 
-    private AppPickResult ToResult(TextTrackAlternativeDto offer, string? cover)
-    {
-        var kind = offer.is_timed ? L["PlaybackLyrics_TimedToTheSong"].Value : L["PlaybackLyrics_WordsOnly"].Value;
-        // A negative length score means the source's song is a different length from this one; it is still offered, with that said.
-        if (offer.duration_match_score is < 0) kind = $"{kind} · {L["PlaybackLyrics_LengthDiffers"].Value}";
-        var second = string.IsNullOrWhiteSpace(offer.preview) ? kind : $"{kind} · {offer.preview}";
-        return new AppPickResult(
-            $"{offer.provider}:{offer.source_id}",
-            string.IsNullOrWhiteSpace(offer.release_name) ? offer.provider_name : offer.release_name!,
-            second, cover, offer.is_current ? L["PlaybackLyrics_InUse"].Value : null, offer.is_current);
-    }
+    private AppPickResult ToResult(TextTrackAlternativeDto offer, string? cover) => FindAnotherResultMapper.ForLyrics(offer, L);
 
     // Search again with the box's text; only text the person changed is sent, so an untouched box is the Engine's own lookup.
     private Task SearchAsync(string text) => Presenter.OpenAlternativesAsync(FindDialogSearchText.EditedOrNull(_searchText, text));

@@ -22,6 +22,8 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
     private readonly List<ChooseTextTrackAlternativeRequest> _chosen = [];
     private readonly List<Guid> _markedWrong = [];
     private readonly List<Guid?> _tracksChanged = [];
+    private readonly List<string> _previewed = [];
+    private TextTrackAlternativeDto? _previewAnswer;
 
     public SubtitleFindViewTests()
     {
@@ -58,6 +60,13 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
         {
             _searches.Add(((string)args![1]!, (string?)args[3], (string?)args[4]));
             return Task.FromResult(answer());
+        });
+        stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativePreviewAsync), args =>
+        {
+            _previewed.Add((string)args![3]!);
+            return Task.FromResult<TextTrackAlternativePreviewResponse?>(_previewAnswer is null
+                ? new() { asset_id = Asset, status = "Unavailable" }
+                : new() { asset_id = Asset, status = "Found", item = _previewAnswer });
         });
         stub.SetHandler(nameof(IEngineApiClient.ChooseTextTrackAlternativeAsync), args =>
         {
@@ -134,11 +143,80 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
         Assert.Single(cut.FindAll("[data-pick-best]"));
         Assert.Equal("Best match", rows[0].QuerySelector("[data-pick-best]")!.TextContent);
         Assert.Equal("WEB-DL.720p", rows[2].QuerySelector(".app-pick-result__title")!.TextContent);
-        Assert.Equal("Different release", rows[2].QuerySelector("[data-pick-sub]")!.TextContent);
-        Assert.Equal("Same release", rows[0].QuerySelector("[data-pick-sub]")!.TextContent);
+        Assert.Equal("A different release, may be out of step", rows[2].QuerySelector("[data-pick-check='warn']")!.TextContent);
+        Assert.Equal("Made for your file", rows[0].QuerySelector("[data-pick-check='ok']")!.TextContent);
         // A subtitle result does not say which poster it belongs to, so a row has no picture.
         Assert.Empty(rows[0].QuerySelectorAll("img"));
         Assert.Equal("Your choice applies to everyone watching this title.", cut.Find("[data-sfv-note]").TextContent);
+    }
+
+    private static TextTrackAlternativeDto WithLines(TextTrackAlternativeDto item, double? film = null, double? endsAt = null, string? check = null, double? difference = null) =>
+        item with
+        {
+            preview_lines =
+            [
+                new() { at_seconds = 62, text = "Good evening." },
+                new() { at_seconds = 65, text = "You are late." },
+                new() { at_seconds = 70, text = "Traffic." },
+            ],
+            item_length_seconds = film,
+            ends_at_seconds = endsAt,
+            length_check = check,
+            length_difference_seconds = difference,
+        };
+
+    [Fact]
+    public async Task TheBestMatchShowsItsFirstLinesWithTimes_AndOtherRowsOfferAPreviewLink()
+    {
+        var best = WithLines(Item("a"), film: 7200, endsAt: 7000, check: "Fits", difference: -200);
+        var cut = await OpenFindAsync(Presenter(Api(() => Found(best, Item("b")))));
+        cut.WaitForElement("[data-pick-results]");
+
+        var pane = cut.Find("[data-pick-pane-lines]");
+        Assert.Equal(["1:02Good evening.", "1:05You are late.", "1:10Traffic."], pane.QuerySelectorAll(".app-pick-result__line").Select(line => line.TextContent));
+        Assert.Equal("Fits the film", cut.Find(Row("a") + " [data-pick-check='ok']:last-child").TextContent);
+        Assert.Equal("Preview", cut.Find(Row("b") + " [data-pick-preview]").TextContent);
+        Assert.Empty(cut.FindAll(Row("a") + " [data-pick-preview]"));
+    }
+
+    [Fact]
+    public async Task SelectingAnotherRow_ReadsExactlyThatOneFile_AndFillsInTheTimingCheck()
+    {
+        _previewAnswer = WithLines(Item("b"), film: 7200, endsAt: 6300, check: "Off", difference: -900);
+        var cut = await OpenFindAsync(Presenter(Api(() => Found(WithLines(Item("a")), Item("b"), Item("c")))));
+        cut.WaitForElement("[data-pick-results]");
+
+        await cut.Find(Row("b")).ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Equal("Ends 15 minutes short of the film", cut.Find(Row("b") + " [data-pick-check='warn']:last-child").TextContent));
+        Assert.Equal(["b"], _previewed);
+        Assert.Equal("Good evening.", cut.Find("[data-pick-pane-lines] .app-pick-result__line").TextContent.Replace("1:02", string.Empty));
+        // Selecting the same row again reads nothing more.
+        await cut.Find(Row("b")).ClickAsync();
+        Assert.Equal(["b"], _previewed);
+    }
+
+    [Fact]
+    public async Task APreviewThatCannotBeRead_SaysSoOnThatRow_AndTheRowCanStillBeUsed()
+    {
+        _previewAnswer = null;
+        var cut = await OpenFindAsync(Presenter(Api(() => Found(WithLines(Item("a")), Item("b")))));
+        cut.WaitForElement("[data-pick-results]");
+
+        await cut.Find(Row("b")).ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Equal("Could not read this one", cut.Find(Row("b") + " [data-pick-preview]").TextContent));
+        Assert.False(cut.Find("[data-pick-action='use']").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task ASubtitleRowNamesNoSourceAndShowsNoPicture()
+    {
+        var cut = await OpenFindAsync(Presenter(Api(() => Found(WithLines(Item("a"))))));
+        cut.WaitForElement("[data-pick-results]");
+
+        Assert.DoesNotContain("SubDL", cut.Find("[data-pick-results]").TextContent);
+        Assert.Empty(cut.FindAll("[data-pick-results] img"));
     }
 
     [Fact]

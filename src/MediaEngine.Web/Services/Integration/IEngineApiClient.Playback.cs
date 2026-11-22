@@ -112,6 +112,9 @@ public partial interface IEngineApiClient
     /// <param name="query">Search text the person typed in the shared "pick a result" window; null when the box was left as filled in (the Engine's own lookup).</param>
     Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null, string? query = null);
 
+    /// <summary>Reads one result of Find another on request (a subtitle row other than the best match); null when the Engine could not be reached.</summary>
+    Task<TextTrackAlternativePreviewResponse?> GetTextTrackAlternativePreviewAsync(Guid assetId, string kind, string provider, string sourceId, CancellationToken ct = default, string? language = null, string? query = null);
+
     /// <summary>Whether a lyrics or subtitle source is switched on for the item, from settings alone (no source is contacted). Null when the Engine could not be reached.</summary>
     Task<TextTrackSourcesResponse?> GetTextTrackSourcesAsync(Guid assetId, string kind, CancellationToken ct = default);
 

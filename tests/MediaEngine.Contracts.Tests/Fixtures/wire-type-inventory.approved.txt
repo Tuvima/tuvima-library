@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1614; api=0; web-client=56
+# scopes: contracts=1616; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10494,7 +10494,23 @@
   release_name: System.String | json=release_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   preview: System.String | json=preview | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   is_current: System.Boolean | json=is_current | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"provider":"sample","provider_name":"sample","source_id":"sample","language":"sample","is_timed":true,"confidence":7,"duration_match_score":7,"is_hearing_impaired":true,"release_name":"sample","preview":"sample","is_current":true}
+  title: System.String | json=title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  artist: System.String | json=artist | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  album: System.String | json=album | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  length_seconds: System.Double? | json=length_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  item_length_seconds: System.Double? | json=item_length_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  preview_lines: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.TextTrackPreviewLineDto> | json=preview_lines | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ends_at_seconds: System.Double? | json=ends_at_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  length_check: System.String | json=length_check | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  length_difference_seconds: System.Double? | json=length_difference_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"provider":"sample","provider_name":"sample","source_id":"sample","language":"sample","is_timed":true,"confidence":7,"duration_match_score":7,"is_hearing_impaired":true,"release_name":"sample","preview":"sample","is_current":true,"title":"sample","artist":"sample","album":"sample","length_seconds":7,"item_length_seconds":7,"preview_lines":[],"ends_at_seconds":7,"length_check":"sample","length_difference_seconds":7}
+
+[contracts] MediaEngine.Contracts.Playback.TextTrackAlternativePreviewResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  asset_id: System.Guid | json=asset_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  item: MediaEngine.Contracts.Playback.TextTrackAlternativeDto | json=item | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"asset_id":"11111111-2222-3333-4444-555555555555","status":"sample","item":null}
 
 [contracts] MediaEngine.Contracts.Playback.TextTrackAlternativesResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10531,6 +10547,12 @@
   IsLocallyExported: System.Boolean | json=isLocallyExported | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Url: System.String | json=url | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","kind":"sample","language":"sample","provider":"sample","confidence":7,"sourceFormat":"sample","normalizedFormat":"sample","timingMode":"sample","isHearingImpaired":true,"isPreferred":true,"isUserOwned":true,"isLocallyExported":true,"url":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.TextTrackPreviewLineDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  at_seconds: System.Double? | json=at_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  text: System.String | json=text | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"at_seconds":7,"text":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.TextTrackSourcesResponse
   kind=class | converter=default | number-handling=default | unmapped=default

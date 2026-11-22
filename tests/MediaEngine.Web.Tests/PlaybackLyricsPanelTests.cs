@@ -314,6 +314,57 @@ public sealed class PlaybackLyricsPanelTests : AsyncBunitContext
         Assert.Equal("synced", View(cut));
     }
 
+    [Fact]
+    public async Task FindAnother_EachRowShowsTheSourcesOwnSongName_TheTwoChecks_AndTheRealWordsInThePane_WithNoSourceNameOrPicture()
+    {
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([Track(_track, "lrclib")]));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), _ => Task.FromResult<string?>("[00:01.00]Words"));
+            stub.SetHandler(nameof(IEngineApiClient.GetPlayerPluginActionsAsync), _ =>
+                Task.FromResult<IReadOnlyList<PlayerPluginActionDto>>([new() { kind = "find_lyrics", slot = "player_core" }]));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), _ => Task.FromResult<TextTrackAlternativesResponse?>(new()
+            {
+                status = "Found",
+                items =
+                [
+                    new()
+                    {
+                        provider = "lrclib", provider_name = "LRCLIB", source_id = "1", is_timed = true, title = "Silhouettes", artist = "Empty Soul",
+                        album = "Empty Soul", length_seconds = 222, item_length_seconds = 222, length_check = "Fits", length_difference_seconds = 0,
+                        preview_lines = [new() { text = "Line one" }, new() { text = "Line two" }, new() { text = "Line three" }, new() { text = "Line four" }, new() { text = "Line five" }, new() { text = "Line six" }],
+                    },
+                    new()
+                    {
+                        provider = "lrclib", provider_name = "LRCLIB", source_id = "2", is_timed = false, title = "Silhouettes (Live)", artist = "Empty Soul",
+                        length_seconds = 250, item_length_seconds = 222, length_check = "Off", length_difference_seconds = 28,
+                        preview_lines = [new() { text = "Live line" }],
+                    },
+                ],
+            }));
+        });
+        var cut = await OpenAsync(api);
+        cut.WaitForAssertion(() => Assert.Equal("synced", View(cut)));
+        await OpenFooterMenuAsync(cut);
+
+        await cut.ClickAsync("[data-lyrics-action='find-another']");
+
+        cut.WaitForElement("[data-pick-results]");
+        var rows = cut.FindAll("[data-pick-result]");
+        Assert.Equal("Silhouettes", rows[0].QuerySelector(".app-pick-result__title")!.TextContent);
+        Assert.Equal("Empty Soul · Empty Soul · 3:42", rows[0].QuerySelector("[data-pick-sub]")!.TextContent);
+        Assert.Equal(["Synced", "Fits the song"], rows[0].QuerySelectorAll("[data-pick-check]").Select(check => check.TextContent));
+        Assert.Equal(["Words only, not timed", "28 seconds longer than the song"], rows[1].QuerySelectorAll("[data-pick-check]").Select(check => check.TextContent));
+        Assert.Equal("bad", rows[1].QuerySelectorAll("[data-pick-check]")[1].GetAttribute("data-pick-check"));
+        Assert.Equal(6, cut.FindAll("[data-pick-pane-lines] .app-pick-result__line").Count);
+        Assert.DoesNotContain("LRCLIB", cut.Find("[data-pick-results]").TextContent);
+        Assert.Empty(cut.FindAll("[data-pick-results] img"));
+
+        await cut.Find("[data-pick-result='lrclib:2']").ClickAsync();
+
+        Assert.Equal(["Live line"], cut.FindAll("[data-pick-pane-lines] .app-pick-result__line").Select(line => line.TextContent));
+    }
+
     // ---- Following, Resume following and selecting a line (A10) ----
 
     [Fact]

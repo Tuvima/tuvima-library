@@ -122,6 +122,21 @@ public sealed class LrclibLyricsReplayTests
     }
 
     [Fact]
+    public async Task EachOfferedSong_CarriesTheSourcesOwnTitleArtistAlbumAndLength_ForItsRow()
+    {
+        var list = List(Entry("Silhouettes", "Smile Empty Soul", 124, id: 2).Replace("\"albumName\":\"Album\"", "\"albumName\":\"Compilation\"", StringComparison.Ordinal));
+        var (provider, _) = Build(SearchAnswers(list));
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul") with { Interactive = true });
+
+        var candidate = Assert.Single(found);
+        Assert.Equal("Silhouettes", candidate.Title);
+        Assert.Equal("Smile Empty Soul", candidate.Artist);
+        Assert.Equal("Compilation", candidate.Album);
+        Assert.Equal(124d, candidate.SourceDurationSeconds);
+    }
+
+    [Fact]
     public async Task WhenAPersonIsChoosingAnother_ASongOfTheRightTitleAndArtistButAnotherLength_IsStillOffered_AfterTheOnesThatFit()
     {
         var list = List(

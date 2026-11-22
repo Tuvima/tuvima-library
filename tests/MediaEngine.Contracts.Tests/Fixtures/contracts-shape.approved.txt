@@ -9019,6 +9019,20 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackAlternati
   release_name: System.String | nullability=nullable | accessors=get,init
   preview: System.String | nullability=nullable | accessors=get,init
   is_current: System.Boolean | nullability=not-null | accessors=get,init
+  title: System.String | nullability=nullable | accessors=get,init
+  artist: System.String | nullability=nullable | accessors=get,init
+  album: System.String | nullability=nullable | accessors=get,init
+  length_seconds: System.Double? | nullability=nullable | accessors=get,init
+  item_length_seconds: System.Double? | nullability=nullable | accessors=get,init
+  preview_lines: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.TextTrackPreviewLineDto> | nullability=not-null | accessors=get,init
+  ends_at_seconds: System.Double? | nullability=nullable | accessors=get,init
+  length_check: System.String | nullability=nullable | accessors=get,init
+  length_difference_seconds: System.Double? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackAlternativePreviewResponse
+  asset_id: System.Guid | nullability=not-null | accessors=get,init
+  status: System.String | nullability=not-null | accessors=get,init
+  item: MediaEngine.Contracts.Playback.TextTrackAlternativeDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackAlternativesResponse
   asset_id: System.Guid | nullability=not-null | accessors=get,init
@@ -9049,6 +9063,10 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackDto
   IsUserOwned: System.Boolean | nullability=not-null | accessors=get,set
   IsLocallyExported: System.Boolean | nullability=not-null | accessors=get,set
   Url: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackPreviewLineDto
+  at_seconds: System.Double? | nullability=nullable | accessors=get,init
+  text: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackSourcesResponse
   asset_id: System.Guid | nullability=not-null | accessors=get,init

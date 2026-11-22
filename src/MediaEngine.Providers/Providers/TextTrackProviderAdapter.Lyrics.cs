@@ -224,7 +224,12 @@ public sealed partial class TextTrackProviderAdapter
             DurationMatchScore: durationScore,
             Payload: lyrics,
             IsInstrumental: instrumental,
-            MatchScore: matchScore);
+            MatchScore: matchScore,
+            Title: ReadString(root, rules.Match.TitlePath),
+            Artist: ReadString(root, rules.Match.ArtistPath),
+            Album: ReadString(root, rules.Match.AlbumPath),
+            SourceDurationSeconds: !string.IsNullOrEmpty(rules.Duration.Path) && TryPath(root, rules.Duration.Path, out var length)
+                && length.TryGetDouble(out var seconds) ? seconds : null);
     }
 
     /// <summary>The most results one text search offers (the caller shows fewer).</summary>

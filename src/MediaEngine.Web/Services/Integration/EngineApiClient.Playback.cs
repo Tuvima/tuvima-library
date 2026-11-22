@@ -594,6 +594,25 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<TextTrackAlternativePreviewResponse?> GetTextTrackAlternativePreviewAsync(
+        Guid assetId, string kind, string provider, string sourceId, CancellationToken ct = default, string? language = null, string? query = null)
+    {
+        try
+        {
+            var queryString = $"kind={Uri.EscapeDataString(kind)}&provider={Uri.EscapeDataString(provider)}&sourceId={Uri.EscapeDataString(sourceId)}"
+                + (string.IsNullOrWhiteSpace(language) ? string.Empty : $"&language={Uri.EscapeDataString(language)}")
+                + (string.IsNullOrWhiteSpace(query) ? string.Empty : $"&query={Uri.EscapeDataString(query.Trim())}");
+            return await _http.GetFromJsonAsync<TextTrackAlternativePreviewResponse>(
+                $"/stream/{assetId:D}/text-tracks/alternatives/preview?{queryString}", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET text track alternative preview failed for {AssetId}", assetId);
+            return null;
+        }
+    }
+
     public async Task<TextTrackSourcesResponse?> GetTextTrackSourcesAsync(Guid assetId, string kind, CancellationToken ct = default)
     {
         try
