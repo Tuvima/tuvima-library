@@ -961,27 +961,31 @@
     }
 }
 
-/* The title is never under the covers (issues 1190, 1252): the copy column is 44vw wide and the covers keep the other 44vw (GroupHeroCovers),
-   so the title wraps (to as many lines as the name needs) inside its column. */
-.tl-detail-hero--collection-art .tl-detail-hero__identity {
+/* The title is never under the covers (issues 1190, 1252, 1299). The covers keep the right 44vw (GroupHeroCovers), so the copy column is
+   40vw wide and the title wraps inside it. The hero has many width, padding and title-size rules that each carry several classes; the
+   collection-art class is repeated below so these rules outrank them all (the repeat adds weight and nothing else). */
+.tl-detail-hero__inner.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art .tl-detail-hero__identity {
     min-width: 0;
     width: 100%;
+    height: auto;
+    min-height: 0;
 }
 
-@media (width >= 840px) {
-    .tl-detail-hero--collection-art .tl-detail-hero__copy {
-        width: min(47.5rem, 42vw);
-    }
-}
-
-.tl-detail-hero--collection-art .tl-detail-hero__copy h1 {
+.tl-detail-hero__inner.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art .tl-detail-hero__copy h1 {
     max-width: 100%;
     overflow-wrap: anywhere;
 }
 
+@media (width >= 840px) {
+    .tl-detail-hero__inner.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art .tl-detail-hero__copy {
+        width: min(43rem, 40vw);
+        max-width: 40vw;
+    }
+}
+
 /* A phone: the covers sit on top (8.25rem tall, under the top bar), so the text starts under them. */
 @media (width < 840px) {
-    .tl-detail-hero__inner.tl-detail-hero--collection-art {
+    .tl-detail-hero__inner.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art {
         padding-top: calc(var(--app-topbar-height, 65px) + 1.25rem + 8.25rem + 1.5rem);
     }
 }
