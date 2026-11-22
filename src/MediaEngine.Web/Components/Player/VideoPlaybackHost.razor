@@ -327,7 +327,7 @@
         get
         {
             var picked = _captionTracks.Any(track => track.Selected);
-            var rows = _captionTracks
+            var rows = ListedCaptionTracks
                 .Select(track => (Choice: new SubtitleChoice(track.Key, CaptionChoiceLabel(track), track.Selected), Language: CaptionLanguage(track.Key)))
                 .Concat((Playback.CurrentManifest?.SubtitleTracks ?? []).Where(track => track.IsPicture && track.StreamIndex is not null).Select(track => (
                     Choice: new SubtitleChoice($"{SubtitleChoice.BurnKeyPrefix}{track.StreamIndex}", PictureChoiceLabel(track), _burnedSubtitleStream == track.StreamIndex, IsPicture: true),
@@ -344,6 +344,29 @@
                 .OrderBy(item => item.rank).ThenBy(item => item.index)
                 .Select(item => item.rank == int.MaxValue && item.row.Language is not null ? item.row.Choice with { IsMoreLanguage = true } : item.row.Choice);
             return ordered.Prepend(new SubtitleChoice(null, L["Common_Off"].Value, !picked && _burnedSubtitleStream is null)).ToList();
+        }
+    }
+
+    // The tracks the browser reports, plus every text subtitle the player already knows about (the file's own and the ones the Engine read out) that the
+    // browser has not reported yet, so a subtitle that exists is always offered and never hides behind the browser's own timing (issue 1166). Choosing
+    // one the browser does not have yet is held and applied the moment it appears (_pendingCaptionKey).
+    private IReadOnlyList<CaptionTrackMetric> ListedCaptionTracks
+    {
+        get
+        {
+            var reported = _captionTracks.Select(track => track.Key).ToHashSet(StringComparer.Ordinal);
+            var known = new List<CaptionTrackMetric>(_captionTracks);
+            foreach (var track in ManagedSubtitleTracks)
+            {
+                var key = $"managed:{track.Id:D}";
+                if (reported.Add(key)) known.Add(new CaptionTrackMetric { Key = key, Label = track.Language ?? string.Empty, Language = track.Language ?? string.Empty });
+            }
+            foreach (var track in SubtitleTracks)
+            {
+                var key = $"manifest:{track.Index}";
+                if (!track.IsPicture && reported.Add(key)) known.Add(new CaptionTrackMetric { Key = key, Label = track.DisplayName ?? string.Empty, Language = track.Language ?? string.Empty });
+            }
+            return known;
         }
     }
 
@@ -1436,10 +1459,14 @@
     {
         var identity = VideoPlaybackIdentity.Capture(Playback);
         if (identity is null) return;
-        if (await JS.InvokeAsync<bool>("listenPlayback.selectCaptionTrack", _videoRef, key, identity.AssetId, identity.RequestVersion, identity.ProfileId)
-            && identity.IsCurrent(Playback))
+        if (await JS.InvokeAsync<bool>("listenPlayback.selectCaptionTrack", _videoRef, key, identity.AssetId, identity.RequestVersion, identity.ProfileId))
         {
-            await HandleMetricsChangedAsync();
+            if (identity.IsCurrent(Playback)) await HandleMetricsChangedAsync();
+        }
+        else if (key is not null)
+        {
+            // The browser does not know this track yet: keep the choice and apply it as soon as the track is reported.
+            _pendingCaptionKey = key;
         }
     }
 

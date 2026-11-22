@@ -137,6 +137,24 @@ public sealed class VideoAudioSubtitlesHostTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ASubtitleThePlayerKnowsAbout_IsOfferedEvenBeforeTheBrowserReportsIt()
+    {
+        // Issue 1166: on Ferrari the panel listed only Off although the film had English and SDH. The browser reports nothing here (loose JS),
+        // yet both of the file's text subtitles must be listed to pick.
+        Arrange(UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid()), Guid.NewGuid());
+        var cut = Render<VideoPlaybackHost>();
+        var panel = cut.FindComponent<AudioSubtitlesPanel>().FindComponent<PlaybackPanel>();
+
+        await cut.InvokeAsync(() => panel.Instance.OpenAsync(true));
+        cut.WaitForElement("[data-audio-subtitles]");
+
+        var rows = cut.FindAll("[data-asv-subtitle]").Select(row => row.QuerySelector(".asv__label")!.TextContent).ToList();
+        Assert.Equal(3, rows.Count);
+        Assert.Equal("Off", rows[0]);
+        Assert.Contains(rows, row => row.Contains("SDH", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task OpeningAudioAndSubtitles_AsksOnceWhetherASourceIsOn_AndSearchesNothing()
     {
         var asset = Guid.NewGuid();
