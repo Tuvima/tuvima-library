@@ -94,6 +94,32 @@ object ClientRoutes {
     fun nextEpisodes(showId: String, afterAssetId: String, count: Int = 3): String =
         "$API/details/show/${encode(showId)}/next-episodes?after=${encode(afterAssetId)}&count=${count.coerceIn(1, 10)}"
 
+    // Find another (subtitles and lyrics). All four sit under the asset's text-tracks group; a blank language is left out.
+
+    /** Whether a source is switched on for the item (settings only, no source is contacted). */
+    fun textTrackSources(assetId: String, kind: TextTrackKind = TextTrackKind.Subtitles): String =
+        "$API/stream/${encode(assetId)}/text-tracks/sources?kind=${encode(kind.wire)}"
+
+    /** The list of other results for the item, searched in [language] (the profile's subtitle language). */
+    fun textTrackAlternatives(assetId: String, kind: TextTrackKind = TextTrackKind.Subtitles, language: String? = null): String =
+        "$API/stream/${encode(assetId)}/text-tracks/alternatives?" +
+            queryOf("kind" to kind.wire, "language" to language)
+
+    /** One result read on request: its first lines and, for a subtitle file, the timing check. */
+    fun textTrackAlternativePreview(
+        assetId: String,
+        provider: String,
+        sourceId: String,
+        kind: TextTrackKind = TextTrackKind.Subtitles,
+        language: String? = null,
+    ): String =
+        "$API/stream/${encode(assetId)}/text-tracks/alternatives/preview?" +
+            queryOf("kind" to kind.wire, "provider" to provider, "sourceId" to sourceId, "language" to language)
+
+    /** Use one result (POST). The choice is Library-wide. */
+    fun chooseTextTrackAlternative(assetId: String): String =
+        "$API/stream/${encode(assetId)}/text-tracks/alternatives/choose"
+
     const val DEVICE_PROFILES = "$API/devices/current/profiles"
     const val SWITCH_PROFILE = "$API/devices/current/switch-profile"
     const val VIEW_GALLERIES = "$API/view/galleries"
@@ -135,6 +161,11 @@ object ClientRoutes {
     /** The smallest allowed size that is at least [requested], or the largest allowed size. */
     fun nearestSize(requested: Int, allowed: List<Int>): Int =
         allowed.firstOrNull { it >= requested } ?: allowed.last()
+
+    private fun queryOf(vararg parameters: Pair<String, String?>): String =
+        parameters
+            .filter { !it.second.isNullOrBlank() }
+            .joinToString("&") { "${it.first}=${encode(it.second!!)}" }
 
     private fun paged(path: String, cursor: String?, limit: Int): String {
         val parameters = buildList {

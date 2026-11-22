@@ -86,20 +86,40 @@ Unit tests for the shared client (home and outside address selection, API v1 pat
 and the offline download rules: server-won detection, replay order, the storage cap, expiry and report results,
 plus kept photos: the cap with photos, the purge rule, kinds and the gallery plan)
 run with `gradle :core:testDebugUnitTest`. They use plain JUnit and cover logic that needs no Android
-framework; wire-shape parsing needs the Android JSON classes and is not yet covered by JVM unit tests.
+framework; wire-shape parsing uses the Android JSON classes (the `android-json` test dependency) and the Find another
+readers are covered by JVM unit tests against sample answers.
 
 ## Player
 
 Android TV, the phone app and Android Auto follow the shared contract in
 [`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md).
-Gaps for **Android TV**: the player activity is the stock player view with a
-subtitles button, so it has none of the contract's controls yet: the five
-transport buttons in order with Previous and Next dimmed in place, skips of 10
-seconds back and 30 forward by default (the profile's saved pair), the tool row
-(Episodes, Audio & subtitles, Bookmarks, Playback settings) with side panels on
-the right, Bookmarks (Everyone | Mine), paused details, the end card and the
-Autoplay switch. The Cast button (V6b-A) stays waiting on the product owner's
-television test. Gaps for **Android Auto**: the media service browses a Library
+**Android TV** keeps the stock player view for the picture and the transport controls, with its subtitle button
+replaced by the app's own **Audio & subtitles** side panel (spec "Find another on TV", WP3). Up from the controls
+reaches an "Audio & subtitles" tool (the remote's captions or menu key opens the panel directly). The panel lists Audio
+rows when there are several tracks, then Subtitles: Off, then each track, and a footer row **Find subtitles…** that is
+shown only when the sources check (`GET /api/v1/stream/{asset}/text-tracks/sources?kind=subtitles`) says `Ready`. Select
+on the footer opens the **Find another** window: full screen over the paused, dimmed video; a header (the item's name,
+"Find subtitles" and one Language button); the list on the left (release name, "Hearing impaired", "Made for your file"
+or "A different release, may be out of step", once read "Fits the film" or "Ends N minutes short of the film" or "past the
+film", and the "Best match" and "In use" chips); the focused row's first lines and their times on the right; Use this and
+Cancel at the foot. Keys: Up and Down move through the list (the pane follows), Right goes list, pane, Use this, Left goes
+back, Select on a row opens its words in full and focuses Use this, Select on Use this applies the result and resumes at
+the same position with the new subtitles, Select on Language opens a short list of languages, and Back closes the
+language list, then the full words, then the window. The best match is read as soon as the list opens; any other row is
+read only after focus has rested on it for one second, a row is read once per window and a failed read is not retried.
+Nothing can be typed. The player starts with the Engine's subtitle files attached (the profile's language preferences
+pick the one shown); the entry is hidden when no source is on or the profile may not use it.
+All of the logic is in `core` (pure Kotlin, no screen types, JVM unit-tested) so the phone's sheet reuses it:
+`FindAnotherModel` (one window's state: search, reading, focus, apply), `FindAnotherKeys` (the key map), `FindAnotherDwell`
+(the reading rule, with an injected scheduler), `FindAnotherWording` and `FindAnotherRows` (the Dashboard's sentences and
+row data), `FindAnotherLanguages`, the wire models and parsers (`TextTrackAlternative`, `TextTrackAlternatives`,
+`TextTrackAlternativePreview`, `TextTrackSources`, `ChooseTextTrackRequest`, `TextTrackChoiceResult`), the four routes in
+`ClientRoutes` and the matching `TuvimaClient` calls. Gaps for **Android TV**: it still has none of the contract's other
+controls: the five transport buttons in order with Previous and Next dimmed in place, skips of 10 seconds back and 30
+forward by default (the profile's saved pair), the other tool-row entries (Episodes, Bookmarks, Playback settings) and
+their side panels, Bookmarks (Everyone | Mine), paused details, the end card and the Autoplay switch; the Lyrics panel
+(spec WP5); and the window's "Updating" wait after Use this is shown inside the window, not on the panel. The Cast
+button (V6b-A) stays waiting on the product owner's television test. Gaps for **Android Auto**: the media service browses a Library
 root, but the list should be Continue, the Listen shelves, Audiobooks, Playlists
 and Recently played, and the Now playing card should carry the contract's
 lock-screen fields and the music or audiobook actions (back 10, forward 30,
