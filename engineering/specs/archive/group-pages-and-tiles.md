@@ -1,6 +1,6 @@
 # Spec: Group pages and tiles refresh
 
-> **Status:** Locked (Shy, 2026-11-21) · **Version:** 1 · **Last updated:** 2026-11-21 · **Related docs:** [One tile design](one-tile-design.md) · [Universal editor v8](archive/universal-editor-v8-badge-artwork-collections.md) · [Collections and lists](archive/collections-and-lists.md) · [Listen playlists](archive/listen-playlists.md) · Issues #1247, #1251, #1252, #1254, #1260 · Mockups: [group-pages-and-tiles.html](../design/mockups/group-pages-and-tiles.html) · Earlier work still awaiting a Local check: #1172, #1165, #1171, #1190, #1175, #1160, #1173, #1174
+> **Status:** Built, awaiting your Local checks (built 2026-11-22; PRs 1289, 1290, 1292, 1293, 1294; locked by Shy 2026-11-21) · **Version:** 1 · **Last updated:** 2026-11-21 · **Related docs:** [One tile design](one-tile-design.md) · [Universal editor v8](archive/universal-editor-v8-badge-artwork-collections.md) · [Collections and lists](archive/collections-and-lists.md) · [Listen playlists](archive/listen-playlists.md) · Issues #1247, #1251, #1252, #1254, #1260 · Mockups: [group-pages-and-tiles.html](../design/mockups/group-pages-and-tiles.html) · Earlier work still awaiting a Local check: #1172, #1165, #1171, #1190, #1175, #1160, #1173, #1174
 
 ## 1. Goal
 
