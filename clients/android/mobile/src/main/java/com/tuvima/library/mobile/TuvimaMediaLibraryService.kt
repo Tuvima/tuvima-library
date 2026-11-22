@@ -31,6 +31,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import com.tuvima.library.core.HeartbeatRules
+import com.tuvima.library.core.PlaybackManifest
 import com.tuvima.library.core.PreparingPoll
 import com.tuvima.library.core.PreparingStep
 import com.tuvima.library.core.StreamRecovery
@@ -283,6 +284,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 .add(SessionCommand(COMMAND_PLAY_VIDEO, Bundle.EMPTY))
                 .add(SessionCommand(COMMAND_CANCEL_VIDEO, Bundle.EMPTY))
                 .add(SessionCommand(COMMAND_CLOSE_VIDEO, Bundle.EMPTY))
+                .add(SessionCommand(COMMAND_RELOAD_SUBTITLES, Bundle.EMPTY))
                 .build()
             if (controller.connectionHints.getBoolean(HINT_VIDEO_SCREEN)) videoScreens.add(controller)
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
@@ -330,6 +332,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 closeVideo()
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
+            COMMAND_RELOAD_SUBTITLES -> reloadSubtitles(args.getString(EXTRA_ASSET_ID).orEmpty())
             else -> Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
         }
 
@@ -529,17 +532,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             when (val step = PreparingPoll.next(manifest, attempt)) {
                 is PreparingStep.Play -> {
                     // Sidecar subtitles are fetched through the same data source as the video, so they carry the same bearer token.
-                    val sidecars = manifest.subtitleTracks.mapNotNull { track ->
-                        val url = track.deliveryUrl ?: return@mapNotNull null
-                        MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
-                            .setMimeType(SubtitleStyleRules.mimeFor(track.codec, url))
-                            .setLanguage(track.language)
-                            .setLabel(track.displayName ?: track.language)
-                            .setSelectionFlags(if (track.isForced) C.SELECTION_FLAG_FORCED else 0)
-                            .build()
-                    }
                     val item = MediaItem.Builder().setMediaId(assetId).setUri(step.path).setMediaMetadata(metadata)
-                        .setSubtitleConfigurations(sidecars).build()
+                        .setSubtitleConfigurations(sidecarSubtitles(manifest)).build()
                     player.setMediaItem(item, if (resume) StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds) else 0L)
                     player.prepare()
                     player.play()
@@ -550,6 +544,55 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 PreparingStep.TimedOut -> throw VideoStartException(VideoMessages.TIMED_OUT)
             }
         }
+    }
+
+    /** The Engine's subtitle files as sidecars for a video item (one per track that has a delivery address). */
+    private fun sidecarSubtitles(manifest: PlaybackManifest): List<MediaItem.SubtitleConfiguration> =
+        manifest.subtitleTracks.mapNotNull { track ->
+            val url = track.deliveryUrl ?: return@mapNotNull null
+            MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
+                .setMimeType(SubtitleStyleRules.mimeFor(track.codec, url))
+                .setLanguage(track.language)
+                .setLabel(track.displayName ?: track.language)
+                .setSelectionFlags(if (track.isForced) C.SELECTION_FLAG_FORCED else 0)
+                .build()
+        }
+
+    /**
+     * Find another used a result: ask the Engine for the playback manifest again and put the video back in at the same
+     * position and play state with the new subtitle files (spec "Find another on TV", WP8). A downloaded copy has none of the
+     * Engine's subtitle files, so it is left as it is. The result is an error for anything that could not be done, and the
+     * screen then carries on with the video as it was.
+     */
+    private fun reloadSubtitles(assetId: String): ListenableFuture<SessionResult> {
+        val result = SettableFuture.create<SessionResult>()
+        scope.launch {
+            try {
+                val item = player.currentMediaItem
+                val api = client
+                if (api == null || item == null || item.mediaId != assetId || isLocalItem(item)) {
+                    result.set(SessionResult(SessionResult.RESULT_ERROR_BAD_VALUE))
+                    return@launch
+                }
+                val manifest = api.playbackManifest(assetId, "local")
+                val position = player.currentPosition
+                val wasPlaying = player.playWhenReady
+                // The title and type stay as they were; the stream address is the manifest's own, and the subtitle files are the new ones.
+                val builder = item.buildUpon().setSubtitleConfigurations(sidecarSubtitles(manifest))
+                manifest.playablePath()?.let { builder.setUri(Uri.parse(it)) }
+                player.setMediaItem(builder.build(), position)
+                player.prepare()
+                player.playWhenReady = wasPlaying
+                result.set(SessionResult(SessionResult.RESULT_SUCCESS))
+            } catch (cancelled: CancellationException) {
+                result.set(SessionResult(SessionResult.RESULT_ERROR_UNKNOWN))
+                throw cancelled
+            } catch (failure: Exception) {
+                // Reported to the screen as an error result; the video keeps playing as it was.
+                result.set(SessionResult(SessionResult.RESULT_ERROR_UNKNOWN))
+            }
+        }
+        return result
     }
 
     private fun startHeartbeatLoop() {
@@ -682,6 +725,9 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         const val COMMAND_PLAY_VIDEO = "com.tuvima.library.PLAY_VIDEO"
         const val COMMAND_CANCEL_VIDEO = "com.tuvima.library.CANCEL_VIDEO"
         const val COMMAND_CLOSE_VIDEO = "com.tuvima.library.CLOSE_VIDEO"
+
+        /** Sent by the video screen after Find another used a result (extra: [EXTRA_ASSET_ID]); reloads the subtitle files at the same position. */
+        const val COMMAND_RELOAD_SUBTITLES = "com.tuvima.library.RELOAD_SUBTITLES"
 
         /** Connection hint set by the video screen's media controller, so the service knows a video screen is open. */
         const val HINT_VIDEO_SCREEN = "video_screen"

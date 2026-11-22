@@ -110,6 +110,44 @@ class FindAnotherModel(
         }
     }
 
+    // ---- Touch (the phone sheet) -----------------------------------------------------------------------------------
+    // The same window driven by taps instead of a remote's keys: there is no focus to rest, so no one-second wait. A tap
+    // reads and selects; the read goes through the same read-once rule as the remote, so a row is never read twice.
+
+    /**
+     * A tap on a row: the row becomes the selected one, its words open in full and it is read at once when it has not been
+     * read (the best match was read when the list opened). Ignored while a choice is being applied or when there are no rows.
+     */
+    fun tapRow(index: Int) {
+        if (state.applying || state.phase != FindAnotherPhase.Rows) return
+        val item = state.items.getOrNull(index) ?: return
+        publish(
+            state.copy(
+                keys = state.keys.copy(row = index, fullWords = true, zone = FindAnotherZone.List),
+                applyProblem = null,
+            ),
+        )
+        dwell.readNow(item.key, item.hasWords)
+    }
+
+    /** Use this: applies the selected row (the best match until another is tapped). */
+    fun useSelected() {
+        if (state.applying || state.phase != FindAnotherPhase.Rows) return
+        state.items.getOrNull(state.keys.row)?.let { applyChoice(it) }
+    }
+
+    /** Cancel: the host closes the sheet. Ignored while a choice is being applied. */
+    fun cancel() {
+        if (state.applying) return
+        onClosed()
+    }
+
+    /** A language picked from the Language list: searches again in it. */
+    fun chooseLanguage(index: Int) {
+        if (state.applying || !state.keys.languageAvailable) return
+        languageChoices.getOrNull(index)?.let { search(it) }
+    }
+
     private fun publish(next: FindAnotherState) {
         state = next
         onChange(next)

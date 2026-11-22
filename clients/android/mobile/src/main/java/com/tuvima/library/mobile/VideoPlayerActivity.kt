@@ -108,6 +108,12 @@ import com.tuvima.library.core.AudioTrack
 import com.tuvima.library.core.Chapter
 import com.tuvima.library.core.ClockText
 import com.tuvima.library.core.CloseAction
+import com.tuvima.library.core.CoroutineDwellScheduler
+import com.tuvima.library.core.FindAnotherLanguages
+import com.tuvima.library.core.FindAnotherModel
+import com.tuvima.library.core.FindAnotherSheet
+import com.tuvima.library.core.FindAnotherState
+import com.tuvima.library.core.FindAnotherWording
 import com.tuvima.library.core.NextEpisode
 import com.tuvima.library.core.NextEpisodeLogic
 import com.tuvima.library.core.NextEpisodeMessages
@@ -123,13 +129,16 @@ import com.tuvima.library.core.PlaybackPreferences
 import com.tuvima.library.core.PlaybackSegment
 import com.tuvima.library.core.PlaybackTrackPicker
 import com.tuvima.library.core.ScreenKind
+import com.tuvima.library.core.ShowSubtitles
 import com.tuvima.library.core.SlideKind
 import com.tuvima.library.core.SubtitleStyleRules
 import com.tuvima.library.core.SubtitleTrack
+import com.tuvima.library.core.TextTrackKind
 import com.tuvima.library.core.VideoFailure
 import com.tuvima.library.core.VideoGestures
 import com.tuvima.library.core.VideoMessages
 import com.tuvima.library.core.VideoSessionPolicy
+import com.tuvima.library.core.findAnotherApi
 import com.tuvima.library.core.segmentToOffer
 import com.tuvima.library.core.StreamRecovery
 import kotlinx.coroutines.CancellationException
@@ -208,6 +217,18 @@ class VideoPlayerActivity : ComponentActivity() {
     // True between onStart and onStop. The next-episode countdown only runs while the screen is showing.
     private var started by mutableStateOf(false)
 
+    // Find another (spec "Find another on TV", WP8): the bottom sheet over the video, opened from the Audio & subtitles view.
+    // The entry shows only when the sources check said Ready. The shared model owns the search, the reads and the choice.
+    private var canFindSubtitles by mutableStateOf(false)
+    private var findState by mutableStateOf<FindAnotherState?>(null)
+    private var findModel: FindAnotherModel? = null
+    private var findLanguages: List<String> = emptyList()
+    // False once the sheet is closed; the model can outlive it only while a choice is still being applied.
+    private var findSheetOpen = false
+    private var resumeAfterFind = false
+    // Set after the Engine's new subtitle files are loaded: the next tracks update switches the new file on.
+    private var pendingSubtitleReselect = false
+
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             this@VideoPlayerActivity.isPlaying = isPlaying
@@ -228,6 +249,7 @@ class VideoPlayerActivity : ComponentActivity() {
         override fun onTracksChanged(tracks: Tracks) {
             this@VideoPlayerActivity.tracks = tracks
             applyInitialSelection()
+            reselectSubtitlesIfPending()
         }
 
         override fun onTrackSelectionParametersChanged(parameters: TrackSelectionParameters) {
@@ -409,6 +431,7 @@ class VideoPlayerActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        findModel?.close()
         pipReceiver?.let { runCatching { unregisterReceiver(it) } }
         pipReceiver = null
         releaseController(VideoSessionPolicy.onScreenStop(isFinishing))
@@ -541,6 +564,7 @@ class VideoPlayerActivity : ComponentActivity() {
         chapters = emptyList()
         segments = emptyList()
         manifestDurationSeconds = null
+        resetFind()
         manifestRequested = false
         speedApplied = false
         nextEpisodes = emptyList()
@@ -561,6 +585,13 @@ class VideoPlayerActivity : ComponentActivity() {
         if (manifestRequested) return
         manifestRequested = true
         val client = (application as TuvimaMobileApplication).client ?: return
+        // "Find subtitles…" is offered only when a subtitle source is switched on; any failed answer keeps it hidden.
+        val checked = assetId
+        canFindSubtitles = false
+        lifecycleScope.launch {
+            val sources = client.textTrackSources(checked, TextTrackKind.Subtitles)
+            if (assetId == checked) canFindSubtitles = FindAnotherSheet.entryVisible(sources, playingDownload())
+        }
         lifecycleScope.launch {
             try {
                 val manifest = client.playbackManifest(assetId, "local")
@@ -627,6 +658,116 @@ class VideoPlayerActivity : ComponentActivity() {
             subtitle = choice.subtitleIndex?.let { text.getOrNull(it) },
             subtitlesOff = choice.subtitleIndex == null,
         )
+    }
+
+    // ---- Find another ----------------------------------------------------------------------------------------------
+
+    /** Opens the sheet: the video pauses behind it and comes back as it was when the sheet closes. */
+    private fun openFind() {
+        val api = (application as TuvimaMobileApplication).client ?: return
+        if (findModel != null) return
+        val active = controller
+        resumeAfterFind = active?.playWhenReady ?: false
+        active?.pause()
+        val languages = FindAnotherLanguages.choices(
+            preferred = prefs.subtitleLanguage,
+            others = listOf(prefs.audioLanguage) + optionsFor(C.TRACK_TYPE_TEXT).map { it.language },
+        )
+        findLanguages = languages
+        val model = FindAnotherModel(
+            api = api.findAnotherApi(assetId, TextTrackKind.Subtitles),
+            scope = lifecycleScope,
+            scheduler = CoroutineDwellScheduler(lifecycleScope),
+            kind = TextTrackKind.Subtitles,
+            initialLanguage = FindAnotherLanguages.nameFor(prefs.subtitleLanguage),
+            languageChoices = languages,
+            itemNoun = if (showId != null) "episode" else "film",
+            onChange = { next ->
+                if (findSheetOpen) {
+                    findState = next
+                } else if (!next.applying) {
+                    // The sheet was closed while a choice was being applied and it was refused: nothing more to wait for.
+                    endFind()
+                    controller?.playWhenReady = resumeAfterFind
+                }
+            },
+            onApplied = { onFindApplied() },
+            onClosed = { closeFind() },
+        )
+        findModel = model
+        findSheetOpen = true
+        findState = model.state
+        model.start()
+    }
+
+    /** Cancel or a swipe down: the sheet goes and the video carries on as it was. While a choice is being applied the model is kept so the video still reloads. */
+    private fun closeFind() {
+        findSheetOpen = false
+        findState = null
+        if (findModel?.state?.applying == true) return
+        endFind()
+        controller?.playWhenReady = resumeAfterFind
+    }
+
+    private fun endFind() {
+        findModel?.close()
+        findModel = null
+        findSheetOpen = false
+        findState = null
+    }
+
+    /** Leaves nothing of Find another behind (another episode is starting). */
+    private fun resetFind() {
+        endFind()
+        canFindSubtitles = false
+        pendingSubtitleReselect = false
+    }
+
+    /** Use this worked: the sheet closes and the video goes on from the same place with the new subtitles. */
+    private fun onFindApplied() {
+        endFind()
+        reloadSubtitles()
+    }
+
+    private fun reloadSubtitles() {
+        val active = controller ?: return
+        val current = assetId
+        val args = Bundle().apply { putString(TuvimaMediaLibraryService.EXTRA_ASSET_ID, current) }
+        val pending = active.sendCustomCommand(SessionCommand(TuvimaMediaLibraryService.COMMAND_RELOAD_SUBTITLES, Bundle.EMPTY), args)
+        pending.addListener({
+            if (controller !== active || assetId != current) return@addListener
+            val result: SessionResult? = try {
+                pending.get()
+            } catch (error: Exception) {
+                // The command could not be delivered; the video simply carries on as it was.
+                null
+            }
+            if (result?.resultCode == SessionResult.RESULT_SUCCESS) {
+                // The chosen file is the profile's own now: text is switched back on and the new track picked when it arrives.
+                pendingSubtitleReselect = true
+                active.trackSelectionParameters = active.trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                    .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                    .build()
+            }
+            active.playWhenReady = resumeAfterFind
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    /** Once the reloaded video reports its text tracks, switches subtitles on and picks the file for the profile's language (audio is left alone). */
+    private fun reselectSubtitlesIfPending() {
+        if (!pendingSubtitleReselect) return
+        val text = optionsFor(C.TRACK_TYPE_TEXT)
+        if (text.isEmpty()) return
+        pendingSubtitleReselect = false
+        val choice = PlaybackTrackPicker.pick(
+            audioTracks = emptyList(),
+            subtitleTracks = text.mapIndexed { i, o -> SubtitleTrack(i, o.language, null, o.label, o.isDefault, o.isForced, null) },
+            audioLanguage = prefs.audioLanguage,
+            subtitleLanguage = prefs.subtitleLanguage,
+            showSubtitles = ShowSubtitles.Always,
+        )
+        select(audio = null, subtitle = choice.subtitleIndex?.let { text.getOrNull(it) } ?: text.first(), subtitlesOff = false)
     }
 
     private fun applyInitialSpeed() {
@@ -933,6 +1074,13 @@ class VideoPlayerActivity : ComponentActivity() {
                                 sheet = Sheet.None
                             }
                         }
+                        // The footer row, hidden unless a subtitle source is switched on for this video.
+                        if (canFindSubtitles) {
+                            FindAnotherEntryRow(FindAnotherWording.entryLabel(TextTrackKind.Subtitles)) {
+                                sheet = Sheet.None
+                                openFind()
+                            }
+                        }
                     }
                 }
                 Sheet.Speed -> PickerSheet("Playback speed", onDismiss = { sheet = Sheet.None }) {
@@ -964,6 +1112,18 @@ class VideoPlayerActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
+            findState?.let { state ->
+                FindAnotherBottomSheet(
+                    state = state,
+                    itemName = title,
+                    languageChoices = findLanguages,
+                    onTapRow = { findModel?.tapRow(it) },
+                    onUseThis = { findModel?.useSelected() },
+                    onCancel = { findModel?.cancel() },
+                    onChooseLanguage = { findModel?.chooseLanguage(it) },
+                    onDismiss = { closeFind() },
+                )
             }
             }
         }
