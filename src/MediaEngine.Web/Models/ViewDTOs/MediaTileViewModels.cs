@@ -292,6 +292,9 @@ public static class MediaTileShelfKeys
     public const string ReadSeries = "series-and-reading-lists";
     public const string Collections = "collections";
     public const string HomeCollections = "home-collections";
+
+    /// <summary>Home's row of group tiles (Series, collections, folders of videos); it sits right after Recently added.</summary>
+    public const string CollectionsAndSeries = "collections-and-series";
     public const string ListenCollections = "listen-collections";
 
     /// <summary>Prefix of a collection lane's shelf key: "lane-" and the collection id without dashes.</summary>
@@ -323,6 +326,7 @@ public static class MediaTileShelfKeys
 
         if (string.Equals(key, Collections, StringComparison.OrdinalIgnoreCase)
             || string.Equals(key, HomeCollections, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(key, CollectionsAndSeries, StringComparison.OrdinalIgnoreCase)
             || string.Equals(key, ListenCollections, StringComparison.OrdinalIgnoreCase))
         {
             return MediaTileShelfKind.Collections;
