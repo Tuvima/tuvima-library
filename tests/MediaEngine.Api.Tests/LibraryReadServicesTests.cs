@@ -49,6 +49,28 @@ public sealed class LibraryReadServicesTests : IDisposable
     }
 
     [Fact]
+    public async Task WorkFeed_GivesASongItsArtist_FromTheMultiValuedArtistField()
+    {
+        var rootWorkId = Guid.NewGuid();
+        var leafWorkId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        SeedOwnedWork(rootWorkId, leafWorkId, editionId, assetId);
+        using (var conn = _db.CreateConnection())
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "INSERT INTO canonical_value_arrays (entity_id, key, value, ordinal) VALUES ($id, 'artist', 'Smile Empty Soul', 0);";
+            AddGuid(cmd, "$id", leafWorkId);
+            cmd.ExecuteNonQuery();
+        }
+
+        var response = await new LibraryWorkFeedReadService(_db).GetWorksAsync(new PagedRequest(0, 20));
+
+        var item = Assert.Single(response.Items);
+        Assert.Equal("Smile Empty Soul", item.CanonicalValues["artist"]);
+    }
+
+    [Fact]
     public async Task WorkFeed_AppliesAllowedWorkScopeBeforePaging()
     {
         var hidden = SeedStandaloneWork("Hidden first", "QHIDDEN");

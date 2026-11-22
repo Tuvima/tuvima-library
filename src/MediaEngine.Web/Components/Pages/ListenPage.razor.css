@@ -131,9 +131,16 @@
 .listen-rail__playlist-row {
     position: relative;
     display: grid;
-    grid-template-columns: 22px minmax(0, 1fr) var(--tl-tap-target-min, 44px);
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
-    gap: 4px;
+}
+
+/* A hand-made playlist's row is as wide as Favorites and See all, with its icon on the same line (issue 1248): the link takes the whole row,
+   and the grip and the "..." menu lie over its two ends instead of taking columns from it. The grip shows over the icon while the row is
+   hovered or focused, and the menu keeps room at the end of the name. */
+.listen-rail__playlist-row > .listen-rail__item.is-child {
+    padding-left: 12px;
+    padding-right: 36px;
 }
 
 .listen-rail__playlist-row.is-dragging,
@@ -152,8 +159,9 @@
 
 /* On a touch device the grip is a 44 px target (its size is set below, after the grip's own rule). */
 @media (hover: none), (pointer: coarse) {
-    .listen-rail__playlist-row {
-        grid-template-columns: var(--tl-tap-target-min, 44px) minmax(0, 1fr) var(--tl-tap-target-min, 44px);
+    .listen-rail__playlist-row > .listen-rail__item.is-child {
+        padding-left: 44px;
+        padding-right: 44px;
     }
 }
 

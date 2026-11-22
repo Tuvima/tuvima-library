@@ -407,6 +407,12 @@
     margin: 0 0 12px;
 }
 
+.browse-shell__result-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .browse-shell__result-summary > div:first-child {
     display: flex;
     align-items: baseline;

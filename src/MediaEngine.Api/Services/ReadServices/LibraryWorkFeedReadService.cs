@@ -110,11 +110,20 @@ public sealed class LibraryWorkFeedReadService(IDatabaseConnection db) : ILibrar
             "author",
             ct).ConfigureAwait(false);
 
+        // A song's artist is a multi-valued field, so it lives in the arrays, not the scalar values (issue 1315). Without it a song read
+        // from here (a hand-made playlist, the player bar, Now playing) showed no artist.
+        var artistArrays = await LoadCanonicalArraysAsync(
+            conn,
+            workRows.SelectMany(row => new[] { row.AssetId, row.WorkId, row.RootWorkId }),
+            "artist",
+            ct).ConfigureAwait(false);
+
         var items = workRows.Select(row => ComposeItem(
             row,
             assetCanonicalValues,
             rootCanonicalValues,
-            authorArrays)).ToList();
+            authorArrays,
+            artistArrays)).ToList();
         return PagedResponse<LibraryWorkListItemDto>.FromPage(items, page);
     }
 
@@ -122,7 +131,8 @@ public sealed class LibraryWorkFeedReadService(IDatabaseConnection db) : ILibrar
         LibraryWorkFeedRow row,
         IReadOnlyDictionary<Guid, Dictionary<string, string>> assetCanonicalValues,
         IReadOnlyDictionary<Guid, Dictionary<string, string>> rootCanonicalValues,
-        IReadOnlyDictionary<Guid, List<string>> authorArrays)
+        IReadOnlyDictionary<Guid, List<string>> authorArrays,
+        IReadOnlyDictionary<Guid, List<string>> artistArrays)
     {
         assetCanonicalValues.TryGetValue(row.AssetId, out var assetValues);
         rootCanonicalValues.TryGetValue(row.RootWorkId, out var rootValues);
@@ -136,6 +146,18 @@ public sealed class LibraryWorkFeedReadService(IDatabaseConnection db) : ILibrar
             && authors.Count > 0)
         {
             canonicalValues["author"] = string.Join("; ", authors);
+        }
+
+        if (!canonicalValues.ContainsKey("artist"))
+        {
+            foreach (var entityId in new[] { row.AssetId, row.WorkId, row.RootWorkId })
+            {
+                if (artistArrays.TryGetValue(entityId, out var artists) && artists.Count > 0)
+                {
+                    canonicalValues["artist"] = string.Join("; ", artists);
+                    break;
+                }
+            }
         }
 
         AddManagedArtworkFallback(canonicalValues, assetValues, rootValues, row.AssetId, "cover");

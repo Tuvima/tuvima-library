@@ -318,6 +318,24 @@
                 <h2>@ActiveGroupingLabel</h2>
                 <span>@ResultCountLabel</span>
             </div>
+            @if (ShowSongsPlayButtons)
+            {
+                @* Play and Shuffle sit beside the heading so music can start without picking a song (issue 1317). They play the songs as filtered and sorted, like a playlist page's buttons. The phone has the same two in its own header. *@
+                <div class="browse-shell__result-actions">
+                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                               StartIcon="@AppMaterialIcons.Filled.PlayArrow"
+                               Label="@L["Common_Play"].Value"
+                               Disabled="@(SongTracks.Count == 0)"
+                               OnClick="@(() => PlayPhoneSongsAsync(shuffle: false))"
+                               data-songs-play />
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                               StartIcon="@AppMaterialIcons.Filled.Shuffle"
+                               Label="@L["Common_Shuffle"].Value"
+                               Disabled="@(SongTracks.Count == 0)"
+                               OnClick="@(() => PlayPhoneSongsAsync(shuffle: true))"
+                               data-songs-shuffle />
+                </div>
+            }
             @if (ShowAlbumSelectButton)
             {
                 @* Albums can be ticked to go into a playlist (Listen music spec D15). Select turns the album covers into tick targets, as My List does. *@

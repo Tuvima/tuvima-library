@@ -5,7 +5,8 @@ import { expected, loadTokens } from '../../tools/Generate-Tokens.mjs';
 
 test('generated token files match design/tokens/tuvima.tokens.json (run node tools/Generate-Tokens.mjs)', () => {
     for (const [path, text] of expected()) {
-        assert.equal(readFileSync(path, 'utf8'), text, `${path} is out of date; run node tools/Generate-Tokens.mjs`);
+        // A Windows checkout may hold the files with CRLF line endings; the generator writes LF, and the line ending is not what is compared.
+        assert.equal(readFileSync(path, 'utf8').replace(/\r\n/g, '\n'), text.replace(/\r\n/g, '\n'), `${path} is out of date; run node tools/Generate-Tokens.mjs`);
     }
 });
 
