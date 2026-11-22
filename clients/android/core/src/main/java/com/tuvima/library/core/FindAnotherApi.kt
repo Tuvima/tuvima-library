@@ -17,11 +17,14 @@ interface FindAnotherApi {
 /** The window's calls for [assetId], through this paired app's authenticated client. */
 fun TuvimaClient.findAnotherApi(assetId: String, kind: TextTrackKind = TextTrackKind.Subtitles): FindAnotherApi =
     object : FindAnotherApi {
-        override suspend fun alternatives(language: String?) = textTrackAlternatives(assetId, kind, language)
+        override suspend fun alternatives(language: String?) = textTrackAlternatives(assetId, kind, languageFor(kind, language))
 
         override suspend fun preview(item: TextTrackAlternative, language: String?) =
-            textTrackAlternativePreview(assetId, item.provider, item.sourceId, kind, language)
+            textTrackAlternativePreview(assetId, item.provider, item.sourceId, kind, languageFor(kind, language))
 
         override suspend fun choose(item: TextTrackAlternative, language: String?) =
-            chooseTextTrackAlternative(assetId, ChooseTextTrackRequest(kind, item.provider, item.sourceId, language))
+            chooseTextTrackAlternative(assetId, ChooseTextTrackRequest(kind, item.provider, item.sourceId, languageFor(kind, language)))
     }
+
+/** Lyrics are searched in the song's own language: the window has no Language button and no language is ever sent for them. */
+internal fun languageFor(kind: TextTrackKind, language: String?): String? = if (kind == TextTrackKind.Lyrics) null else language

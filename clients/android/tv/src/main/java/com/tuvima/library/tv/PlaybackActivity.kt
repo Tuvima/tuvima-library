@@ -47,6 +47,9 @@ import com.tuvima.library.core.FindAnotherKey
 import com.tuvima.library.core.FindAnotherLanguages
 import com.tuvima.library.core.FindAnotherModel
 import com.tuvima.library.core.FindAnotherState
+import com.tuvima.library.core.LyricsFollow
+import com.tuvima.library.core.LyricsPanelEffect
+import com.tuvima.library.core.LyricsView
 import com.tuvima.library.core.PanelChoice
 import com.tuvima.library.core.PanelEffect
 import com.tuvima.library.core.PanelRow
@@ -57,6 +60,7 @@ import com.tuvima.library.core.PlaybackTrackPicker
 import com.tuvima.library.core.TextTrackChoiceResult
 import com.tuvima.library.core.TextTrackKind
 import com.tuvima.library.core.findAnotherApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -84,6 +88,19 @@ class PlaybackActivity : ComponentActivity() {
     private var panelIndex by mutableIntStateOf(0)
     private var findState by mutableStateOf<FindAnotherState?>(null)
     private var findLanguages by mutableStateOf<List<String>>(emptyList())
+
+    // The Lyrics panel (music only; spec "Find another on TV", D6 and WP5). A song plays through this same player; the tool,
+    // the side panel and the Find lyrics window replace the Audio & subtitles ones for it.
+    private var isMusic by mutableStateOf(false)
+    private var lyricsOpen by mutableStateOf(false)
+    private var lyrics by mutableStateOf(LyricsView.loading())
+    private var lyricsIndex by mutableIntStateOf(-1)
+
+    /** The footer row "Find lyrics…" is drawn only when the lyrics source check said Ready. */
+    private var canFindLyrics by mutableStateOf(false)
+    private var lyricsGeneration = 0
+    private var lyricsFollowJob: Job? = null
+    private var findKind = TextTrackKind.Subtitles
 
     private var findModel: FindAnotherModel? = null
     private var manifest: PlaybackManifest? = null
@@ -120,7 +137,12 @@ class PlaybackActivity : ComponentActivity() {
                 MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFF9B7BFF))) {
                     PlaybackOverlay(
                         toolVisible = controllerVisible && playerReady(),
+                        toolLabel = if (isMusic) LyricsFollow.HEADING else "Audio & subtitles",
                         toolFocused = toolFocused,
+                        lyricsOpen = lyricsOpen,
+                        lyrics = lyrics,
+                        lyricsIndex = lyricsIndex,
+                        canFindLyrics = canFindLyrics,
                         panelRows = panelRows,
                         panelIndex = panelIndex,
                         find = findState,
@@ -153,6 +175,7 @@ class PlaybackActivity : ComponentActivity() {
     @OptIn(UnstableApi::class)
     private suspend fun startPlayback(manifest: PlaybackManifest) {
         this.manifest = manifest
+        isMusic = LyricsFollow.isMusic(manifest.mediaType)
         mediaPath = manifest.playablePath()
         // The token and the server address (home or outside) are read when each request is made, never once at start-up:
         // the token lives about ten minutes and the address can change when the television changes network.
@@ -180,7 +203,8 @@ class PlaybackActivity : ComponentActivity() {
         manifest.resumeSeconds?.takeIf { it > 0 }?.let { player.seekTo((it * 1000).toLong()) }
         player.playWhenReady = true
         // Asked once, from settings alone: with no source switched on (or a profile that may not search) the footer row is not shown.
-        canFindSubtitles = client.textTrackSources(assetId, TextTrackKind.Subtitles).isReady
+        // A song has no Audio & subtitles panel, so nothing is asked for it.
+        if (!isMusic) canFindSubtitles = client.textTrackSources(assetId, TextTrackKind.Subtitles).isReady
         lifecycleScope.launch {
             while (isActive) {
                 delay(15_000)
@@ -218,7 +242,7 @@ class PlaybackActivity : ComponentActivity() {
 
     private fun playerReady(): Boolean = ::player.isInitialized
 
-    private fun overlayOpen(): Boolean = toolFocused || panelRows != null || findModel != null
+    private fun overlayOpen(): Boolean = toolFocused || panelRows != null || lyricsOpen || findModel != null
 
     private fun keyOf(keyCode: Int): FindAnotherKey? = when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP -> FindAnotherKey.Up
@@ -248,6 +272,11 @@ class PlaybackActivity : ComponentActivity() {
             panelRows != null -> {
                 if (key == null) return super.dispatchKeyEvent(event)
                 if (down && (key != FindAnotherKey.Select || event.repeatCount == 0)) onPanelKey(key)
+                return true
+            }
+            lyricsOpen -> {
+                if (key == null) return super.dispatchKeyEvent(event)
+                if (down && event.repeatCount == 0) onLyricsKey(key)
                 return true
             }
             toolFocused -> {
@@ -282,6 +311,7 @@ class PlaybackActivity : ComponentActivity() {
         when {
             model != null -> model.press(FindAnotherKey.Back)
             panelRows != null -> closePanel()
+            lyricsOpen -> closeLyrics()
             toolFocused -> toolFocused = false
         }
     }
@@ -290,6 +320,8 @@ class PlaybackActivity : ComponentActivity() {
 
     private fun openPanel() {
         if (!::player.isInitialized) return
+        // For a song the tool opens the Lyrics panel instead.
+        if (isMusic) { openLyrics(); return }
         val rows = panelRowsNow()
         panelRows = rows
         panelIndex = AudioSubtitlesPanel.initialIndex(rows)
@@ -350,7 +382,7 @@ class PlaybackActivity : ComponentActivity() {
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 .clearOverridesOfType(C.TRACK_TYPE_TEXT)
                 .build()
-            PanelRowKind.Find -> openFind()
+            PanelRowKind.Find -> openFind(TextTrackKind.Subtitles)
             PanelRowKind.AudioHeader, PanelRowKind.SubtitlesHeader -> Unit
         }
     }
@@ -366,26 +398,100 @@ class PlaybackActivity : ComponentActivity() {
             .build()
     }
 
+    // ---- The Lyrics panel -------------------------------------------------------------------------------------------
+
+    private fun openLyrics() {
+        lyricsOpen = true
+        canFindLyrics = false
+        toolFocused = false
+        playerView.hideController()
+        loadLyrics()
+        startLyricsFollow()
+        // Asked from settings alone: with no lyrics source switched on (or a profile that may not search) the footer row stays hidden.
+        lifecycleScope.launch {
+            val ready = client.textTrackSources(assetId, TextTrackKind.Lyrics).isReady
+            if (lyricsOpen) canFindLyrics = ready
+        }
+    }
+
+    private fun closeLyrics() {
+        lyricsOpen = false
+        canFindLyrics = false
+        // A read still on its way is dropped; the follow loop stops.
+        lyricsGeneration++
+        lyricsFollowJob?.cancel()
+        lyricsFollowJob = null
+    }
+
+    /** Reads the song's lyrics file (the Engine's preferred lyrics track) into lines. A newer read or closing the panel drops an older one. */
+    private fun loadLyrics(note: String? = null) {
+        val mine = ++lyricsGeneration
+        lyrics = LyricsView.loading(note)
+        lyricsIndex = -1
+        lifecycleScope.launch {
+            val next = try {
+                val pick = LyricsFollow.pickTrack(client.lyricsTracks(assetId))
+                if (pick == null) {
+                    LyricsView.None
+                } else {
+                    val parsed = LyricsFollow.parse(client.textTrackText(assetId, pick.id))
+                    if (parsed.lines.isEmpty()) LyricsView.None else LyricsView.ready(parsed)
+                }
+            } catch (error: kotlin.coroutines.cancellation.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w(TAG, "The lyrics could not be read", error)
+                LyricsView.Failed
+            }
+            if (mine != lyricsGeneration) return@launch
+            lyrics = next
+        }
+    }
+
+    /** While the panel is open the current line follows the song's position. */
+    private fun startLyricsFollow() {
+        lyricsFollowJob?.cancel()
+        lyricsFollowJob = lifecycleScope.launch {
+            while (isActive) {
+                val parsed = lyrics.parsed
+                val index = if (parsed == null) -1 else LyricsFollow.currentIndex(parsed.lines, player.currentPosition / 1000.0)
+                if (index != lyricsIndex) lyricsIndex = index
+                delay(250)
+            }
+        }
+    }
+
+    private fun onLyricsKey(key: FindAnotherKey) {
+        when (LyricsFollow.panelKey(key, canFindLyrics)) {
+            LyricsPanelEffect.FindLyrics -> openFind(TextTrackKind.Lyrics)
+            LyricsPanelEffect.Close -> closeLyrics()
+            LyricsPanelEffect.None -> Unit
+        }
+    }
+
     // ---- The Find another window ------------------------------------------------------------------------------------
 
-    private fun openFind() {
+    private fun openFind(kind: TextTrackKind) {
         val current = manifest ?: return
+        findKind = kind
         // The video stays paused behind the window; closing the window puts it back as it was.
         resumeAfterFind = player.playWhenReady
         player.pause()
-        val languages = FindAnotherLanguages.choices(
+        // Lyrics are searched in the song's own language: no Language button and no language sent.
+        val lyricsKind = kind == TextTrackKind.Lyrics
+        val languages = if (lyricsKind) emptyList<String>() else FindAnotherLanguages.choices(
             preferred = preferences.subtitleLanguage,
             others = listOf(preferences.audioLanguage) + current.subtitleTracks.map { it.language },
         )
         findLanguages = languages
         val model = FindAnotherModel(
-            api = client.findAnotherApi(assetId, TextTrackKind.Subtitles),
+            api = client.findAnotherApi(assetId, kind),
             scope = lifecycleScope,
             scheduler = CoroutineDwellScheduler(lifecycleScope),
-            kind = TextTrackKind.Subtitles,
-            initialLanguage = FindAnotherLanguages.nameFor(preferences.subtitleLanguage),
+            kind = kind,
+            initialLanguage = if (lyricsKind) "" else FindAnotherLanguages.nameFor(preferences.subtitleLanguage),
             languageChoices = languages,
-            itemNoun = "title",
+            itemNoun = if (lyricsKind) "song" else "title",
             onChange = { findState = it },
             onApplied = { result -> onFindApplied(result) },
             onClosed = { closeFind() },
@@ -408,6 +514,12 @@ class PlaybackActivity : ComponentActivity() {
         findModel?.close()
         findModel = null
         findState = null
+        if (findKind == TextTrackKind.Lyrics) {
+            // The Lyrics panel stays open and reads the new lyrics ("Updating lyrics…"); the song carries on at the same place.
+            player.playWhenReady = resumeAfterFind
+            loadLyrics(LyricsFollow.UPDATING)
+            return
+        }
         panelRows = null
         toolFocused = false
         lifecycleScope.launch { reloadWithNewSubtitles() }
@@ -467,7 +579,12 @@ class PlaybackActivity : ComponentActivity() {
 @Composable
 private fun PlaybackOverlay(
     toolVisible: Boolean,
+    toolLabel: String,
     toolFocused: Boolean,
+    lyricsOpen: Boolean,
+    lyrics: LyricsView,
+    lyricsIndex: Int,
+    canFindLyrics: Boolean,
     panelRows: List<PanelRow>?,
     panelIndex: Int,
     find: FindAnotherState?,
@@ -476,14 +593,19 @@ private fun PlaybackOverlay(
     onBack: () -> Unit,
 ) {
     // Back is taken only while something of ours is open; otherwise it leaves the player as before.
-    BackHandler(enabled = toolFocused || panelRows != null || find != null, onBack = onBack)
+    BackHandler(enabled = toolFocused || panelRows != null || lyricsOpen || find != null, onBack = onBack)
     Box(Modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // 5 percent safe margins (D2).
             val horizontal = maxWidth * 0.05f
             val vertical = maxHeight * 0.05f
-            if (toolVisible && panelRows == null && find == null) {
-                AudioSubtitlesToolButton(toolFocused, Modifier.align(Alignment.TopEnd).padding(end = horizontal, top = vertical))
+            if (toolVisible && panelRows == null && !lyricsOpen && find == null) {
+                AudioSubtitlesToolButton(toolFocused, Modifier.align(Alignment.TopEnd).padding(end = horizontal, top = vertical), toolLabel)
+            }
+            if (lyricsOpen) {
+                Box(Modifier.align(Alignment.CenterEnd).padding(end = horizontal, top = vertical, bottom = vertical)) {
+                    LyricsPanelView(lyrics, lyricsIndex, canFindLyrics)
+                }
             }
             if (panelRows != null) {
                 Box(Modifier.align(Alignment.CenterEnd).padding(end = horizontal, top = vertical, bottom = vertical)) {
