@@ -121,7 +121,7 @@
     private AppPickResult ToResult(TextTrackAlternativeDto item, bool mixedLanguages)
     {
         var preview = Presenter.PreviewFailedSourceId == item.source_id ? AppPickPreview.Failed
-            : Presenter.ReadingSourceId == item.source_id ? AppPickPreview.Reading
+            : Presenter.IsReading(item.source_id) ? AppPickPreview.Reading
             : AppPickPreview.Available;
         return FindAnotherResultMapper.ForSubtitle(item, L, mixedLanguages, LanguageName(item), SameReleaseConfidence, preview);
     }

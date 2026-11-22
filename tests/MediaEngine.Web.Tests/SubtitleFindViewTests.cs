@@ -197,6 +197,43 @@ public sealed class SubtitleFindViewTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ClickingASecondRowWhileTheFirstIsStillBeingRead_ReadsThatRowToo()
+    {
+        var gate = new TaskCompletionSource();
+        _previewAnswer = WithLines(Item("x"), film: 7200, endsAt: 7100, check: "Fits", difference: -100);
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativesAsync), _ =>
+                Task.FromResult<TextTrackAlternativesResponse?>(Found(WithLines(Item("a")), Item("b"), Item("c"))));
+            stub.SetHandler(nameof(IEngineApiClient.GetTextTrackAlternativePreviewAsync), args =>
+            {
+                var id = (string)args![3]!;
+                _previewed.Add(id);
+                async Task<TextTrackAlternativePreviewResponse?> Read()
+                {
+                    if (id == "b")
+                    {
+                        await gate.Task;
+                    }
+                    return new() { asset_id = Asset, status = "Found", item = _previewAnswer! with { source_id = id } };
+                }
+                return Read();
+            });
+        });
+        var cut = await OpenFindAsync(Presenter(api));
+        cut.WaitForElement("[data-pick-results]");
+
+        // The first read stays open (its click handler waits for it), so it is started without being awaited.
+        var firstClick = cut.Find(Row("b")).ClickAsync();
+        await cut.Find(Row("c")).ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("Good evening.", cut.Find("[data-pick-pane]").TextContent));
+        Assert.Equal(["b", "c"], _previewed);
+        gate.SetResult();
+        await firstClick;
+    }
+
+    [Fact]
     public async Task APreviewThatCannotBeRead_SaysSoOnThatRow_AndTheRowCanStillBeUsed()
     {
         _previewAnswer = null;
