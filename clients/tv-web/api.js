@@ -414,7 +414,24 @@
       return get('/api/v1/playback/' + enc(assetId) + '/manifest?client=' + client + '&connectionPath=local');
     },
     playerState: function () { return get('/api/v1/player/state?client=tv-web'); },
-    heartbeat: function (body) { return request('POST', '/api/v1/player/heartbeat', body); }
+    heartbeat: function (body) { return request('POST', '/api/v1/player/heartbeat', body); },
+
+    /* Find another (subtitles): the Engine's own routes, under the app door. */
+    textTrackSources: function (assetId, kind) {
+      return get('/api/v1/stream/' + enc(assetId) + '/text-tracks/sources?kind=' + enc(kind));
+    },
+    findAlternatives: function (assetId, kind, language) {
+      return get('/api/v1/stream/' + enc(assetId) + '/text-tracks/alternatives?kind=' + enc(kind) +
+        (language ? '&language=' + enc(language) : ''));
+    },
+    findPreview: function (assetId, kind, provider, sourceId, language) {
+      return get('/api/v1/stream/' + enc(assetId) + '/text-tracks/alternatives/preview?kind=' + enc(kind) +
+        '&provider=' + enc(provider) + '&sourceId=' + enc(sourceId) + (language ? '&language=' + enc(language) : ''));
+    },
+    findChoose: function (assetId, body) {
+      return request('POST', '/api/v1/stream/' + enc(assetId) + '/text-tracks/alternatives/choose', body);
+    },
+    playbackPreferences: function () { return get('/api/v1/devices/current/playback-preferences'); }
   };
 
   /* ---- artwork (needs the bearer token, so it is fetched and shown as a blob URL) ---- */

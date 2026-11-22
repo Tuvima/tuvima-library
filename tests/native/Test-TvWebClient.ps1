@@ -9,7 +9,7 @@ $client = Join-Path $repoRoot 'clients/tv-web'
 $fixtures = Join-Path $repoRoot 'tests/fixtures/native-client-v1'
 
 $required = @(
-    'index.html', 'app.js', 'api.js', 'universe.js', 'nav.js', 'player.js', 'styles.css', 'README.md',
+    'index.html', 'app.js', 'api.js', 'universe.js', 'nav.js', 'find-another.js', 'player.js', 'styles.css', 'README.md',
     'vendor/hls.min.js', 'vendor/LICENSE-hls.js.txt', 'assets/tuvima-icon.svg', 'assets/tuvima-logo-dark.svg'
 )
 foreach ($relative in $required) {
@@ -50,7 +50,7 @@ foreach ($forbidden in @('sessionStorage', 'document.cookie', 'indexedDB', 'inne
 # 4. index.html loads the scripts in order, as classic scripts (so it also runs from file:// in a packaged app).
 $html = Get-Content -LiteralPath (Join-Path $client 'index.html') -Raw
 $last = -1
-foreach ($name in @('api.js', 'universe.js', 'nav.js', 'player.js', 'app.js')) {
+foreach ($name in @('api.js', 'universe.js', 'nav.js', 'find-another.js', 'player.js', 'app.js')) {
     $at = $html.IndexOf("src=`"$name`"", [StringComparison]::Ordinal)
     if ($at -lt 0) { throw "index.html does not load $name." }
     if ($at -lt $last) { throw "index.html must load $name after the previous script." }

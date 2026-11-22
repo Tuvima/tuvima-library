@@ -426,6 +426,34 @@ bookmarks and the Autoplay next episode switch are the same as above.
 | Fast-forward | Skip forward (the same action as the Skip forward button) |
 | Back | Close the open side panel first, then hide the overlay |
 
+**Find another on a television** (spec `find-another-on-tv`). The footer row of
+the Audio & subtitles panel, **Find subtitles...**, opens a full-screen window over
+the paused video; it is hidden when no subtitle source is ready for the item or the
+profile may not change subtitles. The header has the item's name, "Find subtitles"
+and one **Language** button (the profile's subtitle language; choosing another
+searches again). The list is on the left: each row has the release name, "Hearing
+impaired" when it is, "Made for your file" or "A different release, may be out of
+step", and, once read, "Fits the film" or how many minutes short or long; "Best
+match" and "In use" chips sit at the right of their rows. The pane on the right is
+titled with the focused row's name and shows its first lines with the time each
+appears. The footer has **Use this** and **Cancel**. There is no search box and no
+typing. The best match is read as soon as the list opens; any other row is read
+only after focus has rested on it for one second, each row at most once per window,
+and the pane says "Reading..." (or "Could not read this one", the row still usable)
+for that row only. An empty or problem answer shows the Engine's own sentence
+centered, with Cancel focused. The window's keys:
+
+<!-- contract-table: find-another-keys -->
+| Key | Action |
+| --- | --- |
+| Up and Down | Move through the list (the pane follows the focused row); Up from the first row reaches Language |
+| Right | From the list, move to the pane; from the pane, to Use this |
+| Left | Back toward the list |
+| Select on a row | Open that result's words in full in the pane and move focus to Use this |
+| Select on Use this | Apply the result, close the window and the panel, and return to the playing video at the same position with the new subtitles on |
+| Select on Language | Open a short list of the profile's languages; choosing one searches again |
+| Back | Close the language list, then the full words, then the window |
+
 Music and audiobooks on a television are a full-screen Now playing: the cover,
 the title and second line, the timeline and the same transport as the music or
 audiobook table above, with Lyrics or Chapters as a side panel.

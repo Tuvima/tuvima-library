@@ -46,6 +46,7 @@ public sealed class PlayerControlsContractTests
         ["lock-screen"] = ["Media", "Line 1", "Line 2", "Actions"],
         // First definition (Shy 07:01Z): no Dashboard source yet, so only the shape is checked here.
         ["tv-keys"] = ["Key", "Action"],
+        ["find-another-keys"] = ["Key", "Action"],
         ["car-list"] = ["Order", "Entry"],
     };
 
