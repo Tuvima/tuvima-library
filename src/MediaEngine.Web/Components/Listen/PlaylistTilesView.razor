@@ -1,8 +1,10 @@
 @namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.MediaTiles
 @using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
@@ -12,10 +14,11 @@
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Playlists page (spec listen-playlists WP3, mockup A and D): a title, Sort and New playlist, then a tile for every playlist, four across on a
-   computer and two across on a phone. New playlist opens one small window (name, Hand-picked or Smart); the page only asks for it and hands the
-   answer to its host. A hand-made playlist's tile takes songs dragged onto it (never a Smart or built-in list's) and the sentence about how the
-   drop went shows right here, in place. Every tile has the shared "..." menu; its actions go to the host. *@
+@* The Playlists page (spec listen-playlists WP3, spec group-pages-and-tiles WP1, mockup A): a title, Sort and New playlist, then a tile for every
+   playlist, as many across as fit and two across on a phone. Every playlist (hand-made, Smart, Favorites) is the shared square album
+   quadrant of MediaTile, drawn from PlaylistTileComposer. New playlist opens one small window (name, Hand-picked or Smart); the page only asks for
+   it and hands the answer to its host. A hand-made playlist's tile takes songs dragged onto it (never a Smart or built-in list's) and the sentence
+   about how the drop went shows right here, in place. Every playlist tile has the shared playlist "..." menu; its actions go to the host. *@
 <section class="playlist-tiles" data-playlist-tiles aria-label="@L["Glossary_Playlists"].Value">
     <header class="playlist-tiles__header">
         <h2 class="playlist-tiles__title">@L["Glossary_Playlists"]</h2>
@@ -69,30 +72,30 @@
         <div class="playlist-tiles__grid" data-playlist-tiles-grid>
             @if (ShowFavorites)
             {
-                <PlaylistGridTile @key="FavoritesKey"
-                              Title="@L["Glossary_Favorites"].Value"
-                              Route="@FavoritesRoute"
-                              Meta="@FavoritesMeta" />
+                <div class="playlist-tiles__cell" @key="FavoritesKey" data-playlist-tile="@FavoritesKey">
+                    <MediaTile Item="@FavoritesTile" ShowActions="false" />
+                </div>
             }
             @foreach (var playlist in Shown)
             {
-                <PlaylistGridTile @key="playlist.Id"
-                              Playlist="@playlist"
-                              Title="@playlist.Name"
-                              Route="@($"/listen/music/playlists/{playlist.Id:D}")"
-                              Meta="@MetaFor(playlist)"
-                              CoverUrl="@playlist.CoverArtworkUrl"
-                              OnSongsDropped="DropSongsAsync"
-                              OnEditRules="OnEditRules"
-                              OnRename="OnRename"
-                              OnEditDetails="OnEditDetails"
-                              OnDuplicate="OnDuplicate"
-                              OnTogglePin="OnTogglePin"
-                              OnDelete="OnDelete"
-                              OnMoveUp="@(CanReorder ? EventCallback.Factory.Create<ManagedCollectionViewModel>(this, MoveUpAsync) : default)"
-                              OnMoveDown="@(CanReorder ? EventCallback.Factory.Create<ManagedCollectionViewModel>(this, MoveDownAsync) : default)"
-                              CanMoveUp="@CanMove(playlist, -1)"
-                              CanMoveDown="@CanMove(playlist, 1)" />
+                var shown = playlist;
+                <div class="playlist-tiles__cell" @key="shown.Id" data-playlist-tile="@shown.Id.ToString("D")">
+                    <MediaTile Item="@TileFor(shown)" ShowActions="false" OnSongsDropped="@(() => OnSongsDropped.InvokeAsync(shown))">
+                        <Menu>
+                            <PlaylistActionsMenu Playlist="@shown"
+                                                 OnEditRules="OnEditRules"
+                                                 OnRename="OnRename"
+                                                 OnEditDetails="OnEditDetails"
+                                                 OnDuplicate="OnDuplicate"
+                                                 OnTogglePin="OnTogglePin"
+                                                 OnDelete="OnDelete"
+                                                 OnMoveUp="@(CanReorder ? EventCallback.Factory.Create<ManagedCollectionViewModel>(this, MoveUpAsync) : default)"
+                                                 OnMoveDown="@(CanReorder ? EventCallback.Factory.Create<ManagedCollectionViewModel>(this, MoveDownAsync) : default)"
+                                                 CanMoveUp="@CanMove(shown, -1)"
+                                                 CanMoveDown="@CanMove(shown, 1)" />
+                        </Menu>
+                    </MediaTile>
+                </div>
             }
         </div>
     }
@@ -119,6 +122,12 @@
 
     /// <summary>How many songs are hearted; null when not known (the tile then shows the word only).</summary>
     [Parameter] public int? FavoritesCount { get; set; }
+
+    /// <summary>
+    /// The album covers of each playlist's songs in song order, by playlist id (the host reads them; the tile draws the first four different ones).
+    /// A playlist missing here, or with none, is the shared no-covers tile with the playlist icon.
+    /// </summary>
+    [Parameter] public IReadOnlyDictionary<Guid, IReadOnlyList<string>>? AlbumCovers { get; set; }
 
     /// <summary>New playlist, Hand-picked: the name typed. The host makes the playlist.</summary>
     [Parameter] public EventCallback<string> OnCreateHandPicked { get; set; }
@@ -183,35 +192,22 @@
         _ => L["PlaylistTiles_SortManual"].Value,
     };
 
-    private string FavoritesMeta => FavoritesCount is { } count
-        ? DeviceContext.IsPhone ? SongCountShort(count) : L["PlaylistTiles_MetaSongs", DisplayFormat.FormatCount(count)].Value
-        : L["Common_Songs"].Value;
+    // The words of the type line, in this person's language ("Playlist · 48 songs · 3 h 12 min", "Smart playlist · 32 songs", "Built in · 126 songs").
+    private PlaylistTileWords Words => new(
+        L["PlaylistTiles_TypePlaylist"].Value,
+        L["PlaylistTiles_TypeSmartPlaylist"].Value,
+        L["PlaylistTiles_TypeBuiltIn"].Value,
+        L["PlaylistTiles_MetaShortOne"].Value,
+        L["PlaylistTiles_MetaShortMany"].Value);
 
-    // The type in words and the count; on a wide screen also the length when the Engine knows it ("Songs · 42 · 2h 55m"), on a phone the short
-    // form ("42 songs", "Smart · 310") that fits two tiles across.
-    private string MetaFor(ManagedCollectionViewModel playlist)
+    // On a phone the line leaves out the length so two tiles fit across.
+    private MediaTileViewModel TileFor(ManagedCollectionViewModel playlist)
     {
-        var count = DisplayFormat.FormatCount(playlist.ItemCount);
-        if (PlaylistTileRules.IsSmart(playlist))
-        {
-            return DeviceContext.IsPhone
-                ? L["PlaylistTiles_MetaSmartShort", count].Value
-                : L["PlaylistTiles_MetaSmart", count].Value;
-        }
-
-        if (DeviceContext.IsPhone)
-        {
-            return SongCountShort(playlist.ItemCount);
-        }
-
-        return DisplayFormat.FormatDurationHoursMinutesOrNull(playlist.TotalDurationSeconds) is { } length
-            ? L["PlaylistTiles_MetaSongsLength", count, length].Value
-            : L["PlaylistTiles_MetaSongs", count].Value;
+        var covers = AlbumCovers is not null && AlbumCovers.TryGetValue(playlist.Id, out var found) ? found : null;
+        return PlaylistTileComposer.Compose(playlist, covers, PlaylistTileComposer.TypeLine(playlist, Words, includeLength: !DeviceContext.IsPhone));
     }
 
-    private string SongCountShort(int count) => count == 1
-        ? L["PlaylistTiles_MetaShortOne"].Value
-        : L["PlaylistTiles_MetaShortMany", DisplayFormat.FormatCount(count)].Value;
+    private MediaTileViewModel FavoritesTile => PlaylistTileComposer.ComposeBuiltIn(L["Glossary_Favorites"].Value, FavoritesRoute, FavoritesCount, Words);
 
     protected override void OnInitialized()
     {
@@ -238,19 +234,6 @@
         _notice = drop.Notice.Message;
         _noticeSeverity = drop.Notice.Severity;
         _ = InvokeAsync(StateHasChanged);
-    }
-
-    private async Task DropSongsAsync(ManagedCollectionViewModel playlist)
-    {
-        if (_drops is null)
-        {
-            return;
-        }
-
-        if (await _drops.DropOnPlaylistAsync(playlist.Id, playlist.Name) is not null)
-        {
-            await OnSongsDropped.InvokeAsync(playlist);
-        }
     }
 
     // One small window for both kinds: a bottom sheet on a phone and on a touch tablet.

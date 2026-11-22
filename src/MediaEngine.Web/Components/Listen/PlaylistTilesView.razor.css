@@ -26,6 +26,13 @@
     gap: var(--tl-space-3);
 }
 
+/* One playlist is one MediaTile (the shared square quadrant); the cell makes it fill its grid column instead of the shelf's fixed tile width. */
+.playlist-tiles__cell {
+    min-width: 0;
+    /* The square tile is as wide as its grid column, not the shelf's fixed tile width. */
+    --tl-tile-square-w: 100%;
+}
+
 .playlist-tiles__skeleton {
     overflow: hidden;
     border-radius: var(--tl-radius-md);

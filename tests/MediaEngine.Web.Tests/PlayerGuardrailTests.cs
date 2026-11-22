@@ -216,7 +216,6 @@ public sealed class PlayerGuardrailTests
         ["SongsPhoneHeader"] = "the phone Songs page header (search, Play, Shuffle, sort and filter sheet), not part of the player",
         ["ListenNavigationSection"] = "the Listen page's side navigation (Library, Formats, Your library), not part of the player",
         ["PlaylistTilesView"] = "the Playlists page of tiles (spec listen-playlists WP3), library browsing, not part of the player",
-        ["PlaylistGridTile"] = "one tile on the Playlists page, library browsing, not part of the player",
         ["PlaylistNameBox"] = "the sidebar's New playlist name box, not part of the player",
         ["NewPlaylistDialog"] = "the New playlist window (Hand-picked or Smart), not part of the player",
     };

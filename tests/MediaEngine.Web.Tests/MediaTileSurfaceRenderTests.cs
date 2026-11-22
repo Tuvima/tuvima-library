@@ -366,23 +366,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaSquareTile_LaysOutAMosaicOfMemberCoversWhenThereIsNoCover()
-    {
-        var playlist = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            Title = "Mix",
-            IsPlaylist = true,
-            NavigationUrl = "/listen/music/playlists/2",
-            PreviewImages = ["/c/1.jpg", "/c/2.jpg", "/c/3.jpg", "/c/4.jpg"],
-        };
-
-        var cut = Render<MediaSquareTile>(parameters => parameters.Add(component => component.Item, playlist));
-
-        Assert.Equal(4, cut.FindAll(".media-square-tile__mosaic img").Count);
-    }
-
-    [Fact]
     public void AGroupTile_NetworkGroupShowsItsResolvedLogoWithoutChangingTheGroupRoute()
     {
         var group = new MediaTileViewModel

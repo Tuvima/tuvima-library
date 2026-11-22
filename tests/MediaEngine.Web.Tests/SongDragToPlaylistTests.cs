@@ -259,11 +259,11 @@ public sealed class SongDragToPlaylistTests : AsyncBunitContext
         RowElement(table, rows[0]).DragStart();
         var tile = MediaTileComposerService.FromPlaylist(Playlist("Newest rock", membershipMode: "Smart"));
 
-        var cut = Render<MediaSquareTile>(parameters => parameters.Add(component => component.Item, tile));
-        cut.Find("article").TriggerEvent("ondrop", new Microsoft.AspNetCore.Components.Web.DragEventArgs());
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, tile));
+        cut.Find("article.media-tile").TriggerEvent("ondrop", new Microsoft.AspNetCore.Components.Web.DragEventArgs());
 
         Assert.False(tile.AcceptsSongDrops);
-        Assert.Null(cut.Find("article").GetAttribute("data-song-drop"));
+        Assert.Null(cut.Find("article.media-tile").GetAttribute("data-song-drop"));
         Assert.Empty(_added);
         Assert.True(Services.GetRequiredService<SongDragDropService>().IsCarrying);
     }
@@ -287,9 +287,9 @@ public sealed class SongDragToPlaylistTests : AsyncBunitContext
         RowElement(table, rows[0]).DragStart();
         var tile = MediaTileComposerService.FromPlaylist(Playlist("Road trip"));
 
-        var cut = Render<MediaSquareTile>(parameters => parameters.Add(component => component.Item, tile));
-        Assert.Equal("playlist", cut.Find("article").GetAttribute("data-song-drop"));
-        cut.Find("article").TriggerEvent("ondrop", new Microsoft.AspNetCore.Components.Web.DragEventArgs());
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, tile));
+        Assert.Equal("playlist", cut.Find("article.media-tile").GetAttribute("data-song-drop"));
+        cut.Find("article.media-tile").TriggerEvent("ondrop", new Microsoft.AspNetCore.Components.Web.DragEventArgs());
 
         cut.WaitForAssertion(() => Assert.Equal(2, _added.Count));
         Assert.All(_added, entry => Assert.Equal(RoadTrip, entry.Playlist));
