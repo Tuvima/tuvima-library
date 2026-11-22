@@ -159,7 +159,8 @@ public sealed class NativePlaybackPreferencesEndpointTests : IAsyncLifetime
         Assert.NotNull(dto);
         Assert.Equal(defaults.Subtitles.AudioLanguage, dto.AudioLanguage);
         Assert.Equal(defaults.Subtitles.DefaultSubtitleLanguage, dto.SubtitleLanguage);
-        Assert.Equal(NativeSubtitleModes.Auto, dto.SubtitleMode);
+        // A profile that never touched subtitles starts with them off (issue 1319).
+        Assert.Equal(NativeSubtitleModes.Off, dto.SubtitleMode);
         Assert.Equal(defaults.Subtitles.SubtitleSize, dto.SubtitleSize);
         Assert.Equal(defaults.Subtitles.SubtitleBackground, dto.SubtitleBackground);
         Assert.Equal(defaults.Watching.SkipBackSeconds, dto.SkipBackSeconds);
