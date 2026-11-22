@@ -1,0 +1,93 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.MediaTiles
+@inject IStringLocalizer<SharedStrings> L
+
+@* A Series' order in two steps (group pages and tiles D5, mock screen C; read only, as the rest of a Series). Step 1 is the rules in the order they
+   are tried, each a square pill with how many titles it placed. Step 2 is the result: number, small cover, title and a detail line, with at the
+   right the rule that placed each title; an amber chip marks one placed by a later rule. When the Engine does not name rules, only step 2 shows. *@
+@{
+    var view = EditorSeriesRules.OrderView(Members);
+}
+<section class="tl-order" aria-label="@Heading" data-series-members="true" data-phone="@(Phone ? "true" : null)">
+    @if (view.Rules.Count > 0 || view.OrderUnknown)
+    {
+        <h3 class="tl-order__step">@L["EditorSeriesOrder_HowOrdered"]</h3>
+        @if (view.OrderUnknown)
+        {
+            <p class="tl-order__unknown" data-order-unknown="true">@L["EditorSeriesOrder_Unknown"]</p>
+        }
+        else
+        {
+            <ol class="tl-order__rules" data-order-rules="true">
+                @for (var i = 0; i < view.Rules.Count; i++)
+                {
+                    var rule = view.Rules[i];
+                    <li class="tl-order__rule" data-rule="@rule.Key">
+                        <span class="tl-order__rule-step" aria-hidden="true">@(i + 1)</span>
+                        <span class="tl-order__rule-name">@EditorSeriesRules.RuleWord(rule.Key, L)</span>
+                        <span class="tl-order__rule-count">@L["EditorSeriesOrder_Placed", rule.Placed, view.Total]</span>
+                    </li>
+                }
+            </ol>
+        }
+    }
+    <h3 class="tl-order__step">@Heading</h3>
+    <ol class="tl-order__list" data-order-list="true">
+        @foreach (var member in Members)
+        {
+            var chip = view.ChipRuleOf(member);
+            var detail = EditorSeriesRules.DetailLine(member, L);
+            var later = view.IsLaterRule(member);
+            <li class="@(Flow is null ? "tl-order__row" : "tl-order__row tl-order__row--open")">
+                @if (Flow is null)
+                {
+                    @RowLine(member, chip, detail, later)
+                }
+                else
+                {
+                    @* The button is the shared row button, which stretches across the row; the row's own grid sits inside it. *@
+                    <AppRowButton Disabled="@(Flow.Saving || Flow.Switching)" OnClick="@(() => Flow.SwitchToAsync(member.Id, member.Title))">
+                        @RowLine(member, chip, detail, later)
+                    </AppRowButton>
+                }
+            </li>
+        }
+    </ol>
+</section>
+
+@code {
+    /// <summary>The members in the Series' order.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<EditorSeriesMember> Members { get; set; } = [];
+
+    /// <summary>The words over the result list: Reading, Watch or Listening order, or "In order" for a mixed Series.</summary>
+    [Parameter, EditorRequired] public string Heading { get; set; } = string.Empty;
+
+    /// <summary>The editor's flow: with it, a row opens that member's own editor in this window.</summary>
+    [Parameter] public EditSessionFlow? Flow { get; set; }
+
+    /// <summary>The phone arrangement: the rule chip drops under the title.</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    private RenderFragment RowLine(EditorSeriesMember member, string? chip, string detail, bool later) => __builder =>
+    {
+        <div class="tl-order__line">
+            <span class="tl-order__num">@member.Number</span>
+            <span class="tl-order__cover">
+                <img src="@MediaTileArtworkUrl.ForDrawnSize($"/engine-image/stream/entity/work/{member.Id:D}/cover", 50)" alt="" loading="lazy" decoding="async" />
+            </span>
+            <span class="tl-order__text">
+                <span class="tl-order__title">@member.Title</span>
+                @if (detail.Length > 0)
+                {
+                    <span class="tl-order__detail">@detail</span>
+                }
+            </span>
+            @if (chip is not null)
+            {
+                <span class="@(later ? "tl-order__chip tl-order__chip--later" : "tl-order__chip")" data-rule="@chip" data-later="@(later ? "true" : null)">@EditorSeriesRules.RuleWord(chip, L)</span>
+            }
+        </div>
+    };
+}

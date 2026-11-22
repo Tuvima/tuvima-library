@@ -222,6 +222,38 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     }
 
     [Fact]
+    public async Task Series_Members_NameTheRuleThatPlacedEach_NumberThenPublicationDateThenTitle()
+    {
+        var series = SeedGrouping(CollectionType.Series, "The Expanse", null);
+        var untitledOrder = SeedMember(series, "Notes", ordinal: null, publicationDate: null);
+        var novella = SeedMember(series, "The Churn", ordinal: null, publicationDate: "2014-04-01");
+        var second = SeedMember(series, "Caliban's War", ordinal: 2, publicationDate: "2012-06-26");
+        var first = SeedMember(series, "Leviathan Wakes", ordinal: 1, publicationDate: "2011-06-15");
+
+        var subject = (await _subjects.LoadAsync(series))!;
+
+        Assert.Equal([first, second, novella, untitledOrder], subject.Members.Select(member => member.Id));
+        Assert.Equal(
+            [EditorSeriesOrderRuleKeys.Number, EditorSeriesOrderRuleKeys.Number, EditorSeriesOrderRuleKeys.Date, EditorSeriesOrderRuleKeys.Title],
+            subject.Members.Select(member => member.PlacedBy));
+        Assert.Equal(["2011", "2012", "2014", null], subject.Members.Select(member => member.Year));
+        Assert.All(subject.Members, member => Assert.Equal("Books", member.MediaType));
+    }
+
+    [Fact]
+    public async Task Series_Members_WithNoNumberOrDate_AreAllPlacedByTitle_SoTheEditorCanSayNoOrderIsKnown()
+    {
+        var series = SeedGrouping(CollectionType.Series, "Odds and ends", null);
+        var beta = SeedMember(series, "Beta", ordinal: null, publicationDate: null);
+        var alpha = SeedMember(series, "Alpha", ordinal: null, publicationDate: null);
+
+        var subject = (await _subjects.LoadAsync(series))!;
+
+        Assert.Equal([alpha, beta], subject.Members.Select(member => member.Id));
+        Assert.All(subject.Members, member => Assert.Equal(EditorSeriesOrderRuleKeys.Title, member.PlacedBy));
+    }
+
+    [Fact]
     public async Task Series_Artwork_AppliesAtOnce_BecauseThePicturesAreTheOwnersOwn()
     {
         var series = SeedGrouping(CollectionType.Series, "The Expanse", null);
@@ -694,7 +726,9 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         return created.Id;
     }
 
-    private Guid SeedMember(Guid collection, string title, int ordinal)
+    private Guid SeedMember(Guid collection, string title, int ordinal) => SeedMember(collection, title, (int?)ordinal, publicationDate: null);
+
+    private Guid SeedMember(Guid collection, string title, int? ordinal, string? publicationDate)
     {
         var id = Guid.NewGuid();
         using var connection = _db.CreateConnection();
@@ -704,6 +738,13 @@ public sealed class EditSubjectEditSessionTests : IDisposable
             INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'title', @title, @now);
             """,
             new { id = GuidSql.ToBlob(id), collection = GuidSql.ToBlob(collection), ordinal, title, now = DateTimeOffset.UtcNow.ToString("O") });
+        if (publicationDate is not null)
+        {
+            connection.Execute(
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'publication_date', @date, @now);",
+                new { id = GuidSql.ToBlob(id), date = publicationDate, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
         return id;
     }
 

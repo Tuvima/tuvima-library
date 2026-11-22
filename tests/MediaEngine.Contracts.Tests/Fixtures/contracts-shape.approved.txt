@@ -4058,6 +4058,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSeriesMediaTyp
   Label: System.String | nullability=not-null | accessors=get,init
   OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSeriesOrderRuleKeys
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSeriesTitleDto
   Id: System.Guid? | nullability=nullable | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
@@ -4111,6 +4113,9 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectMemberD
   Id: System.Guid | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
   Number: System.Int32? | nullability=nullable | accessors=get,init
+  MediaType: System.String | nullability=nullable | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  PlacedBy: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorSubjectOptionDto
   Value: System.String | nullability=not-null | accessors=get,init
