@@ -102,8 +102,6 @@ body.is-song-dragging .media-tile[data-song-drop] .media-tile-media { outline:1p
 .media-tile-video-text { display:flex; flex:0 0 auto; flex-direction:column; justify-content:flex-start; gap:4px; min-height:0; padding:10px 12px; }
 .media-tile-video-text__title { font-weight:600; color:var(--tl-text-primary); }
 .media-tile-video-text__detail { font-weight:500; color:var(--tl-text-secondary); }
-/* The count of a folder of videos ("88 videos") sits in its own line under the detail line, in the flow, so it covers nothing (issue 1297). */
-.media-tile.is-video-still .media-tile-label--bottom { position:static; align-self:flex-start; max-width:100%; margin:0 12px 10px; padding:0; background:none; border-radius:0; color:var(--tl-text-secondary); font-weight:500; }
 
 /* Episode lists on a show or season page keep their number and title under the still. */
 .media-tile-episode-caption { display:grid; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size: var(--tl-type-caption-size); color:var(--tl-text-secondary); padding-top:.2rem; }
