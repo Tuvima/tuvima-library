@@ -99,7 +99,7 @@ public sealed class DisplayRecentTests
     }
 
     [Fact]
-    public void BooksOfOneSeries_AreOneHomeTile_WithTheirCount_AndASingleBookStaysSingle()
+    public void BooksOfOneSeries_StaySingleTitles_NeverOneSeriesTile()
     {
         var series = Guid.NewGuid();
         var rows = Enumerable.Range(1, 6).Select(n => { var row = Work("Books", Guid.NewGuid(), $"Book {n}"); row.CollectionId = series; row.CollectionTitle = "The Expanse"; row.Series = "The Expanse"; return row; }).ToList();
@@ -107,14 +107,12 @@ public sealed class DisplayRecentTests
 
         var result = RecentCatalogueReadService.Compose(rows, new DisplayCardBuilder(), "read", null, 100);
 
-        Assert.Equal(2, result.Count);
-        var rolled = result.Single(item => item.Catalogue!.Id == series).Catalogue!;
-        Assert.Equal(6, rolled.PreviewTotalCount);
-        Assert.Contains(result, item => item.Catalogue!.Title == "Standalone");
+        Assert.Equal(7, result.Count);
+        Assert.DoesNotContain(result, item => item.Catalogue!.Id == series);
     }
 
     [Fact]
-    public void RankGroups_FollowTheSameRollUp_SoPagesAndTilesAgree()
+    public void RankGroups_DoNotRollBooksIntoASeries_SoPagesAndTilesAgree()
     {
         var series = Guid.NewGuid();
         var candidates = Enumerable.Range(1, 3).Select(_ => new RecentCandidate { WorkId = Guid.NewGuid(), RootWorkId = Guid.Empty, CollectionId = series, MediaType = "Books", AddedAt = Added }).ToList();
@@ -122,10 +120,8 @@ public sealed class DisplayRecentTests
 
         var groups = RecentCatalogueReadService.RankGroups(candidates, "read", null);
 
-        Assert.Equal(2, groups.Count);
-        var rolled = groups.Single(group => group.Id == series);
-        Assert.Equal(3, rolled.MemberWorkIds!.Count);
-        Assert.Equal("catalogue:" + series.ToString("N"), rolled.Key);
+        Assert.Equal(4, groups.Count);
+        Assert.DoesNotContain(groups, group => group.Id == series);
     }
 
     [Fact]

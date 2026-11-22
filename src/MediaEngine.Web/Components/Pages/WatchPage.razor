@@ -1,6 +1,7 @@
 @page "/watch"
 @page "/watch/{Tab}"
 @using MediaEngine.Web.Components.Browse
+@using MediaEngine.Domain.Services
 @using MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Editing
@@ -234,7 +235,7 @@
                 MediaType = "Videos",
                 GroupingOptions =
                 [
-                    new("videos", "Series and videos", AppMaterialIcons.Outlined.VideoLibrary),
+                    new("videos", VideoFolderWording.TabLabel, AppMaterialIcons.Outlined.VideoLibrary),
                     new("all", "All videos", AppMaterialIcons.Outlined.PlayCircle),
                 ],
                 DefaultGrouping = "videos",

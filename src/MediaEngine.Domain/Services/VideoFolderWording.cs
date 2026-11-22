@@ -17,6 +17,12 @@ public static class VideoFolderWording
     /// <summary>The kind line of a folder ("Video folder").</summary>
     public const string KindLabel = "Video folder";
 
+    /// <summary>The small marker on a Recently Added video folder when a video was added lately (as a show says "New episodes added").</summary>
+    public const string NewVideoLabel = "New video";
+
+    /// <summary>The Watch tab that lists folders and loose videos (never "Series" or "Collections").</summary>
+    public const string TabLabel = "Folders and videos";
+
     /// <summary>What the folder's tile and hero button says (a TV show says "Open Show").</summary>
     public const string OpenLabel = "Open folder";
 

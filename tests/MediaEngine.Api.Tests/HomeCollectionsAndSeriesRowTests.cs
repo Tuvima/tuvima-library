@@ -5,9 +5,9 @@ using MediaEngine.Domain.Services;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// Home's "Collections and series" row (Group pages and tiles spec WP0b): Series and folders of videos are group tiles in a row of their
-/// own, the one that gained a title most recently first. Recently added keeps the single titles and the per-show, per-album and
-/// per-Series roll-up, and a Series leaves the row when nothing is there.
+/// Home's "Collections and series" row (Group pages and tiles spec WP0b): Series are group tiles in a row of their own, the one that gained a title
+/// most recently first. Video folders are not Series and stay out (issue 1318). Recently added keeps single titles and the per-show
+/// and per-album roll-up, never a Series (issue 1254).
 /// </summary>
 public sealed class HomeCollectionsAndSeriesRowTests
 {
@@ -48,14 +48,12 @@ public sealed class HomeCollectionsAndSeriesRowTests
     }
 
     [Fact]
-    public async Task AFolderOfVideos_IsAGroupTileInTheRow_AndALooseVideoIsNot()
+    public async Task AFolderOfVideos_IsNotInTheRow_BecauseItIsAVideoFolderNotASeries()
     {
         var folder = Guid.NewGuid();
         var home = await Composer([Video(folder, "Welcome"), Video(folder, "Loops"), Video(null, "Loose clip")]).BuildHomeAsync(includeCatalog: false);
 
-        var tile = Assert.Single(home.Shelves.Single(item => item.Key == "collections-and-series").Items);
-
-        Assert.Equal(VideoFolderWording.FolderMediaType, tile.MediaType);
+        Assert.DoesNotContain(home.Shelves, shelf => shelf.Key == "collections-and-series");
     }
 
     [Fact]
@@ -67,17 +65,23 @@ public sealed class HomeCollectionsAndSeriesRowTests
     }
 
     [Fact]
-    public void RecentlyAdded_StillRollsASeriesUpIntoOneTile_AndNeverAddsAGroupWithNoNewTitle()
+    public void RecentlyAdded_ListsSingleTitles_NeverASeries_AndMarksAVideoFolderWithANewVideo()
     {
         var series = Guid.NewGuid();
-        var rows = new[] { Book(series, "One", 3), Book(series, "Two", 2), Book(null, "Alone", 1) };
+        var rows = new List<DisplayWorkRow> { Book(series, "One", 3), Book(series, "Two", 2), Book(null, "Alone", 1) };
+        var folder = Guid.NewGuid();
+        var fresh = Video(folder, "Welcome");
+        fresh.CreatedAt = DateTimeOffset.UtcNow;
+        rows.Add(fresh);
+        rows.Add(VideoRow(Guid.NewGuid(), folder, "Loops"));
 
         var items = RecentCatalogueReadService.Compose(rows, new DisplayCardBuilder(), "all", null, 20);
 
-        // Every item is a title that was added, or the per-Series roll-up of titles that were added (One tile design D14).
-        Assert.Equal(2, items.Count);
-        Assert.Contains(items, item => item.Catalogue!.Id == series && item.Catalogue.Flags.IsCollection);
-        Assert.Contains(items, item => item.Catalogue!.Title == "Alone" && !item.Catalogue.Flags.IsCollection);
+        Assert.DoesNotContain(items, item => item.Catalogue!.Id == series);
+        Assert.Equal(3, items.Count(item => item.Catalogue!.MediaType is "Book"));
+        var group = Assert.Single(items, item => item.Catalogue!.MediaType == VideoFolderWording.FolderMediaType).Catalogue!;
+        Assert.True(group.IsNew);
+        Assert.Contains(VideoFolderWording.NewVideoLabel, group.Facts);
     }
 
     private static DisplayComposerService Composer(IReadOnlyList<DisplayWorkRow> works)
