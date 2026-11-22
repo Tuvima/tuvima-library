@@ -1,0 +1,160 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Group pages and tiles refresh mockups</title>
+<style>
+:root{--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--menu:#2F3039;--line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.18);--tx:#F2F2F5;--tx2:#B4B6C2;--tx3:#8A8D9B;--pu:#8852FC;--put:#A46FFF;--pus:rgba(136,82,252,.16);--amber:#E0A23A;--note:#0C0D10;--red:#E5484D;--green:#3DBE7A}
+*{box-sizing:border-box}html{color-scheme:dark}
+body{margin:0;background:var(--note);color:var(--tx);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px 16px 80px}
+.wrap{max-width:1180px;margin:0 auto}h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:44px 0 4px}h3{font-size:13px;margin:22px 0 8px;color:var(--tx2);font-weight:600}
+.sub{color:var(--tx2);margin:0 0 12px;max-width:780px}
+.holder{position:relative;margin-bottom:8px}.holder>.frame{transform-origin:0 0;position:absolute;left:0;top:0}
+.frame{background:var(--page);border:1px solid var(--line2);border-radius:10px;overflow:hidden;position:relative;color:var(--tx)}
+.notes{margin:14px 0 0;padding:0;list-style:none;counter-reset:n;max-width:880px}
+.notes li{counter-increment:n;position:relative;padding:0 0 8px 30px;color:var(--tx2)}
+.notes li:before{content:counter(n);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;background:var(--amber);color:#111;font-weight:700;font-size:11px;display:grid;place-items:center}
+.mki{display:inline-grid;vertical-align:middle;margin-right:6px;width:22px;height:22px;border-radius:50%;background:var(--amber);color:#111;font-weight:700;font-size:12px;place-items:center}
+.mk{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--amber);color:#111;font-weight:700;font-size:12px;display:grid;place-items:center;z-index:9;box-shadow:0 0 0 2px #0008}
+/* app chrome */
+.nav{height:56px;background:var(--nav);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:22px;padding:0 24px}
+.nav b{font-family:Georgia,serif;font-size:18px}.nav span{color:var(--tx2);height:100%;display:flex;align-items:center}.nav span.on{color:var(--tx);box-shadow:inset 0 -2px 0 var(--pu)}
+.bot{height:56px;background:var(--nav);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;color:var(--tx3);font-size:11px}
+.pg{padding:20px 24px 28px}
+.crumb{color:var(--tx3);font-size:13px;margin-bottom:10px}.crumb a{color:var(--put)}
+/* covers */
+.cv{display:block;flex:none;border-radius:4px}
+/* group tile: landscape, covers native shape on one height, band */
+.gt{position:relative;background:var(--card);border-radius:8px;overflow:hidden;min-width:0}
+.gt .area{display:flex;justify-content:center;align-items:center;gap:4px;padding:10px 10px 6px;height:var(--ah)}
+.gt .area.two{position:relative;display:block}
+.gt .area.two .cv{position:absolute;height:84%;top:8%}
+.gt .more{position:absolute;left:8px;bottom:50px;background:#000a;border-radius:999px;padding:1px 7px;font-size:11px;color:var(--tx)}
+.gt .band{background:#0E0F13;padding:7px 12px 8px;border-top:1px solid var(--line)}
+.gt .band b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}.gt .band small{color:var(--tx2);font-size:12px}
+.gt .dots{position:absolute;right:2px;top:2px;width:44px;height:44px;display:grid;place-items:center;font-size:18px;text-shadow:0 1px 4px #000;color:#fff}
+.gt.hov{box-shadow:0 0 0 2px var(--pu)}
+.gt.drop{box-shadow:0 0 0 2px var(--pu);background:var(--pus)}
+.gt .tag{position:absolute;left:0;top:0;background:var(--pu);color:#fff;font-size:11px;padding:2px 8px;border-radius:0 0 6px 0}
+.grid{display:grid;gap:14px}
+.hd{display:flex;align-items:center;gap:12px;margin-bottom:16px}.hd h4{margin:0;font-size:24px;flex:1;font-weight:600}
+.btn{height:40px;border-radius:999px;padding:0 18px;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);color:var(--tx);font-weight:500;white-space:nowrap}.btn.pri{background:var(--pu);border-color:var(--pu);color:#fff}
+.sq{border-radius:6px}
+.ib{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line2);color:var(--tx2);font-size:18px;flex:none}
+.pill{display:inline-block;border-radius:4px;padding:2px 9px;font-size:12px;background:var(--hover);color:var(--tx2);margin-right:6px}
+.pill.pu{background:var(--pus);color:var(--put)}
+.sort{height:40px;border:1px solid var(--line2);border-radius:8px;padding:0 12px;display:inline-flex;align-items:center;gap:8px;color:var(--tx2)}
+/* details page */
+.hero{display:flex;gap:28px;align-items:flex-start}.hero.p{flex-direction:column;gap:16px}
+.hero .meta{flex:1;min-width:0}.hero h4{margin:0 0 6px;font-size:30px;font-weight:600;line-height:1.1}.hero.p h4{font-size:24px}
+.hero p{color:var(--tx2);margin:10px 0 14px;max-width:62ch}
+.acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:22px 0 14px}.tabs span{padding:10px 0;color:var(--tx2)}.tabs span.on{color:var(--tx);box-shadow:inset 0 -2px 0 var(--pu)}
+.mem{position:relative}.mem .n{position:absolute;left:0;top:0;background:#000b;color:#fff;font-size:12px;font-weight:700;padding:1px 8px;border-radius:0 0 6px 0}
+.mem .cvx{border-radius:4px;display:block}.mem small{display:block;color:var(--tx3);font-size:12px;margin-top:4px}.mem b{font-weight:500;font-size:13px;display:block;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mem.miss .cvx{opacity:.35;outline:1px dashed var(--line2)}
+.sr{display:grid;gap:12px;align-items:center;min-height:56px;padding:4px 8px;border-radius:8px}.sr+.sr{border-top:1px solid var(--line)}.hd2{min-height:34px;color:var(--tx3);font-size:12px;border-bottom:1px solid var(--line2)}.sr .gr{color:var(--tx3);font-size:16px;text-align:center}.sr .no{text-align:center;color:var(--tx2)}.sr.playing{background:var(--pus)}.sr.playing .no{color:var(--put)}.sr .tt{display:flex;gap:12px;align-items:center;min-width:0}.sr .tt b{font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sr small{color:var(--tx3);font-size:12px}.sr .al,.sr .tm{color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sr .tm{text-align:right}.sr .mn{text-align:center;color:var(--tx2)}.th2{display:block;width:40px;height:40px;border-radius:4px;flex:none}\n.owned{color:var(--tx2);margin:14px 0 0;font-size:13px}
+/* order */
+.ord{background:var(--card);border-radius:12px;padding:16px}
+.rules{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0 14px}.rules .r{display:inline-flex;gap:8px;align-items:center;background:var(--hover);border-radius:6px;padding:6px 10px;color:var(--tx)}
+.rules .r i{font-style:normal;background:var(--pu);color:#fff;border-radius:50%;width:18px;height:18px;display:grid;place-items:center;font-size:11px}.rules .r em{font-style:normal;color:var(--tx3);font-size:12px}
+.rules .ar{color:var(--tx3)}
+.row{display:grid;grid-template-columns:36px 40px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:56px;padding:6px 8px;border-radius:8px}
+.row+.row{border-top:1px solid var(--line)}.row.p{grid-template-columns:30px 34px minmax(0,1fr)}.row.p .why{grid-column:3;justify-self:start}
+.row .num{font-weight:700;font-size:16px;text-align:center;color:var(--tx)}.row .t b{font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row .t small{color:var(--tx3);font-size:12px}
+.row .why{border-radius:4px;padding:2px 9px;font-size:12px;background:var(--hover);color:var(--tx2);white-space:nowrap}.row .why.warn{background:rgba(224,162,58,.16);color:var(--amber)}
+.row .th{width:34px;height:50px;border-radius:3px}
+.leg{color:var(--tx3);font-size:12px;margin-top:10px}
+.lockline{display:flex;gap:8px;align-items:center;color:var(--tx2);font-size:13px}
+.edtab{display:flex;gap:18px;border-bottom:1px solid var(--line);margin:0 0 14px}.edtab span{padding:8px 0;color:var(--tx2)}.edtab span.on{color:var(--tx);box-shadow:inset 0 -2px 0 var(--pu)}
+</style></head><body><div class="wrap">
+<h1>Group pages and tiles refresh</h1>
+<p class="sub">Draft mockups for the spec "Group pages and tiles" (Draft). Dark only. Each screen is drawn at 1024, 1280, 1440 and phone width, scaled to fit this page. Cover art here is colored placeholders; the real app uses the real covers. Amber numbers match the notes under each screen.</p>
+<div id="root"></div></div>
+<script>
+const C=['#7a3b3b','#3b5f7a','#5b7a3b','#7a6a3b','#5a3b7a','#3b7a6f','#7a3b62','#3b4a7a'];
+const cv=(h,a,i)=>`<span class="cv" style="height:${h}px;width:${h*a}px;background:linear-gradient(160deg,${C[i%8]},#1b1c22)"></span>`;
+// group collage: members [{a:aspect}], cap
+function collage(members,total,cap,h,ah,tw){
+  const shown=members.slice(0,cap);const hid=total-shown.length;
+  if(shown.length!==2&&tw){const sum=shown.reduce((a,m)=>a+m.a,0);h=Math.min(h,(tw-24-4*(shown.length-1))/sum);}
+  if(shown.length===2){return `<div class="area two" style="--ah:${ah}px"><span class="cv" style="left:18%;height:${h*0.84}px;width:${h*0.84*shown[0].a}px;top:8%;background:linear-gradient(160deg,${C[0]},#1b1c22)"></span><span class="cv" style="right:18%;height:${h*0.84}px;width:${h*0.84*shown[1].a}px;top:8%;background:linear-gradient(160deg,${C[1]},#1b1c22)"></span></div>`}
+  return `<div class="area" style="--ah:${ah}px">${shown.map((m,i)=>cv(h,m.a,i)).join('')}</div>${hid>0?`<span class="more">+${hid}</span>`:''}`;
+}
+function gtile(o){return `<div class="gt ${o.cls||''}" style="${o.style||''}">${o.tag?`<span class="tag">${o.tag}</span>`:''}${collage(o.m,o.total,o.cap,o.h,o.ah,o.tw)}${o.mk?`<span class="mk" style="${o.mk===3?'right:44px;top:12px':'left:6px;top:6px'}">${o.mk}</span>`:''}<span class="dots">&#8942;</span><div class="band"><b>${o.name}</b><small>${o.sub}</small></div></div>`}
+const P=.67,S=1,W=1.78;
+function mk(n,x,y){return `<span class="mk" style="left:${x}px;top:${y}px">${n}</span>`}
+const widths=[['1024',1024],['1280',1280],['1440',1440],['Phone',390]];
+function fit(html,w,h){return {w,h,html}}
+function render(secId,title,sub,build,notes){
+  let out=`<h2>${title}</h2><p class="sub">${sub}</p>`;
+  widths.forEach(([lab,w])=>{out+=`<h3>${lab} wide</h3><div class="holder" data-w="${w}"><div class="frame" style="width:${w}px">${build(w)}</div></div>`});
+  out+=`<ol class="notes">${notes.map(n=>`<li>${n}</li>`).join('')}</ol>`;return out}
+function chrome(w,inner,page){const ph=w<600;return `${ph?'':`<div class="nav"><b>Library</b><span>Home</span><span>Watch</span><span>Read</span><span class="on">Listen</span><span>Collections</span></div>`}<div class="pg" style="${ph?'padding:14px 14px 18px':''}">${inner}</div>${ph?'<div class="bot"><span>Home</span><span>Watch</span><span>Read</span><span>Listen</span><span>More</span></div>':''}`}
+
+function ptile(o){const q=o.q;const cells=Array.from({length:4},(_,i)=>i<q?`<span style="border-radius:4px;aspect-ratio:1;align-self:center;background:linear-gradient(160deg,${C[(i+o.seed)%8]},#1b1c22)"></span>`:`<span style="border-radius:4px;border:1px dashed var(--line2);background:#ffffff08"></span>`).join('');
+ return `<div class="pt ${o.cls||''}" style="position:relative;aspect-ratio:1;background:var(--card);border-radius:8px;overflow:hidden"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;background:#1f2027;position:absolute;inset:0">${cells}</div><span class="dots" style="position:absolute;right:2px;top:2px;width:44px;height:44px;display:grid;place-items:center;font-size:18px;text-shadow:0 1px 4px #000;color:#fff">&#8942;</span>${o.mk?`<span class="mk" style="${o.mk===3?'right:44px;top:12px':'left:6px;top:6px'}">${o.mk}</span>`:''}<div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 0%,#0a0b0ee6 100%);pointer-events:none"></div><b style="position:absolute;left:12px;right:12px;bottom:36px;font-size:15px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${o.name}</b><span style="position:absolute;left:0;bottom:0;background:#000b;color:var(--tx);font-size:12px;padding:4px 10px;border-radius:0 6px 0 0">${o.sub}</span></div>`}
+// A: Playlists page
+function playlists(w){const ph=w<600;const cols=ph?2:w>=1440?6:w>=1280?5:4;
+ const pls=[['Favorites','Built in · 126 songs',4],['Road trip','Playlist · 48 songs · 3 h 12 min',4],['Sunday morning','Playlist · 17 songs',3],['Gym','Smart playlist · 32 songs',4],['Dinner party','Playlist · 24 songs',2],['Focus','Smart playlist · 60 songs',4],['Late night','Playlist · 9 songs',1],['Study','Playlist · 14 songs',3]];
+ const tiles=pls.map((p,i)=>ptile({name:p[0],sub:p[1],q:p[2],seed:i,mk:i==1?1:i==2?2:i==3?3:'',cls:''}).replace('class="pt "',i==1?'class="pt" data-h="1" style="box-shadow:0 0 0 2px var(--pu);position:relative;aspect-ratio:1;background:var(--card);border-radius:8px;overflow:hidden"':i==2?'class="pt" style="box-shadow:0 0 0 2px var(--pu);background:var(--pus);position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden"':'class="pt "'));
+ const shown=ph?tiles.slice(0,6):tiles.slice(0,cols*2);
+ let html=`<div class="hd"><h4>Playlists</h4>${ph?'':'<span class="sort">Sort: Recently played &#9662;</span>'}<span class="btn pri sq" style="border-radius:6px">+ New playlist</span></div>${ph?'<div style="margin-bottom:12px"><span class="sort">Sort: Recently played &#9662;</span></div>':''}<div class="grid" style="grid-template-columns:repeat(${cols},1fr);position:relative">${shown.join('')}</div>`;
+ return `<div style="position:relative">${chrome(w,html)}${mk(4,ph?w-60:w-24-190,ph?102:68)}</div>`}
+// B: details page of a Series / collection
+function groupPage(w,kind){const ph=w<600;
+ const n=ph?3:w>=1440?4:3;const ch=ph?130:w>=1440?280:w>=1280?260:220;
+ const covers=Array.from({length:n},(_,i)=>`<span class="cv" style="height:${ch}px;width:${ch*P}px;box-shadow:0 14px 30px #000a;background:linear-gradient(160deg,${C[i%8]},#1b1c22)"></span>`).join('');
+ const art=`<div style="display:flex;gap:10px;align-items:center;${ph?'justify-content:center;margin-bottom:14px':'position:absolute;right:'+(w>=1280?48:28)+'px;top:50%;transform:translateY(-50%)'}">${covers}<span style="${ph?'':'align-self:flex-end;'}background:#000a;border-radius:999px;padding:2px 9px;font-size:12px">+${11-n}</span><span class="mki" style="margin:0;position:absolute;left:${ph?'8px':'-30px'};top:${ph?'0':'0'}">1</span></div>`;
+ const pills=`<span class="pill pu">Series</span><span class="pill">Books</span><span class="pill">2011 – 2021</span><span class="pill">11 books</span>`;
+ const acts=`<div class="acts"><span class="btn pri">&#9654; Read next: Book 4</span><span class="ib">+</span><span class="ib">&#8942;</span></div>`;
+ const hero=`<div style="position:relative;min-height:${ph?0:420}px;padding:${ph?'18px 14px 16px':'56px 48px'};background:linear-gradient(${ph?'180deg':'90deg'},#0B1020 ${ph?'0%':'38%'},#0B102000 ${ph?'100%':'78%'}),linear-gradient(135deg,#4a3190,#12183a 70%)">${ph?art:art}<div style="position:relative;max-width:${ph?'none':'40%'}"><div class="crumb" style="color:#cfd2e0"><a>Read</a> &rsaquo; <a>Series</a></div><h4 style="margin:0 0 8px;font-size:${ph?26:40}px;font-weight:600;line-height:1.1">The Expanse</h4><div>${pills}</div><p style="color:var(--tx2);margin:12px 0 16px"><span class="mki">2</span>Humanity has settled the solar system and the tensions between Earth, Mars and the Belt are about to boil over. Series by James S. A. Corey.</p>${acts}</div></div>`;
+ const members=Array.from({length:ph?6:w>=1440?11:w>=1280?9:8},(_,i)=>`<div class="mem ${i==8?'miss':''}"><span class="n">${i+1}</span><div class="cvx" style="aspect-ratio:2/3;background:linear-gradient(160deg,${C[i%8]},#1b1c22)"></div><b>Book title ${i+1}</b><small>${2011+i}</small></div>`).join('');
+ const cols=ph?3:w>=1440?8:w>=1280?7:6;
+ const body=`<div style="padding:${ph?'0 14px 18px':'0 48px 28px'}"><div class="tabs"><span class="on"><span class="mki">3</span>In order</span><span>Details</span></div><div class="grid" style="grid-template-columns:repeat(${cols},1fr)">${members}</div><div class="owned"><span class="mki">4</span>You own 10 of 11 books.</div></div>`;
+ const topnav=ph?'':'<div class="nav"><b>Library</b><span>Home</span><span>Watch</span><span class="on">Read</span><span>Listen</span><span>Collections</span></div>';
+ return `${topnav}${hero}${body}${ph?'<div class="bot"><span>Home</span><span>Watch</span><span>Read</span><span>Listen</span><span>More</span></div>':''}`}
+// C: reading order in the Series editor
+function order(w){const ph=w<600;const rows=[[1,'Leviathan Wakes','Book 1 · 2011','Series number',0],[2,"Caliban's War",'Book 2 · 2012','Series number',0],[3,'Abaddon\'s Gate','Book 3 · 2013','Series number',0],[3.5,'The Churn','Novella · 2014','Between 3 and 4 · publication date',1],[4,'Cibola Burn','Book 4 · 2014','Series number',0],[5,'Nemesis Games','Book 5 · 2015','Series number',0]].slice(0,ph?5:6);
+ const rl=`<div class="rules"><span class="r"><i>1</i>Series number <em>5 of 6 placed</em></span><span class="ar">&rsaquo;</span><span class="r"><i>2</i>Publication date <em>1 of 6 placed</em></span><span class="ar">&rsaquo;</span><span class="r"><i>3</i>Title <em>0 of 6</em></span></div>`;
+ const lst=rows.map(r=>`<div class="row ${ph?'p':''}"><span class="num">${r[0]===3.5?'3a':r[0]}</span><span class="th" style="background:linear-gradient(160deg,${C[(r[0]|0)%8]},#1b1c22)"></span><div class="t"><b>${r[1]}</b><small>${r[2]}</small></div><span class="why ${r[4]?'warn':''}">${r[3]}</span></div>`).join('');
+ const inner=`<div class="frame" style="border:0;border-radius:0;width:${ph?'100%':'760px'};margin:${ph?'0':'0 auto'};background:var(--card);padding:${ph?'14px':'20px 24px'}"><div class="edtab"><span>Details</span><span>Artwork</span><span class="on">In order</span><span>History</span></div><div class="lockline"><span class="mki">1</span>&#128274; Set by Wikidata and the books themselves. It can't be changed here.</div><h3 style="margin-top:16px"><span class="mki">2</span>How the order is worked out</h3>${rl}<h3><span class="mki">3</span>Result: 6 books</h3><div class="ord" style="background:var(--page)">${lst}</div><div class="leg"><span class="mki">4</span></div></div>`;
+ const s=[];
+ return `<div style="position:relative;padding:${ph?'0':'24px 0 28px'};background:var(--note)">${inner}${s.join('')}</div>`}
+
+// D: playlist details
+function plDetails(w){const ph=w<600;const sz=ph?150:w>=1280?250:210;
+ const q=`<div style="width:${sz}px;height:${sz}px;display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;background:#1f2027;border-radius:8px;box-shadow:0 14px 30px #000a;${ph?'margin:0 auto 14px':'position:absolute;right:'+(w>=1280?48:28)+'px;top:50%;transform:translateY(-50%)'}">${[0,1,2,3].map(i=>`<span style="border-radius:4px;background:linear-gradient(160deg,${C[i]},#1b1c22)"></span>`).join('')}</div>`;
+ const hero=`<div style="position:relative;min-height:${ph?0:340}px;padding:${ph?'18px 14px 16px':'48px 48px'};background:linear-gradient(${ph?'180deg':'90deg'},#0B1020 ${ph?'0%':'38%'},#0B102000 ${ph?'100%':'78%'}),linear-gradient(135deg,#4a3190,#12183a 70%)">${q}<div style="position:relative;max-width:${ph?'none':'45%'}"><div class="crumb" style="color:#cfd2e0"><a>Listen</a> &rsaquo; <a>Playlists</a></div><h4 style="margin:0 0 8px;font-size:${ph?26:38}px;font-weight:600;line-height:1.1">Road trip</h4><div><span class="pill pu">Playlist</span><span class="pill">48 songs</span><span class="pill">3 h 12 min</span></div><p style="color:var(--tx2);margin:10px 0 14px">Songs for the long drive west.</p><div class="acts"><span class="btn pri">&#9654; Play</span><span class="btn">&#8644; Shuffle</span><span class="btn">+ Add songs</span><span class="ib">&#8942;</span></div></div></div>`;
+ const songs=[['Midnight City','M83','Hurry Up, We\'re Dreaming','Nov 2','4:03'],['Go Your Own Way','Fleetwood Mac','Rumours','Nov 2','3:38'],['Dreams','Fleetwood Mac','Rumours','Nov 3','4:14'],['Take Me Home, Country Roads','John Denver','Poems, Prayers & Promises','Nov 5','3:10'],['Hotel California','Eagles','Hotel California','Nov 5','6:30'],['Mr. Blue Sky','ELO','Out of the Blue','Nov 9','5:03'],['Sunset','The Midnight','Endless Summer','Nov 9','4:21']];
+ const grid=ph?'20px 28px 44px minmax(0,1fr) 36px':w>=1280?'20px 36px minmax(0,2.2fr) minmax(0,1.6fr) 110px 70px 36px':'20px 36px minmax(0,2.2fr) minmax(0,1.6fr) 70px 36px';
+ const head=ph?'':`<div class="sr hd2" style="grid-template-columns:${grid}"><span></span><span>#</span><span>Title</span><span>Album</span>${w>=1280?'<span>Date added</span>':''}<span style="text-align:right">Time</span><span></span></div>`;
+ const rows=songs.map((r,i)=>`<div class="sr${i==1?' playing':''}" style="grid-template-columns:${grid}"><span class="gr">&#10303;</span><span class="no">${i==0?'<span class="mki" style="margin:0">4</span>':i==1?'&#9654;':i+1}</span>${ph?`<span class="th2" style="background:linear-gradient(160deg,${C[i%8]},#1b1c22)"></span>`:''}<span class="tt">${ph?'':`<i class="th2" style="background:linear-gradient(160deg,${C[i%8]},#1b1c22)"></i>`}<span><b>${r[0]}</b><small>${r[1]}</small></span></span>${ph?'':`<span class="al">${r[2]}</span>`}${!ph&&w>=1280?`<span class="al">${r[3]}</span>`:''}${ph?'':`<span class="tm">${r[4]}</span>`}<span class="mn">&#8942;</span></div>`).join('');
+ const bar=`<div style="display:flex;gap:10px;align-items:center;margin:14px 0 6px;flex-wrap:wrap"><span class="mki">1</span><span class="sort" style="flex:1;max-width:${ph?'none':'320px'};min-width:140px">&#128269; Search this playlist</span><span class="sort">Sort: Playlist order &#9662;</span><span style="display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden"><span style="padding:9px 12px;background:var(--hover)">&#9776;</span><span style="padding:9px 12px;color:var(--tx3)">&#9638;</span></span><span class="mki">2</span></div>`;
+ const body=`<div style="padding:${ph?'4px 14px 18px':'6px 48px 28px'}">${bar}${head}${rows}<div class="sr" style="grid-template-columns:${ph?'1fr':'1fr'};color:var(--put);border-top:1px solid var(--line)"><span style="display:flex;align-items:center;gap:10px"><span class="mki" style="margin:0">5</span>+ Add songs to this playlist</span></div><div class="owned"><span class="mki">3</span>48 songs, 3 h 12 min</div></div>`;
+ const bot=`<div style="${ph?'':'display:none'};height:60px;background:var(--nav);border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 14px"><span class="th2" style="background:linear-gradient(160deg,${C[1]},#1b1c22)"></span><span style="flex:1"><b>Go Your Own Way</b><small style="display:block;color:var(--tx3)">Fleetwood Mac</small></span><span class="ib" style="border:0">&#9654;</span></div>`;
+ const topnav=ph?'':'<div class="nav"><b>Library</b><span>Home</span><span>Watch</span><span>Read</span><span class="on">Listen</span><span>Collections</span></div>';
+ return `${topnav}${hero}${body}${ph?bot+'<div class="bot"><span>Home</span><span>Watch</span><span>Read</span><span>Listen</span><span>More</span></div>':''}`}
+const root=document.getElementById('root');
+root.innerHTML=
+render('a','A · Playlists page','Playlists are always square tiles filled with album covers, like the artist view, with the same "..." menu and hover as every tile.',playlists,[
+ 'A playlist is always a square tile, filled with the albums of its songs in a 2 by 2 grid, exactly like an artist\'s tile today (a missing quarter is a faint dashed square). Name and a type line ("Playlist · 48 songs") sit on the art at the bottom.',
+ 'Hover is the same 2 px purple outline as every other tile. A hand-made playlist takes songs dragged onto it: while a song is over it the tile shows the outline and a tinted fill.',
+ 'Same "..." menu as every group tile: Play, Edit details, Duplicate, Pin, Move up/down, Delete. Phone opens it as the bottom sheet.',
+ '"+ New playlist" stays top right. Sort stays beside it (phone: on its own line). Favorites and Smart playlists are the same tile; the type line says what they are.'].map(x=>x));
+root.innerHTML+=render('b','B · Details page of a Series or collection','Same hero as every details page: full-width backdrop, text and actions on the left, the artwork on the right. No tile in the hero. The covers on the right are the same covers as the tile, drawn the way group heroes already draw them.',groupPage,[
+ 'Right side of the hero: the group\'s own covers in their native shape, one height, never cropped, with the same "+N" count as the tile. It is the hero\'s existing group artwork slot, not a tile. A cover somebody chose is shown instead, whole. Phone: the covers sit on top and the text follows.',
+ 'Left side as every details page: path, title, type pills in words, description, then Read next (or Resume / Play), My List plus and "...". Series stays read only.',
+ 'Below the hero: In order (kept as you liked it), the members as a numbered cover grid; one you do not own is dimmed with a dashed outline. Tabs: In order, Details (no People tab, people are on each item\'s own page).',
+ 'One count line under the grid: "You own 10 of 11 books."'].map(x=>x));
+root.innerHTML+=render('c','C · Reading order (Series editor)','The order and the reason for each place on one screen: the rules in priority, then the result with the rule that placed each book.',order,[
+ 'The lock line stays: a Series is set by Wikidata and its books. The order is shown, not edited (Series are read only).',
+ 'Step 1: the rules in the order they are tried, each as a square pill with how many books it placed. This is how you see what the rules do.',
+ 'Step 2: the result. Number, small cover, title and detail line, and at the right the rule that placed it. An amber chip means it was placed by a later rule (here a novella between 3 and 4, shown as 3a).',
+ 'Tapping a book opens its own editor in the same window, as today. Phone: the rule chip drops under the title; the rule pills wrap onto two lines.'].map(x=>x));
+root.innerHTML+=render('d','D · Playlist details page','Same standard hero (text left, the playlist\'s album tile right), then a song list the way Apple Music and Spotify lay it out.',plDetails,[
+ 'Search this playlist and Sort (Playlist order, Title, Artist, Album, Date added, Time).',
+ 'List / Cards switch. List is the default. Cards shows the songs as square album tiles.',
+ 'Total line under the list.',
+ 'The list: a grip on every row of a hand-made playlist (drag by it with a mouse or a finger; Smart and built-in playlists show no grip and no Add songs). The song that is playing has a play mark in place of its number. "..." on each row holds Play next, Add to queue, Add to another playlist, Remove from this playlist. On a phone the mini player sits above the bottom bar and the album and date columns are dropped.',
+ 'Add songs: a button in the hero and a row under the list. It opens a search of your songs and albums; tap + beside a result to add it, and keep adding. Songs go to the end of the playlist.'].map(x=>x));
+function scale(){document.querySelectorAll('.holder').forEach(h=>{const w=+h.dataset.w,f=h.firstElementChild;const avail=h.parentElement.clientWidth;const s=Math.min(1,avail/w);f.style.transform=`scale(${s})`;h.style.height=(f.offsetHeight*s)+'px';h.style.width=(w*s)+'px'})}
+addEventListener('load',scale);addEventListener('resize',scale);scale();
+</script></body></html>
