@@ -20,6 +20,7 @@ public partial class SongTable
     private const int SkeletonRowCount = 8;
     private const int ActionsColumnWidth = 100;
     private const int ColumnGap = 8;
+    private const int PlaylistSongMinimumWidth = 240;
     private const int PhoneRowHeight = 64;
     private const int PhoneJumpOffset = 8;
 
@@ -484,8 +485,11 @@ public partial class SongTable
                 case SongColumn.Song:
                     // Song soaks up the spare width until the person sets its width; then it keeps exactly that width and the spare
                     // width falls to the right of the last column.
-                    template.Add(_choice.Widths.ContainsKey(SongColumn.Song) ? $"{layout.Width}px" : $"minmax({layout.Width}px, 1fr)");
-                    minimum += layout.Width;
+                    // A playlist's song cell is a title over an artist, so it can give up more width than the one-line cells of the other lists
+                    // before the table scrolls sideways (the page is narrow beside the rail at 1024).
+                    var songMinimum = Place == SongTablePlace.Playlist ? Math.Min(layout.Width, PlaylistSongMinimumWidth) : layout.Width;
+                    template.Add(_choice.Widths.ContainsKey(SongColumn.Song) ? $"{layout.Width}px" : $"minmax({songMinimum}px, 1fr)");
+                    minimum += songMinimum;
                     break;
                 case var resized when _choice.Widths.ContainsKey(resized):
                     // A column the person resized keeps exactly that width, even when the table is too narrow for every column:
@@ -605,6 +609,9 @@ public partial class SongTable
 
         return string.Join(' ', classes);
     }
+
+    // A playlist's song cell names the artist under the title when the Artist column is off (mockup D); with the column on it is not said twice.
+    private bool ArtistUnderTitle => Place == SongTablePlace.Playlist && !IsColumnVisible(SongColumn.Artist);
 
     private bool IsCurrent(SongRow row) => CurrentRowId is not null && string.Equals(CurrentRowId, row.Id, StringComparison.Ordinal);
 

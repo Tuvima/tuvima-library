@@ -501,8 +501,7 @@
     gap: 12px;
 }
 
-.listen-detail__art img,
-.listen-detail__collage-tile img{
+.listen-detail__art img {
     display: block;
     width: 100%;
     height: 100%;
@@ -515,8 +514,7 @@
     position: relative;
 }
 
-.listen-detail__art,
-.listen-detail__collage {
+.listen-detail__art {
     width: min(240px, 28vw);
     aspect-ratio: 1 / 1;
     border-radius: var(--tl-radius-md);
@@ -527,27 +525,6 @@
     align-items: center;
     justify-content: center;
     color: var(--tl-text-disabled);
-}
-
-.listen-detail__custom-art {
-    grid-column: 1 / -1;
-    width: 100%;
-    height: 100%;
-    border-radius: calc(var(--tl-radius-md) - 4px);
-    object-fit: cover;
-}
-
-.listen-detail__collage {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 6px;
-    padding: 6px;
-}
-
-.listen-detail__collage-tile {
-    border-radius: var(--tl-radius-md);
-    overflow: hidden;
-    background: var(--tl-border-subtle);
 }
 
 .listen-detail__copy {
@@ -565,62 +542,30 @@
     font-weight: var(--tl-type-control-weight);
 }
 
-.listen-detail--album .listen-detail__art,
-.listen-detail--collection .listen-detail__collage {
+.listen-detail--album .listen-detail__art {
     width: 180px;
     border-radius: var(--tl-radius-md);
 }
 
-.listen-detail--album,
-.listen-detail--collection {
+.listen-detail--album {
     padding: 20px 22px;
 }
 
-/* A playlist's own page header (spec listen-playlists, mockup B): a 140 px cover, the kind line, the name, "42 songs · 2h 55m", the
-   description, the unavailable-songs line, then the actions in a row of 44 px controls ending with the "..." menu. */
-.listen-detail--collection .listen-detail__collage {
-    width: 140px;
+/* Under a playlist's songs (mockup D): the Add songs row (the shared text button, full width) and the total line. */
+.playlist-add-row {
+    padding-top: 4px;
+    border-top: 1px solid var(--tl-divider);
 }
 
-.listen-detail--collection .listen-detail__copy {
-    flex: 1 1 auto;
-    gap: 4px;
-}
-
-.listen-detail__kind {
-    margin: 0;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
-}
-
-.listen-detail--collection .listen-detail__copy h2 {
-    font-size: var(--tl-type-page-title-size);
-    line-height: 1.25;
-    overflow-wrap: anywhere;
-}
-
-.listen-detail__description {
-    margin: 0;
-    max-width: 60ch;
+.playlist-total {
+    margin: 14px 0 0;
+    padding: 0 8px;
     color: var(--tl-text-secondary);
-    overflow-wrap: anywhere;
+    font-size: var(--tl-type-secondary-size);
 }
 
-.listen-detail__unavailable {
-    margin: 0;
-    color: var(--tl-status-warning);
-    font-size: var(--tl-font-size-sm);
-}
-
-.listen-detail--collection .listen-actions {
-    align-items: center;
-    margin-top: 10px;
-    gap: 8px;
-}
-
-::deep .listen-playlist-sort__button {
-    min-height: var(--tl-tap-target-min, 44px);
-    padding-inline: 16px;
+.listen-empty.listen-empty--compact {
+    min-height: 120px;
 }
 
 .listen-artists {
@@ -1233,21 +1178,9 @@
     }
 
     .listen-detail__art,
-    .listen-detail__collage,
-    .listen-detail--album .listen-detail__art,
-    .listen-detail--collection .listen-detail__collage {
+    .listen-detail--album .listen-detail__art {
         width: 100%;
         max-width: 320px;
-    }
-
-    /* A playlist's header keeps its cover beside the text down to a tablet; only a phone stacks it (see the 600 px block). */
-    .listen-detail--collection {
-        flex-direction: row;
-    }
-
-    .listen-detail--collection .listen-detail__collage {
-        width: 140px;
-        max-width: 140px;
     }
 
     .audiobooks-toolbar,
@@ -1406,29 +1339,5 @@
 
     .listen-rail-shell {
         display: none;
-    }
-}
-
-/* On a phone a playlist's header is centered: a 150 px cover, then the lines and the actions in the middle (mockup D). */
-@media (max-width: 600px) {
-    .listen-detail--collection {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-    }
-
-    .listen-detail--collection .listen-detail__collage {
-        width: 150px;
-        max-width: 150px;
-    }
-
-    .listen-detail--collection .listen-detail__copy {
-        align-items: center;
-        width: 100%;
-    }
-
-    .listen-detail--collection .listen-detail__meta,
-    .listen-detail--collection .listen-actions {
-        justify-content: center;
     }
 }

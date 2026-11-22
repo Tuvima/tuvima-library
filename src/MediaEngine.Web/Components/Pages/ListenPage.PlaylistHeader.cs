@@ -3,6 +3,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Formatting;
+using MediaEngine.Web.Services.MediaTiles;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Pages;
@@ -67,29 +68,55 @@ public partial class ListenPage
         }
     }
 
-    // "42 songs · 2h 55m": the count of songs that play, then the length when the Engine knows it (a list with no known length shows the count only).
-    private string? ActivePlaylistMetaLine
+    // The hero's pills (mockup D): the kind of list in words, then "42 songs" (the songs that play) and, when the Engine knows it, the length
+    // ("2h 55m"). A built-in list with no kind line of its own says "Built in".
+    private IReadOnlyList<string> ActivePlaylistPills
     {
         get
         {
-            if (!IsFavoritesPlaylist && !IsCollectionPlaylistPage)
-            {
-                return null;
-            }
-
-            var count = ActivePlaylistTracks.Count;
-            var parts = new List<string>
-            {
-                count == 1 ? L["ListenPage_FavoritesOneSong"].Value : L["ListenPage_FavoritesSongCount", DisplayFormat.FormatCount(count)].Value,
-            };
+            var pills = new List<string> { ActivePlaylistKindLine ?? L["PlaylistTiles_TypeBuiltIn"].Value, SongCountText(ActivePlaylistTracks.Count) };
             if (IsCollectionPlaylistPage && DisplayFormat.FormatDurationHoursMinutesOrNull(ActivePlaylistCollection?.TotalDurationSeconds) is { } length)
             {
-                parts.Add(length);
+                pills.Add(length);
             }
 
-            return string.Join(" · ", parts);
+            return pills;
         }
     }
+
+    private string SongCountText(int count)
+        => count == 1 ? L["ListenPage_FavoritesOneSong"].Value : L["ListenPage_FavoritesSongCount", DisplayFormat.FormatCount(count)].Value;
+
+    private static readonly SongSortState PlaylistOwnOrder = new(null, false);
+
+    // The line under the list ("48 songs, 3 h 12 min"): every song of the list, whatever the search shows, and their summed length when known.
+    private string PlaylistTotalLine(IReadOnlyList<SongRow> rows)
+    {
+        var count = SongCountText(rows.Count);
+        return DisplayFormat.FormatDurationHoursMinutesOrNull(rows.Sum(row => row.DurationSeconds ?? 0d)) is { } length
+            ? L["PlaylistPage_TotalLine", count, length].Value
+            : count;
+    }
+
+    // The tile on the right of the hero is the one the Playlists page draws (PlaylistTileComposer): the first four albums of the songs in a
+    // 2 by 2, or the cover the person chose, whole.
+    private IReadOnlyList<ArtworkStackItem> ActivePlaylistHeroCovers
+    {
+        get
+        {
+            var albumCovers = ActivePlaylistTracks.Select(track => track.CoverUrl).OfType<string>();
+            return ActivePlaylistCollection is { } playlist && IsCollectionPlaylistPage
+                ? PlaylistTileComposer.Compose(playlist, albumCovers).ArtworkStackItems
+                : PlaylistTileComposer.ComposeBuiltIn(ActivePlaylistTitle, string.Empty, null, PlaylistWords, albumCovers).ArtworkStackItems;
+        }
+    }
+
+    private PlaylistTileWords PlaylistWords => new(
+        L["PlaylistTiles_TypePlaylist"].Value,
+        L["PlaylistTiles_TypeSmartPlaylist"].Value,
+        L["PlaylistTiles_TypeBuiltIn"].Value,
+        L["PlaylistTiles_MetaShortOne"].Value,
+        L["PlaylistTiles_MetaShortMany"].Value);
 
     private string ActivePlaylistUnavailableText => ActivePlaylistUnavailableCount == 1
         ? L["PlaylistPage_UnavailableOne"].Value
@@ -101,12 +128,97 @@ public partial class ListenPage
         && ActivePlaylistCollection is { } playlist
         && PlaylistMenuRules.ActionsFor(playlist).Count > 0;
 
-    // Sort changes the saved order, so it is offered where Reorder is, on a hand-made playlist only.
-    private bool CanSortActivePlaylist => IsCollectionPlaylistPage
-        && CanReorderActivePlaylist
-        && ActivePlaylistCollection is { } playlist
-        && CanAcceptPlaylistItems(playlist)
-        && ActivePlaylistTracks.Count > 1;
+    // A hand-made playlist this profile owns: the one list whose order can be saved (drag, Move up and down, Keep this order) and that takes songs.
+    private bool IsOwnedHandMadePlaylist => IsCollectionPlaylistPage && CanReorderActivePlaylist;
+
+    // Sort changes the saved order on a hand-made playlist (it is staged, then Keep this order saves it); on every other list it only
+    // changes what the page shows. Either way it is offered once there is more than one song.
+    private bool CanSortActivePlaylist => ActivePlaylistTracks.Count > 1;
+
+    // ---- Search, sort, Cards and Add songs (spec group-pages-and-tiles D7, WP1b) --------------------------------------------------
+
+    private string _playlistSearch = string.Empty;
+    private PlaylistSongView _playlistSongView = PlaylistSongView.List;
+
+    // The sort of a list whose order the person cannot change (Smart, Favorites, built-in, someone else's): a view only, never saved.
+    private SongSortState _playlistViewSort = PlaylistOwnOrder;
+
+    private bool ShowPlaylistSearchBar => ActivePlaylistTracks.Count > 0;
+
+    // The sort the table draws a list in: null leaves a hand-made playlist to its staged order, the others take the view sort.
+    private SongSortState? PlaylistTableSort => IsOwnedHandMadePlaylist ? null : _playlistViewSort;
+
+    private SongSortState? CurrentPlaylistSort
+        => IsOwnedHandMadePlaylist ? _playlistSort : _playlistViewSort.Column is null ? null : _playlistViewSort;
+
+    // "Sort: Playlist order" or "Sort: Title".
+    private string PlaylistSortButtonLabel
+        => L["PlaylistPage_SortLabel",
+            CurrentPlaylistSort is { Column: { } column } && PlaylistSortRules.KeyFor(column) is { } key
+                ? PlaylistSortLabel(key)
+                : L["PlaylistPage_SortOrder"].Value].Value;
+
+    private void SetPlaylistViewSort(SongSortState state) => _playlistViewSort = state;
+
+    // The playlist's own order again: a staged sort is cancelled (the saved order comes back), a view sort is cleared.
+    private async Task ChoosePlaylistOwnOrderAsync()
+    {
+        if (IsOwnedHandMadePlaylist)
+        {
+            await CancelTrackReorder();
+            return;
+        }
+
+        _playlistViewSort = PlaylistOwnOrder;
+    }
+
+    // The songs the search leaves: every word typed has to be in the title, the artist or the album.
+    private IReadOnlyList<SongRow> PlaylistRowsMatchingSearch(IReadOnlyList<SongRow> rows)
+    {
+        var words = _playlistSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return words.Length == 0
+            ? rows
+            : [.. rows.Where(row => words.All(word => ContainsWord(row.Title, word) || ContainsWord(row.Artist, word) || ContainsWord(row.Album, word)))];
+    }
+
+    private static bool ContainsWord(string? text, string word) => text?.Contains(word, StringComparison.CurrentCultureIgnoreCase) == true;
+
+    // The same rows for the Cards view: a list that only sorts as a view is put in that order here, as the table does for itself.
+    private IReadOnlyList<SongRow> PlaylistCardRows(IReadOnlyList<SongRow> rows)
+        => IsOwnedHandMadePlaylist || _playlistViewSort.Column is null
+            ? rows
+            : SongTableSort.Sort(rows, SongTablePlace.Playlist, _playlistViewSort, PlaylistFavoriteIds, ownOrderSortable: true);
+
+    private Task PlayPlaylistCardAsync(SongRow row, IReadOnlyList<SongRow> rows) => PlayPlaylistRowAsync(new SongPlayRequest(rows, row));
+
+    // Add songs is only for a hand-made playlist this profile owns; Smart and built-in lists fill themselves.
+    private bool CanAddSongsToActivePlaylist => IsOwnedHandMadePlaylist;
+
+    // Add songs opens the search window over the page. Songs added there go to the end of the playlist; the page reads the playlist again when
+    // the window closes with something added.
+    private async Task AddSongsToActivePlaylistAsync()
+    {
+        if (ActivePlaylistCollection is not { } playlist)
+        {
+            return;
+        }
+
+        _notice = null;
+        var dialog = await Dialogs.ShowAsync<PlaylistAddSongsDialog>(
+            string.Empty,
+            new AppDialogParameters<PlaylistAddSongsDialog>
+            {
+                { component => component.Playlist, playlist },
+                { component => component.ProfileId, _activeProfileId },
+                { component => component.Songs, (IReadOnlyList<WorkViewModel>)_musicWorks },
+                { component => component.AlreadyIn, (IReadOnlySet<Guid>)_playlistItems.Select(item => item.WorkId).ToHashSet() },
+            },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small, Sheet = AppDialogSheetMode.PhoneAndTablet });
+        if ((await dialog.Result) is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
 
     private Task RenameActivePlaylistAsync(ManagedCollectionViewModel playlist) => ShowPlaylistEditDialogAsync(playlist, PlaylistEditMode.Rename);
 
@@ -196,7 +308,7 @@ public partial class ListenPage
     };
 
     private bool IsPlaylistSortApplied(PlaylistSortKey key)
-        => _playlistSort is { Column: { } column } && PlaylistSortRules.KeyFor(column) == key;
+        => CurrentPlaylistSort is { Column: { } column } && PlaylistSortRules.KeyFor(column) == key;
 
     // The words on the left of the reorder bar while a sort is staged ("Sorted by Title"); empty falls back to the bar's own hint.
     private string? PlaylistSortMessage
@@ -210,6 +322,13 @@ public partial class ListenPage
     // (Cancel puts the saved order back).
     private Task ChoosePlaylistSortAsync(PlaylistSortKey key)
     {
+        if (!IsOwnedHandMadePlaylist)
+        {
+            // A list the person cannot reorder is only shown in that order; nothing is staged and there is nothing to keep.
+            _playlistViewSort = PlaylistSortRules.Choose(_playlistViewSort.Column is null ? null : _playlistViewSort, key);
+            return Task.CompletedTask;
+        }
+
         if (!TrackReorderActive)
         {
             BeginTrackReorder();

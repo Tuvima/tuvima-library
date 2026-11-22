@@ -1,0 +1,105 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
+
+@* A playlist's songs as square album tiles (spec group-pages-and-tiles D7, mockup D: the Cards side of the List / Cards switch). A tap or click
+   plays the song from its place in the playlist; the "..." menu holds Play next, Add to queue and, where the person may take a song out,
+   Remove. The song playing carries the purple outline and the play mark. Long lists draw 120 tiles at a time with Show more under them. *@
+<div class="playlist-song-cards" role="list" aria-label="@AriaLabel" data-playlist-song-cards>
+    @foreach (var row in Visible)
+    {
+        var playing = IsCurrent(row);
+        <div class="@(playing ? "playlist-song-card is-playing" : "playlist-song-card")" role="listitem" @key="CardKey(row)" data-song-row-id="@row.Id">
+            <div class="playlist-song-card__art" role="button" tabindex="@(row.IsOwned ? 0 : -1)" aria-disabled="@(row.IsOwned ? "false" : "true")"
+                 aria-label="@L["SongTable_PlayTitle", row.Title].Value"
+                 @onclick="@(() => PlayAsync(row))"
+                 @onkeydown="@((KeyboardEventArgs args) => PlayKeyAsync(args, row))">
+                @if (!string.IsNullOrWhiteSpace(row.CoverUrl))
+                {
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(row.CoverUrl, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(row.CoverUrl, 160)" alt="" loading="lazy" decoding="async" />
+                }
+                else
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Class="tl-u-font-size-38px" />
+                }
+                @if (playing)
+                {
+                    <span class="playlist-song-card__mark"><PlaybackActivityMark IsPlaying="@IsPlaying" Size="compact" AriaLabel="@L["Common_NowPlaying"].Value" /></span>
+                }
+            </div>
+            @if (row.IsOwned)
+            {
+                <span class="playlist-song-card__menu">
+                    <AppOverflowMenu Size="AppControlSize.Normal" TriggerClass="app-row-menu__trigger" AriaLabel="@L["SongTable_ActionsFor", row.Title].Value" SheetTitle="@row.Title">
+                        @if (OnPlayNext.HasDelegate)
+                        {
+                            <AppMenuItem Label="@L["Common_PlayNext"].Value" Icon="@AppMaterialIcons.Outlined.PlaylistPlay" OnClick="@(() => OnPlayNext.InvokeAsync(row))" />
+                        }
+                        @if (OnQueue.HasDelegate)
+                        {
+                            <AppMenuItem Label="@L["Common_AddToQueue"].Value" Icon="@AppMaterialIcons.Outlined.PlaylistAdd" OnClick="@(() => OnQueue.InvokeAsync(row))" />
+                        }
+                        @if (OnRemove.HasDelegate)
+                        {
+                            <AppMenuItem Label="@(string.IsNullOrWhiteSpace(RemoveLabel) ? L["ListenPage_RemoveFromPlaylist"].Value : RemoveLabel)"
+                                         Icon="@AppMaterialIcons.Outlined.PlaylistRemove"
+                                         Tone="AppUiTone.Error"
+                                         DividerBefore="true"
+                                         OnClick="@(() => OnRemove.InvokeAsync(row))" />
+                        }
+                    </AppOverflowMenu>
+                </span>
+            }
+            <span class="@(playing ? "playlist-song-card__title is-current" : "playlist-song-card__title")">@row.Title</span>
+            <span class="playlist-song-card__artist">@(string.IsNullOrWhiteSpace(row.Artist) ? "-" : row.Artist)</span>
+        </div>
+    }
+</div>
+@if (Rows.Count > _shownCount)
+{
+    <div class="playlist-song-cards__more">
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Label="@L["Common_ShowMore"].Value" OnClick="ShowMore" data-playlist-cards-more="true" />
+    </div>
+}
+
+@code {
+    private const int PageSize = 120;
+
+    private int _shownCount = PageSize;
+
+    [Parameter] public IReadOnlyList<SongRow> Rows { get; set; } = [];
+
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>The id of the song playing now (<see cref="SongRow.Id"/>); its tile is highlighted.</summary>
+    [Parameter] public string? CurrentRowId { get; set; }
+
+    [Parameter] public bool IsPlaying { get; set; }
+
+    [Parameter] public EventCallback<SongRow> OnPlay { get; set; }
+
+    [Parameter] public EventCallback<SongRow> OnPlayNext { get; set; }
+
+    [Parameter] public EventCallback<SongRow> OnQueue { get; set; }
+
+    /// <summary>Takes the song out of the list; the menu item is left out when nobody listens (a list the person cannot change).</summary>
+    [Parameter] public EventCallback<SongRow> OnRemove { get; set; }
+
+    [Parameter] public string? RemoveLabel { get; set; }
+
+    private IEnumerable<SongRow> Visible => Rows.Take(_shownCount);
+
+    private bool IsCurrent(SongRow row) => CurrentRowId is not null && string.Equals(CurrentRowId, row.Id, StringComparison.Ordinal);
+
+    private static string CardKey(SongRow row) => row.PlaylistItemId?.ToString("D") ?? row.Id;
+
+    private void ShowMore() => _shownCount += PageSize;
+
+    // A song the library cannot find stays on the list but does not play.
+    private Task PlayAsync(SongRow row) => row.IsOwned ? OnPlay.InvokeAsync(row) : Task.CompletedTask;
+
+    private Task PlayKeyAsync(KeyboardEventArgs args, SongRow row)
+        => args.Key is "Enter" or " " ? PlayAsync(row) : Task.CompletedTask;
+}

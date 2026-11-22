@@ -33,7 +33,7 @@ public sealed class FavoritesSongTableTests : AsyncBunitContext
         _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true, FinePointer: false, Hover: false));
 
     private static List<SongRow> FavoriteRows() =>
-        [.. new[] { ("Zebra", "Ada"), ("Apple", "Zed"), ("Mango", "Bea") }.Select((song, index) =>
+        [.. new[] { ("Zebra", "Ada", "Alpha"), ("Apple", "Zed", "Charlie"), ("Mango", "Bea", "Bravo") }.Select((song, index) =>
         {
             var songId = Guid.NewGuid();
             return new SongRow
@@ -42,7 +42,7 @@ public sealed class FavoritesSongTableTests : AsyncBunitContext
                 Source = SongRowSource.PlaylistItem,
                 Title = song.Item1,
                 Artist = song.Item2,
-                Album = "The Album",
+                Album = song.Item3,
                 Number = index + 1,
                 WorkId = songId,
                 PlaylistItemId = songId,
@@ -77,14 +77,15 @@ public sealed class FavoritesSongTableTests : AsyncBunitContext
         var cut = RenderFavorites(rows, []);
 
         Assert.Equal(["Zebra", "Apple", "Mango"], Titles(cut));
-        foreach (var header in new[] { "Song", "Artist", "Album", "Favorite", "Time" })
+        // A playlist's song cell carries the artist under the title, so the table starts without an Artist or Favorite column (group pages D7).
+        foreach (var header in new[] { "Song", "Album", "Date added", "Time" })
         {
             Assert.Contains(cut.FindAll(".song-table__head [role='columnheader'] button"), button => button.TextContent.Trim() == header);
         }
 
         ClickHeader(cut, "Song");
         Assert.Equal(["Apple", "Mango", "Zebra"], Titles(cut));
-        ClickHeader(cut, "Artist");
+        ClickHeader(cut, "Album");
         Assert.Equal(["Zebra", "Mango", "Apple"], Titles(cut));
     }
 

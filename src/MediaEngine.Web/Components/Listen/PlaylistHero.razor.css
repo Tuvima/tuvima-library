@@ -1,0 +1,210 @@
+/* A playlist's own page header (spec group-pages-and-tiles D7, mockup D). The text sits on the left over a dark fade, the playlist's square album
+   tile on the right (250 px on a large desktop, 210 px below, 150 px centered on top on a phone). Controls are 44 px. */
+.playlist-hero {
+    position: relative;
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+    min-height: 340px;
+    margin-bottom: 18px;
+    padding: 48px;
+    border-radius: var(--tl-radius-lg, 12px);
+    overflow: hidden;
+    background:
+        linear-gradient(90deg, var(--tl-bg-root) 38%, transparent 78%),
+        linear-gradient(135deg, color-mix(in srgb, var(--tl-accent-primary) 45%, var(--tl-bg-root)), var(--tl-bg-root) 70%);
+}
+
+.playlist-hero__art {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 250px;
+    aspect-ratio: 1 / 1;
+    border-radius: var(--tl-radius-md);
+    overflow: hidden;
+    background: var(--tl-bg-surface);
+    color: var(--tl-text-disabled);
+    box-shadow: var(--tl-shadow-lg);
+}
+
+.playlist-hero__quadrants {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+    background: var(--tl-bg-surface);
+}
+
+.playlist-hero__quadrants.is-count-1 {
+    display: block;
+    padding: 0;
+}
+
+.playlist-hero__quadrant {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: 1 / 1;
+    align-self: center;
+    justify-self: center;
+    object-fit: cover;
+    border-radius: var(--tl-radius-xs, 4px);
+    background: var(--tl-bg-surface-raised);
+}
+
+.playlist-hero__quadrants.is-count-1 .playlist-hero__quadrant {
+    height: 100%;
+    border-radius: 0;
+}
+
+.playlist-hero__quadrant.is-slot-tl { grid-area: 1 / 1; }
+.playlist-hero__quadrant.is-slot-bl { grid-area: 2 / 1; }
+.playlist-hero__quadrant.is-slot-tr { grid-area: 1 / 2; }
+.playlist-hero__quadrant.is-slot-br { grid-area: 2 / 2; }
+
+.playlist-hero__quadrant.is-empty {
+    box-sizing: border-box;
+    border: 1px dashed var(--tl-tile-group-empty-outline);
+    background: var(--tl-tile-group-empty-tint);
+}
+
+.playlist-hero__copy {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    max-width: 45%;
+}
+
+.playlist-hero__crumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.playlist-hero__crumb a {
+    color: var(--tl-accent-primary-hover);
+    text-decoration: none;
+}
+
+.playlist-hero__crumb a:hover,
+.playlist-hero__crumb a:focus-visible {
+    text-decoration: underline;
+}
+
+.playlist-hero__title {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-hero-size);
+    font-weight: 600;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.playlist-hero__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 2px 0 0;
+}
+
+.playlist-hero__pill {
+    padding: 2px 9px;
+    border-radius: var(--tl-radius-pill);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-caption-size);
+}
+
+.playlist-hero__pill.is-kind {
+    background: var(--tl-accent-primary-soft);
+    color: var(--tl-accent-primary-hover);
+}
+
+.playlist-hero__description {
+    margin: 8px 0 0;
+    max-width: 62ch;
+    color: var(--tl-text-secondary);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.playlist-hero__unavailable {
+    margin: 4px 0 0;
+    color: var(--tl-status-warning);
+    font-size: var(--tl-font-size-sm);
+}
+
+.playlist-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+@media (max-width: 1180px) {
+    .playlist-hero {
+        padding: 36px 28px;
+    }
+
+    .playlist-hero__art {
+        width: 210px;
+    }
+
+    .playlist-hero__copy {
+        max-width: 55%;
+    }
+}
+
+/* A phone stacks the tile on top, centered, with the text and actions centered under it. */
+@media (max-width: 600px) {
+    .playlist-hero,
+    .playlist-hero.playlist-hero--phone {
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        min-height: 0;
+        padding: 18px 14px 16px;
+        text-align: center;
+        background:
+            linear-gradient(180deg, var(--tl-bg-root) 0%, transparent 100%),
+            linear-gradient(135deg, color-mix(in srgb, var(--tl-accent-primary) 45%, var(--tl-bg-root)), var(--tl-bg-root) 70%);
+    }
+
+    .playlist-hero__art {
+        width: 150px;
+    }
+
+    .playlist-hero__copy {
+        align-items: center;
+        width: 100%;
+        max-width: none;
+    }
+
+    .playlist-hero__title {
+        font-size: var(--tl-type-page-title-size);
+    }
+
+    .playlist-hero__pills,
+    .playlist-hero__actions {
+        justify-content: center;
+    }
+}

@@ -143,10 +143,9 @@ public sealed class ListenFavoritesPlaylistTests : AsyncBunitContext
         var page = await RenderFavoritesAsync();
 
         Assert.Equal(["Charlie", "Alpha", "Bravo"], Titles(page));
-        Assert.Equal("Favorites", page.Find(".listen-detail__copy h2").TextContent.Trim());
-        Assert.Equal("3 songs", page.Find(".listen-detail__meta").TextContent.Trim());
+        Assert.Equal("Favorites", page.Find(".playlist-hero__title").TextContent.Trim());
+        Assert.Equal("3 songs", page.Find("[data-playlist-pill='fact']").TextContent.Trim());
         Assert.NotEmpty(page.FindAll(".song-table"));
-        Assert.DoesNotContain(page.FindAll(".song-table__head [role='columnheader']"), header => header.TextContent.Trim() == "Date added");
     }
 
     [Fact]
@@ -164,7 +163,7 @@ public sealed class ListenFavoritesPlaylistTests : AsyncBunitContext
         page.WaitForAssertion(() => Assert.Equal(["Charlie", "Bravo"], Titles(page)));
         Assert.Equal([(ProfileEntityKind.Song, alphaId)], _removed);
         Assert.Empty(page.FindAll("[data-listen-notice]"));
-        Assert.Equal("2 songs", page.Find(".listen-detail__meta").TextContent.Trim());
+        Assert.Equal("2 songs", page.Find("[data-playlist-pill='fact']").TextContent.Trim());
     }
 
     [Fact]
@@ -206,7 +205,7 @@ public sealed class ListenFavoritesPlaylistTests : AsyncBunitContext
 
         await saved.ToggleAsync(ProfileEntityKind.Song, Delta);
         page.WaitForAssertion(() => Assert.Equal(["Delta", "Charlie", "Alpha", "Bravo"], Titles(page)));
-        Assert.Equal("4 songs", page.Find(".listen-detail__meta").TextContent.Trim());
+        Assert.Equal("4 songs", page.Find("[data-playlist-pill='fact']").TextContent.Trim());
 
         await saved.RemoveAsync(ProfileEntityKind.Song, _songs[0].Id);
         page.WaitForAssertion(() => Assert.Equal(["Delta", "Charlie", "Bravo"], Titles(page)));

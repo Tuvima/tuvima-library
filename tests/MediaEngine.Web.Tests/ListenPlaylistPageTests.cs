@@ -35,6 +35,7 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
     private readonly List<Guid> _deleted = [];
     private readonly List<(IReadOnlyList<Guid> Current, IReadOnlyList<Guid> Next)> _appliedOrders = [];
     private readonly List<(Guid ItemId, CollectionItemMoveRequest Move)> _moves = [];
+    private readonly List<(Guid PlaylistId, IReadOnlyList<Guid> WorkIds)> _adds = [];
     private ManagedCollectionViewModel _playlist;
 
     public ListenPlaylistPageTests()
@@ -75,6 +76,12 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
             {
                 _moves.Add(((Guid)args![1]!, (CollectionItemMoveRequest)args[2]!));
                 return Task.FromResult(true);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemsAsync), args =>
+            {
+                var ids = (IReadOnlyList<Guid>)args![1]!;
+                _adds.Add(((Guid)args[0]!, ids));
+                return Task.FromResult<CollectionItemsAddedResponse?>(new CollectionItemsAddedResponse(ids.Count, 0));
             });
         });
         Services.AddSingleton(_device);
@@ -147,12 +154,44 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
         Services.GetRequiredService<NavigationManager>().NavigateTo($"/listen/music/playlists/{_playlistId}");
         Render<AppPopoverHost>();
         var page = Render<ListenPage>(parameters => parameters.Add(component => component.CollectionId, _playlistId));
-        page.WaitForElement(".listen-detail__copy");
+        page.WaitForElement(".playlist-hero__copy");
         return page;
     }
 
     private static IReadOnlyList<string> Titles(IRenderedComponent<ListenPage> page) =>
         [.. page.FindAll(".song-table__title").Select(title => title.TextContent.Trim())];
+
+    // The facts in the hero's pills after the kind: "3 songs", then the length when known.
+    private static IReadOnlyList<string> Facts(IRenderedComponent<ListenPage> page) =>
+        [.. page.FindAll("[data-playlist-pill='fact']").Select(pill => pill.TextContent.Trim())];
+
+    // A song the library has but the playlist does not hold: what the Add songs window finds.
+    private WorkViewModel SeedLibrarySong(string title, string artist = "The Artist", string album = "The Album")
+    {
+        var work = new WorkViewModel
+        {
+            Id = Guid.NewGuid(),
+            MediaType = "Music",
+            CanonicalValues =
+            [
+                new CanonicalValueViewModel { Key = "title", Value = title },
+                new CanonicalValueViewModel { Key = "artist", Value = artist },
+                new CanonicalValueViewModel { Key = "album", Value = album },
+            ],
+        };
+        _songs.Add(work);
+        return work;
+    }
+
+    private async Task<IRenderedComponent<ListenPage>> RenderSystemListAsync(string key)
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        Services.GetRequiredService<NavigationManager>().NavigateTo($"/listen/music/playlists/system/{key}");
+        Render<AppPopoverHost>();
+        var page = Render<ListenPage>(parameters => parameters.Add(component => component.PlaylistKey, key));
+        page.WaitForElement(".song-table__row");
+        return page;
+    }
 
     private static void ChooseMenuItem(IRenderedComponent<ListenPage> page, string label) =>
         page.FindAll("button.app-menu-item").Single(button => button.TextContent.Trim() == label).Click();
@@ -165,9 +204,9 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
 
         var page = await RenderPageAsync();
 
-        Assert.Equal("Road trip", page.Find(".listen-detail__copy h2").TextContent.Trim());
-        Assert.Equal("Playlist · yours", page.Find("[data-playlist-kind]").TextContent.Trim());
-        Assert.Equal("3 songs · 2h 55m", page.Find("[data-playlist-meta]").TextContent.Trim());
+        Assert.Equal("Road trip", page.Find(".playlist-hero__title").TextContent.Trim());
+        Assert.Equal("Playlist · yours", page.Find("[data-playlist-pill='kind']").TextContent.Trim());
+        Assert.Equal(["3 songs", "2h 55m"], Facts(page));
         Assert.Equal("Songs I play when I drive.", page.Find("[data-playlist-description]").TextContent.Trim());
         Assert.Empty(page.FindAll("[data-playlist-unavailable]"));
     }
@@ -180,7 +219,7 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
 
         var page = await RenderPageAsync();
 
-        Assert.Equal("2 songs", page.Find("[data-playlist-meta]").TextContent.Trim());
+        Assert.Equal(["2 songs"], Facts(page));
     }
 
     [Fact]
@@ -192,7 +231,7 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
 
         var page = await RenderPageAsync();
 
-        Assert.Equal("2 songs", page.Find("[data-playlist-meta]").TextContent.Trim());
+        Assert.Equal(["2 songs"], Facts(page));
         Assert.Equal("1 unavailable song", page.Find("[data-playlist-unavailable]").TextContent.Trim());
         Assert.Equal(["Alpha", "Bravo"], Titles(page));
     }
@@ -205,7 +244,7 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
         var host = Render<AppDialogHost>();
         var page = await RenderPageAsync();
 
-        page.Find(".listen-detail .app-row-menu__trigger").Click();
+        page.Find(".playlist-hero .app-row-menu__trigger").Click();
         page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
         // The click finishes only when the window is closed, so it is not awaited here.
         _ = page.FindAll("button.app-menu-item").Single(button => button.TextContent.Trim() == "Rename").ClickAsync(new());
@@ -224,7 +263,7 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
         var host = Render<AppDialogHost>();
         var page = await RenderPageAsync();
 
-        page.Find(".listen-detail .app-row-menu__trigger").Click();
+        page.Find(".playlist-hero .app-row-menu__trigger").Click();
         page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
         _ = page.FindAll("button.app-menu-item").Single(button => button.TextContent.Trim() == "Delete").ClickAsync(new());
         host.WaitForElement(".app-confirm");
@@ -241,7 +280,7 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
         _playlist = Playlist(itemCount: 2, seconds: null);
         var page = await RenderPageAsync();
 
-        page.Find(".listen-detail .app-row-menu__trigger").Click();
+        page.Find(".playlist-hero .app-row-menu__trigger").Click();
         page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
 
         Assert.Equal(
@@ -307,16 +346,14 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
 
         // The page asks for the whole list, not the first thousand.
         Assert.All(_itemReadLimits, limit => Assert.True(limit >= count, $"The page read only {limit} songs."));
-        Assert.Equal($"{count.ToString("N0", CultureInfo.CurrentCulture)} songs · 61h 6m", page.Find("[data-playlist-meta]").TextContent.Trim());
+        Assert.Equal([$"{count.ToString("N0", CultureInfo.CurrentCulture)} songs", "61h 6m"], Facts(page));
         Assert.Empty(page.FindAll("[data-playlist-unavailable]"));
 
-        page.FindAll(".listen-detail button").Single(button => button.TextContent.Contains("Reorder", StringComparison.Ordinal)).Click();
+        // Every row of a hand-made playlist already carries its grip, so a drag saves at once: no Reorder button and no Save order step.
         page.WaitForElement(".song-table__end-zone");
         page.Find($"[data-song-row-id='{_songs[0].Id:D}']").DragStart();
         page.Find(".song-table__end-zone").DragOver();
         page.Find(".song-table__end-zone").Drop();
-        page.WaitForAssertion(() => Assert.False(page.Find("[data-reorder-save]").HasAttribute("disabled")));
-        page.Find("[data-reorder-save]").Click();
 
         page.WaitForAssertion(() => Assert.Single(_moves));
         Assert.Equal(first, _moves[0].ItemId);
@@ -326,8 +363,8 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
         Assert.Empty(_appliedOrders);
     }
 
-    // A row's "..." menu in Reorder mode: Move to top and Move to bottom stage the song at the first or last place; Save order then sends one move
-    // (to_top or to_bottom), which holds at any size (spec listen-playlists WP5).
+    // A row's "..." menu: Move to top and Move to bottom send one move (to_top or to_bottom) at once, which holds at any size
+    // (spec listen-playlists WP5, group pages D7).
     private static async Task ChooseRowMenuItemAsync(IRenderedComponent<ListenPage> page, string title, string label)
     {
         var row = page.FindAll(".song-table__row").Single(candidate => candidate.QuerySelector(".song-table__title")!.TextContent.Trim() == title);
@@ -337,22 +374,19 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task MoveToTopInASongsMenuThenSaveOrderSendsToTop()
+    public async Task MoveToTopInASongsMenuSendsToTopAtOnce()
     {
         SeedSongs(["Alpha", "Bravo", "Charlie"]);
         _playlist = Playlist(itemCount: 3, seconds: null);
         var charlie = _items[2].Id;
         var page = await RenderPageAsync();
-        page.FindAll(".listen-detail button").Single(button => button.TextContent.Contains("Reorder", StringComparison.Ordinal)).Click();
         page.WaitForElement(".song-table__end-zone");
 
         await ChooseRowMenuItemAsync(page, "Charlie", "Move to top");
-        page.WaitForAssertion(() => Assert.Equal(["Charlie", "Alpha", "Bravo"], Titles(page)));
-        Assert.Empty(_moves);
-        page.WaitForAssertion(() => Assert.False(page.Find("[data-reorder-save]").HasAttribute("disabled")));
-        page.Find("[data-reorder-save]").Click();
 
         page.WaitForAssertion(() => Assert.Single(_moves));
+        page.WaitForAssertion(() => Assert.Equal(["Charlie", "Alpha", "Bravo"], Titles(page)));
+        Assert.Empty(page.FindAll(".app-reorder-bar"));
         Assert.Equal(charlie, _moves[0].ItemId);
         Assert.True(_moves[0].Move.ToTop);
         Assert.False(_moves[0].Move.ToBottom);
@@ -361,21 +395,18 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task MoveToBottomInASongsMenuThenSaveOrderSendsToBottom()
+    public async Task MoveToBottomInASongsMenuSendsToBottomAtOnce()
     {
         SeedSongs(["Alpha", "Bravo", "Charlie"]);
         _playlist = Playlist(itemCount: 3, seconds: null);
         var alpha = _items[0].Id;
         var page = await RenderPageAsync();
-        page.FindAll(".listen-detail button").Single(button => button.TextContent.Contains("Reorder", StringComparison.Ordinal)).Click();
         page.WaitForElement(".song-table__end-zone");
 
         await ChooseRowMenuItemAsync(page, "Alpha", "Move to bottom");
-        page.WaitForAssertion(() => Assert.Equal(["Bravo", "Charlie", "Alpha"], Titles(page)));
-        page.WaitForAssertion(() => Assert.False(page.Find("[data-reorder-save]").HasAttribute("disabled")));
-        page.Find("[data-reorder-save]").Click();
 
         page.WaitForAssertion(() => Assert.Single(_moves));
+        page.WaitForAssertion(() => Assert.Equal(["Bravo", "Charlie", "Alpha"], Titles(page)));
         Assert.Equal(alpha, _moves[0].ItemId);
         Assert.True(_moves[0].Move.ToBottom);
         Assert.False(_moves[0].Move.ToTop);
@@ -389,21 +420,182 @@ public sealed class ListenPlaylistPageTests : AsyncBunitContext
         SeedSongs(Enumerable.Range(1, count).Select(number => $"Song {number:0000}"));
         _playlist = Playlist(itemCount: count, seconds: count * 200d);
         var page = await RenderPageAsync();
-        page.FindAll(".listen-detail button").Single(button => button.TextContent.Contains("Reorder", StringComparison.Ordinal)).Click();
         page.WaitForElement(".song-table__end-zone");
         var table = page.FindComponent<SongTable>();
         var lastRow = table.Instance.Rows[^1];
 
-        // The last of the 1,100 songs lives in the virtualized list, so the move is asked of the table the way its row menu asks it.
+        // The last of the 1,100 songs lives in the virtualized list, so the move is asked of the table the way a finger's drop asks it.
         await page.InvokeAsync(() => table.Instance.TouchReorder(
             lastRow.PlaylistItemId!.Value.ToString("D"), table.Instance.Rows[0].PlaylistItemId!.Value.ToString("D"), after: false));
-        page.WaitForAssertion(() => Assert.False(page.Find("[data-reorder-save]").HasAttribute("disabled")));
-        page.Find("[data-reorder-save]").Click();
 
         page.WaitForAssertion(() => Assert.Single(_moves));
         Assert.Equal(_items[^1].Id, _moves[0].ItemId);
         Assert.True(_moves[0].Move.ToTop);
         Assert.Empty(_appliedOrders);
+    }
+
+    // ---- Playlist details page, spec group-pages-and-tiles D7 (WP1b, mockup D) ------------------------------------------------------
+
+    [Fact]
+    public async Task TheHeroShowsTheSquareAlbumTileOnTheRightAndPlayShuffleAddSongsAndTheMenu()
+    {
+        SeedSongs(["Alpha", "Bravo"]);
+        _playlist = Playlist(itemCount: 2, seconds: null);
+
+        var page = await RenderPageAsync();
+
+        Assert.NotNull(page.Find("[data-playlist-hero-art]"));
+        Assert.Equal(["Play", "Shuffle", "Add songs"], page.FindAll(".playlist-hero__actions button").Select(button => button.TextContent.Trim()).Take(3).ToList());
+        Assert.NotEmpty(page.FindAll(".playlist-hero .app-row-menu__trigger"));
+    }
+
+    [Fact]
+    public async Task EveryRowOfAHandMadePlaylistCarriesAVisibleGrip()
+    {
+        SeedSongs(["Alpha", "Bravo", "Charlie"]);
+        _playlist = Playlist(itemCount: 3, seconds: null);
+
+        var page = await RenderPageAsync();
+
+        Assert.Equal(3, page.FindAll(".song-table__row [data-song-grip-visible]").Count);
+        Assert.DoesNotContain(page.FindAll("button"), button => button.TextContent.Contains("Reorder", StringComparison.Ordinal));
+        Assert.NotEmpty(page.FindAll(".song-table__end-zone"));
+    }
+
+    [Fact]
+    public async Task ASmartPlaylistShowsNoGripAndNoAddSongs()
+    {
+        SeedSongs(["Alpha", "Bravo"]);
+        _playlist = Playlist(itemCount: 2, seconds: null, type: "Smart", resolution: "query");
+
+        var page = await RenderPageAsync();
+
+        Assert.Equal(["Alpha", "Bravo"], Titles(page));
+        Assert.Empty(page.FindAll(".song-table__grip"));
+        Assert.Empty(page.FindAll(".song-table__touch-grip"));
+        Assert.Empty(page.FindAll(".song-table__end-zone"));
+        Assert.Empty(page.FindAll("[data-playlist-add-songs]"));
+    }
+
+    [Fact]
+    public async Task ABuiltInListShowsNoGripAndNoAddSongs()
+    {
+        SeedSongs(["Alpha", "Bravo"]);
+
+        var page = await RenderSystemListAsync("all-music");
+
+        Assert.NotEmpty(page.FindAll(".song-table__row"));
+        Assert.Empty(page.FindAll(".song-table__grip"));
+        Assert.Empty(page.FindAll(".song-table__end-zone"));
+        Assert.Empty(page.FindAll("[data-playlist-add-songs]"));
+    }
+
+    [Fact]
+    public async Task AddSongsInTheHeroSearchesTheLibraryAndTappingPlusAddsTheSongToTheEndOfThePlaylist()
+    {
+        SeedSongs(["Alpha", "Bravo"]);
+        var wanted = SeedLibrarySong("Midnight City", "M83", "Hurry Up, We're Dreaming");
+        SeedLibrarySong("Another Song", "Someone");
+        _playlist = Playlist(itemCount: 2, seconds: null);
+        var host = Render<AppDialogHost>();
+        var page = await RenderPageAsync();
+
+        _ = page.Find("[data-playlist-add-songs='hero']").ClickAsync(new());
+        host.WaitForElement("[data-playlist-add-search]");
+        host.Find("[data-playlist-add-search]").Input("midnight");
+        host.WaitForElement($"[data-playlist-add='song:{wanted.Id:D}']");
+        host.Find($"[data-playlist-add='song:{wanted.Id:D}']").Click();
+
+        host.WaitForAssertion(() => Assert.Equal(_playlistId, Assert.Single(_adds).PlaylistId));
+        Assert.Equal([wanted.Id], _adds[0].WorkIds);
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll("[data-playlist-add-state='added']")));
+        // The Engine appends: the page sends no move and no new order, so the song lands at the end.
+        Assert.Empty(_moves);
+        Assert.Empty(_appliedOrders);
+    }
+
+    [Fact]
+    public async Task AddSongsRowUnderTheListOpensTheSameSearch_AndASongAlreadyInThePlaylistSaysSo()
+    {
+        SeedSongs(["Alpha", "Bravo"]);
+        _playlist = Playlist(itemCount: 2, seconds: null);
+        var host = Render<AppDialogHost>();
+        var page = await RenderPageAsync();
+
+        _ = page.Find("[data-playlist-add-songs='row']").ClickAsync(new());
+        host.WaitForElement("[data-playlist-add-search]");
+        host.Find("[data-playlist-add-search]").Input("alpha");
+
+        host.WaitForAssertion(() => Assert.Equal("Already in", host.Find("[data-playlist-add-state='added']").TextContent.Trim()));
+        Assert.Empty(host.FindAll("[data-playlist-add]"));
+        Assert.Empty(_adds);
+    }
+
+    [Fact]
+    public async Task SearchingThePlaylistNarrowsTheSongsAndHidesTheGripsBecauseAPlaceOnScreenIsNotAPlaceInThePlaylist()
+    {
+        SeedSongs(["Alpha", "Bravo", "Charlie"]);
+        _playlist = Playlist(itemCount: 3, seconds: null);
+        var page = await RenderPageAsync();
+
+        page.Find("[data-playlist-search]").Input("brav");
+
+        page.WaitForAssertion(() => Assert.Equal(["Bravo"], Titles(page)));
+        Assert.Empty(page.FindAll(".song-table__grip"));
+        Assert.Equal("3 songs", page.Find("[data-playlist-total]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task TheCardsSwitchShowsTheSongsAsSquareTilesAndTheListSwitchBringsTheTableBack()
+    {
+        SeedSongs(["Alpha", "Bravo", "Charlie"]);
+        _playlist = Playlist(itemCount: 3, seconds: null);
+        var page = await RenderPageAsync();
+
+        page.Find("[data-playlist-view='cards']").Click();
+
+        page.WaitForAssertion(() => Assert.Equal(3, page.FindAll(".playlist-song-card").Count));
+        Assert.Empty(page.FindAll(".song-table"));
+        page.Find("[data-playlist-view='list']").Click();
+        page.WaitForAssertion(() => Assert.Equal(["Alpha", "Bravo", "Charlie"], Titles(page)));
+    }
+
+    [Fact]
+    public async Task TheTotalLineUnderTheListSaysTheSongCountAndTheSummedLength()
+    {
+        SeedSongs(["Alpha", "Bravo"]);
+        foreach (var song in _songs)
+        {
+            song.CanonicalValues.Add(new CanonicalValueViewModel { Key = "duration_sec", Value = "5760" });
+        }
+
+        _playlist = Playlist(itemCount: 2, seconds: null);
+        var page = await RenderPageAsync();
+
+        Assert.Equal("2 songs, 3h 12m", page.Find("[data-playlist-total]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task TheSortMenuOffersThePlaylistOrderFirstAndChoosingItPutsTheSavedOrderBack()
+    {
+        SeedSongs(["Charlie", "Alpha", "Bravo"]);
+        _playlist = Playlist(itemCount: 3, seconds: null);
+        var page = await RenderPageAsync();
+        Assert.Contains("Playlist order", page.Find(".listen-playlist-sort__button").TextContent, StringComparison.Ordinal);
+
+        page.Find(".listen-playlist-sort__button").Click();
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
+        ChooseMenuItem(page, "Title");
+        page.WaitForAssertion(() => Assert.Equal(["Alpha", "Bravo", "Charlie"], Titles(page)));
+        Assert.Contains("Title", page.Find(".listen-playlist-sort__button").TextContent, StringComparison.Ordinal);
+
+        page.Find(".listen-playlist-sort__button").Click();
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
+        ChooseMenuItem(page, "Playlist order");
+
+        page.WaitForAssertion(() => Assert.Equal(["Charlie", "Alpha", "Bravo"], Titles(page)));
+        Assert.Empty(_appliedOrders);
+        Assert.Empty(_moves);
     }
 
     private sealed class DefaultPreferences : IUserPlaybackPreferencesAccessor

@@ -38,6 +38,8 @@ public partial class ListenPage
         _playlistItems.Clear();
         _trackOrderBefore = null;
         _playlistSort = null;
+        _playlistSearch = string.Empty;
+        _playlistViewSort = PlaylistOwnOrder;
         _selectedTrackIds.Clear();
         CloseTrackContextMenu();
         _draggingTrackIds.Clear();

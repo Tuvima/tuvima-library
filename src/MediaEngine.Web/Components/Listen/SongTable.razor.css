@@ -195,6 +195,7 @@
 .song-table__cell--number {
     position: relative;
     justify-content: center;
+    gap: 2px;
     color: var(--tl-text-muted);
     font-variant-numeric: tabular-nums;
 }
@@ -353,10 +354,12 @@
     opacity: 1;
 }
 
-/* ---- Playlist order: the handle takes the number's place on hover, a purple line shows the drop spot ---- */
+/* ---- Playlist order: every row of a hand-made playlist carries a visible grip beside its number (spec group-pages-and-tiles D7), and a
+   purple line shows the drop spot ---- */
 
 .song-table__grip {
-    display: none;
+    display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
     color: var(--tl-text-muted);
@@ -365,14 +368,35 @@
 
 .song-table__row.is-reorderable:hover .song-table__grip,
 .song-table__row.is-reorderable:focus-within .song-table__grip {
-    display: inline-flex;
+    color: var(--tl-text-primary);
 }
 
-.song-table__row.is-reorderable:hover .song-table__position,
-.song-table__row.is-reorderable:hover .song-table__mark,
-.song-table__row.is-reorderable:focus-within .song-table__position,
-.song-table__row.is-reorderable:focus-within .song-table__mark {
-    display: none;
+/* A playlist's song cell: the title over the artist. */
+.song-table__stack {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.song-table__sub {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-secondary-size);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.song-table__sub a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.song-table__sub a:hover,
+.song-table__sub a:focus-visible {
+    color: var(--tl-text-primary);
+    text-decoration: underline;
 }
 
 .song-table__drop-line {
