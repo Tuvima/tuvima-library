@@ -37,7 +37,7 @@ p.lead,p.sub{color:var(--sec);max-width:860px;margin:6px 0}
 .btn{width:112px;height:112px;border-radius:50%;background:rgba(47,48,57,.85);display:grid;place-items:center;font-size:30px;color:var(--text);border:3px solid transparent}
 .btn.play{width:136px;height:136px;margin-top:-12px;background:var(--accent)}
 .btn.off{opacity:.35}
-.btn small{display:block;font-size:20px;color:var(--sec);margin-top:-6px}
+.btn{position:relative}.btn small{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font:700 22px/1 system-ui;color:var(--text);margin:0}
 .focus{border-color:#fff!important;box-shadow:0 0 0 6px rgba(255,255,255,.28)}
 .tools{position:absolute;left:0;right:0;bottom:56px;display:flex;justify-content:center;gap:24px}
 .tool{height:76px;padding:0 30px;border-radius:38px;background:rgba(47,48,57,.85);display:flex;align-items:center;gap:12px;font-size:26px;border:3px solid transparent}
@@ -98,7 +98,7 @@ nav.toc{margin:16px 0;padding:0;list-style:none;color:var(--sec)}nav.toc a{color
  <div class="titleline"><div class="t">Shimmer and Shine</div><div class="s">S1 E1 · The First Wish · 22 min</div></div>
  <div class="time"><span>7:42</span><div class="bar"><i></i><u></u></div><span>22:41</span></div>
  <div class="transport">
-  <div class="btn off">⏮<small></small></div><div class="btn">⟲<small>10</small></div><div class="btn play focus">▶</div><div class="btn">⟳<small>30</small></div><div class="btn">⏭</div>
+  <div class="btn off">⏮<small></small></div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↺</span><small>10</small></div><div class="btn play focus">▶</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↻</span><small>30</small></div><div class="btn">⏭</div>
  </div>
  <div class="tools"><div class="tool">☰ Episodes</div><div class="tool">💬 Audio &amp; subtitles</div><div class="tool">🔖 Bookmarks</div><div class="tool">⚙ Playback settings</div></div>
  <span class="m" style="left:40px;top:560px">1</span><span class="m" style="left:40px;bottom:312px">2</span><span class="m" style="left:520px;bottom:200px">3</span><span class="m" style="left:1440px;bottom:200px">4</span><span class="m" style="left:330px;bottom:70px">5</span>
@@ -118,7 +118,7 @@ nav.toc{margin:16px 0;padding:0;list-style:none;color:var(--sec)}nav.toc a{color
  <div class="shade"></div>
  <div class="titleline" style="bottom:380px"><div class="t">Shimmer and Shine</div><div class="s">S1 E1 · The First Wish · 22 min</div><div class="d">Two genies in training grant their new friend Leah three wishes, and a very sparkly mistake.</div></div>
  <div class="time"><span>7:42</span><div class="bar"><i></i><u></u></div><span>22:41</span></div>
- <div class="transport"><div class="btn off">⏮</div><div class="btn">⟲<small>10</small></div><div class="btn play focus">▶</div><div class="btn">⟳<small>30</small></div><div class="btn">⏭</div></div>
+ <div class="transport"><div class="btn off">⏮</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↺</span><small>10</small></div><div class="btn play focus">▶</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↻</span><small>30</small></div><div class="btn">⏭</div></div>
  <div class="tools"><div class="tool">☰ Episodes</div><div class="tool">💬 Audio &amp; subtitles</div><div class="tool">🔖 Bookmarks</div><div class="tool">⚙ Playback settings</div></div>
  <span class="m" style="left:60px;top:72px">1</span><span class="m" style="left:60px;bottom:540px">2</span><span class="m" style="left:60px;bottom:440px">3</span>
 </div></div>
@@ -132,7 +132,7 @@ nav.toc{margin:16px 0;padding:0;list-style:none;color:var(--sec)}nav.toc a{color
 <p class="sub">Side panel on the right, 700 px wide (about 36 percent of the screen). Header and footer are fixed; only the middle scrolls. The video keeps playing behind it, the overlay stays visible, and Back closes the panel first.</p>
 <div class="frame-wrap"><div class="frame dim"><div class="scene"></div>
  <div class="shade"></div>
- <div class="transport"><div class="btn off">⏮</div><div class="btn">⟲<small>10</small></div><div class="btn play">▶</div><div class="btn">⟳<small>30</small></div><div class="btn">⏭</div></div>
+ <div class="transport"><div class="btn off">⏮</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↺</span><small>10</small></div><div class="btn play">▶</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↻</span><small>30</small></div><div class="btn">⏭</div></div>
  <div class="tools"><div class="tool sel">☰ Episodes</div><div class="tool">💬 Audio &amp; subtitles</div><div class="tool">🔖 Bookmarks</div><div class="tool">⚙ Playback settings</div></div>
  <div class="panel">
   <div class="h">Episodes<span class="x">Close</span></div>
@@ -159,7 +159,7 @@ nav.toc{margin:16px 0;padding:0;list-style:none;color:var(--sec)}nav.toc a{color
 <h2 id="f4">4. Audio &amp; subtitles panel</h2>
 <div class="frame-wrap"><div class="frame dim"><div class="scene"></div>
  <div class="shade"></div>
- <div class="transport"><div class="btn off">⏮</div><div class="btn">⟲<small>10</small></div><div class="btn play">▶</div><div class="btn">⟳<small>30</small></div><div class="btn">⏭</div></div>
+ <div class="transport"><div class="btn off">⏮</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↺</span><small>10</small></div><div class="btn play">▶</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↻</span><small>30</small></div><div class="btn">⏭</div></div>
  <div class="tools"><div class="tool">☰ Episodes</div><div class="tool sel">💬 Audio &amp; subtitles</div><div class="tool">🔖 Bookmarks</div><div class="tool">⚙ Playback settings</div></div>
  <div class="panel">
   <div class="h">Audio &amp; subtitles<span class="x">Close</span></div>
@@ -187,7 +187,7 @@ nav.toc{margin:16px 0;padding:0;list-style:none;color:var(--sec)}nav.toc a{color
 <h2 id="f5">5. Bookmarks panel</h2>
 <div class="frame-wrap"><div class="frame dim"><div class="scene"></div>
  <div class="shade"></div>
- <div class="transport"><div class="btn off">⏮</div><div class="btn">⟲<small>10</small></div><div class="btn play">▶</div><div class="btn">⟳<small>30</small></div><div class="btn">⏭</div></div>
+ <div class="transport"><div class="btn off">⏮</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↺</span><small>10</small></div><div class="btn play">▶</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↻</span><small>30</small></div><div class="btn">⏭</div></div>
  <div class="tools"><div class="tool">☰ Episodes</div><div class="tool">💬 Audio &amp; subtitles</div><div class="tool sel">🔖 Bookmarks</div><div class="tool">⚙ Playback settings</div></div>
  <div class="panel">
   <div class="h">Bookmarks<span class="x">Close</span></div>
@@ -214,7 +214,7 @@ nav.toc{margin:16px 0;padding:0;list-style:none;color:var(--sec)}nav.toc a{color
 <h2 id="f6">6. Playback settings panel</h2>
 <div class="frame-wrap"><div class="frame dim"><div class="scene"></div>
  <div class="shade"></div>
- <div class="transport"><div class="btn off">⏮</div><div class="btn">⟲<small>10</small></div><div class="btn play">▶</div><div class="btn">⟳<small>30</small></div><div class="btn">⏭</div></div>
+ <div class="transport"><div class="btn off">⏮</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↺</span><small>10</small></div><div class="btn play">▶</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↻</span><small>30</small></div><div class="btn">⏭</div></div>
  <div class="tools"><div class="tool">☰ Episodes</div><div class="tool">💬 Audio &amp; subtitles</div><div class="tool">🔖 Bookmarks</div><div class="tool sel">⚙ Playback settings</div></div>
  <div class="panel">
   <div class="h">Playback settings<span class="x">Close</span></div>
@@ -244,7 +244,7 @@ nav.toc{margin:16px 0;padding:0;list-style:none;color:var(--sec)}nav.toc a{color
   <div class="btns"><span>Cancel</span><span class="p focus">Play now</span></div>
  </div>
  <div class="time"><span>22:20</span><div class="bar"><i style="width:98%"></i><u style="left:98%"></u></div><span>22:41</span></div>
- <div class="transport"><div class="btn off">⏮</div><div class="btn">⟲<small>10</small></div><div class="btn play">▶</div><div class="btn">⟳<small>30</small></div><div class="btn">⏭</div></div>
+ <div class="transport"><div class="btn off">⏮</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↺</span><small>10</small></div><div class="btn play">▶</div><div class="btn"><span style="font-size:84px;line-height:1;opacity:.55">↻</span><small>30</small></div><div class="btn">⏭</div></div>
  <span class="m" style="right:790px;bottom:620px">1</span><span class="m" style="right:60px;bottom:520px">2</span><span class="m" style="right:60px;bottom:360px">3</span>
 </div></div>
 <ul class="legend">
