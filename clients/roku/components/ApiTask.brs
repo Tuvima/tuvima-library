@@ -51,6 +51,24 @@ sub execute()
         response = request("GET", "/api/v1/playback/" + encode(payload.assetId) + "/manifest?connectionPath=local", invalid, true)
     else if m.top.operation = "heartbeat"
         response = request("POST", "/api/v1/player/heartbeat", payload, true)
+    else if m.top.operation = "playbackPreferences"
+        response = request("GET", "/api/v1/devices/current/playback-preferences", invalid, true)
+    else if m.top.operation = "textTracks"
+        response = request("GET", textTracksPath(payload.assetId), invalid, true)
+    else if m.top.operation = "textTrackSources"
+        response = request("GET", textTracksPath(payload.assetId) + "/sources?kind=subtitles", invalid, true)
+    else if m.top.operation = "alternatives"
+        response = request("GET", textTracksPath(payload.assetId) + "/alternatives?kind=subtitles&language=" + encode(payload.language), invalid, true)
+    else if m.top.operation = "alternativePreview"
+        response = request("GET", textTracksPath(payload.assetId) + "/alternatives/preview?kind=subtitles&provider=" + encode(payload.provider) + "&sourceId=" + encode(payload.sourceId) + "&language=" + encode(payload.language), invalid, true)
+    else if m.top.operation = "alternativeChoose"
+        response = request("POST", textTracksPath(payload.assetId) + "/alternatives/choose", { kind: "subtitles", provider: payload.provider, source_id: payload.sourceId, language: payload.language }, true)
+    else if m.top.operation = "textTrackFile"
+        ' The player cannot send a bearer header for a sidecar file, so the WebVTT is fetched here and saved to tmp:/.
+        m.downloadTarget = payload.target
+        response = request("GET", textTracksPath(payload.assetId) + "/" + encode(payload.trackId), invalid, true)
+        m.downloadTarget = invalid
+        if response.ok then response.body = FormatJson({ path: payload.target })
     else
         response = { ok: false, status: 0, body: "Unknown API task operation." }
     end if
@@ -135,6 +153,10 @@ function isQid(value as Dynamic) as Boolean
     if Type(value) <> "roString" and Type(value) <> "String" then return false
     matcher = CreateObject("roRegex", "^Q[0-9]+$", "")
     return matcher.IsMatch(value)
+end function
+
+function textTracksPath(assetId as String) as String
+    return "/api/v1/stream/" + encode(assetId) + "/text-tracks"
 end function
 
 function encode(value as String) as String

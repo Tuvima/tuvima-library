@@ -49,10 +49,40 @@ The player follows the shared contract in
 [`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md)
 (transport order and names, skip defaults of 10 seconds back and 30 forward, tool
 order, panel names, paused details, end card and the television key map). Roku
-plays through its native video node with captions from the manifest, and today
-has none of the rest: it has no skip buttons or Previous/Next row, no Episodes
-panel, no Audio & subtitles panel, no Bookmarks (Everyone | Mine), no Playback
-settings, no chapters, no paused details and no end card. The gaps are one
-follow-up thread for Roku: skips, Episodes, Audio & subtitles, Bookmarks and the
-end card, laid out as the contract's first definition of the television side
-panels (Unified player v2, D29 and section 9).
+plays through its native video node, and has only part of the rest: it has no
+skip buttons or Previous/Next row, no Episodes panel, no Bookmarks (Everyone |
+Mine), no Playback settings, no chapters, no paused details and no end card. The
+gaps are one follow-up thread for Roku: skips, Episodes, Bookmarks and the end
+card, laid out as the contract's first definition of the television side panels
+(Unified player v2, D29 and section 9).
+
+### Audio & subtitles and Find another
+
+While a video plays, the remote's Options (`*`) key opens a small Audio & subtitles
+panel on the right (`AudioSubtitlesPanel`): Audio rows when the video has more
+than one track, then Subtitles (Off, then each subtitle track the Engine has),
+then the footer row **Find subtitles…**. The footer row is shown only when
+`GET /api/v1/stream/{asset}/text-tracks/sources?kind=subtitles` answers `Ready`.
+A subtitle track is fetched with the bearer token, saved to `tmp:/`, and the same
+stream is started again at the same position with it attached.
+
+**Find subtitles…** opens the full-screen Find another window
+(`FindAnotherWindow`, spec `find-another-on-tv`): the list on the left, the first
+lines of the focused result on the right, **Use this** and **Cancel** at the
+foot and one **Language** button (the profile's `subtitleLanguage`, with a short
+list of languages to switch to; no typing). The best match is read at once; any
+other row is read only after focus has rested on it for one second (a `Timer`
+restarted on every focus change), once per window. Select on a row opens its
+words in full and moves to **Use this**; Back closes the language list, then the
+full words, then the window. **Use this** posts `alternatives/choose`, reloads the
+text tracks and switches the new one on.
+
+All wording, the dwell rule, the read-once cache and the key map are in
+`components/FindAnotherLogic.brs`, which has no screen, `m` or network calls.
+`tests/build/roku-find-another.test.mjs` checks the component structure in CI.
+
+Not yet checked on a device (no Roku is available to the build): the Options key
+reaching the scene while the video node has focus, a `tmp:/` WebVTT as an external
+subtitle track, and the screen layout. The Engine's preview returns three lines per
+result, so "full words" shows three lines today (the window takes up to 20 when the
+Engine sends them). The Lyrics panel is a separate packet.

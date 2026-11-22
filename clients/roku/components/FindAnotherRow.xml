@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="FindAnotherRow" extends="Group">
+    <interface>
+        <field id="itemContent" type="node" onChange="onContent" />
+        <field id="width" type="float" />
+        <field id="height" type="float" />
+        <field id="itemHasFocus" type="boolean" onChange="onFocusChange" />
+    </interface>
+    <children>
+        <Rectangle id="ring" width="880" height="150" color="#FFFFFF" visible="false" />
+        <Rectangle id="fill" translation="[4,4]" width="872" height="142" color="#1B1726" />
+        <Label id="release" translation="[28,10]" width="620" height="40" color="#FFFFFF" font="font:MediumBoldSystemFont" />
+        <Label id="meta" translation="[28,52]" width="620" height="30" color="#CFC3F8" font="font:SmallestSystemFont" />
+        <Label id="check" translation="[28,84]" width="620" height="30" color="#FFCC80" font="font:SmallestSystemFont" />
+        <Label id="timing" translation="[28,112]" width="620" height="30" color="#7DDC9B" font="font:SmallestSystemFont" />
+        <Rectangle id="chipBestBack" translation="[684,16]" width="172" height="36" color="#4A3C86" visible="false" />
+        <Label id="chipBest" translation="[684,16]" width="172" height="36" horizAlign="center" vertAlign="center" color="#FFFFFF" font="font:SmallestSystemFont" />
+        <Rectangle id="chipUseBack" translation="[684,62]" width="172" height="36" color="#2F6F4F" visible="false" />
+        <Label id="chipUse" translation="[684,62]" width="172" height="36" horizAlign="center" vertAlign="center" color="#FFFFFF" font="font:SmallestSystemFont" />
+    </children>
+    <script type="text/brightscript" uri="pkg:/components/FindAnotherLogic.brs" />
+    <script type="text/brightscript" uri="pkg:/components/FindAnotherRow.brs" />
+</component>

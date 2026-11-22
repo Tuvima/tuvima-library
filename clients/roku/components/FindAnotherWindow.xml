@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Find another (subtitles) on Roku: the full-screen window of spec find-another-on-tv section 4. Dark only, 5 percent safe margins (96 x 54). -->
+<component name="FindAnotherWindow" extends="Group">
+    <interface>
+        <field id="serverOrigin" type="string" />
+        <field id="accessToken" type="string" />
+        <field id="refreshToken" type="string" />
+        <!-- { assetId, title, language } opens the window and starts the search. -->
+        <field id="openWith" type="assocarray" alwaysNotify="true" onChange="onOpen" />
+        <!-- { applied, provider, sourceId, language } when the window closes; applied is false for Cancel and Back. -->
+        <field id="closed" type="assocarray" alwaysNotify="true" />
+        <field id="tokenUpdate" type="assocarray" alwaysNotify="true" />
+    </interface>
+    <children>
+        <Rectangle id="dim" width="1920" height="1080" color="#09080D" opacity="0.94" />
+
+        <Label id="itemName" translation="[96,54]" width="1250" height="56" color="#FFFFFF" font="font:LargeBoldSystemFont" />
+        <Label id="windowTitle" translation="[96,114]" width="900" height="40" color="#CFC3F8" font="font:MediumSystemFont" text="Find subtitles" />
+        <Button id="languageButton" translation="[1424,60]" minWidth="400" height="64" text="Language: English" />
+
+        <Label id="loadingLabel" translation="[96,200]" width="880" height="50" color="#CFC3F8" font="font:MediumSystemFont" text="Looking for subtitles…" visible="false" />
+
+        <Group id="listGroup" visible="false">
+            <MarkupList id="resultList" translation="[96,190]" itemComponentName="FindAnotherRow" itemSize="[880,150]" itemSpacing="[0,6]" numRows="5" drawFocusFeedback="false" />
+            <Label id="paneTitle" translation="[1040,190]" width="784" height="50" color="#FFFFFF" font="font:MediumBoldSystemFont" />
+            <ScrollableText id="paneText" translation="[1040,254]" width="784" height="660" textColor="#F6F2FF" font="font:MediumSystemFont" />
+            <ButtonGroup id="footer" translation="[1040,950]" layoutDirection="horiz" horizAlignment="left" itemSpacings="[24]">
+                <Button id="useButton" text="Use this" minWidth="260" height="64" />
+                <Button id="cancelButton" text="Cancel" minWidth="260" height="64" />
+            </ButtonGroup>
+        </Group>
+
+        <Group id="messageGroup" visible="false">
+            <Label id="messageLabel" translation="[256,380]" width="1408" height="240" color="#F6F2FF" font="font:MediumSystemFont" horizAlign="center" vertAlign="center" wrap="true" numLines="4" />
+            <Button id="messageCancel" translation="[830,700]" minWidth="260" height="64" text="Cancel" />
+        </Group>
+
+        <Group id="languageGroup" visible="false">
+            <Rectangle translation="[1424,130]" width="400" height="640" color="#1B1726" />
+            <LabelList id="languageList" translation="[1424,130]" itemSize="[400,64]" numRows="10" />
+        </Group>
+
+        <Timer id="dwellTimer" duration="1" repeat="false" />
+    </children>
+    <script type="text/brightscript" uri="pkg:/components/FindAnotherLogic.brs" />
+    <script type="text/brightscript" uri="pkg:/components/FindAnotherWindow.brs" />
+</component>
