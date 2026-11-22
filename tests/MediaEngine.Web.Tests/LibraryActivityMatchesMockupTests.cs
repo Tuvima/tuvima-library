@@ -299,16 +299,35 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         var cut = Render<LibraryActivityPage>();
         cut.WaitForAssertion(() => Assert.Empty(_lastRunMediaTypes ?? []));
 
-        cut.FindAll("[data-testid='lact-chips'] button")[1].Click();
+        ClickChip(cut, 1);
 
         cut.WaitForAssertion(() => Assert.Equal(["Movies", "TV", "Videos"], _lastRunMediaTypes));
         cut.WaitForElement("[data-testid='lact-entry-toggle']").Click();
         cut.WaitForAssertion(() => Assert.Equal(["Movies", "TV", "Videos"], _lastGroupMediaTypes));
 
-        cut.FindAll("[data-testid='lact-chips'] button")[3].Click();
+        ClickChip(cut, 3);
 
         cut.WaitForAssertion(() => Assert.Equal(["Books", "Comics"], _lastRunMediaTypes));
     }
+
+    /// <summary>
+    /// Clicks a chip found fresh from the current render. A re-render between finding and clicking (the page reloads while a chip is
+    /// picked) leaves the found button without its handler, so the click is tried again on the new render instead of failing the test.
+    /// </summary>
+    private static void ClickChip(IRenderedComponent<LibraryActivityPage> cut, int index) =>
+        cut.WaitForAssertion(
+            () =>
+            {
+                try
+                {
+                    cut.FindAll("[data-testid='lact-chips'] button")[index].Click();
+                }
+                catch (Bunit.Rendering.UnknownEventHandlerIdException)
+                {
+                    Assert.Fail("The chip was re-rendered before the click; trying again on the new render.");
+                }
+            },
+            TimeSpan.FromSeconds(10));
 
     [Fact]
     public void ALibrarysOwnActivityTab_AsksTheTimelineAndAnOpenedBatchForThatLibraryOnly()
