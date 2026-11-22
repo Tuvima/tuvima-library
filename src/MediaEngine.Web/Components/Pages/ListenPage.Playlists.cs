@@ -304,7 +304,11 @@ public partial class ListenPage
         _notice = null;
         if (!await ApiClient.DeleteCollectionAsync(playlist.Id, _activeProfileId))
         {
-            ShowNotice(L["ListenPage_PlaylistDeleteFailed"].Value, AppUiTone.Error);
+            // The Engine's own reason goes after the sentence when it gave one, so a refusal says why.
+            var reason = MediaEngine.Web.Services.Integration.EngineFailureText.FromClient(ApiClient);
+            ShowNotice(
+                string.IsNullOrWhiteSpace(reason) ? L["ListenPage_PlaylistDeleteFailed"].Value : $"{L["ListenPage_PlaylistDeleteFailed"].Value} {reason}",
+                AppUiTone.Error);
             return;
         }
         if (CollectionId == playlist.Id)
