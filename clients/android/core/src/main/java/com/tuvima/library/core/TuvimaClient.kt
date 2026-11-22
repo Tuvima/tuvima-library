@@ -342,6 +342,45 @@ class TuvimaClient(
             PlaybackPreferences.Default
         }
 
+    /**
+     * Whether a subtitle (or lyrics) source is switched on for the item, from settings alone. The entry "Find subtitles…" is
+     * shown only for `Ready`. A failed call (an older Engine, a profile that may not ask, a network error) means no entry:
+     * playback never waits on it and nothing is searched.
+     */
+    suspend fun textTrackSources(assetId: String, kind: TextTrackKind = TextTrackKind.Subtitles): TextTrackSources =
+        try {
+            parseTextTrackSources(requestJson("GET", ClientRoutes.textTrackSources(assetId, kind)))
+        } catch (error: kotlin.coroutines.cancellation.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // The check only decides whether to draw an entry; the answer to any failure is the hidden entry.
+            TextTrackSources.Unavailable
+        }
+
+    /** The other results the sources offer for the item, in the Engine's order (the best match first). */
+    suspend fun textTrackAlternatives(
+        assetId: String,
+        kind: TextTrackKind = TextTrackKind.Subtitles,
+        language: String? = null,
+    ): TextTrackAlternatives =
+        parseTextTrackAlternatives(requestJson("GET", ClientRoutes.textTrackAlternatives(assetId, kind, language)))
+
+    /** Reads one result's first lines (and for a subtitle file its timing check). Nothing is saved. */
+    suspend fun textTrackAlternativePreview(
+        assetId: String,
+        provider: String,
+        sourceId: String,
+        kind: TextTrackKind = TextTrackKind.Subtitles,
+        language: String? = null,
+    ): TextTrackAlternativePreview =
+        parseTextTrackAlternativePreview(
+            requestJson("GET", ClientRoutes.textTrackAlternativePreview(assetId, provider, sourceId, kind, language)),
+        )
+
+    /** Uses one result. The choice is Library-wide and the previous one is kept so Go back works once. */
+    suspend fun chooseTextTrackAlternative(assetId: String, request: ChooseTextTrackRequest): TextTrackChoiceResult =
+        parseTextTrackChoice(requestJson("POST", ClientRoutes.chooseTextTrackAlternative(assetId), request.toJson()))
+
     suspend fun heartbeat(payload: JSONObject): JSONObject =
         requestJson("POST", "/api/v1/player/heartbeat", payload)
 

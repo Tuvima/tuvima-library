@@ -89,8 +89,12 @@ class MainActivity : ComponentActivity() {
         val application = application as TuvimaTvApplication
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFF9B7BFF))) {
-                TuvimaTvRoot(application) { assetId ->
-                    startActivity(Intent(this, PlaybackActivity::class.java).putExtra(PlaybackActivity.ASSET_ID, assetId))
+                TuvimaTvRoot(application) { assetId, title ->
+                    startActivity(
+                        Intent(this, PlaybackActivity::class.java)
+                            .putExtra(PlaybackActivity.ASSET_ID, assetId)
+                            .putExtra(PlaybackActivity.TITLE, title),
+                    )
                 }
             }
         }
@@ -142,7 +146,7 @@ private data class TvDetail(
 private val FocusBorderColor = Color(0xFFFFFFFF)
 
 @Composable
-private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String) -> Unit) {
+private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String, String?) -> Unit) {
     val scope = rememberCoroutineScope()
     var state: TvState by remember { mutableStateOf(TvState.Server) }
     val history = remember { mutableListOf<TvState>() }
@@ -766,14 +770,14 @@ private fun SearchScreen(state: TvState.Search, search: (String) -> Unit, open: 
 }
 
 @Composable
-private fun DetailScreen(state: TvState.Detail, play: (String) -> Unit, openUniverse: (String) -> Unit, back: () -> Unit) {
+private fun DetailScreen(state: TvState.Detail, play: (String, String?) -> Unit, openUniverse: (String) -> Unit, back: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(72.dp), verticalArrangement = Arrangement.Center) {
         Text(state.detail.title, style = MaterialTheme.typography.displayMedium)
         state.detail.subtitle?.let { Text(it, style = MaterialTheme.typography.headlineSmall) }
         if (state.detail.facts.isNotBlank()) Text(state.detail.facts, modifier = Modifier.padding(top = 12.dp))
         state.detail.description?.let { Text(it, modifier = Modifier.fillMaxWidth(0.7f).padding(top = 20.dp)) }
         Row(Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            state.playableAssetId?.let { asset -> Button(onClick = { play(asset) }) { Text("PLAY") } }
+            state.playableAssetId?.let { asset -> Button(onClick = { play(asset, state.detail.title) }) { Text("PLAY") } }
             state.detail.universeQid?.let { qid -> Button(onClick = { openUniverse(qid) }) { Text("UNIVERSE") } }
             Button(onClick = back) { Text("BACK") }
         }
