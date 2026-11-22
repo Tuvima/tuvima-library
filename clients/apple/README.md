@@ -55,12 +55,29 @@ Apple TV and the CarPlay scene are unchanged. The shared `TuvimaCore` framework 
 wire models and the pure logic (routes, sort and filter queries, photo timeline merging, typed
 profile-switch results) so it can be tested without a device.
 
+### Find another (groundwork, no screens yet)
+
+The shared code for the "Find another" lyrics and subtitle window (spec `find-another-on-tv`, WP7) is in
+`TuvimaCore`; the Apple TV and iPhone screens begin in their own threads and build on it:
+
+- `Shared/FindAnotherModels.swift`: the Engine's result, preview, sources and use-this shapes from
+  `Contracts/Playback/TextTrackResponses.cs`. Like the other app models they are decoded with
+  `.convertFromSnakeCase` (`source_id` is `sourceId`); the use-this body is written in snake_case.
+- `Shared/TuvimaAPIClient.swift`: `textTrackSources`, `textTrackAlternatives`, `previewTextTrackAlternative` and
+  `chooseTextTrackAlternative`, over `/api/v1/stream/{asset}/text-tracks/...` (paths in `ClientRoutes`).
+- `Shared/FindAnotherLogic.swift`: `FindAnotherReadingRule` (the best match is read when the list opens, any other row
+  only after focus rests on it for one second, moving away cancels, a row already read is never read again in the
+  window; the timer is injected through `DwellScheduling`, `MainQueueDwellScheduler` is the real one) and
+  `FindAnotherWording` (the row checks, preview lines and plain sentences for each status, the Engine's own message
+  first when it sent one).
+
 ## Tests
 
 `Tests/TuvimaCoreTests` holds XCTest sources (route building, wire-fixture decoding against
 `tests/fixtures/native-client-v1`, and a test that the Listen root loads and the queue follows a profile
 switch), and `OfflineLogicTests.swift` (the offline rules above and the device-downloads and next-episodes fixtures) and
-`PhotoOfflineLogicTests.swift` (kept photos: the storage limit, the purge rule, kinds and reports). No test target is declared in `project.yml` yet, so CI does not run them. To enable them, add
+`PhotoOfflineLogicTests.swift` (kept photos: the storage limit, the purge rule, kinds and reports) and
+`FindAnotherTests.swift` (Find another: wire models, routes, the one-second reading rule and row wording). No test target is declared in `project.yml` yet, so CI does not run them. To enable them, add
 this target and list it under the scheme's `test.targets`, then run
 `xcodebuild test -project TuvimaApple.xcodeproj -scheme Tuvima -destination 'platform=iOS Simulator,name=iPhone 16'`:
 
