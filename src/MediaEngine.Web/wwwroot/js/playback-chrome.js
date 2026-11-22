@@ -17,6 +17,15 @@ export function centerCue(cue, original) {
     cue.position = 'auto'; cue.positionAlign = 'auto'; cue.size = 100; cue.align = 'center';
 }
 
+/** The seek rail can steer the cues only while it is really on screen, inside the picture: a rail that is not laid out (zero size, or at the very top) would
+ *  put the cues above the picture where nothing is drawn, so the words must stay where the browser puts them instead. */
+export function railPositionsCues(rail, videoRect) {
+    if (!rail) return false;
+    const box = rail.getBoundingClientRect();
+    if (!(box.width > 0 && box.height >= 0) || !(videoRect.height > 0)) return false;
+    return box.top - videoRect.top > videoRect.height * .2 && box.top <= videoRect.top + videoRect.height;
+}
+
 export function cueLine(railTop, videoRect) { return Math.max(0, Math.min(95, (railTop - videoRect.top - 12) / Math.max(1, videoRect.height) * 100)); }
 
 export function attach(host, video) {
@@ -38,11 +47,13 @@ export function attach(host, video) {
     const originals = new Map();
     const positionCues = () => {
         const rail = host.querySelector('[data-playback-seek-rail]');
+        const picture = video.getBoundingClientRect();
+        const railSteers = railPositionsCues(rail, picture);
         for (const track of Array.from(video.textTracks || [])) {
             if (track.mode !== 'showing') continue;
             for (const cue of Array.from(track.activeCues || [])) {
                 if (!originals.has(cue)) originals.set(cue, { line:cue.line, snapToLines:cue.snapToLines, lineAlign:cue.lineAlign, position:cue.position, positionAlign:cue.positionAlign, size:cue.size, align:cue.align });
-                if (!state.hidden && rail) {
+                if (!state.hidden && railSteers) {
                     // Native text tracks use the video viewport, including object-fit letterboxing.
                     const frame = video.getBoundingClientRect(), railTop = rail.getBoundingClientRect().top;
                     // A cue that names no horizontal place of its own sits centered under the picture, whatever the cue box the browser built for it.

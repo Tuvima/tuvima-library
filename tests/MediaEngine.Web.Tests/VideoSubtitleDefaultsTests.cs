@@ -74,6 +74,29 @@ public sealed class VideoTrackDefaultsResolverTests
     }
 
     [Fact]
+    public void AProfileThatNeverTouchedSubtitles_StartsWithThemOff_EvenWhenTheFileHasOne()
+    {
+        // Issue 1319: Ferrari opened with its English track already showing. A fresh profile starts with subtitles off.
+        var result = Choose(new SubtitleLanguageSettingsDto(), English, EnglishSubtitle);
+
+        Assert.Equal(PlaybackPreferenceValues.Never, new SubtitleLanguageSettingsDto().ForcedSubtitlesMode);
+        Assert.Equal(VideoCaptionDecision.Off, result.Captions);
+        Assert.Equal("off", result.CaptionAttribute);
+    }
+
+    [Fact]
+    public void SubtitlesTurnedOnOnce_StartOnForTheNextTitleInTheRememberedLanguage_AndOffAgainWhenTurnedOff()
+    {
+        // What the player saves when a person turns subtitles on: Always plus the track's language.
+        var on = Choose(Settings("English", "English", PlaybackPreferenceValues.Always), English, EnglishSubtitle);
+        Assert.Equal(VideoCaptionDecision.Show, on.Captions);
+        Assert.Equal("manifest:0", on.CaptionKey);
+
+        // And when they turn them off: Never.
+        Assert.Equal(VideoCaptionDecision.Off, Choose(Settings("English", "English", PlaybackPreferenceValues.Never), English, EnglishSubtitle).Captions);
+    }
+
+    [Fact]
     public void OnlyWhenTheAudioIsInAnotherLanguage_TurnsSubtitlesOffWhenTheAudioIsInTheProfilesLanguage()
     {
         // Unlike Auto, which leaves the player's own choice (a forced track still shows), this turns captions off.
@@ -412,7 +435,7 @@ public sealed class VideoSubtitleDefaultsHostTests : AsyncBunitContext
             AudioTracks = [new() { Index = 0, Language = "jpn", IsDefault = true }, new() { Index = 1, Language = "eng" }],
             SubtitleTracks = [new() { Index = 0, Language = "en", DeliveryUrl = "/subs/en.vtt" }],
         };
-        Arrange(subtitles => { subtitles.AudioLanguage = "English"; subtitles.DefaultSubtitleLanguage = "English"; }, preferredManagedTrack: false, manifest);
+        Arrange(subtitles => { subtitles.AudioLanguage = "English"; subtitles.DefaultSubtitleLanguage = "English"; subtitles.ForcedSubtitlesMode = PlaybackPreferenceValues.Auto; }, preferredManagedTrack: false, manifest);
 
         var cut = Render<VideoPlaybackHost>();
 
@@ -428,7 +451,7 @@ public sealed class VideoSubtitleDefaultsHostTests : AsyncBunitContext
             AudioTracks = [new() { Index = 0, Language = "eng", IsDefault = true }],
             SubtitleTracks = [new() { Index = 0, Language = "en", IsForced = true, IsDefault = true, DeliveryUrl = "/subs/en.vtt" }],
         };
-        Arrange(subtitles => subtitles.SubtitleSize = PlaybackPreferenceValues.Small, preferredManagedTrack: false, manifest);
+        Arrange(subtitles => { subtitles.SubtitleSize = PlaybackPreferenceValues.Small; subtitles.ForcedSubtitlesMode = PlaybackPreferenceValues.Auto; }, preferredManagedTrack: false, manifest);
 
         var cut = Render<VideoPlaybackHost>();
 
