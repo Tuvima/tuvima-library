@@ -452,6 +452,31 @@ public sealed class ListenAlbumSelectionTests : AsyncBunitContext
         Assert.Empty(lane.FindAll("[data-album-select]"));
     }
 
+    // -- Play and Shuffle at the top of Songs (issue 1317) ------------------------------------------
+
+    [Theory]
+    [InlineData("desktop")]
+    [InlineData("tablet")]
+    public async Task TheSongsList_OffersPlayAndShuffleBesideItsHeading_SoMusicStartsWithoutPickingASong(string formFactor)
+    {
+        var lane = await RenderLaneAsync(formFactor, "songs");
+
+        lane.WaitForAssertion(() => Assert.NotEmpty(lane.FindAll("[data-songs-play]")));
+        Assert.Single(lane.FindAll("[data-songs-shuffle]"));
+        Assert.Contains("Play", lane.Find("[data-songs-play]").TextContent);
+        Assert.Contains("Shuffle", lane.Find("[data-songs-shuffle]").TextContent);
+    }
+
+    [Fact]
+    public async Task TheAlbumsList_HasNoSongsPlayOrShuffle()
+    {
+        var lane = await RenderLaneAsync("desktop", "albums");
+
+        lane.WaitForAssertion(() => Assert.NotEmpty(lane.FindAll("[data-album-select]")));
+        Assert.Empty(lane.FindAll("[data-songs-play]"));
+        Assert.Empty(lane.FindAll("[data-songs-shuffle]"));
+    }
+
     // -- Phone --------------------------------------------------------------------------------------
 
     [Fact]

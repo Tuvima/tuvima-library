@@ -167,6 +167,8 @@ public partial class MediaBrowseShell
     // A sort chosen in the phone header (or remembered for the profile). The browse sort menu still works; choosing there takes over again.
     private SongSortState? _phoneSongSort;
 
+    private bool ShowSongsPlayButtons => !DeviceContext.IsPhone && IsMusicSongsGrouping && UseListLayout && !_loading && !_loadFailed;
+
     private bool UsePhoneSongsHeader => DeviceContext.IsPhone && IsMusicSongsGrouping && UseListLayout;
 
     private SongSortState SongListSort => _phoneSongSort ?? BrowseQueryBuilder.SongListSort(_sortBy);

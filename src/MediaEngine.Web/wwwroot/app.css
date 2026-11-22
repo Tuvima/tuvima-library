@@ -3220,6 +3220,55 @@ button.app-menu-item {
     -webkit-touch-callout: none;
 }
 
+/* The hand-made playlist rows in the Listen sidebar (issue 1248): the grip and the "..." lie over the ends of the row's link, and the "..." is a bare
+   icon button with no border. */
+.listen-rail__playlist-row > .listen-rail__drag {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 6px;
+    transform: translateY(-50%);
+    z-index: 1;
+    opacity: 0;
+    pointer-events: none;
+    background: var(--tl-bg-surface-hover);
+}
+
+.listen-rail__playlist-row:hover > .listen-rail__drag,
+.listen-rail__playlist-row:focus-within > .listen-rail__drag {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.listen-rail__playlist-row > .playback-tooltip-owner {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-end: 4px;
+    transform: translateY(-50%);
+}
+
+/* The "..." is a bare icon button, with no border anywhere (issue 1248): only the hover and focus highlight. */
+.listen-rail__playlist-row .app-row-menu__trigger {
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: var(--tl-text-muted);
+}
+
+.listen-rail__playlist-row .app-row-menu__trigger:hover,
+.listen-rail__playlist-row .app-row-menu__trigger:focus-visible {
+    background: var(--tl-border-default) !important;
+    color: var(--tl-text-primary);
+}
+
+@media (hover: none), (pointer: coarse) {
+    .listen-rail__playlist-row > .listen-rail__drag {
+        inset-inline-start: 0;
+        opacity: 1;
+        pointer-events: auto;
+        background: transparent;
+    }
+}
+
 /* Shared 44px tap-target contract. Touch devices and any window narrower than the desktop form factor
    (a mouse-driven narrow window complies too). The 48px dock/button token above is unchanged. Text links
    inside running prose are deliberately left alone. */

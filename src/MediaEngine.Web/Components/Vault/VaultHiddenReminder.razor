@@ -11,7 +11,7 @@
     <div class="vault-hidden-reminder" data-vault-hidden-reminder role="note">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" />
         <span class="vault-hidden-reminder__text">@L["VaultHiddenReminder_TheVaultIsSetUp"]</span>
-        <AppButton Label="@L["VaultHiddenReminder_TurnOn"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="TurnOnAsync" />
+        <span class="vault-hidden-reminder__action"><AppButton Label="@L["VaultHiddenReminder_TurnOn"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="TurnOnAsync" /></span>
         <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" AriaLabel="@L["VaultHiddenReminder_DismissThisReminder"].Value" OnClick="DismissAsync" />
     </div>
 }

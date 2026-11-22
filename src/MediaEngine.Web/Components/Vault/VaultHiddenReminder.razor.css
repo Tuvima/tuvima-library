@@ -1,5 +1,6 @@
 .vault-hidden-reminder {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--tl-space-2);
     margin-block: var(--tl-space-2);
@@ -11,6 +12,12 @@
 }
 
 .vault-hidden-reminder__text {
-    flex: 1 1 auto;
+    flex: 1 1 12rem;
     min-width: 0;
+}
+
+/* The "Turn on" button is never squeezed or cut short (issue 1314): on a narrow screen it drops under the text instead. */
+.vault-hidden-reminder__action {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
