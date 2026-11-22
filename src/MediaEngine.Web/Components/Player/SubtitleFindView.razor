@@ -14,7 +14,7 @@
 <AppPickResultDialog Title="@L["AudioSubtitles_FindTitle"].Value" Visible="true" CoverShape="AppPickCoverShape.Portrait"
                      SearchText="@SearchText" Results="@Results" Loading="@(!NoSource && Presenter.Loading)" LoadingText="@SearchingText"
                      Busy="@(Presenter.ChoosingSourceId is not null)" Problem="@ProblemText"
-                     OnSearch="SearchAsync" OnUse="UseAsync" OnCancel="CloseAsync">
+                     OnSearch="SearchAsync" OnUse="UseAsync" OnSelect="SelectAsync" OnCancel="CloseAsync">
     <Filters>
         @if (!NoSource && ShowsLanguage)
         {
@@ -85,6 +85,7 @@
 
     private Action? _changed;
     private TextTrackAlternativesResponse? _mapped;
+    private int _mappedVersion;
     private IReadOnlyList<AppPickResult> _results = [];
 
     protected override async Task OnInitializedAsync()
@@ -102,9 +103,10 @@
         get
         {
             var response = Presenter.Response is { status: "Found", items.Count: > 0 } found ? found : null;
-            if (!ReferenceEquals(_mapped, response))
+            if (!ReferenceEquals(_mapped, response) || _mappedVersion != Presenter.PreviewVersion)
             {
                 _mapped = response;
+                _mappedVersion = Presenter.PreviewVersion;
                 var mixedLanguages = response?.items.Select(item => item.language ?? string.Empty).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
                 _results = response?.items.Select(item => ToResult(item, mixedLanguages == true)).ToList() ?? [];
             }
@@ -112,18 +114,21 @@
         }
     }
 
-    private static string KeyOf(TextTrackAlternativeDto item) => $"{item.provider}:{item.source_id}";
+    private static string KeyOf(TextTrackAlternativeDto item) => FindAnotherResultMapper.Key(item);
 
-    // Title: the release name. Second line: the language (when the list mixes them), how well the release matches and "Hearing impaired".
+    // Title: the release name. Under it: the language (when the list mixes them) and "Hearing impaired" as plain text, then two checks (made for
+    // your file, and once read, whether the timing fits the film) and the first lines (Find another results v2).
     private AppPickResult ToResult(TextTrackAlternativeDto item, bool mixedLanguages)
     {
-        var parts = new List<string>();
-        if (mixedLanguages) parts.Add(LanguageName(item));
-        parts.Add(item.confidence >= SameReleaseConfidence ? L["SubtitleFind_SameRelease"].Value : L["SubtitleFind_DifferentRelease"].Value);
-        if (item.is_hearing_impaired) parts.Add(L["SubtitleFind_HearingImpaired"].Value);
-        return new AppPickResult(KeyOf(item), string.IsNullOrWhiteSpace(item.release_name) ? item.provider_name : item.release_name!,
-            string.Join(" · ", parts), null, item.is_current ? L["SubtitleFind_InUse"].Value : null, item.is_current);
+        var preview = Presenter.PreviewFailedSourceId == item.source_id ? AppPickPreview.Failed
+            : Presenter.ReadingSourceId == item.source_id ? AppPickPreview.Reading
+            : AppPickPreview.Available;
+        return FindAnotherResultMapper.ForSubtitle(item, L, mixedLanguages, LanguageName(item), SameReleaseConfidence, preview);
     }
+
+    // A row that has not been read is read when it is selected (the best match was read with the list).
+    private Task SelectAsync(AppPickResult row) =>
+        Presenter.Response?.items.FirstOrDefault(item => KeyOf(item) == row.Key) is { } item ? Presenter.PreviewAsync(item) : Task.CompletedTask;
 
     private string Kind => IsEpisode ? L["SubtitleFind_Episode"].Value : L["SubtitleFind_Movie"].Value;
 

@@ -92,7 +92,11 @@ public sealed record TextTrackCandidate(
     bool IsForced = false,
     string? ReleaseName = null,
     bool IsInstrumental = false,
-    double? MatchScore = null);
+    double? MatchScore = null,
+    string? Title = null,
+    string? Artist = null,
+    string? Album = null,
+    double? SourceDurationSeconds = null);
 
 public sealed record TextTrackDownload(
     TextTrackCandidate Candidate,

@@ -453,25 +453,55 @@ public static class StreamEndpoints
                 message = result.Message,
                 source_name = result.SourceName,
                 language = result.Language,
-                items = result.Items.Select(item => new TextTrackAlternativeDto
-                {
-                    provider = item.Provider,
-                    provider_name = item.ProviderName,
-                    source_id = item.SourceId,
-                    language = item.Language,
-                    is_timed = item.IsTimed,
-                    confidence = item.Confidence,
-                    duration_match_score = item.DurationMatchScore,
-                    is_hearing_impaired = item.IsHearingImpaired,
-                    release_name = item.ReleaseName,
-                    preview = item.Preview,
-                    is_current = item.IsCurrent,
-                }).ToList(),
+                items = result.Items.Select(ToAlternativeDto).ToList(),
             });
         })
         .WithName("GetTextTrackAlternatives")
         .WithSummary("Ask the switched-on lyrics or subtitle sources for other results for one item. Fetched live and never stored. Subtitles accept a language to search in and download nothing. An optional query searches by those words instead of the item's own details.")
         .Produces<TextTrackAlternativesResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireClientScope(ClientApiScopes.PlaybackWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
+
+        group.MapGet("/{assetId:guid}/text-tracks/alternatives/preview", async (
+            Guid assetId,
+            string? kind,
+            string? provider,
+            string? sourceId,
+            string? language,
+            string? query,
+            HttpContext http,
+            [FromServices] TextTrackEnrichmentWorker textTrackWorker,
+            IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            if (!TryParseTextTrackKind(kind, out var textTrackKind) || string.IsNullOrWhiteSpace(provider) || string.IsNullOrWhiteSpace(sourceId))
+            {
+                return ApiErrors.BadRequest("kind, provider and sourceId are required.");
+            }
+
+            if (!IsValidSearchLanguage(language))
+            {
+                return ApiErrors.BadRequest("language must be a language name or code (letters, spaces, hyphens and brackets, at most 40 characters).");
+            }
+
+            if (!IsValidSearchText(query))
+            {
+                return ApiErrors.BadRequest("query must be plain text of at most 200 characters.");
+            }
+
+            var requester = PluginAccessGate.RequesterOf(await authorityResolver.ResolveAsync(http, ct));
+            var result = await textTrackWorker.PreviewAlternativeAsync(assetId, textTrackKind, provider, sourceId, requester, ct, language, query);
+            return Results.Ok(new TextTrackAlternativePreviewResponse
+            {
+                asset_id = assetId,
+                status = result.Status,
+                item = result.Item is null ? null : ToAlternativeDto(result.Item),
+            });
+        })
+        .WithName("PreviewTextTrackAlternative")
+        .WithSummary("Read the words of one result of Find another, on request (a subtitle row other than the best match). Nothing is saved.")
+        .Produces<TextTrackAlternativePreviewResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireClientScope(ClientApiScopes.PlaybackWrite)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.PlaybackWrite);
@@ -1033,6 +1063,32 @@ public static class StreamEndpoints
         || (value.Length <= 40 && value.All(character => char.IsLetter(character) || character is ' ' or '-' or '(' or ')'));
 
     /// <summary>Words a person typed to search by: absent, or plain text of at most 200 characters with no control characters.</summary>
+    private static TextTrackAlternativeDto ToAlternativeDto(MediaEngine.Providers.Workers.TextTrackAlternative item) => new()
+    {
+        provider = item.Provider,
+        provider_name = item.ProviderName,
+        source_id = item.SourceId,
+        language = item.Language,
+        is_timed = item.IsTimed,
+        confidence = item.Confidence,
+        duration_match_score = item.DurationMatchScore,
+        is_hearing_impaired = item.IsHearingImpaired,
+        release_name = item.ReleaseName,
+        preview = item.Preview,
+        is_current = item.IsCurrent,
+        title = item.Title,
+        artist = item.Artist,
+        album = item.Album,
+        length_seconds = item.LengthSeconds,
+        item_length_seconds = item.ItemLengthSeconds,
+        preview_lines = (item.PreviewLines ?? [])
+            .Select(line => new TextTrackPreviewLineDto { at_seconds = line.AtSeconds, text = line.Text })
+            .ToList(),
+        ends_at_seconds = item.EndsAtSeconds,
+        length_check = item.LengthCheck,
+        length_difference_seconds = item.LengthDifferenceSeconds,
+    };
+
     private static bool IsValidSearchText(string? value) =>
         string.IsNullOrWhiteSpace(value) || (value.Length <= 200 && !value.Any(char.IsControl));
 

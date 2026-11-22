@@ -398,6 +398,10 @@ public sealed class TextTrackLyricsMatchConfiguration
     [JsonPropertyName("artist_path")]
     public string ArtistPath { get; set; } = "artistName";
 
+    /// <summary>Path of the album name in a search hit; shown on the result's row (Find another results v2).</summary>
+    [JsonPropertyName("album_path")]
+    public string AlbumPath { get; set; } = "albumName";
+
     [JsonPropertyName("ignore_case")]
     public bool IgnoreCase { get; set; } = true;
 

@@ -1,6 +1,6 @@
 # Spec: Find another, clearer lyrics and subtitle results
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-21 · **Related docs:** [Product overview](../product/overview.md) · unified player v2 D17 · review mock-ups 2026-11-18 D7 · PR 1278 (all results listed) · the "Fix lyrics and subtitle search results" work (row alignment, art overflow, result order)
+> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-11-21 · **Related docs:** [Product overview](../../product/overview.md) · unified player v2 D17 · review mock-ups 2026-11-18 D7 · PR 1278 (all results listed) · the "Fix lyrics and subtitle search results" work (row alignment, art overflow, result order)
 
 ## 1. Goal
 When someone opens "Not right? Find another", each result shows the actual words it contains and two plain checks (does it follow the song, does its length fit), so the right one is obvious at a glance. Lyrics and subtitles use the same row.
