@@ -476,6 +476,11 @@ public sealed class SequencePlacementViewModel
     public int? PositionNumber { get; set; }
     public double? PositionSort { get; set; }
     public int? TotalKnownItems { get; init; }
+    /// <summary>
+    /// How many titles of the Series the person owns, counted by the Engine from every owned member (novellas and short stories
+    /// included), when that is wider than the numbered placement below (issue 1191). Null leaves the count to the placement's own items.
+    /// </summary>
+    public int? OwnedCount { get; set; }
     public bool HasAuthoritativeTotal { get; init; }
     public string? PositionLabel { get; set; }
     public string? PositionText { get; set; }

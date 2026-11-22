@@ -63,6 +63,17 @@ public sealed class DetailCountLineTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheEnginesOwnedCount_WinsWhenTheNumberedPlacementHoldsFewerOwnedTitles()
+    {
+        // The Expanse (issue 1191): the placement lists 11 owned titles but the Series tile counts all 15 the person owns.
+        var placement = SeriesPlacement(owned: 11, alsoOwned: 0, alsoMissing: 0);
+        placement.OwnedCount = 15;
+
+        Assert.Equal(15, SeriesOwnedCount.Of(placement));
+        Assert.Equal(15, SeriesOwnedCount.KnownTotal(placement));
+    }
+
+    [Fact]
     public void TheSeriesAboutFact_AgreesWithTheLineUnderTheList()
     {
         var model = new DetailPageViewModel

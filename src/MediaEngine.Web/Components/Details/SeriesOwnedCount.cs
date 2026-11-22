@@ -26,7 +26,12 @@ public static class SeriesOwnedCount
     }
 
     /// <summary>The one total: the numbered run and "Also in this world" together.</summary>
-    public static int Of(SequencePlacementViewModel placement) => InRun(placement) + InAlsoInThisWorld(placement);
+    public static int Of(SequencePlacementViewModel placement)
+    {
+        ArgumentNullException.ThrowIfNull(placement);
+        // The Engine's own count of every owned member wins when it is wider than the placement's items (issue 1191).
+        return Math.Max(placement.OwnedCount ?? 0, InRun(placement) + InAlsoInThisWorld(placement));
+    }
 
     /// <summary>
     /// The total the owned count is "of": the Series' known total for its numbered run, plus every title listed as "Also in this
