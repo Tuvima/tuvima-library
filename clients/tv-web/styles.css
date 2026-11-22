@@ -437,6 +437,23 @@ h2 { font-size: 1.15rem; font-weight: 600; }
 .panel-footer { margin-top: 1rem; }
 .panel-note { color: var(--muted); margin: 0.2rem 0 0.4rem; }
 
+/* ---- player: Lyrics side panel (music): heading with chip, the lines, Find lyrics pinned at the foot ---- */
+
+.side-panel.lyrics-panel { display: flex; flex-direction: column; overflow: hidden; }
+.side-panel.lyrics-panel[hidden] { display: none; }
+.lyrics-head { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.8rem; }
+.lyrics-head .panel-title { margin-bottom: 0; }
+.lyrics-lines { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: 0.4rem 0; }
+.lyrics-line {
+  padding: 0.35rem 0.8rem;
+  border-left: 0.2rem solid transparent;
+  font-size: 1.25rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.lyrics-line.is-active { color: #fff; font-weight: 700; border-left-color: var(--accent); }
+.lyrics-panel .panel-footer { flex: 0 0 auto; }
+
 /* ---- Find another (full-screen window over the paused video) ---- */
 
 .fa-window {

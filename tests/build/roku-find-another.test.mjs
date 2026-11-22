@@ -34,7 +34,7 @@ test('every component file declares the name its file has and the new ones are r
         const name = file.replace(/\.xml$/, '');
         assert.match(read(join(components, file)), new RegExp(`<component\\s+name="${name}"`), `${file} declares a different name`);
     }
-    for (const name of ['FindAnotherWindow', 'FindAnotherRow', 'AudioSubtitlesPanel']) {
+    for (const name of ['FindAnotherWindow', 'FindAnotherRow', 'AudioSubtitlesPanel', 'LyricsPanel', 'LyricsLine']) {
         assert.ok(xmlFiles.includes(`${name}.xml`), `${name}.xml is missing`);
     }
 });
@@ -42,7 +42,7 @@ test('every component file declares the name its file has and the new ones are r
 test('every custom node the scene and the window use exists as a component', () => {
     const known = new Set(xmlFiles.map((file) => file.replace(/\.xml$/, '')));
     const scene = component('MainScene');
-    for (const used of ['AudioSubtitlesPanel', 'FindAnotherWindow', 'ApiTask']) {
+    for (const used of ['AudioSubtitlesPanel', 'LyricsPanel', 'FindAnotherWindow', 'ApiTask']) {
         assert.match(scene.xml, new RegExp(`<${used}\\b`), `MainScene does not place ${used}`);
         assert.ok(known.has(used), `${used} component is missing`);
     }
@@ -52,7 +52,7 @@ test('every custom node the scene and the window use exists as a component', () 
 });
 
 test('every observer in the new components has a handler in the same component', () => {
-    for (const name of ['FindAnotherWindow', 'FindAnotherRow', 'AudioSubtitlesPanel', 'MainScene']) {
+    for (const name of ['FindAnotherWindow', 'FindAnotherRow', 'AudioSubtitlesPanel', 'LyricsPanel', 'LyricsLine', 'MainScene']) {
         const { xml, brs } = component(name);
         const handlers = definedNames(brs);
         // The logic file is included by every component, so its functions are also in scope.
@@ -75,7 +75,7 @@ test('the pure logic file has no UI, no scene state and no network', () => {
 
 test('every component that calls the logic includes it, and every fa function it calls exists', () => {
     const defined = definedNames(logic);
-    for (const name of ['FindAnotherWindow', 'FindAnotherRow', 'AudioSubtitlesPanel', 'MainScene']) {
+    for (const name of ['FindAnotherWindow', 'FindAnotherRow', 'AudioSubtitlesPanel', 'LyricsPanel', 'MainScene']) {
         const { xml, brs } = component(name);
         assert.ok(scriptUris(xml).includes('pkg:/components/FindAnotherLogic.brs'), `${name} does not include FindAnotherLogic.brs`);
         for (const match of brs.matchAll(/\b(fa[A-Z][A-Za-z0-9]*)\s*\(/g)) {
@@ -139,12 +139,12 @@ test('the key map follows section 4', () => {
 });
 
 test('the window sits inside the dark theme and the 5 percent safe margins', () => {
-    for (const name of ['FindAnotherWindow', 'AudioSubtitlesPanel', 'FindAnotherRow']) {
+    for (const name of ['FindAnotherWindow', 'AudioSubtitlesPanel', 'LyricsPanel', 'FindAnotherRow', 'LyricsLine']) {
         const xml = component(name).xml;
         for (const match of xml.matchAll(/translation="\[(\d+),\s*(\d+)\]"/g)) {
             const [x, y] = [Number(match[1]), Number(match[2])];
-            if (name === 'AudioSubtitlesPanel' && x === 1320 && y === 0) continue; // the panel's own background runs to the screen edge
-            if (name === 'FindAnotherRow') continue; // positions inside a row
+            if ((name === 'AudioSubtitlesPanel' || name === 'LyricsPanel') && x === 1320 && y === 0) continue; // the panel's own background runs to the screen edge
+            if (name === 'FindAnotherRow' || name === 'LyricsLine') continue; // positions inside a row
             assert.ok(x >= 96 && y >= 54 || name === 'FindAnotherWindow' && y >= 54, `${name}: translation [${x},${y}] is outside the 5 percent margins`);
         }
         assert.doesNotMatch(xml, /color="#(?:FFFFFF|F[0-9A-F]{5})"[^>]*width="1920"/i, `${name} must not paint a light full-screen background`);
@@ -155,9 +155,9 @@ test('the Engine calls the window and the panel make are in the API task', () =>
     const api = read(join(components, 'ApiTask.brs'));
     for (const [operation, fragment] of [
         ['textTracks', 'textTracksPath(payload.assetId)'],
-        ['textTrackSources', '/sources?kind=subtitles'],
-        ['alternatives', '/alternatives?kind=subtitles&language='],
-        ['alternativePreview', '/alternatives/preview?kind=subtitles&provider='],
+        ['textTrackSources', '/sources?kind=" + textKind(payload)'],
+        ['alternatives', '/alternatives?kind=" + textKind(payload) + languageQuery(payload)'],
+        ['alternativePreview', '/alternatives/preview?kind=" + textKind(payload) + "&provider='],
         ['alternativeChoose', '/alternatives/choose'],
         ['textTrackFile', 'target'],
         ['playbackPreferences', '/api/v1/devices/current/playback-preferences'],
@@ -166,7 +166,9 @@ test('the Engine calls the window and the panel make are in the API task', () =>
         assert.ok(api.includes(fragment), `ApiTask ${operation} is missing ${fragment}`);
     }
     assert.match(api, /function textTracksPath[\s\S]*?"\/api\/v1\/stream\/" \+ encode\(assetId\) \+ "\/text-tracks"/);
-    assert.match(api, /"POST", textTracksPath\(payload\.assetId\) \+ "\/alternatives\/choose", \{ kind: "subtitles", provider: payload\.provider, source_id: payload\.sourceId, language: payload\.language \}/);
+    assert.match(api, /choice = \{ kind: textKind\(payload\), provider: payload\.provider, source_id: payload\.sourceId \}/);
+    assert.match(api, /if textKind\(payload\) = "subtitles" then choice\.language = payload\.language/);
+    assert.match(api, /"POST", textTracksPath\(payload\.assetId\) \+ "\/alternatives\/choose", choice/);
 });
 
 test('the player opens the panel and hides the footer row when there is nothing to search', () => {
@@ -176,6 +178,107 @@ test('the player opens the panel and hides the footer row when there is nothing 
     assert.match(logic, /if showFind then rows\.Push\(\{ kind: "find"/);
     assert.match(logic, /function faSourcesReady\(status as String\) as Boolean\s+return LCase\(status\) = "ready"/);
     assert.match(scene, /m\.status\.text = faTextUpdating\(\)/);
+});
+
+// ---- Lyrics panel and Find lyrics (spec find-another-on-tv WP5) ----
+
+test('the lyrics wording of section 4 is in the logic file', () => {
+    for (const text of [
+        'Find lyrics',
+        'Find lyrics…',
+        'Looking for lyrics…',
+        'Updating lyrics…',
+        'Lyrics',
+        'Synced',
+        'Unsynced',
+        'Words only, not timed',
+        'Fits the song',
+        'seconds',
+        ' longer',
+        ' shorter',
+    ]) {
+        assert.ok(logic.includes(`"${text}`) || logic.includes(text), `FindAnotherLogic.brs is missing the lyrics wording "${text}"`);
+    }
+    assert.match(logic, /function faTextFindLyricsRow\(\) as String\s+return "Find lyrics…"/);
+    assert.match(logic, /function faTextSynced\(\) as String\s+return "Synced"/);
+    assert.match(logic, /function faTextWordsOnly\(\) as String\s+return "Words only, not timed"/);
+    assert.match(logic, /function faTextFitsTheSong\(\) as String\s+return "Fits the song"/);
+});
+
+test('lyrics results show six lines with no times, and no Language button or parameter', () => {
+    assert.match(logic, /function faPaneLineLimit\(full as Boolean, kind = "subtitles" as String\)[\s\S]*?if kind = "lyrics" then return 6/);
+    assert.match(logic, /if at <> invalid and kind <> "lyrics" then text = faClock\(at\)/);
+    assert.match(logic, /function faHasLanguage\(kind as String\) as Boolean\s+return kind <> "lyrics"/);
+    assert.match(logic, /function faLanguageRelevant\([^)]*\)[\s\S]*?if not faHasLanguage\(kind\) then return false/);
+    assert.match(logic, /if key = "up" and atFirstRow and languageShown then return "language"/);
+    const window = component('FindAnotherWindow');
+    assert.match(window.brs, /if faStr\(args\.kind\) = "lyrics" then m\.kind = "lyrics"/);
+    assert.match(window.brs, /m\.windowTitle\.text = faWindowTitle\(m\.kind\)/);
+    assert.match(window.brs, /m\.languageShown = faHasLanguage\(m\.kind\)\s+m\.languageButton\.visible = m\.languageShown/);
+    assert.match(window.brs, /faMove\(zone, key, m\.list\.itemFocused = 0, m\.languageShown\)/);
+    // The same dwell rule: the kind is passed along, the timer logic is the subtitles one.
+    assert.match(window.brs, /runTask\("alternatives", \{ assetId: m\.assetId, kind: m\.kind, language: m\.language \}/);
+    assert.match(window.brs, /runTask\("alternativePreview", \{ assetId: m\.assetId, kind: m\.kind,/);
+});
+
+test('the API task asks for lyrics with kind=lyrics and no language, and reads the lyrics file as text', () => {
+    const api = read(join(components, 'ApiTask.brs'));
+    assert.match(api, /function textKind\(payload as Object\) as String[\s\S]*?"lyrics"[\s\S]*?return "subtitles"/);
+    assert.match(api, /function languageQuery\(payload as Object\) as String\s+if textKind\(payload\) = "lyrics" then return ""/);
+    assert.match(api, /m\.top\.operation = "lyricsText"[\s\S]*?textTracksPath\(payload\.assetId\) \+ "\/" \+ encode\(payload\.trackId\)/);
+    assert.match(api, /FormatJson\(\{ text: response\.body \}\)/);
+});
+
+test('the Lyrics panel has a heading, a Synced chip, the lines and the Find lyrics footer row', () => {
+    const panel = component('LyricsPanel');
+    assert.match(panel.xml, /<Label id="panelTitle"[^>]*text="Lyrics"/);
+    assert.match(panel.xml, /<Label id="chipLabel"/);
+    assert.match(panel.xml, /<MarkupList id="lyricsList"[^>]*itemComponentName="LyricsLine"/);
+    assert.match(panel.xml, /<Button id="findButton"[^>]*text="Find lyrics…"/);
+    assert.match(panel.xml, /<field id="activeIndex" type="integer"/);
+    assert.match(panel.brs, /m\.findButton\.visible = model\.showFind/);
+    assert.match(panel.brs, /m\.top\.selection = "find"/);
+    assert.match(panel.brs, /if key = "back"[\s\S]*?m\.top\.closeRequested = true/);
+    assert.match(component('LyricsLine').brs, /content\.observeField\("isCurrent", "onCurrent"\)/);
+});
+
+test('the player offers the Lyrics panel for music and the synced line follows the song position', () => {
+    const scene = component('MainScene');
+    assert.match(scene.xml, /<LyricsPanel id="lyricsPanel" visible="false"/);
+    assert.match(scene.brs, /m\.activeIsMusic = faIsMusic\(faStr\(manifest\.mediaType\)\)/);
+    assert.match(scene.brs, /if m\.activeIsMusic then openLyricsPanel\(\) else openAudioSubtitles\(\)/);
+    assert.match(scene.brs, /m\.video\.observeField\("position", "onVideoPosition"\)/);
+    assert.match(scene.brs, /m\.lyricsPanel\.activeIndex = faActiveLyricIndex\(m\.lyricsParsed\.lines, m\.video\.position\)/);
+    // The footer row is hidden unless the lyrics source check says Ready.
+    assert.match(scene.brs, /runSide\("textTrackSources", \{ assetId: m\.activeAssetId, kind: "lyrics" \}\)/);
+    assert.match(scene.brs, /m\.lyricsAvailable = faSourcesReady\(faStr\(value\.status\)\)/);
+    assert.match(scene.brs, /model\.showFind = m\.lyricsAvailable/);
+});
+
+test('Find lyrics opens the same window with kind lyrics, Use this chooses with kind lyrics, then the panel reloads', () => {
+    const scene = component('MainScene').brs;
+    assert.match(scene, /m\.findWindow\.openWith = \{ assetId: m\.activeAssetId, title: m\.lastTitle, kind: "lyrics", language: "" \}/);
+    assert.match(scene, /runSide\("alternativeChoose", \{ assetId: m\.activeAssetId, kind: "lyrics", provider: result\.provider/);
+    assert.match(scene, /if faStr\(value\.status\) = "Updated"[\s\S]*?runSide\("textTracks", \{ assetId: m\.activeAssetId \}\)/);
+    assert.match(scene, /m\.lyricsUpdating = true/);
+    assert.match(scene, /sub onFindClosed\(\)[\s\S]*?if m\.activeIsMusic[\s\S]*?onLyricsFindClosed\(result\)/);
+});
+
+test('the lyrics file is read the way the Dashboard reads it: time tags make it Synced, the current line follows the position', () => {
+    assert.match(logic, /function faParseLyrics\(content as String\) as Object/);
+    assert.match(logic, /if timed\.Count\(\) > 0 then return \{ synced: true, lines: faSortLyrics\(timed\) \}/);
+    assert.match(logic, /return \{ synced: false, lines: plain \}/);
+    assert.match(logic, /function faStampSeconds\(inside as String\) as Dynamic/);
+    assert.match(logic, /function faActiveLyricIndex\(lines as Object, seconds as Float\) as Integer[\s\S]*?if line\.at > seconds then exit for/);
+    assert.match(logic, /function faPickLyricsTrackId[\s\S]*?"lyrics"[\s\S]*?isPreferred/);
+    assert.match(logic, /function faIsMusic\(mediaType as String\) as Boolean[\s\S]*?"audiobook"[\s\S]*?"music"/);
+});
+
+test('the Roku README names the Lyrics panel and no longer lists it as missing', () => {
+    const readme = read(join(roku, 'README.md'));
+    assert.match(readme, /### Lyrics and Find lyrics/);
+    assert.match(readme, /`LyricsPanel`/);
+    assert.doesNotMatch(readme, /Lyrics panel is a separate packet/i);
 });
 
 test('the Roku README no longer lists the Audio & subtitles panel as a gap', () => {

@@ -56,13 +56,21 @@ sub execute()
     else if m.top.operation = "textTracks"
         response = request("GET", textTracksPath(payload.assetId), invalid, true)
     else if m.top.operation = "textTrackSources"
-        response = request("GET", textTracksPath(payload.assetId) + "/sources?kind=subtitles", invalid, true)
+        ' payload.kind is "lyrics" for the Lyrics panel; everything else is subtitles.
+        response = request("GET", textTracksPath(payload.assetId) + "/sources?kind=" + textKind(payload), invalid, true)
     else if m.top.operation = "alternatives"
-        response = request("GET", textTracksPath(payload.assetId) + "/alternatives?kind=subtitles&language=" + encode(payload.language), invalid, true)
+        response = request("GET", textTracksPath(payload.assetId) + "/alternatives?kind=" + textKind(payload) + languageQuery(payload), invalid, true)
     else if m.top.operation = "alternativePreview"
-        response = request("GET", textTracksPath(payload.assetId) + "/alternatives/preview?kind=subtitles&provider=" + encode(payload.provider) + "&sourceId=" + encode(payload.sourceId) + "&language=" + encode(payload.language), invalid, true)
+        response = request("GET", textTracksPath(payload.assetId) + "/alternatives/preview?kind=" + textKind(payload) + "&provider=" + encode(payload.provider) + "&sourceId=" + encode(payload.sourceId) + languageQuery(payload), invalid, true)
     else if m.top.operation = "alternativeChoose"
-        response = request("POST", textTracksPath(payload.assetId) + "/alternatives/choose", { kind: "subtitles", provider: payload.provider, source_id: payload.sourceId, language: payload.language }, true)
+        choice = { kind: textKind(payload), provider: payload.provider, source_id: payload.sourceId }
+        ' Lyrics are in the song's own language, so only subtitles name one.
+        if textKind(payload) = "subtitles" then choice.language = payload.language
+        response = request("POST", textTracksPath(payload.assetId) + "/alternatives/choose", choice, true)
+    else if m.top.operation = "lyricsText"
+        ' The lyrics file is plain text; it is handed back inside a small object so every answer stays JSON.
+        response = request("GET", textTracksPath(payload.assetId) + "/" + encode(payload.trackId), invalid, true)
+        if response.ok then response.body = FormatJson({ text: response.body })
     else if m.top.operation = "textTrackFile"
         ' The player cannot send a bearer header for a sidecar file, so the WebVTT is fetched here and saved to tmp:/.
         m.downloadTarget = payload.target
@@ -153,6 +161,18 @@ function isQid(value as Dynamic) as Boolean
     if Type(value) <> "roString" and Type(value) <> "String" then return false
     matcher = CreateObject("roRegex", "^Q[0-9]+$", "")
     return matcher.IsMatch(value)
+end function
+
+' "lyrics" or "subtitles" (the default): which Find another list a call is about.
+function textKind(payload as Object) as String
+    if payload.kind <> invalid and payload.kind = "lyrics" then return "lyrics"
+    return "subtitles"
+end function
+
+' Subtitles are searched in a language; lyrics are not.
+function languageQuery(payload as Object) as String
+    if textKind(payload) = "lyrics" then return ""
+    return "&language=" + encode(payload.language)
 end function
 
 function textTracksPath(assetId as String) as String

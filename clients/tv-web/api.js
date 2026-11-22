@@ -417,6 +417,11 @@
     heartbeat: function (body) { return request('POST', '/api/v1/player/heartbeat', body); },
 
     /* Find another (subtitles): the Engine's own routes, under the app door. */
+    // The Lyrics panel: the asset's text tracks, then the words of one lyrics track (served as text, read with the bearer token).
+    textTracks: function (assetId) { return get('/api/v1/stream/' + enc(assetId) + '/text-tracks'); },
+    textTrackText: function (assetId, trackId) {
+      return fetchText('/api/v1/stream/' + enc(assetId) + '/text-tracks/' + enc(trackId));
+    },
     textTrackSources: function (assetId, kind) {
       return get('/api/v1/stream/' + enc(assetId) + '/text-tracks/sources?kind=' + enc(kind));
     },

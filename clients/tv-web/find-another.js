@@ -1,5 +1,5 @@
 /*
- * Tuvima TV web client - Find another (subtitles, and lyrics once a Lyrics panel exists).
+ * Tuvima TV web client - Find another (subtitles and lyrics; the Lyrics panel reads its file with the helpers below).
  *
  * Two halves in one classic script. The top half is plain logic with no DOM, so Node can test it: the one-second rest rule
  * (a row is read only after focus has rested on it for a second; scrolling quickly reads nothing), the read-once cache, the
@@ -45,8 +45,25 @@
     lookingLyrics: 'Looking for lyrics…',
     applying: 'Updating subtitles…',
     untitled: 'Untitled result',
-    footerRow: 'Find subtitles…'
+    footerRow: 'Find subtitles…',
+    // The Lyrics panel and its window (spec find-another-on-tv D6, WP5).
+    lyricsHeading: 'Lyrics',
+    unsynced: 'Unsynced',
+    findLyricsRow: 'Find lyrics…',
+    applyingLyrics: 'Updating lyrics…',
+    noLyrics: 'There are no lyrics for this song yet.',
+    lyricsNotLoaded: 'The lyrics could not be loaded.'
   };
+
+  /** The words that change with what is being searched for. */
+  function kindWords(kind) {
+    return kind === 'lyrics'
+      ? { windowTitle: WORDS.findLyrics, footerRow: WORDS.findLyricsRow, looking: WORDS.lookingLyrics, applying: WORDS.applyingLyrics }
+      : { windowTitle: WORDS.findSubtitles, footerRow: WORDS.footerRow, looking: WORDS.looking, applying: WORDS.applying };
+  }
+
+  /** Lyrics are searched in the song's own language, so the Language button and the language parameter exist only for subtitles. */
+  function hasLanguage(kind) { return kind !== 'lyrics'; }
 
   function text(value) { return value === undefined || value === null ? '' : String(value); }
   function isNumber(value) { return typeof value === 'number' && isFinite(value); }
@@ -149,11 +166,25 @@
     Unsupported: 'Subtitles cannot be searched for this title.'
   };
 
+  var FALLBACK_LYRICS_SENTENCES = {
+    NoSourceOn: 'No lyrics source is switched on.',
+    SourceKeyRequired: 'The lyrics source did not accept its key.',
+    IdentityUnverified: 'This song could not be matched for an online search.',
+    LimitReached: 'The lyrics source has reached its limit for now. Try again later.',
+    Unavailable: 'The lyrics source could not be reached.',
+    Blocked: 'This library never looks anything up online.',
+    NotAllowed: 'Your profile cannot search for lyrics.',
+    NoneFound: 'No other lyrics were found.',
+    AssetMissing: 'This file is not available.',
+    Unsupported: 'Lyrics cannot be searched for this title.'
+  };
+
   /** The centered sentence for an empty or problem answer: the Engine's own words when it sent some, else the same plain sentence the Dashboard uses. */
-  function statusSentence(status, message) {
+  function statusSentence(status, message, kind) {
     var own = text(message).trim();
     if (own) { return own; }
-    if (FALLBACK_SENTENCES[status]) { return FALLBACK_SENTENCES[status]; }
+    var table = kind === 'lyrics' ? FALLBACK_LYRICS_SENTENCES : FALLBACK_SENTENCES;
+    if (table[status]) { return table[status]; }
     return 'The search could not be completed.';
   }
 
@@ -166,6 +197,77 @@
   function chooseFailureSentence(response) {
     var own = text(response && response.message).trim();
     return own || 'Could not use this one.';
+  }
+
+  /* ---- the Lyrics panel: reading the file, and which line is current ---- */
+
+  var LRC_STAMP = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+  var LRC_WORD_STAMP = /<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>/g;
+  var LRC_TAG_ONLY = /^\[[A-Za-z#]+:[^\]]*\]$/;
+
+  function stampSeconds(min, sec, frac) {
+    var fraction = frac ? parseInt(frac, 10) / Math.pow(10, frac.length) : 0;
+    return parseInt(min, 10) * 60 + parseInt(sec, 10) + fraction;
+  }
+
+  /**
+   * Reads a lyrics file the Engine serves as text. Timed lines ([mm:ss.xx] text, as the Dashboard reads them; a line with
+   * several stamps appears at each; word stamps are dropped) make it Synced, kept in time order. A file with no timed line is
+   * plain words, Unsynced, one line per row with the tag lines ([ar:...]) left out. Returns { synced, lines: [{ at, text }] }.
+   */
+  function parseLyrics(content) {
+    var raw = text(content).replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n');
+    var timed = [];
+    var plain = [];
+    raw.forEach(function (rawLine) {
+      var stamps = [];
+      var match;
+      LRC_STAMP.lastIndex = 0;
+      while ((match = LRC_STAMP.exec(rawLine)) !== null) { stamps.push(stampSeconds(match[1], match[2], match[3])); }
+      var words = rawLine.replace(LRC_STAMP, '').replace(LRC_WORD_STAMP, '').replace(/\s+/g, ' ').trim();
+      if (stamps.length) {
+        stamps.forEach(function (at) { timed.push({ at: at, text: words }); });
+      } else if (words && !LRC_TAG_ONLY.test(words)) {
+        plain.push({ at: null, text: words });
+      }
+    });
+    if (timed.length) {
+      // Lines with the same time keep the file's order.
+      var ordered = timed.map(function (line, i) { return { line: line, i: i }; });
+      ordered.sort(function (a, b) { return a.line.at - b.line.at || a.i - b.i; });
+      return { synced: true, lines: ordered.map(function (entry) { return entry.line; }) };
+    }
+    return { synced: false, lines: plain };
+  }
+
+  /** The Synced or Unsynced chip beside the Lyrics heading. */
+  function lyricsChip(parsed) {
+    return parsed && parsed.synced ? WORDS.synced : WORDS.unsynced;
+  }
+
+  /** The line that is current at this song position: the last timed line at or before it; -1 before the first line or when unsynced. */
+  function activeLyricIndex(lines, seconds) {
+    if (!lines || !isNumber(seconds)) { return -1; }
+    var found = -1;
+    for (var i = 0; i < lines.length; i++) {
+      if (!isNumber(lines[i].at)) { return -1; }
+      if (lines[i].at <= seconds) { found = i; } else { break; }
+    }
+    return found;
+  }
+
+  /** Which of the asset's text tracks shows as its lyrics: the one the Engine marks preferred, else the first lyrics track. */
+  function pickLyricsTrack(tracks) {
+    var lyrics = (tracks || []).filter(function (t) { return t && text(t.kind).toLowerCase() === 'lyrics' && text(t.id); });
+    for (var i = 0; i < lyrics.length; i++) { if (lyrics[i].isPreferred) { return lyrics[i]; } }
+    return lyrics.length ? lyrics[0] : null;
+  }
+
+  /** Whether a playback manifest's media type is music (the Lyrics panel is offered there only). */
+  function isMusic(mediaType) {
+    var value = text(mediaType).toLowerCase();
+    if (!value || value.indexOf('audiobook') >= 0) { return false; }
+    return value.indexOf('music') >= 0 || value.indexOf('song') >= 0 || value.indexOf('track') >= 0;
   }
 
   /* ---- profile languages ---- */
@@ -272,7 +374,8 @@
   function step(state, action) {
     var s = {
       zone: state.zone, count: state.count, index: state.index,
-      languageCount: state.languageCount || 0, languageIndex: state.languageIndex || 0, full: !!state.full
+      languageCount: state.languageCount || 0, languageIndex: state.languageIndex || 0, full: !!state.full,
+      noLanguage: !!state.noLanguage
     };
     var effect = null;
     var delta = 0;
@@ -299,7 +402,7 @@
     }
 
     if (s.zone === 'list') {
-      if (action === 'up') { if (s.index > 0) { s.index--; } else { s.zone = 'language'; } }
+      if (action === 'up') { if (s.index > 0) { s.index--; } else if (!s.noLanguage) { s.zone = 'language'; } }
       else if (action === 'down') { if (s.index < s.count - 1) { s.index++; } }
       else if (action === 'right') { s.zone = 'pane'; }
       else if (action === 'enter') { s.zone = 'use'; s.full = true; effect = 'select'; }
@@ -325,7 +428,7 @@
     // 'cancel'
     if (action === 'enter') { effect = 'close'; }
     else if (action === 'left') { s.zone = hasList ? 'use' : 'cancel'; }
-    else if (action === 'up') { s.zone = hasList ? 'list' : 'language'; }
+    else if (action === 'up') { s.zone = hasList ? 'list' : (s.noLanguage ? 'cancel' : 'language'); }
     return { state: s, effect: effect, delta: 0 };
   }
 
@@ -344,6 +447,13 @@
     statusSentence: statusSentence,
     sourceReady: sourceReady,
     chooseFailureSentence: chooseFailureSentence,
+    kindWords: kindWords,
+    hasLanguage: hasLanguage,
+    parseLyrics: parseLyrics,
+    lyricsChip: lyricsChip,
+    activeLyricIndex: activeLyricIndex,
+    pickLyricsTrack: pickLyricsTrack,
+    isMusic: isMusic,
     languageList: languageList,
     createDwell: createDwell,
     createReader: createReader,
@@ -376,18 +486,21 @@
     var applying = false;
     var message = '';
     var loading = true;
-    var keyState = { zone: 'list', count: 0, index: 0, languageCount: 0, languageIndex: 0, full: false };
+    var words = kindWords(kind);
+    var withLanguage = hasLanguage(kind);
+    var keyState = { zone: 'list', count: 0, index: 0, languageCount: 0, languageIndex: 0, full: false, noLanguage: !withLanguage };
 
     var win = el('div', 'fa-window');
     var header = el('div', 'fa-header');
     var heading = el('div', 'fa-heading');
     heading.appendChild(el('div', 'fa-title', options.title || ''));
-    heading.appendChild(el('div', 'fa-kind', kind === 'lyrics' ? WORDS.findLyrics : WORDS.findSubtitles));
+    heading.appendChild(el('div', 'fa-kind', words.windowTitle));
     var languageButton = el('button', 'btn focusable fa-language');
     languageButton.type = 'button';
     languageButton.setAttribute('data-key', 'fa-language');
     header.appendChild(heading);
-    header.appendChild(languageButton);
+    // Lyrics are in the song's own language, so there is no Language button for them.
+    if (withLanguage) { header.appendChild(languageButton); }
 
     var body = el('div', 'fa-body');
     var list = el('div', 'fa-list');
@@ -428,7 +541,7 @@
       read: function (key) {
         var picked = items.filter(function (item) { return itemKey(item) === key; })[0];
         if (!picked) { return Promise.reject(new Error('gone')); }
-        return TV.api.findPreview(assetId, kind, picked.provider, picked.source_id, language).then(function (answer) {
+        return TV.api.findPreview(assetId, kind, picked.provider, picked.source_id, withLanguage ? language : '').then(function (answer) {
           return answer && answer.status === 'Found' && answer.item ? answer.item : null;
         });
       },
@@ -550,11 +663,11 @@
       items = [];
       rows = [];
       list.textContent = '';
-      message = kind === 'lyrics' ? WORDS.lookingLyrics : WORDS.looking;
+      message = words.looking;
       keyState.count = 0;
       keyState.index = 0;
       keyState.full = false;
-      keyState.zone = 'language';
+      keyState.zone = withLanguage ? 'language' : 'cancel';
       paintAll();
       // The notice is the loading line; nothing else can be done until the list arrives except Cancel and Language.
     }
@@ -598,18 +711,18 @@
       var mine = ++generation;
       reader.cancel();
       showLoading();
-      TV.api.findAlternatives(assetId, kind, language).then(function (answer) {
+      TV.api.findAlternatives(assetId, kind, withLanguage ? language : '').then(function (answer) {
         if (closed || mine !== generation) { return; }
         var found = answer && answer.items ? answer.items : [];
         if (answer && answer.status === 'Found' && found.length) {
           showList(found);
         } else {
           var status = answer && answer.status === 'Found' ? 'NoneFound' : (answer ? answer.status : 'Unavailable');
-          showProblem(statusSentence(status, answer ? answer.message : ''));
+          showProblem(statusSentence(status, answer ? answer.message : '', kind));
         }
       }, function (error) {
         if (closed || mine !== generation) { return; }
-        showProblem(statusSentence(error && error.status === 403 ? 'NotAllowed' : 'Unavailable', ''));
+        showProblem(statusSentence(error && error.status === 403 ? 'NotAllowed' : 'Unavailable', '', kind));
       });
     }
 
@@ -628,9 +741,11 @@
       var item = selectedItem();
       if (!item || applying) { return; }
       applying = true;
-      message = WORDS.applying;
+      message = words.applying;
       paintLayout();
-      TV.api.findChoose(assetId, { kind: kind, provider: item.provider, source_id: item.source_id, language: language }).then(function (answer) {
+      var body = { kind: kind, provider: item.provider, source_id: item.source_id };
+      if (withLanguage) { body.language = language; }
+      TV.api.findChoose(assetId, body).then(function (answer) {
         applying = false;
         if (closed) { return; }
         if (answer && answer.status === 'Updated') { finish(true); return; }
@@ -691,15 +806,19 @@
     TV.nav.setScope(win);
     TV.nav.setKeyHandler(onAction);
 
-    TV.api.playbackPreferences().then(function (prefs) {
-      return prefs && prefs.subtitleLanguage ? text(prefs.subtitleLanguage) : '';
-    }, function () { return ''; }).then(function (profileLanguage) {
-      if (closed) { return; }
-      if (profileLanguage) { language = profileLanguage; }
-      languages = languageList(profileLanguage, language);
-      keyState.languageCount = languages.length;
+    if (withLanguage) {
+      TV.api.playbackPreferences().then(function (prefs) {
+        return prefs && prefs.subtitleLanguage ? text(prefs.subtitleLanguage) : '';
+      }, function () { return ''; }).then(function (profileLanguage) {
+        if (closed) { return; }
+        if (profileLanguage) { language = profileLanguage; }
+        languages = languageList(profileLanguage, language);
+        keyState.languageCount = languages.length;
+        search();
+      });
+    } else {
       search();
-    });
+    }
 
     paintLanguageButton();
     return { close: function () { finish(false); } };

@@ -92,8 +92,11 @@
     var backButton = button('back10', '-10 s');
     var forwardButton = button('forward10', '+10 s');
     var audioButton = button('audiosubs', 'Audio & subtitles');
+    // Music only: the Lyrics side panel (spec find-another-on-tv D6). Shown once the manifest says this is a song.
+    var lyricsButton = button('lyrics', TV.findAnother.WORDS.lyricsHeading);
+    lyricsButton.hidden = true;
     var closeButton = button('close', 'Close');
-    [playButton, backButton, forwardButton, audioButton, closeButton].forEach(function (b) { buttons.appendChild(b); });
+    [playButton, backButton, forwardButton, audioButton, lyricsButton, closeButton].forEach(function (b) { buttons.appendChild(b); });
     overlay.appendChild(heading);
     overlay.appendChild(seek);
     overlay.appendChild(times);
@@ -124,8 +127,15 @@
       audioIndex: 0,
       audioNote: '',
       panelOpen: false,
+      panelMode: 'audio',
       finder: null,
       sourcesReady: false,
+      lyricsSourcesReady: false,
+      lyrics: { status: 'loading', parsed: null, note: '' }, // status: loading, ready, none or failed
+      lyricsGeneration: 0,
+      lyricsIndex: -2,
+      lyricsLines: [],
+      lyricsScroller: null,
       next: null,
       nextTimer: null,
       mediaErrors: 0,
@@ -166,6 +176,7 @@
       seekFill.style.width = (isFinite(duration) && duration > 0 ? Math.min(100, position / duration * 100) : 0) + '%';
       timeNow.textContent = formatTime(position);
       timeEnd.textContent = isFinite(duration) ? formatTime(duration) : '';
+      if (state.panelOpen && state.panelMode === 'lyrics') { paintLyricsActive(); }
     }
 
     function togglePlay() {
@@ -196,6 +207,7 @@
     forwardButton.addEventListener('click', function () { seekBy(SEEK_STEP); showOverlay(); });
     closeButton.addEventListener('click', function () { close(); });
     audioButton.addEventListener('click', function () { openPanel(); });
+    lyricsButton.addEventListener('click', function () { openLyricsPanel(); });
 
     /* ---- captions ---- */
 
@@ -287,6 +299,7 @@
     }
 
     function renderPanel() {
+      if (state.panelMode === 'lyrics') { renderLyrics(); return; }
       var remember = TV.nav.remember();
       panel.textContent = '';
       panel.appendChild(el('div', 'panel-title', 'Audio & subtitles'));
@@ -332,6 +345,8 @@
     function openPanel() {
       if (state.panelOpen || state.closed) { return; }
       state.panelOpen = true;
+      state.panelMode = 'audio';
+      panel.classList.remove('lyrics-panel');
       state.sourcesReady = false;
       panel.hidden = false;
       showOverlay();
@@ -350,33 +365,142 @@
 
     function closePanel() {
       if (!state.panelOpen) { return; }
+      var wasLyrics = state.panelMode === 'lyrics';
       state.panelOpen = false;
+      state.lyricsGeneration++;
       panel.hidden = true;
       panel.textContent = '';
+      panel.classList.remove('lyrics-panel');
+      state.lyricsScroller = null;
+      state.lyricsLines = [];
       TV.nav.setScope(root);
-      TV.nav.focus(audioButton);
+      TV.nav.focus(wasLyrics ? lyricsButton : audioButton);
       showOverlay();
+    }
+
+    /* ---- Lyrics side panel (music) ---- */
+
+    function lyricsWords() { return TV.findAnother; }
+
+    // Reads the song's lyrics track (the Engine's preferred one) and turns it into lines. A generation number drops a read that
+    // was overtaken by the panel closing or by a newer choice.
+    async function loadLyrics(note) {
+      var mine = ++state.lyricsGeneration;
+      state.lyrics = { status: 'loading', parsed: null, note: note || '' };
+      state.lyricsIndex = -2;
+      if (state.panelOpen && state.panelMode === 'lyrics') { renderLyrics(); }
+      var next;
+      try {
+        var pick = TV.findAnother.pickLyricsTrack(await TV.api.textTracks(assetId));
+        if (!pick) {
+          next = { status: 'none', parsed: null };
+        } else {
+          var parsed = TV.findAnother.parseLyrics(await TV.api.textTrackText(assetId, pick.id));
+          next = parsed.lines.length ? { status: 'ready', parsed: parsed } : { status: 'none', parsed: null };
+        }
+      } catch (e) {
+        next = { status: 'failed', parsed: null };
+      }
+      if (mine !== state.lyricsGeneration || state.closed) { return; }
+      state.lyrics = next;
+      if (state.panelOpen && state.panelMode === 'lyrics') { renderLyrics(); }
+    }
+
+    function renderLyrics() {
+      var words = lyricsWords();
+      var remember = TV.nav.remember();
+      panel.textContent = '';
+      panel.classList.add('lyrics-panel');
+      var head = el('div', 'lyrics-head');
+      head.appendChild(el('div', 'panel-title', words.WORDS.lyricsHeading));
+      if (state.lyrics.status === 'ready') { head.appendChild(el('span', 'fa-chip', words.lyricsChip(state.lyrics.parsed))); }
+      panel.appendChild(head);
+      var scroller = el('div', 'lyrics-lines');
+      state.lyricsScroller = scroller;
+      state.lyricsLines = [];
+      state.lyricsIndex = -2;
+      if (state.lyrics.status === 'ready') {
+        state.lyrics.parsed.lines.forEach(function (line) {
+          var node = el('div', 'lyrics-line', line.text || '♪');
+          scroller.appendChild(node);
+          state.lyricsLines.push(node);
+        });
+      } else {
+        var note = state.lyrics.status === 'loading' ? words.WORDS.lookingLyrics
+          : state.lyrics.status === 'failed' ? words.WORDS.lyricsNotLoaded : words.WORDS.noLyrics;
+        scroller.appendChild(el('div', 'panel-note', (state.lyrics.status === 'loading' && state.lyrics.note) || note));
+      }
+      panel.appendChild(scroller);
+      if (state.lyricsSourcesReady) {
+        var find = panelRow('find-lyrics', words.WORDS.findLyricsRow, false, function () { openFinder(); });
+        find.classList.add('panel-footer');
+        panel.appendChild(find);
+      }
+      paintLyricsActive();
+      if (remember && panel.querySelector('[data-key="' + remember + '"]')) { TV.nav.restore(panel, remember); }
+    }
+
+    // The current synced line is highlighted and kept in the middle of the list as the song plays.
+    function paintLyricsActive() {
+      if (state.lyrics.status !== 'ready' || !state.lyricsScroller) { return; }
+      var index = TV.findAnother.activeLyricIndex(state.lyrics.parsed.lines, video.currentTime || 0);
+      if (index === state.lyricsIndex) { return; }
+      state.lyricsIndex = index;
+      state.lyricsLines.forEach(function (node, i) { node.classList.toggle('is-active', i === index); });
+      var current = state.lyricsLines[index];
+      if (current) {
+        var scroller = state.lyricsScroller;
+        scroller.scrollTop = current.offsetTop - scroller.clientHeight / 2 + current.clientHeight / 2;
+      }
+    }
+
+    function openLyricsPanel() {
+      if (state.panelOpen || state.closed) { return; }
+      state.panelOpen = true;
+      state.panelMode = 'lyrics';
+      state.lyricsSourcesReady = false;
+      panel.hidden = false;
+      showOverlay();
+      TV.nav.setScope(panel);
+      loadLyrics();
+      // The footer row shows only when the Engine says a lyrics source is ready for this song (and this profile may use it).
+      TV.api.textTrackSources(assetId, 'lyrics').then(function (answer) {
+        return TV.findAnother.sourceReady(answer);
+      }, function () { return false; }).then(function (ready) {
+        if (state.closed || !state.panelOpen || state.panelMode !== 'lyrics' || state.lyricsSourcesReady === ready) { return; }
+        state.lyricsSourcesReady = ready;
+        renderLyrics();
+        if (ready && !state.finder) { TV.nav.restore(panel, 'find-lyrics'); }
+      });
     }
 
     function openFinder() {
       if (state.finder || state.closed) { return; }
+      var lyrics = state.panelMode === 'lyrics';
       var wasPlaying = !video.paused;
       if (wasPlaying) { video.pause(); }
       state.finder = TV.findAnother.open({
         assetId: assetId,
         title: options.title || '',
-        kind: 'subtitles',
+        kind: lyrics ? 'lyrics' : 'subtitles',
         restoreKeys: onAction,
         onClosed: function () {
           state.finder = null;
           if (state.closed) { return; }
           if (wasPlaying) { resumePlay(); }
           TV.nav.setScope(panel);
-          TV.nav.restore(panel, 'find-subtitles');
+          TV.nav.restore(panel, lyrics ? 'find-lyrics' : 'find-subtitles');
         },
         onApplied: function () {
           state.finder = null;
           if (state.closed) { return; }
+          if (lyrics) {
+            // The panel stays open and shows the new lyrics once they are read; the song carries on at the same place.
+            if (wasPlaying) { resumePlay(); }
+            TV.nav.setScope(panel);
+            loadLyrics(TV.findAnother.WORDS.applyingLyrics).then(function () { if (state.panelOpen && state.panelMode === 'lyrics') { TV.nav.restore(panel, 'find-lyrics'); } });
+            return;
+          }
           closePanel();
           applyChosenSubtitles(wasPlaying);
         }
@@ -630,7 +754,8 @@
         }
         if (state.closed) { return; }
         state.manifest = manifest;
-        var ready = manifest && manifest.recommendedDelivery === 'hls' && manifest.hlsUrl &&
+        lyricsButton.hidden = !TV.findAnother.isMusic(manifest && manifest.mediaType);
+        var ready =manifest && manifest.recommendedDelivery === 'hls' && manifest.hlsUrl &&
           (manifest.hlsStatus === 'ready' || manifest.hlsStatus === 'streaming');
         if (!ready) {
           var reason = 'This title cannot be played on this TV.';
