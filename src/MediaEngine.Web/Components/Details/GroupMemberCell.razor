@@ -1,0 +1,86 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Models.ViewDTOs
+@inject IStringLocalizer<SharedStrings> L
+
+@* One member in the numbered cover grid of a Series' or collection's page (spec group-pages-and-tiles D4, WP3): the cover in its own shape
+   with its number in the corner, then the title and the year. A title that is not in the library is dimmed with a dashed outline and cannot be
+   opened. *@
+<li class="@CellClass">
+    @if (!string.IsNullOrWhiteSpace(Route))
+    {
+        <a class="group-member__link" href="@Route" aria-label="@(Number is null ? $"Open {Title}" : $"Open {Title}, number {Number}")">
+            @Body
+        </a>
+    }
+    else
+    {
+        <div class="group-member__link">
+            @Body
+        </div>
+    }
+</li>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The place in the order ("3", "3a"); null for a member without one.</summary>
+    [Parameter] public string? Number { get; set; }
+
+    [Parameter] public string? ArtworkUrl { get; set; }
+
+    /// <summary>The line under the title, usually the year.</summary>
+    [Parameter] public string? Detail { get; set; }
+
+    [Parameter] public bool IsOwned { get; set; } = true;
+
+    /// <summary>Where the member opens; none for one that is not in the library.</summary>
+    [Parameter] public string? Route { get; set; }
+
+    [Parameter] public ArtworkShape Shape { get; set; } = ArtworkShape.Portrait;
+
+    /// <summary>The icon on a cover that has no picture.</summary>
+    [Parameter] public string Icon { get; set; } = AppMaterialIcons.Outlined.MenuBook;
+
+    private string CellClass => $"group-member group-member--{ShapeName}{(IsOwned ? string.Empty : " is-missing")}";
+
+    private string ShapeName => Shape switch
+    {
+        ArtworkShape.Square => "square",
+        ArtworkShape.Wide => "wide",
+        _ => "portrait",
+    };
+
+    private RenderFragment Body => __builder =>
+    {
+        <span class="group-member__art">
+            @if (IsOwned && !string.IsNullOrWhiteSpace(ArtworkUrl))
+            {
+                @* Drawn up to about 170 px wide: the small copy covers every cell. *@
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(ArtworkUrl, 320)"
+                     srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ArtworkUrl, 320)"
+                     alt=""
+                     loading="lazy"
+                     decoding="async" />
+            }
+            else
+            {
+                <span class="group-member__placeholder" aria-hidden="true">
+                    <AppMaterialIcon Icon="@Icon" Size="AppIconSize.Tile32" />
+                </span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Number))
+            {
+                <span class="group-member__number" aria-hidden="true">@Number</span>
+            }
+        </span>
+        <span class="group-member__title">@Title</span>
+        @if (!IsOwned)
+        {
+            <span class="sr-only">@L["Common_NotInLibrary"]</span>
+        }
+        @if (!string.IsNullOrWhiteSpace(Detail))
+        {
+            <small class="group-member__detail">@Detail</small>
+        }
+    };
+}

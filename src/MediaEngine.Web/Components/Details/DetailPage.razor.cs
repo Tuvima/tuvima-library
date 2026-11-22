@@ -54,6 +54,9 @@ public partial class DetailPage
         || MediaKindClassifier.IsAudiobook(Model?.Facts?.MediaKind)
         || Model?.OwnedFormats.Any(format => format.FormatType == MediaFormatType.Audiobook) == true;
     private bool ShowDetailNavigation => Model?.EntityType != DetailEntityType.Person;
+
+    // A Series or collection page: In order and Details tabs, the members as a numbered cover grid (spec group-pages-and-tiles D4).
+    private bool IsGroupPage => Model is not null && GroupPageRules.IsGroupPage(Model.EntityType);
     // The Engine only offers "edit" to a person who may edit; the device rule is checked here again at the handler.
     private bool CanEditMedia => DeviceContext.CanEditItems && Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;

@@ -39,7 +39,7 @@
 else if (_loading)
 {
     <div class="tl-detail-route-state">
-        <DetailHeroSkeleton Preview="_preview" />
+        <DetailHeroSkeleton Preview="_preview" IsGroup="@(Request.EntityType is { } kind && GroupPageRules.IsGroupPage(kind))" />
     </div>
 }
 else

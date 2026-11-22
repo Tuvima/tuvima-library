@@ -1,0 +1,85 @@
+@namespace MediaEngine.Web.Components.Shared
+@using System.Globalization
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.MediaTiles
+
+@* The artwork on the right of a Series' or collection's page (spec group-pages-and-tiles D2, WP2): the group's own covers in their native
+   shape, one height, never cropped, with the same "+N" as the group tile. It is not a tile and has no hover. A cover somebody chose for the
+   group is shown whole instead. Which covers and how many are decided by GroupCollageLayout, the rule the tile uses, so the page and the
+   tile name the same first covers in the same order. *@
+@if (HasPictures)
+{
+    <div class="group-hero-covers" role="img" aria-label="@AriaLabel" style="@_style">
+        @if (!string.IsNullOrWhiteSpace(ChosenCoverUrl))
+        {
+            @* Drawn up to about 17rem tall: the medium copy. *@
+            <img class="group-hero-covers__chosen"
+                 src="@MediaTileArtworkUrl.ForDrawnSize(ChosenCoverUrl, DrawnPx)"
+                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ChosenCoverUrl, DrawnPx)"
+                 alt=""
+                 decoding="async" />
+        }
+        else
+        {
+            @foreach (var cover in _plan.Covers)
+            {
+                <span @key="cover.Item.Id" class="group-hero-covers__cover" data-shape="@ShapeName(cover.Item.Shape)" style="@CoverStyle(cover)">
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(cover.Item.ImageUrl, DrawnPx)"
+                         srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover.Item.ImageUrl, DrawnPx)"
+                         alt=""
+                         decoding="async" />
+                </span>
+            }
+
+            @if (_plan.HiddenCount > 0)
+            {
+                <span class="group-hero-covers__more">+@_plan.HiddenCount.ToString(CultureInfo.CurrentCulture)</span>
+            }
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The group's members in order; only those with a picture are drawn.</summary>
+    [Parameter] public IReadOnlyList<ArtworkStackItem> Members { get; set; } = [];
+
+    /// <summary>Every title the group holds: the "+N" chip counts the ones not drawn.</summary>
+    [Parameter] public int TotalCount { get; set; }
+
+    /// <summary>A cover somebody chose for the group; shown whole in place of the member covers.</summary>
+    [Parameter] public string? ChosenCoverUrl { get; set; }
+
+    [Parameter] public string AriaLabel { get; set; } = "Group artwork";
+
+    /// <summary>The long side one cover is drawn at, in CSS pixels (the medium copy).</summary>
+    [Parameter] public int DrawnPx { get; set; } = 640;
+
+    /// <summary>How many covers the page draws, whatever the width: the tile's narrow tier.</summary>
+    public const int PageCovers = GroupCollageLayout.NarrowCovers;
+
+    private GroupCollagePlan _plan = GroupCollageLayout.PlanForTier([], 0, PageCovers);
+    private string _style = string.Empty;
+
+    private bool HasPictures => _plan.Arrangement != GroupCollageArrangement.Empty || !string.IsNullOrWhiteSpace(ChosenCoverUrl);
+
+    protected override void OnParametersSet()
+    {
+        _plan = GroupCollageLayout.PlanForTier(Members, TotalCount, PageCovers);
+        // How many covers and their aspects added up: the stylesheet shrinks the one height so the row never outgrows its room.
+        // A "+N" chip takes room of its own.
+        _style = $"--n:{_plan.Covers.Count.ToString(CultureInfo.InvariantCulture)};"
+            + $"--sa:{Number(Math.Max(_plan.AspectSum, 0.1))};"
+            + $"--chip:{(_plan.HiddenCount > 0 ? "3.5rem" : "0rem")};";
+    }
+
+    private static string CoverStyle(GroupCollageCover cover) => $"--a:{Number(cover.Aspect)};";
+
+    private static string ShapeName(ArtworkShape shape) => shape switch
+    {
+        ArtworkShape.Square => "square",
+        ArtworkShape.Wide => "wide",
+        _ => "portrait",
+    };
+
+    private static string Number(double value) => value.ToString("0.####", CultureInfo.InvariantCulture);
+}

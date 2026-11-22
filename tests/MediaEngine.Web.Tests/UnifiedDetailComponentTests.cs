@@ -142,9 +142,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("case DetailEntityType.MusicAlbum", hero);
         Assert.Contains("IsWatchHero=\"Presentation.IsWatchHero\"", hero);
         Assert.Contains("UsePrimaryHeroChrome=\"Presentation.UsePrimaryHeroChrome\"", hero);
-        Assert.Contains("<MediaArtworkGroupPreview", hero);
+        // A group's page keeps the standard hero and draws its covers in the artwork slot, not a tile (group-pages-and-tiles D2).
+        Assert.Contains("<GroupHeroCovers", hero);
+        Assert.DoesNotContain("<MediaArtworkGroupPreview", hero);
         Assert.Contains("CollectionHeroArtwork", hero);
-        Assert.Contains(".Take(4)", hero);
+        Assert.Contains(".Take(GroupCollageLayout.MaxCovers)", hero);
         Assert.Contains("tl-detail-collection-artwork", hero);
         Assert.Contains("usePrimaryHeroChrome ? string.Empty : FormatEntityType", presentation);
         Assert.Contains("UsesPrimaryHeroChrome", presentation);
@@ -597,7 +599,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("tl-series-position-summary__donut", source);
         Assert.Contains("tl-series-position-summary__center", source);
         Assert.Contains("ValueChanged=\"SelectContainerValueAsync\"", source);
-        Assert.Contains("ShowJumpSelector => ActiveItems.Count > 10", source);
+        Assert.Contains("ShowJumpSelector => !MemberGrid && ActiveItems.Count > 10", source);
         Assert.Contains("ValueChanged=\"SelectJump\"", source);
         Assert.Contains("tl-series-content", source);
         Assert.Contains("ResetWindowToCurrentItem()", source);
@@ -1089,8 +1091,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("\"item_count\" or \"read_count\" or \"watch_count\" or \"listen_count\"", heroMetadata);
         Assert.Contains("tl-detail-watch-metadata-item--lane-count", heroMetadata);
         Assert.Contains(".tl-detail-watch-metadata-item--lane-count", detailStyles);
-        Assert.Contains("width: clamp(44rem, 56vw, 64rem)", detailHeroStyles);
-        Assert.Contains("height: clamp(30rem, 60svh, 42rem)", detailHeroStyles);
+        Assert.Contains("max-width: 44vw", detailHeroStyles);
+        Assert.Contains("right: clamp(1rem, 4.25vw, 5.5rem)", detailHeroStyles);
         Assert.Contains("Model?.EntityType != DetailEntityType.Person", detailPage);
         Assert.DoesNotContain("<EditionsTab", detailPage);
         Assert.Contains("<DetailHero Model=\"Model\"", detailPage);

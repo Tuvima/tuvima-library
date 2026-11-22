@@ -1,0 +1,69 @@
+/* The covers on the right of a Series' or collection's page (spec group-pages-and-tiles D2). One row, every cover at the same height and in
+   its own shape (portrait 2/3, square, wide), never cropped or stretched: the height is the page's cover height, or smaller when that is
+   what lets every cover, the gaps and the "+N" chip fit in the room the page keeps for them. No hover and no click: it is a picture. */
+.group-hero-covers {
+    --gap: 0.75rem;
+    --h: clamp(13.75rem, 20vw, 17.5rem);
+    --room: min(44vw, 46rem);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--gap);
+    max-width: 100%;
+    pointer-events: none;
+    color: var(--tl-text-primary);
+}
+
+.group-hero-covers__cover {
+    flex: none;
+    display: block;
+    height: min(var(--h), calc((var(--room) - var(--chip) - (var(--n) - 1) * var(--gap)) / var(--sa)));
+    aspect-ratio: var(--a);
+    overflow: hidden;
+    border-radius: var(--tl-radius-xs);
+    background: var(--tl-bg-surface-raised);
+    box-shadow: 0 1.1rem 2.2rem var(--tl-scrim-dark-5);
+}
+
+.group-hero-covers__cover img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* A cover somebody chose: whole, at its own shape, as tall as the others would be. */
+.group-hero-covers__chosen {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: var(--room);
+    max-height: var(--h);
+    object-fit: contain;
+    border-radius: var(--tl-radius-xs);
+    box-shadow: 0 1.1rem 2.2rem var(--tl-scrim-dark-5);
+}
+
+/* "+N": the titles not drawn, the same chip as the group tile's, at the foot of the row. */
+.group-hero-covers__more {
+    flex: none;
+    align-self: flex-end;
+    padding: 2px 8px;
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-pill);
+    background: color-mix(in srgb, var(--tl-bg-root) 90%, transparent);
+    font-family: var(--font-ui);
+    font-size: var(--tl-tile-text-floor);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+/* A phone: the covers sit on top, centered, a little smaller, and take the width of the screen. */
+@media (width < 840px) {
+    .group-hero-covers {
+        --gap: 0.5rem;
+        --h: 8.25rem;
+        --room: calc(100vw - 2.5rem);
+        justify-content: center;
+    }
+}

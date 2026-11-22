@@ -1,0 +1,12 @@
+@namespace MediaEngine.Web.Components.Details
+
+@* The members of a Series or collection as a grid of covers in order (spec group-pages-and-tiles D4, WP3). It wraps onto as many rows as it
+   needs, so every member is in view at once; each cell is a GroupMemberCell. *@
+<ol class="group-member-grid" aria-label="@AriaLabel">
+    @ChildContent
+</ol>
+
+@code {
+    [Parameter] public string AriaLabel { get; set; } = "In order";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

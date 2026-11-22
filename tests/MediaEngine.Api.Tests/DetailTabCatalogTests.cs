@@ -6,7 +6,8 @@ namespace MediaEngine.Api.Tests;
 
 /// <summary>
 /// The tab set each detail page type offers (item-detail spec, section 4). No page offers a Universe,
-/// Related, Details, Characters, Portrayals or Relationships tab.
+/// Related, Characters, Portrayals or Relationships tab, and only a Series or collection page offers Details (In order and Details, no
+/// People tab: group-pages-and-tiles D4).
 /// </summary>
 public sealed class DetailTabCatalogTests
 {
@@ -21,10 +22,10 @@ public sealed class DetailTabCatalogTests
         { DetailEntityType.Book, ["overview", "credits"] },
         { DetailEntityType.Work, ["overview", "credits"] },
         { DetailEntityType.ComicIssue, ["overview", "credits"] },
-        { DetailEntityType.MovieSeries, ["overview"] },
-        { DetailEntityType.BookSeries, ["overview"] },
-        { DetailEntityType.ComicSeries, ["overview"] },
-        { DetailEntityType.Collection, ["overview"] },
+        { DetailEntityType.MovieSeries, ["overview", "details"] },
+        { DetailEntityType.BookSeries, ["overview", "details"] },
+        { DetailEntityType.ComicSeries, ["overview", "details"] },
+        { DetailEntityType.Collection, ["overview", "details"] },
         { DetailEntityType.Universe, ["overview"] },
         { DetailEntityType.Person, ["overview"] },
     };
@@ -81,7 +82,17 @@ public sealed class DetailTabCatalogTests
 
             Assert.DoesNotContain("universe", keys);
             Assert.DoesNotContain("related", keys);
-            Assert.DoesNotContain("details", keys);
+        }
+    }
+
+    [Fact]
+    public void OnlyASeriesOrCollectionPageListsDetails()
+    {
+        var group = new[] { DetailEntityType.MovieSeries, DetailEntityType.BookSeries, DetailEntityType.ComicSeries, DetailEntityType.Collection };
+
+        foreach (var entityType in Enum.GetValues<DetailEntityType>())
+        {
+            Assert.Equal(group.Contains(entityType), DetailTabCatalog.KeysFor(entityType).Contains("details"));
         }
     }
 

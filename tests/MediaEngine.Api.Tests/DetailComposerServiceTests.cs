@@ -354,7 +354,7 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("DetailEntityType.ComicIssue => [\"overview\", \"credits\"]", source);
         Assert.DoesNotContain("\"universe\", \"related\"", source);
         Assert.Contains("DetailEntityType.Person => [\"overview\"]", source);
-        Assert.Contains("DetailEntityType.Collection => [\"overview\"]", source);
+        Assert.Contains("DetailEntityType.Collection => [\"overview\", \"details\"]", source);
         Assert.Contains("entityType == DetailEntityType.Collection", source);
         Assert.Contains("? []", source);
         Assert.Contains("BuildStandardCollectionMetadata(works)", source);
@@ -1492,6 +1492,22 @@ public sealed class DetailComposerServiceTests
         Assert.Equal("overview", tabs[0].Key);
         Assert.DoesNotContain(tabs, tab => tab.Key == "series");
         Assert.DoesNotContain(tabs, tab => tab.Key == "sequence");
+    }
+
+    [Theory]
+    [InlineData(DetailEntityType.BookSeries)]
+    [InlineData(DetailEntityType.ComicSeries)]
+    [InlineData(DetailEntityType.MovieSeries)]
+    [InlineData(DetailEntityType.Collection)]
+    public void BuildTabs_AGroupPageHasInOrderAndDetailsOnly_WithNoPeopleOrCreditsTab(DetailEntityType entityType)
+    {
+        var tabs = InvokePrivate<List<DetailTab>>(
+            "BuildTabs",
+            entityType,
+            DetailPresentationContext.Default);
+
+        Assert.Equal(["overview", "details"], tabs.Select(tab => tab.Key));
+        Assert.Equal(["In order", "Details"], tabs.Select(tab => tab.Label));
     }
 
     [Fact]
