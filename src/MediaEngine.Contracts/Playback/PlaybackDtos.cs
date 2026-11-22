@@ -853,7 +853,11 @@ public sealed class SubtitleLanguageSettingsDto
     /// </summary>
     public string LyricsLanguage { get; set; } = string.Empty;
 
-    public string ForcedSubtitlesMode { get; set; } = PlaybackPreferenceValues.Auto;
+    /// <summary>
+    /// When subtitles show. A profile that has never touched subtitles starts with them off (<c>Never</c>); turning them on in the player
+    /// saves <c>Always</c> with the track's language, and turning them off saves <c>Never</c>, so the choice follows the person to the next title.
+    /// </summary>
+    public string ForcedSubtitlesMode { get; set; } = PlaybackPreferenceValues.Never;
     public string AudioLanguage { get; set; } = "English";
     public string SubtitleSize { get; set; } = PlaybackPreferenceValues.Medium;
     public bool SubtitleBackground { get; set; } = true;

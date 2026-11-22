@@ -126,3 +126,15 @@ test('shared chrome anchors the native cue bottom twelve pixels above the seek r
     assert.ok(chrome.includes("cue.lineAlign = 'end'"));
     assert.ok(!source.includes('updateAutomaticCaptionPlacement'));
 });
+
+test('shared chrome only steers cues by a seek rail that is really on screen inside the picture', async () => {
+    const chrome = fs.readFileSync(path.join(repositoryRoot, 'src/MediaEngine.Web/wwwroot/js/playback-chrome.js'),'utf8');
+    const { railPositionsCues } = await import(`data:text/javascript;base64,${Buffer.from(chrome).toString('base64')}`);
+    const picture = { top: 0, height: 720 };
+    const rail = box => ({ getBoundingClientRect: () => box });
+    assert.equal(railPositionsCues(rail({ top: 650, width: 1280, height: 10 }), picture), true);
+    // A rail that is not laid out, or sits at the very top, would push the words above the picture: leave them where the browser puts them.
+    assert.equal(railPositionsCues(rail({ top: 0, width: 0, height: 0 }), picture), false);
+    assert.equal(railPositionsCues(rail({ top: 0, width: 1280, height: 10 }), picture), false);
+    assert.equal(railPositionsCues(null, picture), false);
+});
