@@ -245,7 +245,7 @@
     /* The label takes all the room and the "..." menu sits at the end. The 28 px grip column exists only while the list is being reordered
        (has-grip): without it the label used to fall into the grip's column, so a playlist or Gallery you made by hand was squeezed to an
        icon with the menu drawn over its name, and a song or photo dropped on it landed on the menu instead of the row. */
-    grid-template-columns: minmax(0, 1fr) 30px;
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
     min-height: 44px;
     background: var(--tl-bg-shell);
@@ -253,7 +253,7 @@
 }
 
 .media-section-shell__managed-main.has-grip {
-    grid-template-columns: 28px minmax(0, 1fr) 30px;
+    grid-template-columns: 28px minmax(0, 1fr);
 }
 
 .media-section-shell__managed-row.is-swiped .media-section-shell__managed-main {
@@ -297,7 +297,9 @@
 .media-section-shell__rail-item--managed {
     grid-template-columns: 20px minmax(0, 1fr) auto;
     min-height: 44px;
-    padding: 6px 7px;
+    /* Icon on the same line as the other rail rows (12 px in), and room at the end for the "..." menu, which lies over the row's end
+       instead of taking a column from it, so the row is as wide as its neighbours (issue 1248). */
+    padding: 6px 36px 6px 12px;
     font-size: var(--tl-type-secondary-size);
 }
 

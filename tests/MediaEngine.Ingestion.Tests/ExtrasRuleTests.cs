@@ -53,7 +53,7 @@ public sealed class ExtrasRuleTests : IDisposable
     }
 
     private IReadOnlyList<string> Titles(ExtrasLibraryContext context, string itemFolder) =>
-        [.. ExtrasRule.ScanItemFolder(context, Path.Combine(_root, itemFolder)).Select(extra => Path.GetRelativePath(_root, extra.FilePath).Replace('\\', '/'))];
+        [.. ExtrasRule.ScanItemFolder(context, Path.Combine(_root, itemFolder.Replace('/', Path.DirectorySeparatorChar))).Select(extra => Path.GetRelativePath(_root, extra.FilePath).Replace('\\', '/'))];
 
     [Fact]
     public void ListPlaces_NamesTheTitleItself_AndTheSeasonsTheFolderHolds_ButNoSeasonThatIsNotThere()

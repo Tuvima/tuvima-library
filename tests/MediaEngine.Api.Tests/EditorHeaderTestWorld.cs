@@ -108,7 +108,7 @@ internal sealed class EditorHeaderTestWorld : IDisposable
         var editionId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
         var hash = Guid.NewGuid().ToString("N");
-        var path = Path.Combine(folder ?? TitleFolder, relativePath);
+        var path = Path.Combine(folder ?? TitleFolder, relativePath.Replace('/', Path.DirectorySeparatorChar));
         using var connection = Database.CreateConnection();
         connection.Execute(
             """
@@ -130,7 +130,7 @@ internal sealed class EditorHeaderTestWorld : IDisposable
     /// <summary>Writes a real file under the title's folder.</summary>
     public string Write(string relativePath, string text = "x")
     {
-        var path = Path.Combine(TitleFolder, relativePath);
+        var path = Path.Combine(TitleFolder, relativePath.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         System.IO.File.WriteAllText(path, text);
         return path;

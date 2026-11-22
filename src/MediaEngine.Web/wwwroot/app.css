@@ -3246,8 +3246,19 @@ button.app-menu-item {
     transform: translateY(-50%);
 }
 
+/* The same rows in the section shell's list (Listen > Songs and the other music pages): the "..." lies over the end of the row. */
+.media-section-shell__managed-main:not(.has-grip) > .playback-tooltip-owner,
+.media-section-shell__managed-main:not(.has-grip) > .media-section-shell__manage-menu {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-end: 4px;
+    transform: translateY(-50%);
+}
+
 /* The "..." is a bare icon button, with no border anywhere (issue 1248): only the hover and focus highlight. */
-.listen-rail__playlist-row .app-row-menu__trigger {
+.listen-rail__playlist-row .app-row-menu__trigger,
+.media-section-shell__managed-row .app-row-menu__trigger,
+.media-section-shell__managed-row .app-overflow-menu__trigger {
     border: 0 !important;
     box-shadow: none !important;
     background: transparent !important;
@@ -3255,7 +3266,11 @@ button.app-menu-item {
 }
 
 .listen-rail__playlist-row .app-row-menu__trigger:hover,
-.listen-rail__playlist-row .app-row-menu__trigger:focus-visible {
+.listen-rail__playlist-row .app-row-menu__trigger:focus-visible,
+.media-section-shell__managed-row .app-row-menu__trigger:hover,
+.media-section-shell__managed-row .app-row-menu__trigger:focus-visible,
+.media-section-shell__managed-row .app-overflow-menu__trigger:hover,
+.media-section-shell__managed-row .app-overflow-menu__trigger:focus-visible {
     background: var(--tl-border-default) !important;
     color: var(--tl-text-primary);
 }
