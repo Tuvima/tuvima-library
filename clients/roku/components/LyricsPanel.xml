@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Lyrics side panel of the Roku player, shown while music plays (spec find-another-on-tv D6, WP5): right edge, dark, 5 percent safe margins. -->
+<component name="LyricsPanel" extends="Group">
+    <interface>
+        <!-- { heading, chip, rows: [words], note, showFind } from faLyricsPanelModel; draws the panel, opens it and takes focus. -->
+        <field id="model" type="assocarray" alwaysNotify="true" onChange="onModel" />
+        <!-- The index of the current synced line (-1 for none); the list follows it. -->
+        <field id="activeIndex" type="integer" value="-1" alwaysNotify="true" onChange="onActive" />
+        <!-- "find" when the footer row Find lyrics… is chosen. -->
+        <field id="selection" type="string" alwaysNotify="true" />
+        <field id="closeRequested" type="boolean" alwaysNotify="true" />
+    </interface>
+    <children>
+        <Rectangle id="panelBack" translation="[1320,0]" width="600" height="1080" color="#14111C" />
+        <Label id="panelTitle" translation="[1368,54]" width="300" height="50" color="#FFFFFF" font="font:MediumBoldSystemFont" text="Lyrics" />
+        <Rectangle id="chipBack" translation="[1700,62]" width="172" height="40" color="#4A3C86" visible="false" />
+        <Label id="chipLabel" translation="[1700,62]" width="172" height="40" horizAlign="center" vertAlign="center" color="#FFFFFF" font="font:SmallestSystemFont" />
+        <MarkupList id="lyricsList" translation="[1368,130]" itemComponentName="LyricsLine" itemSize="[504,80]" numRows="10" drawFocusFeedback="false" vertFocusAnimationStyle="fixedFocus" focusRow="4" />
+        <Label id="noteLabel" translation="[1368,130]" width="504" height="200" color="#CFC3F8" font="font:MediumSystemFont" wrap="true" numLines="4" visible="false" />
+        <Button id="findButton" translation="[1368,950]" minWidth="504" height="64" text="Find lyrics…" visible="false" />
+    </children>
+    <script type="text/brightscript" uri="pkg:/components/FindAnotherLogic.brs" />
+    <script type="text/brightscript" uri="pkg:/components/LyricsPanel.brs" />
+</component>

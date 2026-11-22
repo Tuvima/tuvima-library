@@ -5,6 +5,7 @@
 sub init()
     m.list = m.top.findNode("resultList")
     m.itemName = m.top.findNode("itemName")
+    m.windowTitle = m.top.findNode("windowTitle")
     m.languageButton = m.top.findNode("languageButton")
     m.loadingLabel = m.top.findNode("loadingLabel")
     m.listGroup = m.top.findNode("listGroup")
@@ -41,6 +42,7 @@ sub init()
     m.languageShown = true
     m.language = "English"
     m.assetId = ""
+    m.kind = "subtitles"
     m.choices = []
 end sub
 
@@ -50,6 +52,10 @@ sub onOpen()
     args = m.top.openWith
     if args = invalid then return
     m.assetId = faStr(args.assetId)
+    ' "lyrics" opens the same window as Find lyrics (no Language button, the song's own language); anything else is subtitles.
+    m.kind = "subtitles"
+    if faStr(args.kind) = "lyrics" then m.kind = "lyrics"
+    m.windowTitle.text = faWindowTitle(m.kind)
     m.itemName.text = faStr(args.title)
     m.language = faStr(args.language)
     if m.language = "" then m.language = "English"
@@ -66,10 +72,10 @@ sub searchAgain()
     m.languageOpen = false
     m.languageGroup.visible = false
     m.languageButton.text = faLanguageButtonText(m.language)
-    m.languageButton.visible = true
-    m.languageShown = true
+    m.languageShown = faHasLanguage(m.kind)
+    m.languageButton.visible = m.languageShown
     showLoading()
-    runTask("alternatives", { assetId: m.assetId, language: m.language }, "")
+    runTask("alternatives", { assetId: m.assetId, kind: m.kind, language: m.language }, "")
 end sub
 
 sub closeWindow(applied as Boolean, item as Dynamic)
@@ -140,7 +146,7 @@ sub onTaskError(event as Object)
     error = event.getData()
     if error = invalid then return
     if info.operation = "alternatives"
-        showMessage(faSentenceForHttpFailure(error.status), "Unavailable")
+        showMessage(faSentenceForHttpFailure(error.status, m.kind), "Unavailable")
     else if info.operation = "alternativePreview"
         ' Read once: a row that failed is not retried in this window; it can still be used.
         faMarkFailed(m.cache, info.key)
@@ -154,7 +160,7 @@ sub onAlternatives(value as Object)
     if status = "Found" and faCount(items) > 0
         showList(items)
     else
-        showMessage(faStatusSentence(status, faStr(value.message)), status)
+        showMessage(faStatusSentence(status, faStr(value.message), m.kind), status)
     end if
 end sub
 
@@ -175,7 +181,7 @@ sub showLoading()
     m.state = "loading"
     m.listGroup.visible = false
     m.messageLabel.visible = false
-    m.loadingLabel.text = faTextLooking()
+    m.loadingLabel.text = faLoadingText(m.kind)
     m.loadingLabel.visible = true
     m.messageCancel.translation = [96, 950]
     m.messageGroup.visible = true
@@ -190,7 +196,7 @@ sub showMessage(sentence as String, status as String)
     m.messageLabel.visible = true
     m.messageCancel.translation = [830, 700]
     m.messageGroup.visible = true
-    m.languageShown = faLanguageRelevant(status)
+    m.languageShown = faLanguageRelevant(status, m.kind)
     m.languageButton.visible = m.languageShown
     m.messageCancel.setFocus(true)
 end sub
@@ -216,7 +222,7 @@ end sub
 function rowModelFor(index as Integer) as Object
     item = m.items[index]
     effective = faEffectiveItem(m.cache, item)
-    return faRowModel(effective, index, faMixedLanguages(m.items), faLanguageName(faStr(item.language)))
+    return faRowModel(effective, index, faMixedLanguages(m.items), faLanguageName(faStr(item.language)), m.kind)
 end function
 
 function indexOfKey(key as String) as Integer
@@ -238,7 +244,7 @@ sub showPane(index as Integer)
     if index < 0 or index >= m.items.Count() then return
     item = m.items[index]
     key = faKey(item)
-    model = faPaneModel(faEffectiveItem(m.cache, item), faCacheState(m.cache, key), m.fullOpen)
+    model = faPaneModel(faEffectiveItem(m.cache, item), faCacheState(m.cache, key), m.fullOpen, m.kind)
     m.paneTitle.text = model.title
     m.paneText.text = model.body
 end sub
@@ -275,7 +281,7 @@ sub startRead(index as Integer)
     key = faKey(item)
     faMarkReading(m.cache, key)
     showPane(index)
-    runTask("alternativePreview", { assetId: m.assetId, provider: faStr(item.provider), sourceId: faStr(item.source_id), language: m.language }, key)
+    runTask("alternativePreview", { assetId: m.assetId, kind: m.kind, provider:faStr(item.provider), sourceId: faStr(item.source_id), language: m.language }, key)
 end sub
 
 ' ---- Buttons and rows ------------------------------------------------------------------------------------------
@@ -372,7 +378,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     zone = currentZone()
     target = ""
     if m.state = "list"
-        target = faMove(zone, key, m.list.itemFocused = 0)
+        target = faMove(zone, key, m.list.itemFocused = 0, m.languageShown)
     else if m.state = "message"
         target = faMoveInMessage(zone, key, m.languageShown)
     end if

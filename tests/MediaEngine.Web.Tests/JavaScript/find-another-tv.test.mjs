@@ -419,3 +419,126 @@ test('the Language list starts with the profile\'s language and lists each langu
   assert.ok(list.includes('Spanish'));
   assert.deepEqual(fa.languageList('', ''), fa.COMMON_LANGUAGES);
 });
+
+// ---- the Lyrics panel and Find lyrics (WP5) ----
+
+const lrc = '[ar:Empty Soul]\n[00:12.50] First line\n[00:05.00]<00:05.00>Opening <00:06.00>words\n[01:00.00][02:00.00]Chorus\n[00:30.00]\n';
+
+test('a timed lyrics file reads as Synced lines in time order, with tags and word stamps dropped', () => {
+  const parsed = fa.parseLyrics(lrc);
+  assert.equal(parsed.synced, true);
+  assert.deepEqual(parsed.lines.map((l) => [l.at, l.text]), [
+    [5, 'Opening words'], [12.5, 'First line'], [30, ''], [60, 'Chorus'], [120, 'Chorus']
+  ]);
+  assert.equal(fa.lyricsChip(parsed), 'Synced');
+});
+
+test('a plain lyrics file reads as Unsynced words, one per line, with no times', () => {
+  const parsed = fa.parseLyrics('﻿[ti:Smile]\r\nSmile for me\r\n\r\nAnd smile again\r\n');
+  assert.equal(parsed.synced, false);
+  assert.deepEqual(parsed.lines, [{ at: null, text: 'Smile for me' }, { at: null, text: 'And smile again' }]);
+  assert.equal(fa.lyricsChip(parsed), 'Unsynced');
+  assert.deepEqual(fa.parseLyrics('').lines, []);
+});
+
+test('the current synced line follows the song position', () => {
+  const { lines } = fa.parseLyrics(lrc);
+  assert.equal(fa.activeLyricIndex(lines, 0), -1, 'before the first line nothing is current');
+  assert.equal(fa.activeLyricIndex(lines, 5), 0);
+  assert.equal(fa.activeLyricIndex(lines, 29.9), 1);
+  assert.equal(fa.activeLyricIndex(lines, 61), 3);
+  assert.equal(fa.activeLyricIndex(lines, 9999), 4, 'after the last line it stays on the last');
+  assert.equal(fa.activeLyricIndex(lines, 'x'), -1);
+});
+
+test('unsynced lyrics never have a current line', () => {
+  assert.equal(fa.activeLyricIndex(fa.parseLyrics('One\nTwo').lines, 50), -1);
+});
+
+test('the lyrics track shown is the preferred one, else the first lyrics track, and subtitles are ignored', () => {
+  const tracks = [
+    { id: 's', kind: 'Subtitles', isPreferred: true },
+    { id: 'a', kind: 'Lyrics', isPreferred: false },
+    { id: 'b', kind: 'Lyrics', isPreferred: true }
+  ];
+  assert.equal(fa.pickLyricsTrack(tracks).id, 'b');
+  assert.equal(fa.pickLyricsTrack(tracks.slice(0, 2)).id, 'a');
+  assert.equal(fa.pickLyricsTrack([tracks[0]]), null);
+  assert.equal(fa.pickLyricsTrack(null), null);
+});
+
+test('the Lyrics panel is offered for music only', () => {
+  for (const type of ['Music', 'Song', 'MusicTrack']) { assert.equal(fa.isMusic(type), true, type); }
+  for (const type of ['Audiobook', 'Movie', 'TvEpisode', '', null]) { assert.equal(fa.isMusic(type), false, String(type)); }
+});
+
+test('Find lyrics uses the same window with its own title, footer row and Updating words, and no Language', () => {
+  const lyrics = fa.kindWords('lyrics');
+  assert.equal(lyrics.windowTitle, 'Find lyrics');
+  assert.equal(lyrics.footerRow, 'Find lyrics…');
+  assert.equal(lyrics.looking, 'Looking for lyrics…');
+  assert.equal(lyrics.applying, 'Updating lyrics…');
+  assert.equal(fa.kindWords('subtitles').windowTitle, 'Find subtitles');
+  assert.equal(fa.hasLanguage('lyrics'), false);
+  assert.equal(fa.hasLanguage('subtitles'), true);
+  assert.equal(fa.WORDS.lyricsHeading, 'Lyrics');
+});
+
+test('lyrics problem answers have their own plain sentences, the Engine\'s words still first', () => {
+  assert.equal(fa.statusSentence('NoSourceOn', '', 'lyrics'), 'No lyrics source is switched on.');
+  assert.equal(fa.statusSentence('NoSourceOn', 'Switch one on.', 'lyrics'), 'Switch one on.');
+  assert.equal(fa.statusSentence('NoneFound', '', 'subtitles'), 'No subtitles were found. Try another language.');
+});
+
+test('with no Language button, Up from the first row stays on the list and Up from Cancel goes to the list', () => {
+  const lyricsList = { ...base, noLanguage: true };
+  assert.equal(fa.step(lyricsList, 'up').state.zone, 'list');
+  const problem = { zone: 'cancel', count: 0, index: 0, languageCount: 0, languageIndex: 0, full: false, noLanguage: true };
+  assert.equal(fa.step(problem, 'up').state.zone, 'cancel', 'nothing above Cancel on a problem screen');
+  assert.equal(fa.step({ ...problem, count: 3 }, 'up').state.zone, 'list');
+});
+
+test('the lyrics window keeps the subtitle keys and Back order', () => {
+  const lyricsList = { ...base, noLanguage: true };
+  assert.equal(fa.step(lyricsList, 'right').state.zone, 'pane');
+  const opened = fa.step({ ...lyricsList, index: 1 }, 'enter');
+  assert.equal(opened.effect, 'select');
+  assert.equal(opened.state.zone, 'use');
+  assert.equal(fa.step(opened.state, 'back').state.full, false, 'Back closes the full words first');
+  assert.equal(fa.step(lyricsList, 'back').effect, 'close');
+});
+
+test('lyrics are read after one second at rest, like subtitles', async () => {
+  const clock = fakeClock();
+  const { reader, reads } = readerWith(clock);
+  reader.focus('lyric-b');
+  clock.advance(999);
+  assert.deepEqual(reads, []);
+  clock.advance(1);
+  await settle();
+  assert.deepEqual(reads, ['lyric-b']);
+});
+
+test('the player wires the Lyrics panel: music only, the lyrics source check, and Find lyrics through the same window', async () => {
+  const { readFileSync } = await import('node:fs');
+  const clients = path.join(here, '..', '..', '..', 'clients', 'tv-web');
+  const player = readFileSync(path.join(clients, 'player.js'), 'utf8');
+  const api = readFileSync(path.join(clients, 'api.js'), 'utf8');
+  assert.match(player, /lyricsButton\.hidden = !TV\.findAnother\.isMusic\(manifest && manifest\.mediaType\)/);
+  assert.match(player, /TV\.api\.textTrackSources\(assetId, 'lyrics'\)/);
+  assert.match(player, /kind: lyrics \? 'lyrics' : 'subtitles'/);
+  assert.match(player, /activeLyricIndex\(state\.lyrics\.parsed\.lines, video\.currentTime/);
+  assert.match(player, /if \(state\.panelOpen && state\.panelMode === 'lyrics'\) \{ paintLyricsActive\(\); \}/);
+  assert.match(api, /textTrackText: function \(assetId, trackId\)/);
+  // The window sends no language for lyrics.
+  const window = readFileSync(path.join(clients, 'find-another.js'), 'utf8');
+  assert.match(window, /findAlternatives\(assetId, kind, withLanguage \? language : ''\)/);
+  assert.match(window, /findPreview\(assetId, kind, picked\.provider, picked\.source_id, withLanguage \? language : ''\)/);
+  assert.match(window, /if \(withLanguage\) \{ body\.language = language; \}/);
+});
+
+test('a lyrics pane shows six lines with no times', () => {
+  const lines = Array.from({ length: 10 }, (_, i) => ({ text: 'Line ' + i, at_seconds: null }));
+  const shown = lines.slice(0, fa.paneLimit('lyrics', true)).map((l) => fa.lineText(l, 'lyrics'));
+  assert.deepEqual(shown, ['Line 0', 'Line 1', 'Line 2', 'Line 3', 'Line 4', 'Line 5']);
+});
