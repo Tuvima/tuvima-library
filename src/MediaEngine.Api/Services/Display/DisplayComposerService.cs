@@ -73,6 +73,34 @@ public sealed partial class DisplayComposerService
     private const string HomeMyListRoute = DisplayGridCatalog.MyListPageRoute;
     private const int HomeMyListMaxCards = 20;
 
+    private const string HomeCollectionsAndSeriesShelfKey = "collections-and-series";
+    private const string HomeCollectionsAndSeriesRoute = "/collections";
+
+    /// <summary>
+    /// The group tiles of Home's "Collections and series" row (Group pages and tiles spec WP0b): every Series of two or more titles
+    /// and every folder of videos the profile may see, the one whose newest member arrived most recently first, so a Series that
+    /// gains a book moves to the front. Shows and albums are single titles that roll up in Recently added, so they are not here.
+    /// Empty when there is none, which leaves the row out.
+    /// </summary>
+    internal IReadOnlyList<DisplayCardDto> BuildHomeCollectionsAndSeriesCards(
+        IReadOnlyList<DisplayWorkRow> works,
+        IReadOnlyList<DisplayCardDto> videoCards,
+        IReadOnlyDictionary<Guid, DisplayJourneyRow> progressByWork,
+        int shelfLimit)
+    {
+        var seriesCards = _cards.BuildCollectionCards(
+            works.Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music" or "Video")).ToList(),
+            "home",
+            progressByWork: progressByWork);
+        var folderCards = videoCards.Where(card => VideoFolderWording.IsVideoFolderMediaType(card.MediaType));
+        return seriesCards
+            .Concat(folderCards)
+            .OrderByDescending(card => card.SortTimestamp)
+            .ThenBy(card => card.Id)
+            .Take(Math.Max(1, shelfLimit))
+            .ToList();
+    }
+
     /// <summary>
     /// The cards of Home's My List row: the same list, in the same order and under the same visibility rules as the My List
     /// "View all" grid (newest saved first, songs left out), cut to the first 20. Empty without an active profile.
@@ -167,6 +195,9 @@ public sealed partial class DisplayComposerService
         DisplayShelfBuilder.AddShelf(shelves, "watch-next", "Watch", "Movies and shows ready to play", watchCards, DisplayGridCatalog.RouteFor("home", "watch-next"));
         DisplayShelfBuilder.AddShelf(shelves, "read-next", "Read", "Books and comics ready to open", readCards, DisplayGridCatalog.RouteFor("home", "read-next"));
         DisplayShelfBuilder.AddShelf(shelves, "listen-next", "Listen", "Music and audiobooks ready to resume", listenCards, DisplayGridCatalog.RouteFor("home", "listen-next"));
+        // Series and groups of titles are their own row of group tiles; the Dashboard draws it right after Recently added (Group pages and tiles spec WP0b).
+        DisplayShelfBuilder.AddShelf(shelves, HomeCollectionsAndSeriesShelfKey, "Collections and series", "Series and groups, the ones with the newest additions first",
+            BuildHomeCollectionsAndSeriesCards(works, videoCards, progressByWork, shelfLimit), HomeCollectionsAndSeriesRoute);
         // Collections with Show on Home are lanes after the standard rows (Collections and lists spec D9 and D10).
         shelves.AddRange(await BuildCollectionLaneShelvesAsync(collectionLanes, "home", progressByWork, ct));
 

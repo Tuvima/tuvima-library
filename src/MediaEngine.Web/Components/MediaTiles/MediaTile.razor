@@ -12,8 +12,9 @@
    "..." is top right and always visible, a status label touches the top-left corner and a bottom label (the group count) touches the
    bottom-left corner. Hover and keyboard focus draw one thin purple outline around the cover; the tile never grows or moves.
    A video with no cover art is the two-part tile (a still on top, its title and one detail line below, D7). A group of titles (Series,
-   curated collection, Universe) is the landscape cover collage (issue 1175, GroupCoverCollage): its covers in their own shapes in one row,
-   the name and count on a solid band, the kind word in the top-left slot. A person with works is the quadrant tile (spec
+   curated collection, Universe, folder of videos) is the landscape cover collage (issue 1175, GroupCoverCollage): its covers in their own
+   shapes in one row, the name and count on a solid band, the kind word in the top-left slot. It is one tile at every width (issue 1260):
+   a phone differs only in the tile's size and how many tiles sit across, never in what the tile draws. A person with works is the quadrant tile (spec
    details-and-tile-fixes D2): the first four covers in a 2 by 2 grid with the person's square photo at the bottom left; a person with no
    works is a square photo (PersonTile). *@
 @if (Item.RenderAsPersonPhoto)
@@ -80,34 +81,6 @@ else if (!_removed)
                     <span class="media-tile-standin__tag" aria-label="@($"{L["MediaTile_StandIn_Tag"].Value}. {StandInTooltip}")">@L["MediaTile_StandIn_Tag"]</span>
                 </div>
             }
-            else if (IsVideoCollection)
-            {
-                @* A group of videos (issue 869): a tall dark-purple card, the collection's still wide on a soft copy of itself, the kind, a big title,
-                   the creator, and the count once at the bottom-left beside a round play mark. The New pill and the "..." menu are the shared labels. *@
-                <div class="media-tile-video-collection">
-                    <div class="media-tile-video-collection__art">
-                        @if (!string.IsNullOrWhiteSpace(CardImageUrl))
-                        {
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" alt="" aria-hidden="true" class="media-tile-video-collection__soft" loading="@CardImageLoading" decoding="async" />
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" alt="" aria-hidden="true" class="media-tile-video-collection__still" loading="@CardImageLoading" decoding="async" />
-                        }
-                        else
-                        {
-                            <span class="media-tile-video-collection__still media-tile-video-collection__still--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span>
-                        }
-                    </div>
-                    <span class="media-tile-video-collection__kind">@L["MediaTile_VideoCollection"]</span>
-                    <span class="media-tile-video-collection__title" data-overflow-tooltip="@Item.Title">@Item.Title</span>
-                    @if (!string.IsNullOrWhiteSpace(Item.Creator))
-                    {
-                        <span class="media-tile-video-collection__creator">@Item.Creator</span>
-                    }
-                    <div class="media-tile-video-collection__foot">
-                        <span class="media-tile-video-collection__count"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppIconSize.Control20" aria-hidden="true" />@MediaTileLabels.CountText(Item)</span>
-                        <span class="media-tile-video-collection__play" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" /></span>
-                    </div>
-                </div>
-            }
             else if (IsVideoStill)
             {
                 @* A video's still on top, its name and one detail line below (D7, D16). With no frame at all the top is a plain dark panel with a video icon. *@
@@ -143,7 +116,7 @@ else if (!_removed)
                                    TotalCount="@MediaTileLabels.GroupTotal(Item)"
                                    Title="@Item.Title"
                                    CountText="@BottomLabel"
-                                   CustomCoverUrl="@Item.CustomCoverUrl"
+                                   CustomCoverUrl="@CollageCoverUrl"
                                    Eager="@EagerArtwork" />
             }
             else if (ShowQuadrants)
@@ -225,7 +198,7 @@ else if (!_removed)
             {
                 <span class="media-tile-label media-tile-label--status media-tile-label--kind">@kind</span>
             }
-            @if (BottomLabel is { } bottom && !IsVideoCollection && !ShowCollage)
+            @if (BottomLabel is { } bottom && !ShowCollage)
             {
                 <span class="@($"media-tile-label media-tile-label--bottom{(IsPersonQuadrant ? " media-tile-label--beside-photo" : string.Empty)}")" aria-label="@bottom" data-overflow-tooltip="@bottom">@bottom</span>
             }
@@ -308,9 +281,10 @@ else if (!_removed)
         _ => "is-cover-portrait",
     };
 
-    // A folder of videos is the tall collection card, never the plain still tile (issue 869).
-    private bool IsVideoCollection => IsVideoStill && Item.IsCollection && VideoFolderWording.IsVideoFolderMediaType(Item.MediaKind);
-    private bool IsVideoStill => MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner;
+    // A folder of videos is a group like any other (the landscape collage, issue 1260), never the plain still tile.
+    private bool IsVideoCollection => IsGroup && MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner
+        && Item.IsCollection && VideoFolderWording.IsVideoFolderMediaType(Item.MediaKind);
+    private bool IsVideoStill => MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner && !IsVideoCollection;
     private string? VideoDetail => MediaTileLabels.VideoDetail(Item);
     private string? StatusLabel => MediaTileLabels.Status(Item, L["MediaTile_GettingDetails"].Value);
     private string? BottomLabel => MediaTileLabels.Bottom(Item, L["MediaTile_Kept"].Value);
@@ -321,7 +295,7 @@ else if (!_removed)
     private bool IsPersonQuadrant => Item.RenderAsPersonQuadrants;
 
     // The kind word in the top-left slot (spec details-and-tile-fixes D1). A status label ("New", "Getting details") takes the slot first.
-    private string? KindWord => IsGroup && Item.Person is null && !ShowBrandLogo && !IsVideoCollection && !IsVideoStill ? GroupKindWord : null;
+    private string? KindWord => IsGroup && Item.Person is null && !ShowBrandLogo && !IsVideoStill ? GroupKindWord : null;
 
     private bool ShowBrandLogo => IsGroup && Item.ShowLogoAsBrand && !string.IsNullOrWhiteSpace(Item.LogoUrl);
 
@@ -331,7 +305,7 @@ else if (!_removed)
     private bool IsLandscapeGroup => IsGroup && Item.Person is null && !ShowBrandLogo && !IsVideoStill;
 
     private bool ShowCollage => IsLandscapeGroup
-        && (!string.IsNullOrWhiteSpace(Item.CustomCoverUrl) || Item.ArtworkStackItems.Any(member => !string.IsNullOrWhiteSpace(member.ImageUrl)));
+        && (!string.IsNullOrWhiteSpace(CollageCoverUrl) || Item.ArtworkStackItems.Any(member => !string.IsNullOrWhiteSpace(member.ImageUrl)));
 
     // The four-cover grid is only a person's: the first four covers of their works around their photo.
     private bool ShowQuadrants => IsPersonQuadrant && !ShowBrandLogo && GroupCoverItems.Count > 0;
@@ -393,16 +367,17 @@ else if (!_removed)
         ? L["MediaTile_StandIn_Tooltip"].Value
         : $"{L["MediaTile_StandIn_Tooltip"].Value} {L["MediaTile_StandIn_NextCheck", Item.StandInRetryAfter].Value}";
 
-    // A group draws only a cover somebody chose for it; otherwise it is the four-cover grid (or the plain tile with none).
-    // A folder of videos is the exception: with no chosen cover it takes the picture the Engine sent for the folder (its own or
-    // folder image, an online thumbnail or an extracted frame), then a frame from one of its own videos, before the empty film icon.
+    // A group draws only a cover somebody chose for it; otherwise it is the cover collage (or the plain tile with none).
     private string CardImageUrl => IsGroup
-        ? Item.CustomCoverUrl ?? (IsVideoCollection ? VideoCollectionFallbackUrl : null) ?? string.Empty
+        ? Item.CustomCoverUrl ?? string.Empty
         : Item.TileImageUrl ?? string.Empty;
 
-    private string? VideoCollectionFallbackUrl => !string.IsNullOrWhiteSpace(Item.TileImageUrl)
-        ? Item.TileImageUrl
-        : Item.ArtworkStackItems.FirstOrDefault(member => !string.IsNullOrWhiteSpace(member.ImageUrl))?.ImageUrl;
+    // The one picture the collage shows whole in place of its covers: a cover somebody chose for the group. A folder of videos with no
+    // chosen cover takes the picture the Engine sent for the folder (its own or folder image, an online thumbnail or an extracted frame);
+    // with none of those the collage draws a frame from each of its own videos.
+    private string? CollageCoverUrl => !string.IsNullOrWhiteSpace(Item.CustomCoverUrl)
+        ? Item.CustomCoverUrl
+        : IsVideoCollection && !string.IsNullOrWhiteSpace(Item.TileImageUrl) ? Item.TileImageUrl : null;
 
     private bool HasArtworkSurface => ShowBrandLogo || ShowCollectionBanner || (!ShowCollage && !string.IsNullOrWhiteSpace(CardImageUrl)) || ShowQuadrants;
 
@@ -416,7 +391,7 @@ else if (!_removed)
 
     private string? EpisodeShowCaption => Item.EpisodeContext?.ShowTitle ?? Item.Subtitle;
 
-    private string FallbackIcon => IsGroup ? AppMaterialIcons.Outlined.CollectionsBookmark : Item.Presentation switch
+    private string FallbackIcon => IsVideoCollection ? AppMaterialIcons.Outlined.Movie : IsGroup ? AppMaterialIcons.Outlined.CollectionsBookmark : Item.Presentation switch
     {
         MediaTilePresentation.Album => AppMaterialIcons.Filled.Album,
         MediaTilePresentation.Artist => AppMaterialIcons.Filled.Person,
@@ -468,6 +443,8 @@ else if (!_removed)
     // "Audiobook series") or plain "Series".
     private string GroupKindWord => IsMixedCollection
         ? L["MediaGroupTile_KindCollection"].Value
+        : IsVideoCollection
+        ? L["MediaTile_VideoCollection"].Value
         : EffectiveGroupKind switch
         {
             MediaTileGroupKind.Series => Item.Presentation switch
