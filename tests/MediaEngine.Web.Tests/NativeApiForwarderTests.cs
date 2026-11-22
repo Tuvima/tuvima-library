@@ -64,6 +64,12 @@ public sealed class NativeApiForwarderTests
     [InlineData("GET", "details/show/6f0c2a3e-0000-0000-0000-000000000000/next-episodes", true, NativeApiForwardDecision.Forward)]
     [InlineData("POST", "details/show/6f0c2a3e-0000-0000-0000-000000000000/next-episodes", true, NativeApiForwardDecision.NotFound)]
     [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/6f0c2a3e-0000-0000-0000-000000000000/preferred", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/alternatives", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/alternatives/preview", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/sources", true, NativeApiForwardDecision.Forward)]
+    [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/alternatives/choose", true, NativeApiForwardDecision.Forward)]
+    [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/alternatives/choose", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/6f0c2a3e-0000-0000-0000-000000000000/wrong", true, NativeApiForwardDecision.NotFound)]
     [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/encode", true, NativeApiForwardDecision.Forward)]
     // Casting: only the phone's POST to start a session. The TV's secret-link routes are not part of /api/v1, and no GET or other write exists.
     [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/failure", true, NativeApiForwardDecision.Forward)]

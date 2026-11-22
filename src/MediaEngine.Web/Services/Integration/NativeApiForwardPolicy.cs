@@ -89,6 +89,9 @@ public static class NativeApiForwardPolicy
         // Streaming and subtitles: read, plus choosing the preferred subtitle track.
         Of(Read, "stream/.*"),
         Of(["POST"], $"stream/{Guid}/text-tracks/{Guid}/preferred"),
+        // Find another on a TV or phone: the list, one result read and the switched-on check are GET routes covered by the read rule above;
+        // using one result is this POST. The Engine still requires the playback-write permission and the item's access check.
+        Of(["POST"], $"stream/{Guid}/text-tracks/alternatives/choose"),
 
         // Playback manifests, offline downloads and encode jobs. No diagnostics, sessions or history.
         Of(Read, $"playback/{Guid}/manifest"),
