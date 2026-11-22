@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One lyric line in the Lyrics panel's list: dim words, or bright words with a purple edge when it is the current synced line. -->
+<component name="LyricsLine" extends="Group">
+    <interface>
+        <field id="itemContent" type="node" onChange="onContent" />
+        <field id="width" type="float" />
+        <field id="height" type="float" />
+    </interface>
+    <children>
+        <Rectangle id="edge" width="6" height="72" translation="[0,4]" color="#8852FC" visible="false" />
+        <Label id="words" translation="[22,4]" width="482" height="72" vertAlign="center" wrap="true" numLines="2" color="#9EA4BC" font="font:SmallSystemFont" />
+    </children>
+    <script type="text/brightscript" uri="pkg:/components/LyricsLine.brs" />
+</component>

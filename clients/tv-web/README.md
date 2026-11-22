@@ -174,11 +174,39 @@ Gaps: Left and Right both seek a fixed 10 seconds and Rewind
 and Fast-forward a fixed 30 both ways, where the contract says all four use the
 profile's skip seconds (10 back and 30 forward by default); there is no
 Previous/Next transport row dimmed in place, and the tool row is one button
-(Audio & subtitles) with no Episodes, Bookmarks or Playback settings beside it;
+(Audio & subtitles; a song also gets Lyrics) with no Episodes, Bookmarks or
+Playback settings beside it;
 no other side panels, no bookmarks, no paused details and no Autoplay switch;
-there is no Lyrics panel on a television (so no Find lyrics yet); the Up next
+there is no full-screen music Now playing (no cover, title line or Queue panel;
+a song plays in this same player, which gets only the Lyrics panel, see below);
+the Up next
 prompt does not yet match the contract's end card. The Audio rows switch only
 tracks hls.js reports, in manifest order. The gaps are one follow-up thread for the TV web app, laid
 out as the contract's first definition of the television side panels (Unified
 player v2, D29 and section 9). Samsung Tizen and LG webOS wrap this client, so
 they inherit its result.
+
+### Lyrics and Find lyrics
+
+When the playback manifest's `mediaType` says the title is music, the tool row
+gains a **Lyrics** button next to Audio & subtitles and it opens the **Lyrics**
+side panel (spec `find-another-on-tv` D6, WP5): the heading "Lyrics" with a
+**Synced** or **Unsynced** chip, the lyric lines, and the footer row **Find
+lyrics...**. The lyrics are the asset's preferred lyrics text track
+(`GET /api/v1/stream/{asset}/text-tracks`, then the track as text);
+`TV.findAnother.parseLyrics` reads it as the Dashboard's `LrcParser` does: lines with
+`[mm:ss.xx]` tags make it Synced (the current line is bright with a purple edge
+and the list keeps it centered as the song plays, driven by the audio element's
+`timeupdate`), a file without them is plain Unsynced words. The footer row shows
+only when `GET /api/v1/stream/{asset}/text-tracks/sources?kind=lyrics` answers `Ready`.
+
+**Find lyrics...** opens the same Find another window (`kind` lyrics): the title
+"Find lyrics", six lyric lines in the pane, the checks "Synced" or "Words only,
+not timed" and "Fits the song" or "N seconds longer or shorter", and no Language
+button (the language is the song's, so no `language` parameter is sent). Keys,
+the one-second dwell rule and the Back order are the subtitles ones. **Use this**
+posts `alternatives/choose` with kind lyrics, then the panel (which stays open)
+says "Updating lyrics..." and reads the lyrics again; the song is paused behind
+the window and resumes when it closes. Not built: a cover, title line, timeline
+or Queue panel on a music Now playing screen (the existing player is the only
+screen); not checked on a real TV.

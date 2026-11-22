@@ -51,9 +51,11 @@ The player follows the shared contract in
 order, panel names, paused details, end card and the television key map). Roku
 plays through its native video node, and has only part of the rest: it has no
 skip buttons or Previous/Next row, no Episodes panel, no Bookmarks (Everyone |
-Mine), no Playback settings, no chapters, no paused details and no end card. The
-gaps are one follow-up thread for Roku: skips, Episodes, Bookmarks and the end
-card, laid out as the contract's first definition of the television side panels
+Mine), no Playback settings, no chapters, no paused details and no end card.
+Music has no full-screen Now playing (no cover, title line, timeline or Queue
+panel): a song plays in the same player and only gets the Lyrics panel on
+Options (see below). The gaps are one follow-up thread for Roku: skips,
+Episodes, Bookmarks, the music Now playing screen and the end card, laid out as the contract's first definition of the television side panels
 (Unified player v2, D29 and section 9).
 
 ### Audio & subtitles and Find another
@@ -85,4 +87,34 @@ Not yet checked on a device (no Roku is available to the build): the Options key
 reaching the scene while the video node has focus, a `tmp:/` WebVTT as an external
 subtitle track, and the screen layout. The Engine's preview returns three lines per
 result, so "full words" shows three lines today (the window takes up to 20 when the
-Engine sends them). The Lyrics panel is a separate packet.
+Engine sends them).
+
+### Lyrics and Find lyrics
+
+Roku has no Now playing screen: a song plays in the same full-screen player as a
+video (the manifest's `mediaType` says it is music), so the minimal panel is
+reachable from there. For a song, Options opens the **Lyrics** side panel
+(`LyricsPanel`, with `LyricsLine` rows) instead of Audio & subtitles: the heading
+"Lyrics" with a **Synced** or **Unsynced** chip, the lyric lines, and the footer row
+**Find lyrics…**. The lyrics are the asset's preferred lyrics text track
+(`GET /api/v1/stream/{asset}/text-tracks`, then the track as text, fetched by
+`ApiTask` operation `lyricsText`). A file with time tags (`[mm:ss.xx]`, parsed in
+`faParseLyrics` the way the Dashboard's `LrcParser` does) is Synced: the current
+line has a purple edge and bright words and the list follows the song, driven by
+the video node's `position`. A file without them is Unsynced plain words. The
+song keeps playing under the panel. The footer row is shown only when
+`GET /api/v1/stream/{asset}/text-tracks/sources?kind=lyrics` answers `Ready`.
+
+**Find lyrics…** opens the same Find another window with `kind` set to lyrics:
+the title "Find lyrics", six lyric lines in the pane (no times), the checks
+"Synced" or "Words only, not timed" and "Fits the song" or "N seconds longer or
+shorter", and no Language button (the language is the song's, so no language
+parameter is sent). The keys, the one-second dwell rule and the Back order are
+the subtitles ones. **Use this** posts `alternatives/choose` with kind lyrics,
+returns to the panel (which says "Updating lyrics…") and reads the lyrics again.
+The song is paused behind the window and resumes when it closes.
+
+Not yet checked on a device: the `MarkupList` keeping the current line in the
+middle (`vertFocusAnimationStyle="fixedFocus"` with `focusRow`) while the list is
+not focused, and the panel layout. Not built: a cover, track title or timeline on
+a Now playing screen, and any other panel for music (Queue, Bookmarks).

@@ -78,9 +78,9 @@ private fun toneColor(tone: CheckTone): Color = when (tone) {
     CheckTone.Neutral -> TextMuted
 }
 
-/** The tool that opens the panel, shown with the player's controls: Up from the controls reaches it. */
+/** The tool that opens the panel, shown with the player's controls: Up from the controls reaches it. For a song it reads "Lyrics". */
 @Composable
-internal fun AudioSubtitlesToolButton(focused: Boolean, modifier: Modifier = Modifier) {
+internal fun AudioSubtitlesToolButton(focused: Boolean, modifier: Modifier = Modifier, label: String = "Audio & subtitles") {
     Box(
         modifier
             .heightIn(min = 56.dp)
@@ -89,7 +89,7 @@ internal fun AudioSubtitlesToolButton(focused: Boolean, modifier: Modifier = Mod
             .padding(horizontal = 28.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text("Audio & subtitles", color = TextPrimary, fontSize = 20.sp)
+        Text(label, color = TextPrimary, fontSize = 20.sp)
     }
 }
 

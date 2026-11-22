@@ -47,6 +47,17 @@ sub init()
     m.panel.observeField("closeRequested", "onPanelClose")
     m.findWindow.observeField("closed", "onFindClosed")
     m.findWindow.observeField("tokenUpdate", "onSideToken")
+    ' Music: the Lyrics panel follows the song position (the Options key opens it while a song plays).
+    m.lyricsPanel = m.top.findNode("lyricsPanel")
+    m.lyricsPanel.observeField("selection", "onLyricsSelection")
+    m.lyricsPanel.observeField("closeRequested", "onLyricsClose")
+    m.video.observeField("position", "onVideoPosition")
+    m.activeIsMusic = false
+    m.lyricsParsed = invalid
+    m.lyricsStatus = "loading"
+    m.lyricsUpdating = false
+    m.lyricsAvailable = false
+    m.lyricsResume = false
     m.sideTasks = {}
     m.sideCounter = 0
     m.subtitleTracks = []
@@ -677,6 +688,12 @@ sub playManifest(manifest as Object)
     m.activeSubtitleId = ""
     m.subtitleLanguage = invalid
     m.pendingSubtitleTrack = invalid
+    ' A song gets the Lyrics panel on Options instead of the Audio & subtitles panel.
+    m.activeIsMusic = faIsMusic(faStr(manifest.mediaType))
+    m.lyricsPanel.visible = false
+    m.lyricsParsed = invalid
+    m.lyricsStatus = "loading"
+    m.lyricsAvailable = false
     m.video.control = "play"
     m.heartbeatTimer.control = "start"
 end sub
@@ -690,6 +707,7 @@ sub onVideoState()
     end if
     if m.video.state = "finished" or m.video.state = "error"
         m.panel.visible = false
+        m.lyricsPanel.visible = false
         m.findWindow.visible = false
         m.heartbeatTimer.control = "stop"
         m.video.visible = false
@@ -780,6 +798,10 @@ sub onSideResult(event as Object)
     result = event.getData()
     if result = invalid then return
     value = result.value
+    if m.activeIsMusic
+        onLyricsSideResult(info.operation, value)
+        return
+    end if
     if info.operation = "textTracks"
         m.subtitleTracks = faSubtitleTracks(value)
         if m.sideMode = "afterChoose"
@@ -810,6 +832,10 @@ sub onSideError(event as Object)
     info = m.sideTasks[event.getNode()]
     if info = invalid then return
     m.sideTasks.Delete(event.getNode())
+    if m.activeIsMusic
+        onLyricsSideError(info.operation)
+        return
+    end if
     if info.operation = "textTracks" and m.sideMode <> "afterChoose"
         m.subtitleTracks = []
         runSide("textTrackSources", { assetId: m.activeAssetId })
@@ -900,6 +926,10 @@ sub onFindClosed()
     result = m.findWindow.closed
     if result = invalid then return
     m.findWindow.visible = false
+    if m.activeIsMusic
+        onLyricsFindClosed(result)
+        return
+    end if
     if faIsTrue(result.applied)
         m.status.text = faTextUpdating()
         m.sideMode = "choose"
@@ -938,6 +968,133 @@ sub attachSubtitleFile(path as String)
     m.activeSubtitleId = track.id
     m.video.control = "play"
     m.video.setFocus(true)
+end sub
+
+' ---- Lyrics panel (music) and Find lyrics (spec find-another-on-tv D6, WP5) ----------------------------------------------
+' Roku has no Now playing screen: a song plays in the same player, and Options opens the Lyrics panel over it. The song
+' keeps playing under the panel; the highlighted line follows its position.
+
+sub openLyricsPanel()
+    if m.activeAssetId = invalid then return
+    m.lyricsStatus = "loading"
+    m.lyricsParsed = invalid
+    m.lyricsUpdating = false
+    m.lyricsAvailable = false
+    drawLyrics()
+    runSide("textTracks", { assetId: m.activeAssetId })
+    ' The footer row Find lyrics… shows only when the Engine says a lyrics source is ready (and this profile may use it).
+    runSide("textTrackSources", { assetId: m.activeAssetId, kind: "lyrics" })
+end sub
+
+sub drawLyrics()
+    ' While the Find window is open it owns the screen and the focus.
+    if m.findWindow.visible then return
+    model = faLyricsPanelModel(m.lyricsParsed, m.lyricsStatus, m.lyricsUpdating)
+    model.showFind = m.lyricsAvailable
+    m.lyricsPanel.model = model
+    updateLyricsActive()
+end sub
+
+sub updateLyricsActive()
+    if m.lyricsStatus <> "ready" or m.lyricsParsed = invalid then return
+    m.lyricsPanel.activeIndex = faActiveLyricIndex(m.lyricsParsed.lines, m.video.position)
+end sub
+
+sub onVideoPosition()
+    if m.lyricsPanel.visible then updateLyricsActive()
+end sub
+
+sub onLyricsClose()
+    m.lyricsPanel.visible = false
+    m.video.setFocus(true)
+end sub
+
+sub onLyricsSelection()
+    if m.lyricsPanel.selection <> "find" then return
+    m.lyricsResume = m.video.state = "playing"
+    if m.lyricsResume then m.video.control = "pause"
+    m.lyricsPanel.visible = false
+    m.findWindow.serverOrigin = m.api.serverOrigin
+    m.findWindow.accessToken = m.api.accessToken
+    m.findWindow.refreshToken = m.api.refreshToken
+    m.findWindow.visible = true
+    m.findWindow.openWith = { assetId: m.activeAssetId, title: m.lastTitle, kind: "lyrics", language: "" }
+    m.findWindow.setFocus(true)
+end sub
+
+sub onLyricsSideResult(operation as String, value as Object)
+    if operation = "textTracks"
+        trackId = faPickLyricsTrackId(value)
+        if trackId = ""
+            m.lyricsStatus = "none"
+            m.lyricsParsed = invalid
+            m.lyricsUpdating = false
+            drawLyrics()
+        else
+            runSide("lyricsText", { assetId: m.activeAssetId, trackId: trackId })
+        end if
+    else if operation = "lyricsText"
+        parsed = faParseLyrics(faStr(value.text))
+        m.lyricsUpdating = false
+        if parsed.lines.Count() > 0
+            m.lyricsParsed = parsed
+            m.lyricsStatus = "ready"
+        else
+            m.lyricsParsed = invalid
+            m.lyricsStatus = "none"
+        end if
+        drawLyrics()
+    else if operation = "textTrackSources"
+        m.lyricsAvailable = faSourcesReady(faStr(value.status))
+        drawLyrics()
+    else if operation = "alternativeChoose"
+        if faStr(value.status) = "Updated"
+            ' Read the new lyrics; the panel says Updating until they arrive.
+            runSide("textTracks", { assetId: m.activeAssetId })
+        else
+            lyricsChoiceFailed(faStr(value.message))
+        end if
+    end if
+end sub
+
+sub onLyricsSideError(operation as String)
+    if operation = "textTracks" or operation = "lyricsText"
+        m.lyricsStatus = "failed"
+        m.lyricsParsed = invalid
+        m.lyricsUpdating = false
+        drawLyrics()
+    else if operation = "textTrackSources"
+        ' Nothing known about sources means nothing to search: the footer row stays hidden.
+        m.lyricsAvailable = false
+        drawLyrics()
+    else if operation = "alternativeChoose"
+        lyricsChoiceFailed("")
+    end if
+end sub
+
+' Something went wrong after Use this: say so plainly and show the lyrics the song had before.
+sub lyricsChoiceFailed(message as String)
+    if message = "" then message = faTextApplyLyricsFailed()
+    m.status.text = message
+    m.lyricsUpdating = false
+    m.lyricsStatus = "loading"
+    drawLyrics()
+    runSide("textTracks", { assetId: m.activeAssetId })
+end sub
+
+' Cancel or Back returns to the Lyrics panel; Use this returns to it too, saying Updating while the new lyrics are read.
+sub onLyricsFindClosed(result as Object)
+    if m.lyricsResume then m.video.control = "resume"
+    m.lyricsResume = false
+    if faIsTrue(result.applied)
+        m.lyricsStatus = "loading"
+        m.lyricsParsed = invalid
+        m.lyricsUpdating = true
+        drawLyrics()
+        runSide("alternativeChoose", { assetId: m.activeAssetId, kind: "lyrics", provider: result.provider, sourceId: result.sourceId, language: "" })
+    else
+        drawLyrics()
+    end if
 end sub
 
 ' Something went wrong after Use this or a pick: say so plainly and let the video carry on as it was.
@@ -988,8 +1145,8 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             return true
         end if
     end if
-    if key = "options" and m.video.visible and not m.panel.visible and not m.findWindow.visible
-        openAudioSubtitles()
+    if key = "options" and m.video.visible and not m.panel.visible and not m.lyricsPanel.visible and not m.findWindow.visible
+        if m.activeIsMusic then openLyricsPanel() else openAudioSubtitles()
         return true
     end if
     if key = "back" and m.video.visible

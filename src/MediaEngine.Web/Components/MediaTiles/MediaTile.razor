@@ -198,7 +198,8 @@ else if (!_removed)
             {
                 <span class="media-tile-label media-tile-label--status media-tile-label--kind">@kind</span>
             }
-            @if (BottomLabel is { } bottom && !ShowCollage)
+            @* A video tile's detail line already says how many videos a folder holds, so it draws no second count (issue 1297). *@
+            @if (BottomLabel is { } bottom && !ShowCollage && !IsVideoStill)
             {
                 <span class="@($"media-tile-label media-tile-label--bottom{(IsPersonQuadrant ? " media-tile-label--beside-photo" : string.Empty)}")" aria-label="@bottom" data-overflow-tooltip="@bottom">@bottom</span>
             }

@@ -53,6 +53,7 @@
         <Timer id="heartbeatTimer" duration="15" repeat="true" />
         <ApiTask id="api" />
         <AudioSubtitlesPanel id="panel" visible="false" />
+        <LyricsPanel id="lyricsPanel" visible="false" />
         <FindAnotherWindow id="findWindow" visible="false" />
     </children>
     <script type="text/brightscript" uri="pkg:/components/FindAnotherLogic.brs" />

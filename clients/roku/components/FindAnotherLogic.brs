@@ -90,6 +90,81 @@ function faLanguageButtonText(language as String) as String
     return "Language: " + language
 end function
 
+' ---- Lyrics (spec find-another-on-tv D6, WP5): the same window with lyrics wording ---------------------------------
+
+function faTextFindLyrics() as String
+    return "Find lyrics"
+end function
+
+function faTextFindLyricsRow() as String
+    return "Find lyrics…"
+end function
+
+function faTextLookingLyrics() as String
+    return "Looking for lyrics…"
+end function
+
+function faTextUpdatingLyrics() as String
+    return "Updating lyrics…"
+end function
+
+function faTextLyricsHeading() as String
+    return "Lyrics"
+end function
+
+function faTextSynced() as String
+    return "Synced"
+end function
+
+function faTextUnsynced() as String
+    return "Unsynced"
+end function
+
+function faTextWordsOnly() as String
+    return "Words only, not timed"
+end function
+
+function faTextFitsTheSong() as String
+    return "Fits the song"
+end function
+
+function faTextNoLyrics() as String
+    return "There are no lyrics for this song yet."
+end function
+
+function faTextLyricsNotLoaded() as String
+    return "The lyrics could not be loaded."
+end function
+
+function faTextApplyLyricsFailed() as String
+    return "Could not use those lyrics. Try again from Find lyrics…"
+end function
+
+' Lyrics are searched in the song's own language: only subtitles have a Language button and a language parameter.
+function faHasLanguage(kind as String) as Boolean
+    return kind <> "lyrics"
+end function
+
+function faWindowTitle(kind as String) as String
+    if kind = "lyrics" then return faTextFindLyrics()
+    return faTextWindowTitle()
+end function
+
+function faLoadingText(kind as String) as String
+    if kind = "lyrics" then return faTextLookingLyrics()
+    return faTextLooking()
+end function
+
+function faApplyingText(kind as String) as String
+    if kind = "lyrics" then return faTextUpdatingLyrics()
+    return faTextUpdating()
+end function
+
+function faFooterRowText(kind as String) as String
+    if kind = "lyrics" then return faTextFindLyricsRow()
+    return faTextFindSubtitles()
+end function
+
 ' ---- Small readers over parsed JSON ----------------------------------------------------------------------------
 
 function faStr(value as Dynamic) as String
@@ -143,8 +218,9 @@ end function
 ' ---- Sentences for each outcome of the search ------------------------------------------------------------------
 
 ' The Engine's own sentence is shown when it sent one; these stand in when it did not (or the call failed).
-function faStatusSentence(status as String, message as String) as String
+function faStatusSentence(status as String, message as String, kind = "subtitles" as String) as String
     if message <> "" then return message
+    if kind = "lyrics" then return faLyricsStatusSentence(status)
     fallbacks = {
         found: "No other subtitles were found.",
         nonefound: "No other subtitles were found.",
@@ -164,13 +240,33 @@ function faStatusSentence(status as String, message as String) as String
     return "Subtitles could not be searched right now."
 end function
 
-' The search call itself failed (no answer from the Engine, or a refusal).
-function faSentenceForHttpFailure(httpStatus as Integer) as String
-    if httpStatus = 403 then return faStatusSentence("NotAllowed", "")
-    return faStatusSentence("Unavailable", "")
+' The same plain sentences for lyrics.
+function faLyricsStatusSentence(status as String) as String
+    fallbacks = {
+        found: "No other lyrics were found.",
+        nonefound: "No other lyrics were found.",
+        nosourceon: "No lyrics source is switched on. An administrator can switch one on in Settings.",
+        notallowed: "This profile cannot change lyrics.",
+        blocked: "Lyrics cannot be searched for this item.",
+        unavailable: "The lyrics source could not be reached. Try again in a moment.",
+        assetmissing: "This song could not be found.",
+        unsupported: "Lyrics cannot be searched for this kind of item.",
+        identityunverified: "This song has not been identified, so it cannot be searched for online.",
+        sourcekeyrequired: "A lyrics source is switched on, but its key is missing or was refused.",
+        limitreached: "The lyrics source's allowance is used up for now. Try again later."
+    }
+    sentence = fallbacks[LCase(status)]
+    if sentence <> invalid then return sentence
+    return "Lyrics could not be searched right now."
 end function
 
-' The footer row "Find subtitles…" shows only when the sources check says there is something to search.
+' The search call itself failed (no answer from the Engine, or a refusal).
+function faSentenceForHttpFailure(httpStatus as Integer, kind = "subtitles" as String) as String
+    if httpStatus = 403 then return faStatusSentence("NotAllowed", "", kind)
+    return faStatusSentence("Unavailable", "", kind)
+end function
+
+' The footer row "Find subtitles…" (or "Find lyrics…") shows only when the sources check says there is something to search.
 function faSourcesReady(status as String) as Boolean
     return LCase(status) = "ready"
 end function
@@ -182,7 +278,8 @@ function faKey(item as Object) as String
 end function
 
 ' The view model of one list row. `read` is the item as read (or the list's own item when nothing has been read).
-function faRowModel(item as Object, index as Integer, showLanguage as Boolean, languageName as String) as Object
+function faRowModel(item as Object, index as Integer, showLanguage as Boolean, languageName as String, kind = "subtitles" as String) as Object
+    if kind = "lyrics" then return faLyricsRowModel(item, index)
     release = faStr(item.release_name)
     if release = "" then release = faTextUntitled()
 
@@ -226,6 +323,66 @@ function faRowModel(item as Object, index as Integer, showLanguage as Boolean, l
     return {
         rowKey: faKey(item),
         release: release,
+        meta: meta,
+        check: check,
+        checkTone: checkTone,
+        timing: timing,
+        timingTone: timingTone,
+        chipBest: chipBest,
+        chipInUse: chipInUse
+    }
+end function
+
+' A lyrics row: the song's title, then artist, album and length; "Synced" or "Words only, not timed"; once read,
+' "Fits the song" or how many seconds longer or shorter (amber up to 15 seconds off, red beyond).
+function faLyricsRowModel(item as Object, index as Integer) as Object
+    name = faStr(item.title)
+    if name = "" then name = faStr(item.release_name)
+    if name = "" then name = faTextUntitled()
+
+    meta = ""
+    if faStr(item.artist) <> "" then meta = faStr(item.artist)
+    if faStr(item.album) <> ""
+        if meta <> "" then meta = meta + " · "
+        meta = meta + faStr(item.album)
+    end if
+    length = faNum(item.length_seconds)
+    if length <> invalid and length > 0
+        if meta <> "" then meta = meta + " · "
+        meta = meta + faClock(length)
+    end if
+
+    check = faTextWordsOnly()
+    checkTone = "warn"
+    if faIsTrue(item.is_timed)
+        check = faTextSynced()
+        checkTone = "ok"
+    end if
+
+    timing = ""
+    timingTone = "ok"
+    difference = faNum(item.length_difference_seconds)
+    if faStr(item.length_check) <> "" and difference <> invalid
+        if faStr(item.length_check) = "Fits"
+            timing = faTextFitsTheSong()
+        else
+            seconds = Int(Abs(difference) + 0.5)
+            if seconds < 1 then seconds = 1
+            unit = " seconds"
+            if seconds = 1 then unit = " second"
+            if difference > 0 then timing = seconds.ToStr() + unit + " longer" else timing = seconds.ToStr() + unit + " shorter"
+            if Abs(difference) <= 15.0 then timingTone = "warn" else timingTone = "bad"
+        end if
+    end if
+
+    chipBest = ""
+    if index = 0 then chipBest = faTextBestMatch()
+    chipInUse = ""
+    if faIsTrue(item.is_current) then chipInUse = faTextInUse()
+
+    return {
+        rowKey: faKey(item),
+        release: name,
         meta: meta,
         check: check,
         checkTone: checkTone,
@@ -322,27 +479,30 @@ end function
 
 ' ---- The pane --------------------------------------------------------------------------------------------------
 
-function faPaneLineLimit(full as Boolean) as Integer
+function faPaneLineLimit(full as Boolean, kind = "subtitles" as String) as Integer
+    if kind = "lyrics" then return 6
     if full then return 20
     return 3
 end function
 
 ' What the right-hand pane shows for the focused row: kind "words", "reading", "failed" or "empty".
-function faPaneModel(item as Object, state as String, full as Boolean) as Object
+' Lyrics show six lines of words with no times; subtitles show the time each line appears.
+function faPaneModel(item as Object, state as String, full as Boolean, kind = "subtitles" as String) as Object
     title = faStr(item.release_name)
+    if kind = "lyrics" and faStr(item.title) <> "" then title = faStr(item.title)
     if title = "" then title = faTextUntitled()
     if state = "reading" then return { title: title, kind: "reading", body: faTextReading() }
     if state = "failed" then return { title: title, kind: "failed", body: faTextCouldNotRead() }
     lines = item.preview_lines
     if faCount(lines) = 0 then return { title: title, kind: "empty", body: "" }
-    limit = faPaneLineLimit(full)
+    limit = faPaneLineLimit(full, kind)
     body = ""
     shown = 0
     for each line in lines
         if shown >= limit then exit for
         text = faStr(line.text)
         at = faNum(line.at_seconds)
-        if at <> invalid then text = faClock(at) + "   " + text
+        if at <> invalid and kind <> "lyrics" then text = faClock(at) + "   " + text
         if body <> "" then body = body + Chr(10) + Chr(10)
         body = body + text
         shown = shown + 1
@@ -354,10 +514,10 @@ end function
 
 ' Where focus goes for an arrow key, by zone: "list", "pane", "use", "cancel" or "language".
 ' Empty means the key is not a focus move here (the control itself handles it, or nothing happens).
-function faMove(zone as String, key as String, atFirstRow as Boolean) as String
+function faMove(zone as String, key as String, atFirstRow as Boolean, languageShown = true as Boolean) as String
     if zone = "list"
         if key = "right" then return "pane"
-        if key = "up" and atFirstRow then return "language"
+        if key = "up" and atFirstRow and languageShown then return "language"
     else if zone = "pane"
         if key = "right" then return "use"
         if key = "left" then return "list"
@@ -382,7 +542,8 @@ function faMoveInMessage(zone as String, key as String, languageShown as Boolean
 end function
 
 ' The language choice is no use when the sentence is about a switch, a key, an item that cannot be matched or a profile that may not search.
-function faLanguageRelevant(status as String) as Boolean
+function faLanguageRelevant(status as String, kind = "subtitles" as String) as Boolean
+    if not faHasLanguage(kind) then return false
     lower = LCase(status)
     if lower = "nosourceon" or lower = "sourcekeyrequired" or lower = "blocked" or lower = "notallowed" then return false
     if lower = "identityunverified" or lower = "unsupported" or lower = "assetmissing" then return false
@@ -509,4 +670,168 @@ function faTrackById(tracks as Object, id as String) as Dynamic
         if LCase(track.id) = LCase(id) then return track
     end for
     return invalid
+end function
+
+' ---- The Lyrics panel (spec find-another-on-tv WP5) --------------------------------------------------------------
+
+' Whether a playback manifest's media type is music: the Lyrics panel is offered there only.
+function faIsMusic(mediaType as String) as Boolean
+    value = LCase(mediaType)
+    if value = "" then return false
+    if Instr(1, value, "audiobook") > 0 then return false
+    if Instr(1, value, "music") > 0 or Instr(1, value, "song") > 0 or Instr(1, value, "track") > 0 then return true
+    return false
+end function
+
+' Which of the asset's text tracks is its lyrics: the one the Engine marks preferred, else the first lyrics track; "" when none.
+function faPickLyricsTrackId(tracks as Dynamic) as String
+    first = ""
+    if faCount(tracks) = 0 then return first
+    for each entry in tracks
+        if LCase(faStr(entry.kind)) = "lyrics" and faStr(entry.id) <> ""
+            if faIsTrue(entry.isPreferred) then return faStr(entry.id)
+            if first = "" then first = faStr(entry.id)
+        end if
+    end for
+    return first
+end function
+
+function faIsDigits(value as String) as Boolean
+    if Len(value) = 0 then return false
+    for i = 1 to Len(value)
+        code = Asc(Mid(value, i, 1))
+        if code < 48 or code > 57 then return false
+    end for
+    return true
+end function
+
+' "mm:ss", "mm:ss.xx" or "mm:ss:xx" as seconds; invalid when the text is not a time (a tag such as "ar:Name").
+function faStampSeconds(inside as String) as Dynamic
+    colon = Instr(1, inside, ":")
+    if colon < 2 then return invalid
+    minutes = Left(inside, colon - 1)
+    rest = Mid(inside, colon + 1)
+    if not faIsDigits(minutes) then return invalid
+    fraction = "0"
+    seconds = rest
+    separator = Instr(1, rest, ".")
+    if separator = 0 then separator = Instr(1, rest, ":")
+    if separator > 0
+        seconds = Left(rest, separator - 1)
+        fraction = Mid(rest, separator + 1)
+        if not faIsDigits(fraction) then return invalid
+    end if
+    if Len(seconds) <> 2 or not faIsDigits(seconds) then return invalid
+    return Val(minutes) * 60.0 + Val(seconds) + Val("0." + fraction)
+end function
+
+' Word stamps (<mm:ss.xx>) inside a line are dropped; the words stay.
+function faStripWordStamps(value as String) as String
+    result = ""
+    rest = value
+    while true
+        startAt = Instr(1, rest, "<")
+        if startAt = 0 then exit while
+        endAt = Instr(startAt, rest, ">")
+        if endAt = 0 then exit while
+        if faStampSeconds(Mid(rest, startAt + 1, endAt - startAt - 1)) <> invalid
+            result = result + Left(rest, startAt - 1)
+            rest = Mid(rest, endAt + 1)
+        else
+            result = result + Left(rest, startAt)
+            rest = Mid(rest, startAt + 1)
+        end if
+    end while
+    return result + rest
+end function
+
+' One lyrics line: the time tags it starts with ([mm:ss.xx], more than one means the line is sung again) and its words.
+function faParseLyricsLine(rawLine as String) as Object
+    stamps = []
+    rest = rawLine.Trim()
+    while Left(rest, 1) = "["
+        closeAt = Instr(1, rest, "]")
+        if closeAt = 0 then exit while
+        stamp = faStampSeconds(Mid(rest, 2, closeAt - 2))
+        if stamp = invalid then exit while
+        stamps.Push(stamp)
+        rest = Mid(rest, closeAt + 1)
+    end while
+    return { stamps: stamps, text: faStripWordStamps(rest).Trim() }
+end function
+
+' Time order, lines with the same time keeping the file's order.
+function faSortLyrics(lines as Object) as Object
+    sorted = []
+    for each line in lines
+        sorted.Push(line)
+        j = sorted.Count() - 1
+        while j > 0
+            if sorted[j - 1].at <= line.at then exit while
+            sorted[j] = sorted[j - 1]
+            j = j - 1
+        end while
+        sorted[j] = line
+    end for
+    return sorted
+end function
+
+' Reads a lyrics file the Engine serves as text, as the Dashboard does: timed lines make it Synced; a file with no timed line
+' is plain words (Unsynced, tag lines such as [ar:Name] left out). Returns { synced, lines: [{ at, text }] }; at is invalid when unsynced.
+function faParseLyrics(content as String) as Object
+    timed = []
+    plain = []
+    text = content.Replace(Chr(13), "")
+    for each rawLine in text.Split(Chr(10))
+        entry = faParseLyricsLine(rawLine)
+        if entry.stamps.Count() > 0
+            for each at in entry.stamps
+                timed.Push({ at: at, text: entry.text })
+            end for
+        else if entry.text <> ""
+            isTag = Left(entry.text, 1) = "[" and Right(entry.text, 1) = "]"
+            if not isTag then plain.Push({ at: invalid, text: entry.text })
+        end if
+    end for
+    if timed.Count() > 0 then return { synced: true, lines: faSortLyrics(timed) }
+    return { synced: false, lines: plain }
+end function
+
+' The current synced line: the last timed line at or before this song position; -1 before the first line or when unsynced.
+function faActiveLyricIndex(lines as Object, seconds as Float) as Integer
+    found = -1
+    index = 0
+    for each line in lines
+        if line.at = invalid then return -1
+        if line.at > seconds then exit for
+        found = index
+        index = index + 1
+    end for
+    return found
+end function
+
+function faLyricsChipText(synced as Boolean) as String
+    if synced then return faTextSynced()
+    return faTextUnsynced()
+end function
+
+' What the Lyrics panel draws. status is "loading", "ready", "none" or "failed"; updating swaps the loading words for
+' "Updating lyrics…" after Use this. rows are the lines' words; note is the sentence shown instead of lines.
+function faLyricsPanelModel(parsed as Dynamic, status as String, updating as Boolean) as Object
+    model = { heading: faTextLyricsHeading(), chip: "", rows: [], note: "" }
+    if status = "ready" and parsed <> invalid
+        model.chip = faLyricsChipText(parsed.synced)
+        for each line in parsed.lines
+            words = faStr(line.text)
+            if words = "" then words = "♪"
+            model.rows.Push(words)
+        end for
+    else if status = "loading"
+        if updating then model.note = faTextUpdatingLyrics() else model.note = faTextLookingLyrics()
+    else if status = "failed"
+        model.note = faTextLyricsNotLoaded()
+    else
+        model.note = faTextNoLyrics()
+    end if
+    return model
 end function
