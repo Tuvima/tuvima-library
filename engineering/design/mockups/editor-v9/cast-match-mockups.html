@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cast match mockups</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{color-scheme:dark;--page:#101115;--nav:#14151A;--card:#1A1B21;--raised:#1F2027;--hover:#272830;--menu:#2F3039;
+--text:#F5F7FB;--text2:#B6C2D6;--muted:#94A3B8;--line:rgba(148,163,184,.16);--hair:rgba(148,163,184,.10);
+--accent:#8852FC;--accent-hi:#A46FFF;--accent-soft:rgba(136,82,252,.16);--accent-line:rgba(136,82,252,.42);
+--ok:#22C55E;--warn:#F59E0B;--bad:#FF8A8A;--bad-line:rgba(239,68,68,.5);--ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.45;padding:32px max(16px,env(safe-area-inset-right,0px)) 64px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+.intro h1{font-size:24px;font-weight:700;margin:0 0 8px}.intro p{color:var(--text2);max-width:70ch;margin:0 0 8px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.toc a{color:var(--text2);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px}
+.toc a:hover,.toc a:focus-visible{background:var(--hover);color:var(--text);outline:none}
+section>h2{font-size:20px;font-weight:600;margin:0 0 4px}section>.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.scroller{overflow-x:auto;padding-bottom:8px}
+.notes{margin:16px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 32px;max-width:1280px}
+.notes li{display:flex;gap:10px;color:var(--text2);font-size:13px;min-width:0}.notes b{color:var(--text);font-weight:600}
+.n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:#F5F7FB;color:#101115;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.mk{position:absolute;z-index:9;box-shadow:0 0 0 2px var(--page)}
+.win{position:relative;width:1280px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.hdfull{display:flex;gap:20px;padding:20px 24px;background:linear-gradient(90deg,#2b2440 0%,#1f2033 30%,var(--card) 75%);position:relative}
+.hs{flex:0 0 auto;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:600;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.hs.a{background:linear-gradient(160deg,#5b7fc7,#1d2a4a)}.hs.b{background:linear-gradient(160deg,#c77f5b,#4a2a1d)}.hs.c{background:linear-gradient(160deg,#5bc7a0,#1d4a3a)}.hs.d{background:linear-gradient(160deg,#a35bc7,#341d4a)}
+.hdfull .hs{width:96px;height:96px;font-size:28px}
+.lab{font-size:13px;color:var(--text2)}.hdfull h3{font-size:20px;font-weight:600;margin:2px 0 4px}.facts{font-size:13px;color:var(--text2)}
+.hdr{flex:1 1 auto;min-width:0}.hdtop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.badges{display:flex;gap:8px;align-items:center}
+.bdg{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;font-weight:600;color:var(--text2)}
+.close{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 10px;color:var(--text2);font-weight:500}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line);height:48px;align-items:stretch}
+.tab{display:inline-flex;align-items:center;gap:8px;padding:0 14px;color:var(--text2);font-weight:500;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--text);border-bottom-color:var(--accent)}
+.body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:16px;position:relative}
+.ft{display:flex;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid var(--line);background:var(--raised)}.ft .wb{color:var(--muted);font-size:13px}
+.grow{flex:1 1 auto}
+.btn{height:44px;padding:0 18px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:500;font-size:14px;border:1px solid var(--line);color:var(--text);background:transparent;white-space:nowrap;flex-shrink:0}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}.btn.red{border-color:var(--bad-line);color:var(--bad)}.btn.txt{border-color:transparent;color:var(--text2)}.btn.off{opacity:.45}
+.row{display:grid;gap:6px 12px;align-items:end}.row .lb{font-size:13px;font-weight:500;color:var(--text2)}.row .msg{grid-column:1/-1;font-size:13px;color:var(--muted);min-height:18px}
+.fld{height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--text);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}.fld.hint{color:var(--muted)}
+.filebar{display:flex;align-items:center;gap:16px;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:var(--raised);min-width:0}
+.filebar .cap{font-size:12px;font-weight:600;color:var(--muted);padding-left:16px;border-left:1px solid var(--line);white-space:nowrap}.t1{font-weight:500}.t2{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:24px;align-items:start}
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}.sh h4{font-size:16px;font-weight:600;margin:0}.sh span{font-size:13px;color:var(--muted)}
+.list{display:flex;flex-direction:column}
+.rw{display:flex;align-items:center;gap:14px;min-height:64px;padding:8px 12px;border-bottom:1px solid var(--hair);border-left:3px solid transparent;min-width:0;position:relative}
+.rw.on{background:var(--accent-soft);border:1px solid var(--accent-line);border-left:3px solid var(--accent);border-radius:8px}
+.rw .hs{width:44px;height:44px;font-size:14px}.rw .tx{flex:1 1 auto;min-width:0}
+.rw .a{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rw .m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:5px;font-size:11px;font-weight:600;border:1px solid var(--line);color:var(--text2);flex:0 0 auto}
+.tag.cur{border-color:var(--accent-line);color:var(--accent-hi)}
+.tick{color:var(--accent-hi);flex:0 0 auto;width:20px}
+.cardx{border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px;background:var(--card);min-width:0;position:relative}
+.top{display:flex;gap:20px;min-width:0}.top .hs{width:140px;height:140px;font-size:36px}
+.top h4{font-size:16px;font-weight:600;margin:0 0 4px}.top .m{font-size:13px;color:var(--text2)}
+.lnk{color:var(--accent-hi);font-weight:500;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+.desc{color:var(--text2);margin:8px 0 2px}
+.verdict{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ok);padding-top:12px;border-top:1px solid var(--line)}.verdict.poss{color:var(--warn)}
+table.cmp{width:100%;border-collapse:collapse;font-size:14px}
+table.cmp th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.cmp td{padding:9px 8px;border-bottom:1px solid var(--hair)}table.cmp td:first-child{color:var(--text2)}table.cmp td:last-child{width:28px;text-align:right}
+.yes{color:var(--ok)}.no{color:var(--bad)}.na{color:var(--muted)}
+.apply{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}.sm{font-size:13px;color:var(--muted)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.amber{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid rgba(245,158,11,.45);border-radius:8px;color:var(--warn);font-size:13px;background:rgba(245,158,11,.07)}
+.panel{position:relative;width:560px;max-width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.panel h4{font-size:20px;font-weight:600;margin:0}.panel p{margin:0;color:var(--text2)}
+.rv{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px}
+.rv div{display:flex;justify-content:space-between;gap:16px;padding:10px 14px;border-bottom:1px solid var(--hair);font-size:13px}.rv div:last-child{border-bottom:0}.rv span:first-child{color:var(--text2)}.rv b{font-weight:500;text-align:right}
+.pair{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.phones{display:flex;gap:28px;align-items:flex-start;padding:4px}
+.ph{position:relative;width:360px;height:760px;background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;flex:0 0 auto}
+.ph .h1{display:flex;align-items:center;gap:10px;height:56px;padding:0 12px;background:linear-gradient(90deg,#2b2440,var(--card));border-bottom:1px solid var(--line)}
+.ph .h1 .hs{width:32px;height:32px;font-size:11px}.ph .h1 b{font-weight:600;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph .tabs{padding:0 8px;overflow-x:auto;height:44px}.ph .tab{padding:0 10px;white-space:nowrap}
+.ph .pb{flex:1 1 auto;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px;position:relative}
+.ph .ft{padding:10px 12px}
+.ph .fld{font-size:16px}.ph .btn{height:44px}.ph .full{width:100%}
+.ph .rw{padding:8px 4px}
+.ph .sheet{flex:1 1 auto;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px;position:relative}
+.ph .top{flex-direction:column;align-items:flex-start;gap:12px}.ph .top .hs{width:96px;height:96px}
+.tiles{display:flex;gap:16px;flex-wrap:wrap}
+.pt{width:120px;position:relative;display:flex;flex-direction:column;gap:6px}
+.pt .hs{width:120px;height:120px;font-size:30px}.pt .nm{font-weight:500;font-size:13px}.pt .rl{font-size:12px;color:var(--muted)}
+.pt .dots{position:absolute;right:6px;top:6px;width:32px;height:32px;border-radius:6px;background:rgba(16,17,21,.75);display:flex;align-items:center;justify-content:center;color:var(--text)}
+.menu{position:absolute;left:70px;top:44px;width:230px;background:var(--menu);border:1px solid var(--line);border-radius:10px;padding:6px;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.menu div{height:44px;display:flex;align-items:center;padding:0 12px;border-radius:6px;font-size:14px}.menu div.on{background:var(--accent-soft)}.menu div.red{color:var(--bad)}
+.pg{width:760px;background:var(--page);border:1px solid var(--line);border-radius:12px;padding:20px 24px;position:relative;min-height:330px}
+.pg h4{margin:0 0 12px;font-size:16px;font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:5px;font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--text2);flex:0 0 auto}
+.chip.ok{color:var(--ok);border-color:rgba(34,197,94,.4)}.chip.chk{color:var(--warn);border-color:rgba(245,158,11,.45)}
+.rw .c1{flex:1 1 0;min-width:0}.rw .c2{flex:1 1 0;min-width:0}.rw .c3{flex:0 0 120px;display:flex;align-items:center}.rw .c4{flex:0 0 140px;display:flex;justify-content:flex-end}.rw .c4 .btn{width:140px}
+.cv{border-radius:4px;background:linear-gradient(160deg,#5c7a9a,#1f2f5a 55%,#c9a23a);flex:0 0 auto}
+.hdfull .cv{width:64px;height:96px}.ph .h1 .cv{width:26px;height:38px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="intro">
+<h1>Correct the person a title's cast points to</h1>
+<p>Draft mockups for <b>Editor v9, cast match</b> (issue #1244), redrawn after Shy's note: the person page is right; the wrong part is <i>which person a title's credit was matched to</i>. So the fix starts on the title (a film, show or episode), in its editor, and changes only that title's credit. Dark only; square pills; no toasts. Example: the cast row "Chris Evans" on Captain America: The First Avenger points to a radio presenter instead of the actor.</p>
+<div class="toc"><a href="#a">A. How you get there</a><a href="#b">B. People tab</a><a href="#c">C. Change person</a><a href="#d">D. Staged and Review</a><a href="#e">E. States</a><a href="#f">F. Phone</a></div>
+</div>
+
+<section id="a"><h2>A. Getting there from the title's page</h2><p class="sub">The film's own page, Cast and crew. Two ways in: the tile's "..." menu, or Edit then the People tab.</p>
+<div class="scroller"><div class="pg" id="pgA"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Cast and crew</b> on the title's page, as today: person tiles with a headshot, name and role.</span></li>
+<li><span class="n">2</span><span><b>The "..." menu</b> on a tile gains <b>Change person</b> (for people who can edit). <b>Open person</b> is the tile's normal tap.</span></li>
+<li><span class="n">3</span><span><b>Change person</b> opens the editor over the page, straight to the People tab with this credit's change step open. It is a menu action, never a deep link.</span></li>
+<li><span class="n">4</span><span><b>Remove from this title</b> is staged too and goes through Review changes.</span></li>
+</ol></section>
+
+<section id="b"><h2>B. The editor's People tab on the film</h2><p class="sub">Desktop, 1280 wide. Every credit on this title, with who each one is matched to.</p>
+<div class="scroller"><div class="win" id="winB"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>The same header and footer as every item,</b> and a new tab, <b>People</b>, after Match. (Q120: a tab or part of Match.)</span></li>
+<li><span class="n">2</span><span><b>One row per credit:</b> headshot, name as it came from the file or provider, role and character, and the person it is matched to.</span></li>
+<li><span class="n">3</span><span><b>A match to check</b> is flagged amber ("Check") when Wikidata does not list this title for that person. It is a hint, never an alarm.</span></li>
+<li><span class="n">4</span><span><b>Change person</b> on a row opens screen C for that credit only.</span></li>
+</ol></section>
+
+<section id="c"><h2>C. Change person for this credit</h2><p class="sub">Desktop. Same shape as every Match step; the bar says which title the person is judged against.</p>
+<div class="scroller"><div class="win" id="winC"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Two boxes:</b> name (filled in, not searched until Search) or a pasted Wikidata link.</span></li>
+<li><span class="n">2</span><span><b>"This title" bar:</b> the film, its year and the role, because the title is the evidence. Results that Wikidata links to this film rank first.</span></li>
+<li><span class="n">3</span><span><b>Results:</b> headshot, name, Wikidata's one-line description and years. The current match is tagged "Current".</span></li>
+<li><span class="n">4</span><span><b>The card compares this title's credit with Wikidata:</b> name, whether Wikidata lists this film, role, born.</span></li>
+<li><span class="n">5</span><span><b>"Only this title changes"</b> is stated in plain words: the person page and every other title keep their match.</span></li>
+<li><span class="n">6</span><span><b>Use this person</b> stages the change. If that Wikidata person is already in your Library, the credit simply points to them; nothing is merged.</span></li>
+</ol></section>
+
+<section id="d"><h2>D. Staged, then Review changes</h2><p class="sub">Desktop. Left: the People tab after Use this person. Right: the Review step.</p>
+<div class="pair"><div class="scroller" style="max-width:100%"><div class="win" id="winD" style="width:760px"></div></div><div id="rvD"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>The row shows the new person</b> with an amber "Not saved yet" chip and "Undo". The page behind does not change.</span></li>
+<li><span class="n">2</span><span><b>Review changes</b> names the film, the credit, old and new person, and says other titles are not changed.</span></li>
+<li><span class="n">3</span><span><b>After Save</b> the title shows the normal Updating state. A re-scan or refresh keeps this choice (a locked credit).</span></li>
+</ol></section>
+
+<section id="e"><h2>E. Other states</h2><p class="sub">Desktop, the change step.</p>
+<div class="pair" id="ee"></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Nothing found:</b> a plain sentence and a suggestion to paste a link.</span></li>
+<li><span class="n">2</span><span><b>Wikidata not answering:</b> the current person is unchanged.</span></li>
+<li><span class="n">3</span><span><b>No permission:</b> the People tab lists credits and matches, with no Change buttons and one line saying why.</span></li>
+<li><span class="n">4</span><span><b>Credit not matched at all:</b> "Not matched" chip and a Find person button that opens the same search.</span></li>
+</ol></section>
+
+<section id="f"><h2>F. On a phone</h2><p class="sub">360 wide. Full-screen sheet, one-line header.</p>
+<div class="scroller"><div class="phones" id="phones"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Rows stack:</b> headshot, name, role, matched person, Change person as a full-width button under a flagged row.</span></li>
+<li><span class="n">2</span><span><b>Search fields stack;</b> Search is full width; typed text is 16 px.</span></li>
+<li><span class="n">3</span><span><b>Tapping a result</b> opens its card as a full-height sheet; <b>Use this person</b> stays at the bottom.</span></li>
+</ol></section>
+</div>
+<script>
+const I={x:'<path d="M6 6l12 12M18 6L6 18"/>',out:'<path d="M9 7h8v8"/><path d="M17 7L7 17"/>',check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',okc:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',warn:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2v.3"/>',back:'<path d="M14 6l-6 6 6 6"/>',dots:'<circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/>'};
+const ic=(k,s)=>`<svg class="i" viewBox="0 0 24 24" ${s?`style="${s}"`:''} aria-hidden="true">${I[k]}</svg>`;
+const mk=(n,st)=>`<span class="n mk" style="${st}">${n}</span>`;
+const hs=(c,t,st)=>`<div class="hs ${c}" ${st?`style="${st}"`:''}>${t}</div>`;
+const tabsB=(on)=>`<div class="tabs">${['Details','Artwork','Match','People','History'].map(t=>`<span class="tab${t==on?' on':''}">${t}</span>`).join('')}</div>`;
+const header=`<div class="hdfull"><div class="cv"></div><div class="hdr"><div class="hdtop"><div><div class="lab">Movie</div><h3>Captain America: The First Avenger</h3><div class="facts">2011 · 2 h 4 min · 14 people credited</div></div><div class="badges"><span class="bdg">Retail <span class="yes">${ic('check','width:14px;height:14px')}</span></span><span class="bdg">Canonical <span class="yes">${ic('check','width:14px;height:14px')}</span></span><span class="close">${ic('x')} Close</span></div></div></div></div>`;
+const foot=(off)=>`<div class="ft"><span class="btn red">Delete</span><span class="grow"></span><span class="wb">File write-back off</span><span class="btn txt${off?' off':''}">Discard</span><span class="btn pri${off?' off':''}">Save changes</span></div>`;
+const credit=(c,ini,name,role,match,state,btn)=>`<div class="rw">${hs(c,ini)}<div class="tx c1"><div class="a">${name}</div><div class="m">${role}</div></div><div class="tx c2"><div class="a" style="font-weight:400">${match}</div></div><div class="c3">${state}</div><div class="c4">${btn}</div></div>`;
+const CH=`<span class="chip chk">${ic('warn','width:14px;height:14px')} Check</span>`,OK=`<span class="chip ok">${ic('check','width:14px;height:14px')} Matched</span>`;
+const chg=`<span class="btn" style="height:36px">Change person</span>`;
+const rows=[credit('b','CE','Chris Evans','Cast · Steve Rogers','English radio presenter · born 1966',CH,chg),credit('c','HA','Hayley Atwell','Cast · Peggy Carter','English actress · born 1982',OK,chg),credit('d','HW','Hugo Weaving','Cast · Johann Schmidt','Australian actor · born 1960',OK,chg),credit('a','JJ','Joe Johnston','Director','American film director · born 1950',OK,chg)];
+// A
+document.getElementById('pgA').innerHTML=`<h4>Cast and crew</h4><div class="tiles">${[['b','CE','Chris Evans','Steve Rogers'],['c','HA','Hayley Atwell','Peggy Carter'],['d','HW','Hugo Weaving','Johann Schmidt'],['a','JJ','Joe Johnston','Director']].map((p,i)=>`<div class="pt">${hs(p[0],p[1])}<span class="dots">${ic('dots')}</span><div class="nm">${p[2]}</div><div class="rl">${p[3]}</div>${i==0?`<div class="menu"><div>Open person</div><div class="on">Change person</div><div class="red">Remove from this title</div></div>`:''}</div>`).join('')}</div>`+mk(1,'left:8px;top:8px')+mk(2,'left:84px;top:66px')+mk(3,'left:300px;top:162px')+mk(4,'left:300px;top:206px');
+// B
+document.getElementById('winB').innerHTML=header+tabsB('People')+`<div class="body"><div class="sh"><h4>People on this title</h4><span>14 credits · Wikidata is the canonical link</span></div><div class="list">${rows.join('')}</div><div class="more" style="color:var(--accent-hi);height:44px;display:flex;align-items:center">Show all 14</div></div>`+foot(true)+mk(1,'left:322px;top:150px')+mk(2,'left:8px;top:274px')+mk(3,'left:994px;top:266px')+mk(4,'left:1232px;top:256px');
+// C
+const res=[['b','CE','Chris Evans','English radio presenter · born 1966','Current'],['a','CE','Chris Evans','American actor · born 1981',''],['c','CE','Chris Evans (footballer)','English footballer · born 1976',''],['d','CE','Christopher Evans','Welsh rugby union player · born 1987','']];
+const rowC=(msg)=>`<div class="row" style="grid-template-columns:minmax(12rem,1.6fr) minmax(12rem,1.6fr) auto"><span class="lb">Search Wikidata</span><span class="lb">Paste a Wikidata link or ID</span><span></span><div class="fld">Chris Evans</div><div class="fld hint">https://www.wikidata.org/wiki/Q…</div><span class="btn pri">Search</span><div class="msg">${msg||''}</div></div>`;
+const bar=`<div class="filebar"><div><div class="t1">Captain America: The First Avenger (2011)</div><div class="t2">Credit: Chris Evans, cast as Steve Rogers</div></div><span class="cap">THIS TITLE</span></div>`;
+document.getElementById('winC').innerHTML=header+tabsB('People')+`<div class="body">${rowC('')}${bar}<div class="two"><div><div class="sh"><h4>Results</h4><span>4 found · listed for this film first</span></div><div class="list">${res.map((r,i)=>`<div class="rw${i==1?' on':''}">${hs(r[0],r[1])}<div class="tx"><div class="a">${r[2]}</div><div class="m">${r[3]}</div></div>${r[4]?`<span class="tag cur">${r[4]}</span>`:''}${i==1?`<span class="tick">${ic('check')}</span>`:''}</div>`).join('')}</div></div>
+<div class="cardx"><div class="top">${hs('a','CE')}<div><h4>Chris Evans</h4><div class="m">American actor · born 1981</div><a class="lnk">Open on Wikidata ${ic('out','width:14px;height:14px')}</a></div></div>
+<table class="cmp"><tr><th></th><th>This title</th><th>Wikidata</th><th></th></tr><tr><td>Name</td><td>Chris Evans</td><td>Chris Evans</td><td class="yes">${ic('check')}</td></tr><tr><td>This film</td><td>Captain America: The First Avenger</td><td>Lists this film</td><td class="yes">${ic('check')}</td></tr><tr><td>Role</td><td>Cast, Steve Rogers</td><td>Actor</td><td class="yes">${ic('check')}</td></tr><tr><td>Born</td><td class="na">Not in your files</td><td>1981</td><td class="na">–</td></tr></table>
+<div class="verdict">${ic('okc')} Fits: Wikidata lists this film for this person.</div><div class="apply"><span class="sm">Only this title changes. The person page and other titles keep their match.</span><span class="btn pri">Use this person</span></div></div></div></div>`+foot(true)+mk(1,'left:3px;top:238px')+mk(2,'left:3px;top:322px')+mk(3,'left:3px;top:396px')+mk(4,'left:598px;top:396px')+mk(5,'left:614px;top:846px')+mk(6,'left:1076px;top:822px');
+// D
+document.getElementById('winD').innerHTML=header.replace('hdfull','hdfull')+tabsB('People')+`<div class="body"><div class="list">${credit('a','CE','Chris Evans','Cast · Steve Rogers','American actor · born 1981',`<span class="chip chk">Not saved yet</span>`,`<span class="btn txt" style="height:36px">Undo</span>`)}${rows.slice(1,3).join('')}</div></div>`+foot(false)+mk(1,'left:3px;top:204px');
+document.getElementById('winD').style.width='1000px';
+document.getElementById('rvD').innerHTML=`<div class="panel" style="width:520px;margin-left:16px"><h4>Review changes</h4><p>Captain America: The First Avenger · 1 change</p><div class="rv"><div><span>Cast, Steve Rogers</span><b>Chris Evans (radio presenter) → Chris Evans (actor)</b></div><div><span>Reach</span><b>This title only. Other titles are not changed.</b></div><div><span>Kept after a refresh</span><b>Yes, this choice is locked for this title</b></div></div><div class="acts" style="justify-content:flex-end"><span class="btn txt">Back</span><span class="btn pri">Save changes</span></div>${mk(2,'left:-10px;top:100px')}${mk(3,'left:-10px;top:196px')}</div>`;
+// E
+const dw=(inner)=>`<div class="win" style="width:420px"><div class="body">${inner}</div></div>`;
+const r1=(m)=>`<div class="row" style="grid-template-columns:1fr auto"><span class="lb">Search Wikidata</span><span></span><div class="fld">Dana Whitfield</div><span class="btn pri">Search</span><div class="msg">${m}</div></div>`;
+document.getElementById('ee').innerHTML=
+`<div style="position:relative">${dw(r1('Nothing found for "Dana Whitfield". Try the full name, or paste a Wikidata link.'))}${mk(1,'left:6px;top:6px')}</div>`+
+`<div style="position:relative">${dw(r1('Wikidata did not answer. Try again in a moment. This credit is unchanged.'))}${mk(2,'left:6px;top:6px')}</div>`+
+`<div style="position:relative">${dw(`<div class="list">${credit('c','HA','Hayley Atwell','Cast · Peggy Carter','English actress','','')}</div><div class="sm">You can see who is credited here, but you cannot change it. Ask an administrator.</div>`)}${mk(3,'left:6px;top:6px')}</div>`+
+`<div style="position:relative">${dw(`<div class="list"><div class="rw">${hs('d','DW')}<div class="tx"><div class="a">Dana Whitfield</div><div class="m">Cast · Nurse</div></div><span class="chip">Not matched</span><span class="btn" style="height:36px">Find person</span></div></div>`)}${mk(4,'left:6px;top:6px')}</div>`;
+// F
+const phHead=`<div class="h1"><div class="cv"></div><b>Captain America: The First Avenger</b><span style="color:var(--text2)">${ic('dots')}</span></div><div class="tabs">${['Details','Artwork','Match','People','History'].map(t=>`<span class="tab${t=='People'?' on':''}">${t}</span>`).join('')}</div>`;
+const phFt=`<div class="ft"><span class="wb" style="flex:1">File write-back off</span><span class="btn txt off">Discard</span><span class="btn pri off">Save changes</span></div>`;
+document.getElementById('phones').innerHTML=
+`<div class="ph">${phHead}<div class="pb"><div class="list"><div class="rw" style="flex-wrap:wrap">${hs('b','CE')}<div class="tx"><div class="a">Chris Evans</div><div class="m">Steve Rogers · matched to English radio presenter</div></div>${CH}<span class="btn full">Change person</span></div><div class="rw">${hs('c','HA')}<div class="tx"><div class="a">Hayley Atwell</div><div class="m">Peggy Carter</div></div>${OK}</div><div class="rw">${hs('d','HW')}<div class="tx"><div class="a">Hugo Weaving</div><div class="m">Johann Schmidt</div></div>${OK}</div></div></div>${phFt}${mk(1,'left:2px;top:112px')}</div>`+
+`<div class="ph">${phHead}<div class="pb"><div class="sm">Credit: Chris Evans, Steve Rogers</div><div class="fld">Chris Evans</div><div class="fld hint">https://www.wikidata.org/…</div><span class="btn pri full">Search</span><div class="list">${res.map(r=>`<div class="rw">${hs(r[0],r[1])}<div class="tx"><div class="a">${r[2]}</div><div class="m">${r[3]}</div></div>${r[4]?`<span class="tag cur">${r[4]}</span>`:''}</div>`).join('')}</div></div>${phFt}${mk(2,'left:2px;top:118px')}</div>`+
+`<div class="ph"><div class="h1"><span style="color:var(--text2)">${ic('back')}</span><b>Chris Evans · American actor</b></div><div class="sheet"><div class="top">${hs('a','CE')}<div><h4 style="margin:0 0 4px;font-size:16px">Chris Evans</h4><div class="m">American actor · born 1981</div><a class="lnk">Open on Wikidata ${ic('out','width:14px;height:14px')}</a></div></div><table class="cmp"><tr><th></th><th>This title</th><th>Wikidata</th><th></th></tr><tr><td>This film</td><td>Captain America…</td><td>Lists it</td><td class="yes">${ic('check')}</td></tr><tr><td>Role</td><td>Cast</td><td>Actor</td><td class="yes">${ic('check')}</td></tr></table><div class="verdict">${ic('okc')} Fits: Wikidata lists this film.</div><div class="sm">Only this title changes.</div><span style="flex:1"></span><span class="btn pri full">Use this person</span></div>${mk(3,'left:12px;top:668px')}</div>`;
+</script>
+</body></html>
