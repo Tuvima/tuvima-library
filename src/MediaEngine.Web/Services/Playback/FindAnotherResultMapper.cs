@@ -22,7 +22,7 @@ public static class FindAnotherResultMapper
     {
         var title = !string.IsNullOrWhiteSpace(offer.title) ? offer.title!
             : !string.IsNullOrWhiteSpace(offer.release_name) ? offer.release_name!
-            : offer.provider_name;
+            : l["PickResult_UntitledResult"].Value;
         // The source's own name for the song, then its artist, album and length in muted text (D9).
         var meta = new List<string>();
         if (!string.IsNullOrWhiteSpace(offer.artist))
@@ -94,7 +94,7 @@ public static class FindAnotherResultMapper
 
         var lines = LinesOf(offer, timed: true);
         return new AppPickResult(
-            Key(offer), string.IsNullOrWhiteSpace(offer.release_name) ? offer.provider_name : offer.release_name!,
+            Key(offer), string.IsNullOrWhiteSpace(offer.release_name) ? l["PickResult_UntitledResult"].Value : offer.release_name!,
             meta.Count == 0 ? null : string.Join(" · ", meta), null,
             offer.is_current ? l["SubtitleFind_InUse"].Value : null, offer.is_current,
             checks, lines, lines is null ? preview : AppPickPreview.None);

@@ -202,7 +202,7 @@
     color: var(--tl-text-secondary);
 }
 
-@media (max-width: 840px) {
+@media (max-width: 600px) {
     [data-pick-detail] .app-pick-result__body {
         grid-template-columns: minmax(0, 1fr);
     }
