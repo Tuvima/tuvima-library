@@ -393,9 +393,7 @@ Harbor". Previous in music follows the restart rule under Transport.
 
 ## Televisions
 
-**First definition, to be settled in its own thread.** The key map, the overlay
-rules and the side panels below are the starting definition for Roku, Android
-TV, Apple TV and the TV web app; each is fine-tuned later.
+**Layout approved by Shy, 2026-11-22** (mock-ups: `engineering/design/mockups/tv-player/tv-player-panels.html`, spec `native-apps` D3). The key map, overlay rules and side panels below are the one definition for Roku, Android TV and Fire TV, Apple TV and the TV web app (Samsung and LG). Each platform draws the controls with its own native parts; the order, names, sizes below and the focus rules are shared.
 
 Video fills the screen. The controls overlay appears on any key and hides after
 5 seconds with no input, and never while a panel is open. Focus starts on the
@@ -412,6 +410,15 @@ Close (a television is already full screen):
 A tool opens a **side panel on the right** with the same name, rows and footer as
 the Panels table. The paused details, the end card, the Everyone | Mine
 bookmarks and the Autoplay next episode switch are the same as above.
+
+**Layout on a 1920 x 1080 screen.**
+
+- Bottom left, on a local gradient: the title, then the one line (as in Paused details). Under it the timeline with the time played at the left and the time left at the right, then the transport row centered with Play the largest and focused first, then the tool row. Skip back and Skip forward carry their seconds (10 and 30 by default) inside the circle, and all five buttons share one centre line.
+- A side panel is **700 px wide** at the right edge, full height, with a fixed header (the tool's name and Close), a scrolling middle and a fixed footer. The controls overlay stays visible to its left, and the tool that opened the panel stays highlighted. A panel opens with focus on the current row (Episodes and Lessons), the selected row (Audio & subtitles), the "Bookmark at {0}" button (Bookmarks) or the first row (Playback settings); Right moves from the overlay into the panel and Left returns.
+- Rows are at least 56 px high at 1080p and text is never smaller than 24 px. The focused control has a white ring and a lighter fill, always visible; a dimmed control never moves its neighbours.
+- **Bookmarks on a television** has no note field and no search box, because a remote cannot type. Mine | Global, "Bookmark at {0}", jumping to a row, Edit (rename with the platform's on-screen keyboard where it has one) and Delete stay. Naming a bookmark is done on a phone or the Dashboard.
+- **Playback speed** on a television opens the presets; Left and Right take the fine steps instead of the Dashboard's slider. Picture in picture is absent.
+- **End card** sits above the controls at the right with Play now focused; Back cancels.
 
 <!-- contract-table: tv-keys -->
 | Key | Action |
