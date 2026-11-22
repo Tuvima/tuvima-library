@@ -250,6 +250,52 @@ public actor TuvimaAPIClient {
         )
     }
 
+    // MARK: Find another: lyrics and subtitle results (Find another on TV, WP7)
+
+    /// Whether a lyrics or subtitle source is switched on for this item, from settings alone. Ask before showing the
+    /// "Find subtitles…" row; nothing is searched.
+    public func textTrackSources(assetID: UUID, kind: TextTrackKind) async throws -> TextTrackSourcesResponse {
+        try await get(ClientRoutes.textTrackSources(assetID: assetID, kind: kind), keys: .convertFromSnakeCase)
+    }
+
+    /// The results the switched-on sources offer for this item, asked live. For subtitles pass the language to search.
+    public func textTrackAlternatives(
+        assetID: UUID,
+        kind: TextTrackKind,
+        language: String? = nil
+    ) async throws -> TextTrackAlternativesResponse {
+        try await get(
+            ClientRoutes.textTrackAlternatives(assetID: assetID, kind: kind, language: language),
+            keys: .convertFromSnakeCase
+        )
+    }
+
+    /// Reads one result on request (a subtitle row other than the best match). Nothing is saved.
+    public func previewTextTrackAlternative(
+        assetID: UUID,
+        kind: TextTrackKind,
+        provider: String,
+        sourceID: String,
+        language: String? = nil
+    ) async throws -> TextTrackAlternativePreviewResponse {
+        try await get(
+            ClientRoutes.textTrackPreview(assetID: assetID, kind: kind, provider: provider, sourceID: sourceID, language: language),
+            keys: .convertFromSnakeCase
+        )
+    }
+
+    /// Uses one result. The choice is Library-wide; the Engine answers `Updated` on success and refuses with a message.
+    public func chooseTextTrackAlternative(
+        assetID: UUID,
+        _ request: ChooseTextTrackAlternativeRequest
+    ) async throws -> TextTrackChoiceResponse {
+        try await post(
+            ClientRoutes.textTrackChoose(assetID: assetID),
+            json: request.jsonObject,
+            keys: .convertFromSnakeCase
+        )
+    }
+
     // MARK: Offline downloads: the device download list, next episodes and offline progress replay
 
     /// What the Engine believes this device stores. A variant missing from it has expired on the Engine.
@@ -518,12 +564,17 @@ public actor TuvimaAPIClient {
         return error
     }
 
-    private func post<T: Decodable>(_ path: String, json: [String: Any], authenticated: Bool = true) async throws -> T {
+    private func post<T: Decodable>(
+        _ path: String,
+        json: [String: Any],
+        authenticated: Bool = true,
+        keys: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys
+    ) async throws -> T {
         var request = URLRequest(url: try resolve(path))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: json)
-        return try await send(request, authenticated: authenticated)
+        return try await send(request, authenticated: authenticated, keys: keys)
     }
 
     private func send<T: Decodable>(
