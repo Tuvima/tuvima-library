@@ -28,6 +28,7 @@ On a television, when the subtitles that came with a film or episode are wrong o
 - **D7.** (Shy, Q149.3A) The Language button stays, for cases such as anime.
 - **D8.** (Shy, Q149.4A) Small Audio & subtitles panel in each client. **D9.** (Shy, Q149.5) All clients are built, including iPhone. **D10.** (Shy, Q149.6A) Previews read after one second at rest.
 - **D11.** (Shy, Q149.7) The code supports the groundwork for a tvOS app and the iPhone app; their screens begin separately. Here that means the Engine connection points (WP1), the shared Apple-side models, client calls and the one-second reading rule in `clients/apple/Shared` with unit tests, and the contract wording.
+- **D12.** (Shy, 2026-11-22, Gaps and drift: change spec) The pane shows the 3 subtitle lines the Engine already sends (6 for lyrics); there is no 20-line view and no Engine change for it.
 
 ## 4. UI behaviour
 **Opening.** Pause or play, press any key to show the overlay, move to the tool row, open Audio & subtitles (a side panel on the right), move to the footer and press **Find subtitles…**. The window fills the screen; the video stays paused behind it, dimmed. Back closes the window and returns to the panel.
@@ -40,7 +41,7 @@ On a television, when the subtitles that came with a film or episode are wrong o
 | Up and Down | Move through the list (the pane follows the focused row) |
 | Right | From the list, move to the pane (scrolls it); from the pane to Use this |
 | Left | Back toward the list |
-| Select on a row | Open that result's words in full in the pane (about 20 lines) and move focus to **Use this** |
+| Select on a row | Open that result's words in the pane (the first 3 lines the Engine sends; D12) and move focus to **Use this** |
 | Select on Use this | Apply the result, close the window and the panel, and return to the playing video at the same position with the new subtitles on |
 | Select on Language | A short list of the profile's languages; choosing one searches again |
 | Back | Close the language list, then the full words, then the window |
@@ -136,3 +137,6 @@ On a television, when the subtitles that came with a film or episode are wrong o
 
 ## Plain English summary
 On a television, "Find another" will show a list of other subtitle choices on the left and the actual first lines of the one you are on, on the right, so you can tell which one fits without typing anything. You move with the arrow keys, press Select to see more, and press Use this to apply it. The Dashboard side is already done; this adds the connection the TV apps use, a small Audio & subtitles panel (the TV apps do not have one yet) and the window itself on Samsung, LG, Android TV and Roku. Lyrics get a new TV lyrics screen and the same window, and the Android phone app gets it as a sheet. The Apple apps get only the shared groundwork now; their screens start separately. Anyone who can play the item can use it.
+
+## Gaps and drift
+- **Preview length (decided: change spec).** The spec first said Select shows about 20 lines; the Engine sends 3 for subtitles. Shy decided to keep 3 and skip the follow-up (D12).
