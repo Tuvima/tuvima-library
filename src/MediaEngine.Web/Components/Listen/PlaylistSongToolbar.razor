@@ -1,0 +1,67 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
+
+@* The bar over a playlist's songs (spec group-pages-and-tiles D7, mockup D): search this playlist, Sort, and the List / Cards switch. It only
+   asks; the page filters, sorts and swaps the view. *@
+<div class="playlist-song-toolbar" data-playlist-song-toolbar>
+    <div class="playlist-song-toolbar__search">
+        <AppTextField InputType="AppInputType.Search"
+                      Value="@SearchText"
+                      ValueChanged="OnSearchInput"
+                      Placeholder="@L["PlaylistPage_SearchSongs"].Value"
+                      Label="@L["PlaylistPage_SearchSongs"].Value"
+                      HideLabel="true"
+                      Adornment="AppAdornment.Start"
+                      AdornmentIcon="@AppMaterialIcons.Outlined.Search"
+                      data-playlist-search="true" />
+    </div>
+    @if (SortContent is not null)
+    {
+        <div class="playlist-song-toolbar__sort">
+            <AppOverflowMenu Label="@SortLabel" ShowIcon="false" EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
+                             AriaLabel="@L["Common_Sort"].Value" Size="AppControlSize.Normal"
+                             Class="listen-playlist-sort" TriggerClass="listen-playlist-sort__button"
+                             AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
+                @SortContent
+            </AppOverflowMenu>
+        </div>
+    }
+    <div class="playlist-song-toolbar__views" role="group" aria-label="@L["PlaylistPage_SongView"].Value">
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.ViewList"
+                       ButtonStyle="@ViewStyle(PlaylistSongView.List)"
+                       Tooltip="@L["Common_List"].Value"
+                       aria-pressed="@(View == PlaylistSongView.List ? "true" : "false")"
+                       data-playlist-view="list"
+                       OnClick="@(() => ChooseAsync(PlaylistSongView.List))" />
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.GridView"
+                       ButtonStyle="@ViewStyle(PlaylistSongView.Cards)"
+                       Tooltip="@L["Common_Cards"].Value"
+                       aria-pressed="@(View == PlaylistSongView.Cards ? "true" : "false")"
+                       data-playlist-view="cards"
+                       OnClick="@(() => ChooseAsync(PlaylistSongView.Cards))" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public string SearchText { get; set; } = string.Empty;
+
+    [Parameter] public EventCallback<string> OnSearchChanged { get; set; }
+
+    /// <summary>The Sort button's words ("Sort: Playlist order"). Null content hides the button.</summary>
+    [Parameter] public string SortLabel { get; set; } = string.Empty;
+
+    /// <summary>The Sort menu's items (<c>AppMenuItem</c>s), given by the page; null leaves the Sort button out.</summary>
+    [Parameter] public RenderFragment? SortContent { get; set; }
+
+    [Parameter] public PlaylistSongView View { get; set; } = PlaylistSongView.List;
+
+    [Parameter] public EventCallback<PlaylistSongView> OnViewChanged { get; set; }
+
+    private Task OnSearchInput(string? text) => OnSearchChanged.InvokeAsync(text ?? string.Empty);
+
+    private Task ChooseAsync(PlaylistSongView view) => View == view ? Task.CompletedTask : OnViewChanged.InvokeAsync(view);
+
+    private AppButtonStyle ViewStyle(PlaylistSongView view) => View == view ? AppButtonStyle.Filled : AppButtonStyle.Outlined;
+}

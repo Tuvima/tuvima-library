@@ -1589,7 +1589,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{createdId:D}\")", legacySource, StringComparison.Ordinal);
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{playlistId:D}\")", browseSource, StringComparison.Ordinal);
-        Assert.True(legacyMarkup.Split("<AppOverflowMenu", StringSplitOptions.None).Length - 1 >= 2);
+        // The playlist page's Sort menu now sits in its own toolbar component (group pages WP1b), so the menus are counted across both.
+        var toolbarMarkup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Listen", "PlaylistSongToolbar.razor"));
+        Assert.True((legacyMarkup + toolbarMarkup).Split("<AppOverflowMenu", StringSplitOptions.None).Length - 1 >= 2);
         Assert.DoesNotContain("_playlistActionsMenuOpen", legacySource, StringComparison.Ordinal);
         Assert.DoesNotContain("_playlistActionsCollectionId", legacySource, StringComparison.Ordinal);
         Assert.Contains("@onclick:stopPropagation=\"true\"", menuSource, StringComparison.Ordinal);

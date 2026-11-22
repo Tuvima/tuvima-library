@@ -151,15 +151,16 @@ public sealed class SongTableTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Playlist_ShowsArtistAlbumFavoriteTimeInSavedOrderWithNoSortArrows()
+    public async Task Playlist_ShowsAlbumDateAddedTimeInSavedOrderWithTheArtistUnderTheTitleAndNoSortArrows()
     {
         await UseDeviceAsync("desktop");
         var rows = new List<SongRow> { Row("Zulu", playlist: true), Row("Alpha", playlist: true), Row("Mike", playlist: true) };
 
         var cut = RenderTable(SongTablePlace.Playlist, rows);
 
-        Assert.Equal(["#", "Song", "Artist", "Album", "Favorite", "Time", "Actions"], Headers(cut));
+        Assert.Equal(["#", "Song", "Album", "Date added", "Time", "Actions"], Headers(cut));
         Assert.Equal(["Zulu", "Alpha", "Mike"], Titles(cut));
+        Assert.Equal(rows.Count, cut.FindAll(".song-table__cell--song .song-table__sub").Count);
         Assert.Empty(cut.FindAll(".song-table__head-cell[aria-sort]"));
         Assert.Empty(cut.FindAll(".song-table__head-cell:not(.song-table__head-cell--actions) button"));
     }

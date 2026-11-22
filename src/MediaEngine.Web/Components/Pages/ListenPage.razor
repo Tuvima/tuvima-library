@@ -457,87 +457,43 @@ else
             }
             else if (IsPlaylistSurface)
             {
-                <section class="listen-detail listen-detail--collection">
-                    <div class="listen-detail__collage">
-                        @if (!string.IsNullOrWhiteSpace(ActivePlaylistCollection?.CoverArtworkUrl))
-                        {
-                            <img class="listen-detail__custom-art" src="@MediaTileArtworkUrl.ForDrawnSize(ActivePlaylistCollection.CoverArtworkUrl, 320)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ActivePlaylistCollection.CoverArtworkUrl, 320)" alt="" decoding="async" />
-                        }
-                        else if (PlaylistCoverUrls.Count == 0)
-                        {
-                            <AppMaterialIcon Icon="@(IsFavoritesPlaylist ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.QueueMusic)" Class="tl-u-font-size-64px" />
-                        }
-                        else
-                        {
-                            @foreach (var cover in PlaylistCoverUrls)
-                            {
-                                <div class="listen-detail__collage-tile">
-                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover, 160)" alt="" loading="lazy" decoding="async" />
-                                </div>
-                            }
-                        }
-                    </div>
-                    <div class="listen-detail__copy">
-                        @if (ActivePlaylistKindLine is { } kindLine)
-                        {
-                            <p class="listen-detail__kind" data-playlist-kind>@kindLine</p>
-                        }
-                        <h2>@ActivePlaylistTitle</h2>
-                        @if (ActivePlaylistMetaLine is { } metaLine)
-                        {
-                            <p class="listen-detail__meta" data-playlist-meta>@metaLine</p>
-                        }
-                        @if (IsCollectionPlaylistPage && !string.IsNullOrWhiteSpace(ActivePlaylistCollection?.Description))
-                        {
-                            <p class="listen-detail__description" data-playlist-description>@ActivePlaylistCollection!.Description</p>
-                        }
-                        @if (ActivePlaylistUnavailableCount > 0)
-                        {
-                            <p class="listen-detail__unavailable" data-playlist-unavailable>@ActivePlaylistUnavailableText</p>
-                        }
-                        <div class="listen-actions">
-                            <AppButton ButtonStyle="AppButtonStyle.Filled" StartIcon="@AppMaterialIcons.Filled.PlayArrow" Label="@L["Common_Play"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
-                            <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Filled.Shuffle" Label="@L["Common_Shuffle"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle, true))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
-                            @if (CanSortActivePlaylist)
-                            {
-                                @* Sort previews an order on the page; "Keep this order" in the bar below saves it as the playlist's own order. *@
-                                <AppOverflowMenu Label="@L["Common_Sort"].Value" ShowIcon="false" EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
-                                                 AriaLabel="@L["Common_Sort"].Value" Size="AppControlSize.Normal"
-                                                 Class="listen-playlist-sort" TriggerClass="listen-playlist-sort__button"
-                                                 AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
-                                    @foreach (var sortKey in PlaylistSortRules.All)
-                                    {
-                                        var chosenKey = sortKey;
-                                        <AppMenuItem Label="@PlaylistSortLabel(chosenKey)" Checked="@IsPlaylistSortApplied(chosenKey)" OnClick="@(() => ChoosePlaylistSortAsync(chosenKey))" />
-                                    }
-                                </AppOverflowMenu>
-                            }
-                            @if (CanReorderActivePlaylist && !IsFavoritesPlaylist && !TrackReorderActive && ActivePlaylistTracks.Count > 1)
-                            {
-                                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.SwapVert" Label="@L["AppReorderBar_MenuReorder"].Value" OnClick="BeginTrackReorder" />
-                            }
-                            @if (CanSaveActivePlaylist)
-                            {
-                                <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                                           StartIcon="@(_activePlaylistSaved ? AppMaterialIcons.Filled.Check : AppMaterialIcons.Filled.Add)"
-                                           Label="@ActivePlaylistSavedLabel"
-                                           aria-pressed="@(_activePlaylistSaved ? "true" : "false")"
-                                           OnClick="ToggleActivePlaylistSavedAsync" />
-                            }
-                            @if (ShowActivePlaylistMenu && ActivePlaylistCollection is { } menuPlaylist)
-                            {
-                                <PlaylistActionsMenu Playlist="@menuPlaylist"
-                                                     OnEditRules="EditPlaylistRulesAsync"
-                                                     OnRename="RenameActivePlaylistAsync"
-                                                     OnEditDetails="EditActivePlaylistDetailsAsync"
-                                                     OnDuplicate="DuplicatePlaylistAsync"
-                                                     OnTogglePin="TogglePlaylistPinAsync"
-                                                     OnDelete="BeginPlaylistDeleteAsync"
-                                                     Class="listen-playlist-menu" />
-                            }
-                        </div>
-                    </div>
-                </section>
+                @* A playlist's own page (spec group-pages-and-tiles D7, WP1b, mockup D): the standard hero with the playlist's square album tile on the
+                   right, Play, Shuffle, Add songs and "..."; then a search and sort bar with the List / Cards switch, the songs, an Add songs row and the
+                   total line. A hand-made playlist's rows carry a grip; Smart and built-in lists have no grip and no Add songs. *@
+                <PlaylistHero Title="@ActivePlaylistTitle"
+                              Pills="@ActivePlaylistPills"
+                              Description="@(IsCollectionPlaylistPage ? ActivePlaylistCollection?.Description : null)"
+                              UnavailableText="@(ActivePlaylistUnavailableCount > 0 ? ActivePlaylistUnavailableText : null)"
+                              Covers="@ActivePlaylistHeroCovers"
+                              FallbackIcon="@(IsFavoritesPlaylist ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.QueueMusic)"
+                              PlaylistsRoute="@PlaylistsRoute"
+                              OnNavigate="@((string route) => NavigateTo(route))">
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" StartIcon="@AppMaterialIcons.Filled.PlayArrow" Label="@L["Common_Play"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Filled.Shuffle" Label="@L["Common_Shuffle"].Value" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle, true))" Disabled="@(ActivePlaylistTracks.Count == 0)" />
+                    @if (CanAddSongsToActivePlaylist)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Filled.Add" Label="@L["PlaylistAddSongs_Title"].Value" OnClick="AddSongsToActivePlaylistAsync" data-playlist-add-songs="hero" />
+                    }
+                    @if (CanSaveActivePlaylist)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                   StartIcon="@(_activePlaylistSaved ? AppMaterialIcons.Filled.Check : AppMaterialIcons.Filled.Add)"
+                                   Label="@ActivePlaylistSavedLabel"
+                                   aria-pressed="@(_activePlaylistSaved ? "true" : "false")"
+                                   OnClick="ToggleActivePlaylistSavedAsync" />
+                    }
+                    @if (ShowActivePlaylistMenu && ActivePlaylistCollection is { } menuPlaylist)
+                    {
+                        <PlaylistActionsMenu Playlist="@menuPlaylist"
+                                             OnEditRules="EditPlaylistRulesAsync"
+                                             OnRename="RenameActivePlaylistAsync"
+                                             OnEditDetails="EditActivePlaylistDetailsAsync"
+                                             OnDuplicate="DuplicatePlaylistAsync"
+                                             OnTogglePin="TogglePlaylistPinAsync"
+                                             OnDelete="BeginPlaylistDeleteAsync"
+                                             Class="listen-playlist-menu" />
+                    }
+                </PlaylistHero>
 
                 <section class="listen-section">
                     @if (ActivePlaylistTracks.Count == 0)
@@ -551,30 +507,80 @@ else
                     }
                     else
                     {
-                        @* The playlist's songs are the one SongTable in its Playlist mode (spec music-table-and-reader-frame WP5): the shared Columns menu,
-                           drag handle with a purple drop line, Alt+Up and Alt+Down, Remove in "..." and Move up and Move down on a phone. The page keeps the
-                           saved order and every action; reordering is offered only on a playlist this profile owns (a hand-made playlist through its Reorder mode,
-                           Favorites at once, each move saved on the profile). *@
-                        <SongTable Place="SongTablePlace.Playlist"
-                                   Rows="@PlaylistSongRows"
-                                   AriaLabel="@L["PlaylistPage_SongsTableLabel", ActivePlaylistTitle].Value"
-                                   ProfileId="@_activeProfileId"
-                                   CurrentRowId="@PlaylistCurrentRowId"
-                                   IsPlaying="@Playback.IsPlaying"
-                                   FavoriteIds="@PlaylistFavoriteIds"
-                                   CanEdit="@CanEditSongs"
-                                   CanReorder="@(CanReorderActivePlaylist && (IsFavoritesPlaylist || TrackReorderActive))"
-                                   SortableOwnOrder="@IsFavoritesPlaylist"
-                                   RemoveLabel="@(IsFavoritesPlaylist ? L["ListenPage_RemoveFromFavorites"].Value : null)"
-                                   OnPlay="@PlayPlaylistRowAsync"
-                                   OnPlayNext="@PlayNextPlaylistRowAsync"
-                                   OnQueue="@QueuePlaylistRowAsync"
-                                   OnOpenAlbum="@OpenPlaylistRowAlbumAsync"
-                                   OnToggleFavorite="@ToggleFavoritePlaylistRowAsync"
-                                   OnEdit="@EditPlaylistRowAsync"
-                                   OnRemoveFromPlaylist="@RemovePlaylistRowAsync"
-                                   OnReorder="@ReorderPlaylistRowAsync" />
+                        var allSongRows = PlaylistSongRows;
+                        var shownSongRows = PlaylistRowsMatchingSearch(allSongRows);
+                        <PlaylistSongToolbar SearchText="@_playlistSearch"
+                                             OnSearchChanged="@((string text) => _playlistSearch = text)"
+                                             SortLabel="@PlaylistSortButtonLabel"
+                                             View="@_playlistSongView"
+                                             OnViewChanged="@((PlaylistSongView view) => _playlistSongView = view)">
+                            <SortContent>
+                                @if (CanSortActivePlaylist)
+                                {
+                                    <AppMenuItem Label="@L["PlaylistPage_SortOrder"].Value" Checked="@(CurrentPlaylistSort is null)" OnClick="ChoosePlaylistOwnOrderAsync" />
+                                    @foreach (var sortKey in PlaylistSortRules.All)
+                                    {
+                                        var chosenKey = sortKey;
+                                        <AppMenuItem Label="@PlaylistSortLabel(chosenKey)" Checked="@IsPlaylistSortApplied(chosenKey)" OnClick="@(() => ChoosePlaylistSortAsync(chosenKey))" />
+                                    }
+                                }
+                            </SortContent>
+                        </PlaylistSongToolbar>
+
+                        @if (shownSongRows.Count == 0)
+                        {
+                            <div class="listen-empty listen-empty--compact" data-playlist-no-matches>
+                                <p>@L["PlaylistPage_NoMatches"]</p>
+                            </div>
+                        }
+                        else if (_playlistSongView == PlaylistSongView.Cards)
+                        {
+                            var cardRows = PlaylistCardRows(shownSongRows);
+                            <PlaylistSongCards Rows="@cardRows"
+                                               AriaLabel="@L["PlaylistPage_SongsTableLabel", ActivePlaylistTitle].Value"
+                                               CurrentRowId="@PlaylistCurrentRowId"
+                                               IsPlaying="@Playback.IsPlaying"
+                                               RemoveLabel="@(IsFavoritesPlaylist ? L["ListenPage_RemoveFromFavorites"].Value : null)"
+                                               OnPlay="@((SongRow row) => PlayPlaylistCardAsync(row, cardRows))"
+                                               OnPlayNext="@PlayNextPlaylistRowAsync"
+                                               OnQueue="@QueuePlaylistRowAsync"
+                                               OnRemove="@(IsFavoritesPlaylist || IsCollectionPlaylistPage ? EventCallback.Factory.Create<SongRow>(this, RemovePlaylistRowAsync) : default)" />
+                        }
+                        else
+                        {
+                            @* The playlist's songs are the one SongTable in its Playlist mode (spec music-table-and-reader-frame WP5): the shared Columns menu,
+                               a visible grip on every row of a hand-made playlist with a purple drop line, Alt+Up and Alt+Down, Remove in "..." and Move up and
+                               Move down on a phone. A drag, a move or the keyboard saves the new order at once; the grip is off while a search narrows the list. *@
+                            <SongTable Place="SongTablePlace.Playlist"
+                                       Rows="@shownSongRows"
+                                       AriaLabel="@L["PlaylistPage_SongsTableLabel", ActivePlaylistTitle].Value"
+                                       ProfileId="@_activeProfileId"
+                                       CurrentRowId="@PlaylistCurrentRowId"
+                                       IsPlaying="@Playback.IsPlaying"
+                                       FavoriteIds="@PlaylistFavoriteIds"
+                                       CanEdit="@CanEditSongs"
+                                       CanReorder="@PlaylistGripShown"
+                                       SortableOwnOrder="@(!IsOwnedHandMadePlaylist)"
+                                       Sort="@PlaylistTableSort"
+                                       OnSortChanged="@SetPlaylistViewSort"
+                                       RemoveLabel="@(IsFavoritesPlaylist ? L["ListenPage_RemoveFromFavorites"].Value : null)"
+                                       OnPlay="@PlayPlaylistRowAsync"
+                                       OnPlayNext="@PlayNextPlaylistRowAsync"
+                                       OnQueue="@QueuePlaylistRowAsync"
+                                       OnOpenAlbum="@OpenPlaylistRowAlbumAsync"
+                                       OnToggleFavorite="@ToggleFavoritePlaylistRowAsync"
+                                       OnEdit="@EditPlaylistRowAsync"
+                                       OnRemoveFromPlaylist="@RemovePlaylistRowAsync"
+                                       OnReorder="@ReorderPlaylistRowAsync" />
+                        }
                         <AppReorderBar Active="@TrackReorderActive" Dirty="@TrackReorderDirty" Busy="@_trackOrderSaving" Message="@PlaylistSortMessage" SaveLabel="@PlaylistSortSaveLabel" OnSave="SaveTrackReorderAsync" OnCancel="CancelTrackReorder" />
+                        @if (CanAddSongsToActivePlaylist)
+                        {
+                            <div class="playlist-add-row">
+                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" FullWidth="true" StartIcon="@AppMaterialIcons.Filled.Add" Label="@L["PlaylistPage_AddSongsRow"].Value" OnClick="AddSongsToActivePlaylistAsync" data-playlist-add-songs="row" />
+                            </div>
+                        }
+                        <p class="playlist-total" data-playlist-total>@PlaylistTotalLine(allSongRows)</p>
                     }
                 </section>
             }

@@ -235,6 +235,11 @@ else
                 break;
             case SongColumn.Number:
                 <span class="song-table__cell song-table__cell--number" role="cell">
+                    @if (CanDrag)
+                    {
+                        @* The grip is always on show on a hand-made playlist's rows; the row drags by it with the mouse (mockup D). *@
+                        <span class="song-table__grip" data-song-grip-visible="true" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppIconSize.Control20" /></span>
+                    }
                     @if (IsCurrent(row))
                     {
                         <span class="song-table__mark"><PlaybackActivityMark IsPlaying="@IsPlaying" Size="compact" AriaLabel="@L["Common_NowPlaying"].Value" /></span>
@@ -242,10 +247,6 @@ else
                     else
                     {
                         <span class="song-table__position">@PositionText(row)</span>
-                    }
-                    @if (CanDrag)
-                    {
-                        <span class="song-table__grip" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppIconSize.Control20" /></span>
                     }
                 </span>
                 break;
@@ -277,7 +278,27 @@ else
                     {
                         <span class="song-table__mark"><PlaybackActivityMark IsPlaying="@IsPlaying" Size="compact" AriaLabel="@L["Common_NowPlaying"].Value" /></span>
                     }
-                    <span class="@(IsCurrent(row) ? "song-table__title is-current" : "song-table__title")">@row.Title</span>
+                    @if (ArtistUnderTitle)
+                    {
+                        @* A playlist names the artist under the title (mockup D); the link goes to the artist as the Artist column's does. *@
+                        <span class="song-table__stack">
+                            <span class="@(IsCurrent(row) ? "song-table__title is-current" : "song-table__title")">@row.Title</span>
+                            <span class="song-table__sub">
+                                @if (row.ArtistPersonId is { } stackedArtistId && stackedArtistId != Guid.Empty)
+                                {
+                                    <a href="@ArtistHref(stackedArtistId)" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@Dash(row.Artist)</a>
+                                }
+                                else
+                                {
+                                    @Dash(row.Artist)
+                                }
+                            </span>
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="@(IsCurrent(row) ? "song-table__title is-current" : "song-table__title")">@row.Title</span>
+                    }
                     @if (row.IsExplicit)
                     {
                         <span class="song-table__chip">@L["EditorDetailsPanel_Explicit"]</span>

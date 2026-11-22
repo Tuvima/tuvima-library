@@ -15122,6 +15122,60 @@
   <data name="PlaylistPage_SongsTableLabel" xml:space="preserve">
     <value>{0} songs</value>
   </data>
+  <data name="PlaylistPage_Path" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="PlaylistPage_SearchSongs" xml:space="preserve">
+    <value>Search this playlist</value>
+  </data>
+  <data name="PlaylistPage_SongView" xml:space="preserve">
+    <value>Show songs as</value>
+  </data>
+  <data name="PlaylistPage_SortLabel" xml:space="preserve">
+    <value>Sort: {0}</value>
+  </data>
+  <data name="PlaylistPage_SortOrder" xml:space="preserve">
+    <value>Playlist order</value>
+  </data>
+  <data name="PlaylistPage_TotalLine" xml:space="preserve">
+    <value>{0}, {1}</value>
+  </data>
+  <data name="PlaylistPage_AddSongsRow" xml:space="preserve">
+    <value>Add songs to this playlist</value>
+  </data>
+  <data name="PlaylistPage_NoMatches" xml:space="preserve">
+    <value>No songs match your search.</value>
+  </data>
+  <data name="PlaylistAddSongs_Title" xml:space="preserve">
+    <value>Add songs</value>
+  </data>
+  <data name="PlaylistAddSongs_Search" xml:space="preserve">
+    <value>Search your songs and albums</value>
+  </data>
+  <data name="PlaylistAddSongs_Hint" xml:space="preserve">
+    <value>Type a song, an artist or an album. Tap + to add it to the end of the playlist.</value>
+  </data>
+  <data name="PlaylistAddSongs_Results" xml:space="preserve">
+    <value>Songs and albums found</value>
+  </data>
+  <data name="PlaylistAddSongs_AddTitle" xml:space="preserve">
+    <value>Add {0} to the end of the playlist</value>
+  </data>
+  <data name="PlaylistAddSongs_Added" xml:space="preserve">
+    <value>Added</value>
+  </data>
+  <data name="PlaylistAddSongs_AlreadyIn" xml:space="preserve">
+    <value>Already in</value>
+  </data>
+  <data name="PlaylistAddSongs_AlbumSongs" xml:space="preserve">
+    <value>Album, {0} songs</value>
+  </data>
+  <data name="PlaylistAddSongs_None" xml:space="preserve">
+    <value>No songs or albums match.</value>
+  </data>
+  <data name="PlaylistAddSongs_Failed" xml:space="preserve">
+    <value>Could not add that. The playlist was not changed.</value>
+  </data>
   <data name="ListenPage_DragToReorderPlaylist" xml:space="preserve">
     <value>Drag to reorder {0}</value>
   </data>

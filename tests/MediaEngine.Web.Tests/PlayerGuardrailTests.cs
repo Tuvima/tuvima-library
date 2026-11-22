@@ -218,6 +218,10 @@ public sealed class PlayerGuardrailTests
         ["PlaylistTilesView"] = "the Playlists page of tiles (spec listen-playlists WP3), library browsing, not part of the player",
         ["PlaylistNameBox"] = "the sidebar's New playlist name box, not part of the player",
         ["NewPlaylistDialog"] = "the New playlist window (Hand-picked or Smart), not part of the player",
+        ["PlaylistHero"] = "a playlist page's header with its album tile (spec group-pages-and-tiles WP1b), library browsing, not part of the player",
+        ["PlaylistSongToolbar"] = "the search, Sort and List / Cards bar over a playlist's songs (spec group-pages-and-tiles WP1b), library browsing, not part of the player",
+        ["PlaylistSongCards"] = "a playlist's songs as album tiles, the Cards side of the List / Cards switch (spec group-pages-and-tiles WP1b), library browsing, not part of the player",
+        ["PlaylistAddSongsDialog"] = "the Add songs search window of a playlist (spec group-pages-and-tiles WP1b), library browsing, not part of the player",
     };
 
     private static List<string> PlayerFiles(params string[] extensions)

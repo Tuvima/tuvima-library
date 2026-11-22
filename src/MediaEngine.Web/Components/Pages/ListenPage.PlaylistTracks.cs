@@ -53,13 +53,19 @@ public partial class ListenPage
         }
     }
 
-    // Reordering is offered only on a playlist this profile owns, and on its own Favorites; the other built-in lists have no items to move.
-    // Moving your own Favorites is not library editing, so it follows the same rule as your own hand-made playlist. The Engine still
-    // decides who may change a saved order, and a refusal shows the same notice as before.
+    // Reordering is offered only on a hand-made playlist this profile owns (a Smart list fills itself, so it has no grip), and on its own
+    // Favorites; the other built-in lists have no items to move. Moving your own Favorites is not library editing, so it follows the same
+    // rule as your own hand-made playlist. The Engine still decides who may change a saved order, and a refusal shows the same notice as before.
     private bool CanReorderActivePlaylist
         => IsFavoritesPlaylist
             ? _activeProfileId.HasValue
-            : ActivePlaylistCollection is not null && string.IsNullOrWhiteSpace(PlaylistKey) && !CanSaveActivePlaylist;
+            : ActivePlaylistCollection is { } playlist
+              && string.IsNullOrWhiteSpace(PlaylistKey)
+              && !CanSaveActivePlaylist
+              && CanAcceptPlaylistItems(playlist);
+
+    // While a search narrows the list the rows on screen are not the whole list, so a place on screen is not a place in the playlist: no grip.
+    private bool PlaylistGripShown => CanReorderActivePlaylist && string.IsNullOrWhiteSpace(_playlistSearch);
 
     // Reorder mode (spec Collections and View fixes, #877): drag, Alt+Up/Down and Move up/down change only the page's copy of the order until
     // Save order; Cancel and Esc put the saved order back. _trackOrderBefore holds each item with the position it was saved at.

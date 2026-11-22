@@ -407,7 +407,7 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
         Services.GetRequiredService<NavigationManager>().NavigateTo($"/listen/music/playlists/{RoadTrip:D}");
         Render<AppPopoverHost>();
         var page = Render<ListenPage>(parameters => parameters.Add(component => component.CollectionId, RoadTrip));
-        page.WaitForElement(".listen-detail__copy");
+        page.WaitForElement(".playlist-hero__copy");
 
         Assert.Empty(page.FindAll(".listen-rail-shell"));
         Assert.Contains("listen-page--no-rail", page.Find(".listen-page").ClassName, StringComparison.Ordinal);

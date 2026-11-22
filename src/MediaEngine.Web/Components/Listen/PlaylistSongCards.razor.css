@@ -1,0 +1,103 @@
+/* A playlist's songs as square album tiles: as many across as fit (two across on a phone), the name and artist under each cover. */
+.playlist-song-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px 14px;
+    padding: 8px 0;
+}
+
+.playlist-song-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.playlist-song-card__art {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    border: 0;
+    border-radius: var(--tl-radius-md);
+    overflow: hidden;
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-disabled);
+    cursor: pointer;
+}
+
+.playlist-song-card__art[aria-disabled="true"] {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.playlist-song-card__art img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.playlist-song-card__art:hover:not([aria-disabled="true"]),
+.playlist-song-card__art:focus-visible,
+.playlist-song-card.is-playing .playlist-song-card__art {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 0;
+}
+
+.playlist-song-card__mark {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    padding: 4px 6px;
+    border-radius: var(--tl-radius-xs, 4px);
+    background: var(--tl-scrim-dark-6);
+}
+
+.playlist-song-card__menu {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    border-radius: var(--tl-radius-pill);
+    background: var(--tl-scrim-dark-5);
+    color: var(--tl-text-primary);
+}
+
+.playlist-song-card__title,
+.playlist-song-card__artist {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-song-card__title {
+    margin-top: 6px;
+    color: var(--tl-text-primary);
+    font-weight: 500;
+}
+
+.playlist-song-card__title.is-current {
+    color: var(--tl-accent-primary-hover);
+}
+
+.playlist-song-card__artist {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-secondary-size);
+}
+
+.playlist-song-cards__more {
+    display: flex;
+    justify-content: center;
+    padding: 12px 0;
+}
+
+@media (max-width: 600px) {
+    .playlist-song-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

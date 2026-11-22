@@ -1,0 +1,27 @@
+/* The bar over a playlist's songs: search, Sort and the List / Cards switch in one row (mockup D). The controls are the shared ones (text field,
+   menu button, icon buttons), so this file only places them. */
+.playlist-song-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0 8px;
+}
+
+.playlist-song-toolbar__search {
+    flex: 1 1 220px;
+    min-width: 140px;
+    max-width: 320px;
+}
+
+.playlist-song-toolbar__views {
+    display: inline-flex;
+    gap: 6px;
+}
+
+@media (max-width: 600px) {
+    .playlist-song-toolbar__search {
+        flex-basis: 100%;
+        max-width: none;
+    }
+}
