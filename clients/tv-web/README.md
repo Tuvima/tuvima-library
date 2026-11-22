@@ -126,7 +126,8 @@ ring.
 | `api.js` | Server address, pairing, token rotation, display, details, playback calls, artwork |
 | `universe.js` | Universe page logic (totals, cast and adaptation lines, which rows each Series shows); no DOM |
 | `nav.js` | Key map and spatial navigation |
-| `player.js` | hls.js player, captions, resume, heartbeat, Up next |
+| `find-another.js` | Find another (subtitles): the one-second rest rule, read-once cache, key map and wording (no DOM, Node-testable) and the window |
+| `player.js` | hls.js player, Audio & subtitles side panel, captions, resume, heartbeat, Up next |
 | `app.js` | Screens and routing |
 | `styles.css` | 10-foot styles |
 | `vendor/` | hls.js and its license |
@@ -155,14 +156,29 @@ behaviour checks for the API layer, the Universe page logic and remote input.
 The player follows the shared contract in
 [`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md).
 Already close: Left and Right seek while the timeline has focus, the Rewind and
-Fast-forward keys seek, an Up next prompt follows an episode, and captions come
-from the manifest. Gaps: Left and Right both seek a fixed 10 seconds and Rewind
+Fast-forward keys seek, an Up next prompt follows an episode, captions come from
+the manifest, and a small **Audio & subtitles** side panel (spec
+`find-another-on-tv`) replaces the old cycling Captions button: Audio rows when
+the manifest offers several (switched through hls.js, in manifest order),
+Subtitles rows (Off, then each track) and a footer **Find subtitles...** row
+that shows only when `GET /api/v1/stream/{asset}/text-tracks/sources?kind=subtitles`
+answers `Ready`. The row opens the **Find another** window (`find-another.js`):
+the Engine's results on the left, the focused result's first lines on the right,
+Use this and Cancel at the foot, all by remote (key map in the contract's
+Televisions section). Previews read after one second at rest (the best match
+at once), each once per window. The Language button lists the profile's subtitle
+language (`GET /api/v1/devices/current/playback-preferences`, which holds only one
+language) followed by a fixed list of common languages. The pane shows the lines
+the Engine sends for a result (a few, not a full 20, until the Engine sends more).
+Gaps: Left and Right both seek a fixed 10 seconds and Rewind
 and Fast-forward a fixed 30 both ways, where the contract says all four use the
 profile's skip seconds (10 back and 30 forward by default); there is no
-Previous/Next transport row dimmed in place, no tool row (Episodes, Audio &
-subtitles, Bookmarks, Playback settings), no side panels, no bookmarks, no paused
-details and no Autoplay switch; the Up next prompt does not yet match the
-contract's end card. The gaps are one follow-up thread for the TV web app, laid
+Previous/Next transport row dimmed in place, and the tool row is one button
+(Audio & subtitles) with no Episodes, Bookmarks or Playback settings beside it;
+no other side panels, no bookmarks, no paused details and no Autoplay switch;
+there is no Lyrics panel on a television (so no Find lyrics yet); the Up next
+prompt does not yet match the contract's end card. The Audio rows switch only
+tracks hls.js reports, in manifest order. The gaps are one follow-up thread for the TV web app, laid
 out as the contract's first definition of the television side panels (Unified
 player v2, D29 and section 9). Samsung Tizen and LG webOS wrap this client, so
 they inherit its result.

@@ -91,19 +91,23 @@
     var playButton = button('playpause', 'Pause');
     var backButton = button('back10', '-10 s');
     var forwardButton = button('forward10', '+10 s');
-    var captionsButton = button('captions', 'Captions: off');
+    var audioButton = button('audiosubs', 'Audio & subtitles');
     var closeButton = button('close', 'Close');
-    [playButton, backButton, forwardButton, captionsButton, closeButton].forEach(function (b) { buttons.appendChild(b); });
+    [playButton, backButton, forwardButton, audioButton, closeButton].forEach(function (b) { buttons.appendChild(b); });
     overlay.appendChild(heading);
     overlay.appendChild(seek);
     overlay.appendChild(times);
     overlay.appendChild(buttons);
     var upNext = el('div', 'player-next');
     upNext.hidden = true;
+    // The Audio & subtitles side panel (right edge). It opens from the tool button below the timeline.
+    var panel = el('div', 'side-panel');
+    panel.hidden = true;
     root.appendChild(video);
     root.appendChild(status);
     root.appendChild(overlay);
     root.appendChild(upNext);
+    root.appendChild(panel);
     document.body.appendChild(root);
 
     var state = {
@@ -116,6 +120,12 @@
       blobs: [],
       captions: [],
       captionIndex: -1,
+      captionNote: '',
+      audioIndex: 0,
+      audioNote: '',
+      panelOpen: false,
+      finder: null,
+      sourcesReady: false,
       next: null,
       nextTimer: null,
       mediaErrors: 0,
@@ -143,7 +153,7 @@
       overlay.classList.add('visible');
       global.clearTimeout(state.hideTimer);
       state.hideTimer = global.setTimeout(function () {
-        if (!video.paused && !state.closed) { overlay.classList.remove('visible'); }
+        if (!video.paused && !state.closed && !state.panelOpen && !state.finder) { overlay.classList.remove('visible'); }
       }, OVERLAY_HIDE_MS);
     }
 
@@ -185,15 +195,9 @@
     backButton.addEventListener('click', function () { seekBy(-SEEK_STEP); showOverlay(); });
     forwardButton.addEventListener('click', function () { seekBy(SEEK_STEP); showOverlay(); });
     closeButton.addEventListener('click', function () { close(); });
-    captionsButton.addEventListener('click', function () { cycleCaptions(); showOverlay(); });
+    audioButton.addEventListener('click', function () { openPanel(); });
 
     /* ---- captions ---- */
-
-    function captionLabel() {
-      if (!state.captions.length) { return 'Captions: none'; }
-      if (state.captionIndex < 0) { return 'Captions: off'; }
-      return 'Captions: ' + state.captions[state.captionIndex].label;
-    }
 
     function setCaptionMode(index) {
       state.captions.forEach(function (c, i) {
@@ -212,46 +216,200 @@
       if (entry.language) { track.srclang = entry.language; }
       track.src = url;
       video.appendChild(track);
+      entry.element = track;
       entry.track = track.track;
       entry.loaded = true;
     }
 
     async function chooseCaption(index) {
       state.captionIndex = index;
-      captionsButton.textContent = captionLabel();
+      state.captionNote = '';
       if (index >= 0) {
         try {
           await loadCaption(state.captions[index]);
         } catch (e) {
           state.captionIndex = -1;
-          captionsButton.textContent = 'Captions: unavailable';
+          state.captionNote = 'That track could not be loaded.';
+          setCaptionMode(-1);
           return;
         }
       }
       setCaptionMode(index);
     }
 
-    function cycleCaptions() {
-      if (!state.captions.length) { return; }
-      var next = state.captionIndex + 1;
-      chooseCaption(next >= state.captions.length ? -1 : next);
+    function removeCaptionTracks() {
+      state.captions.forEach(function (c) {
+        if (c.element && c.element.parentNode) { c.element.parentNode.removeChild(c.element); }
+      });
+      state.captions = [];
+      state.captionIndex = -1;
     }
 
-    function prepareCaptions(manifest) {
+    // `seen` is set after a "Find another" choice: the addresses the list had before, so the track that is new (or the one
+    // the Engine now marks preferred) is turned on. At the start it is empty and the file's default track is used.
+    function prepareCaptions(manifest, seen) {
       state.captions = (manifest.subtitleTracks || []).filter(function (t) { return !!t.deliveryUrl; }).map(function (t, i) {
         return {
-          label: t.displayName || t.language || ('Track ' + (i + 1)),
+          label: t.displayName || t.title || t.language || ('Track ' + (i + 1)),
           language: t.language || '',
           url: t.deliveryUrl,
           isDefault: !!(t.isDefault || t.isForced),
           loaded: false,
-          track: null
+          track: null,
+          element: null
         };
       });
-      captionsButton.textContent = captionLabel();
-      var preferred = -1;
-      state.captions.forEach(function (c, i) { if (preferred < 0 && c.isDefault) { preferred = i; } });
-      if (preferred >= 0) { chooseCaption(preferred); }
+      var pick = -1;
+      if (seen) {
+        var fresh = [];
+        state.captions.forEach(function (c, i) { if (!seen[c.url]) { fresh.push(i); } });
+        fresh.forEach(function (i) { if (pick < 0 && state.captions[i].isDefault) { pick = i; } });
+        if (pick < 0 && fresh.length) { pick = fresh[0]; }
+      }
+      state.captions.forEach(function (c, i) { if (pick < 0 && c.isDefault) { pick = i; } });
+      if (pick >= 0) { return chooseCaption(pick); }
+      return Promise.resolve();
+    }
+
+    /* ---- Audio & subtitles side panel ---- */
+
+    function audioTracks() { return (state.manifest && state.manifest.audioTracks) || []; }
+
+    function trackName(t, i) { return t.displayName || t.language || ('Track ' + (i + 1)); }
+
+    function panelRow(key, label, selected, onSelect) {
+      var row = button(key, '');
+      row.className = 'btn focusable panel-row';
+      row.appendChild(el('span', 'panel-row-label', label));
+      row.appendChild(el('span', 'panel-row-mark', selected ? '✓' : ''));
+      row.addEventListener('click', onSelect);
+      return row;
+    }
+
+    function renderPanel() {
+      var remember = TV.nav.remember();
+      panel.textContent = '';
+      panel.appendChild(el('div', 'panel-title', 'Audio & subtitles'));
+      var audios = audioTracks();
+      if (audios.length > 1) {
+        panel.appendChild(el('div', 'panel-heading', 'Audio'));
+        audios.forEach(function (t, i) {
+          panel.appendChild(panelRow('audio-' + i, trackName(t, i), i === state.audioIndex, function () { chooseAudio(i); }));
+        });
+        if (state.audioNote) { panel.appendChild(el('div', 'panel-note', state.audioNote)); }
+      }
+      panel.appendChild(el('div', 'panel-heading', 'Subtitles'));
+      panel.appendChild(panelRow('subs-off', 'Off', state.captionIndex < 0, function () { pickCaption(-1); }));
+      state.captions.forEach(function (c, i) {
+        panel.appendChild(panelRow('subs-' + i, c.label, i === state.captionIndex, function () { pickCaption(i); }));
+      });
+      if (state.captionNote) { panel.appendChild(el('div', 'panel-note', state.captionNote)); }
+      if (state.sourcesReady) {
+        var find = panelRow('find-subtitles', TV.findAnother.WORDS.footerRow, false, function () { openFinder(); });
+        find.classList.add('panel-footer');
+        panel.appendChild(find);
+      }
+      if (remember && panel.querySelector('[data-key="' + remember + '"]')) { TV.nav.restore(panel, remember); }
+    }
+
+    function pickCaption(index) {
+      chooseCaption(index).then(function () { if (state.panelOpen) { renderPanel(); } });
+      renderPanel();
+    }
+
+    function chooseAudio(index) {
+      var hls = state.hls;
+      state.audioNote = '';
+      if (hls && hls.audioTracks && hls.audioTracks.length > index) {
+        hls.audioTrack = index;
+        state.audioIndex = index;
+      } else {
+        state.audioNote = 'This audio track cannot be switched here.';
+      }
+      renderPanel();
+    }
+
+    function openPanel() {
+      if (state.panelOpen || state.closed) { return; }
+      state.panelOpen = true;
+      state.sourcesReady = false;
+      panel.hidden = false;
+      showOverlay();
+      TV.nav.setScope(panel);
+      renderPanel();
+      TV.nav.restore(panel, state.captionIndex < 0 ? 'subs-off' : 'subs-' + state.captionIndex);
+      // The footer row shows only when the Engine says a subtitle source is ready for this item (and this profile may use it).
+      TV.api.textTrackSources(assetId, 'subtitles').then(function (answer) {
+        return TV.findAnother.sourceReady(answer);
+      }, function () { return false; }).then(function (ready) {
+        if (state.closed || !state.panelOpen || state.sourcesReady === ready) { return; }
+        state.sourcesReady = ready;
+        renderPanel();
+      });
+    }
+
+    function closePanel() {
+      if (!state.panelOpen) { return; }
+      state.panelOpen = false;
+      panel.hidden = true;
+      panel.textContent = '';
+      TV.nav.setScope(root);
+      TV.nav.focus(audioButton);
+      showOverlay();
+    }
+
+    function openFinder() {
+      if (state.finder || state.closed) { return; }
+      var wasPlaying = !video.paused;
+      if (wasPlaying) { video.pause(); }
+      state.finder = TV.findAnother.open({
+        assetId: assetId,
+        title: options.title || '',
+        kind: 'subtitles',
+        restoreKeys: onAction,
+        onClosed: function () {
+          state.finder = null;
+          if (state.closed) { return; }
+          if (wasPlaying) { resumePlay(); }
+          TV.nav.setScope(panel);
+          TV.nav.restore(panel, 'find-subtitles');
+        },
+        onApplied: function () {
+          state.finder = null;
+          if (state.closed) { return; }
+          closePanel();
+          applyChosenSubtitles(wasPlaying);
+        }
+      });
+    }
+
+    function resumePlay() {
+      var promise = video.play();
+      if (promise && promise.catch) { promise.catch(function () { /* the pause/play events update the UI */ }); }
+    }
+
+    // After "Use this": ask the Engine for the track list again, turn the new preferred track on and carry on at the same place.
+    async function applyChosenSubtitles(wasPlaying) {
+      var position = video.currentTime || state.lastPosition || 0;
+      showStatus(TV.findAnother.WORDS.applying);
+      try {
+        var seen = {};
+        state.captions.forEach(function (c) { seen[c.url] = true; });
+        var manifest = await TV.api.manifest(assetId);
+        if (state.closed) { return; }
+        removeCaptionTracks();
+        if (state.manifest) { state.manifest.subtitleTracks = manifest.subtitleTracks; }
+        await prepareCaptions(manifest, seen);
+      } catch (e) {
+        state.captionNote = 'The new subtitles could not be loaded.';
+      }
+      if (state.closed) { return; }
+      showStatus('');
+      if (Math.abs((video.currentTime || 0) - position) > 1) { video.currentTime = position; }
+      if (wasPlaying) { resumePlay(); }
+      TV.nav.setScope(root);
+      TV.nav.focus(seek);
+      showOverlay();
     }
 
     /* ---- progress reporting ---- */
@@ -370,6 +528,11 @@
 
     function onAction(action) {
       if (state.closed) { return false; }
+      if (state.panelOpen) {
+        if (action === 'back') { closePanel(); return true; }
+        showOverlay();
+        return false; // the rows use the normal focus movement inside the panel
+      }
       if (!upNext.hidden) {
         if (action === 'back') { close(); return true; }
         return false; // the buttons use the normal focus movement
@@ -432,6 +595,7 @@
       global.clearInterval(state.beat);
       global.clearInterval(state.nextTimer);
       global.clearTimeout(state.hideTimer);
+      if (state.finder) { state.finder.close(); state.finder = null; }
       TV.nav.setKeyHandler(null);
       TV.nav.popBack(backHandler);
       TV.nav.setScope(null);
@@ -485,7 +649,7 @@
           if (!startAt && !completed) { startAt = await resumeFromPlayerState(assetId); }
         }
 
-        prepareCaptions(manifest);
+        prepareCaptions(manifest, null);
         showStatus('');
         updateProgress();
         showOverlay();
