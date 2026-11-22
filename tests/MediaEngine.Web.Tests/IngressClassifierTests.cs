@@ -45,6 +45,113 @@ public sealed class IngressClassifierTests
         Assert.Equal(IngressKind.HomeNetwork, classifier.Classify(gateway, MainPort));
     }
 
+    [Theory]
+    [InlineData("192.168.1.20", IngressKind.HomeNetwork)]
+    [InlineData("10.0.0.5", IngressKind.HomeNetwork)]
+    [InlineData("203.0.113.50", IngressKind.Remote)]
+    [InlineData("2001:db8::1", IngressKind.Remote)]
+    [InlineData("fd00::5", IngressKind.HomeNetwork)]
+    public void OnlyPrivateAddressesAreTheHomeNetwork(string address, IngressKind expected)
+    {
+        Assert.Equal(expected, new IngressClassifier(null, []).Classify(IPAddress.Parse(address), MainPort));
+    }
+
+    [Fact]
+    public void ProxyPort_NullAddress_AndConfiguredProxies_AreRemote()
+    {
+        var classifier = new IngressClassifier(ProxyPort, [], ["192.168.1.2"]);
+
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Loopback, ProxyPort));
+        Assert.Equal(IngressKind.Remote, classifier.Classify((IPAddress?)null, MainPort));
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Parse("192.168.1.2"), MainPort));
+    }
+
+    [Fact]
+    public void ForwardedRequest_IsOutsideEvenFromLoopback()
+    {
+        var services = new ServiceCollection().AddSingleton(new IngressClassifier(null, [])).BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        context.Connection.LocalPort = MainPort;
+
+        Assert.Equal("this_computer", context.ClientIngress());
+
+        context.Request.Headers["X-Forwarded-For"] = "203.0.113.9";
+
+        // Never local, and marked as clearly outside so the away-from-home switch can turn it away.
+        Assert.Equal("outside", context.ClientIngress());
+        Assert.Equal(IngressKind.Remote, IngressClassifierExtensions.FromWireValue(context.ClientIngress()));
+    }
+
+    [Fact]
+    public void ContainerGatewayAddress_NotForwarded_IsRemoteButNotClearlyOutside()
+    {
+        // A home install behind Docker NAT: every visitor, at home or not, shows the bridge gateway.
+        var gateway = IPAddress.Parse("172.17.0.1");
+        var context = ContextFrom(new IngressClassifier(null, [], null, null, [gateway]), gateway, MainPort);
+
+        Assert.Equal("remote", context.ClientIngress());
+    }
+
+    [Theory]
+    [InlineData("8.8.8.8")]
+    [InlineData("2606:4700:4700::1111")]
+    public void APublicAddress_IsClearlyOutside(string address)
+    {
+        var context = ContextFrom(new IngressClassifier(null, []), IPAddress.Parse(address), MainPort);
+
+        Assert.Equal("outside", context.ClientIngress());
+    }
+
+    [Fact]
+    public void ADirectTailscaleAddress_IsRemoteButNotClearlyOutside()
+    {
+        // 100.64.0.0/10 (carrier-grade NAT, which Tailscale uses): not a private address to the classifier, not a public one either.
+        var context = ContextFrom(new IngressClassifier(null, []), IPAddress.Parse("100.101.102.103"), MainPort);
+
+        Assert.Equal("remote", context.ClientIngress());
+    }
+
+    [Fact]
+    public void AnythingOnTheProxyPort_IsClearlyOutside_EvenWithoutForwardingHeaders()
+    {
+        var context = ContextFrom(new IngressClassifier(ProxyPort, []), IPAddress.Parse("100.101.102.103"), ProxyPort);
+
+        Assert.Equal("outside", context.ClientIngress());
+    }
+
+    [Fact]
+    public void AConfiguredProxyOnTheMainPort_IsClearlyOutside()
+    {
+        var context = ContextFrom(new IngressClassifier(ProxyPort, [], ["192.168.1.2"]), IPAddress.Parse("192.168.1.2"), MainPort);
+
+        Assert.Equal("outside", context.ClientIngress());
+    }
+
+    [Fact]
+    public void AHomeNetworkAddress_StaysTheHomeNetwork_NotOutside()
+    {
+        Assert.Equal("home_network", ContextFrom(new IngressClassifier(null, []), IPAddress.Parse("192.168.1.20"), MainPort).ClientIngress());
+        Assert.Equal("this_computer", ContextFrom(new IngressClassifier(null, []), IPAddress.Loopback, MainPort).ClientIngress());
+    }
+
+    private static DefaultHttpContext ContextFrom(IngressClassifier classifier, IPAddress address, int localPort)
+    {
+        var services = new ServiceCollection().AddSingleton(classifier).BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Connection.RemoteIpAddress = address;
+        context.Connection.LocalPort = localPort;
+        return context;
+    }
+
+    [Fact]
+    public void ContainerGateway_IsRemoteUnlessTrusted()
+    {
+        var gateway = IPAddress.Parse("172.17.0.1");
+
+        Assert.Equal(IngressKind.Remote, new IngressClassifier(null, [], null, null, [gateway]).Classify(gateway, MainPort));
+    }
+
     [Fact]
     public void ContainerGatewayParser_ReadsDefaultRoutesOnly()
     {

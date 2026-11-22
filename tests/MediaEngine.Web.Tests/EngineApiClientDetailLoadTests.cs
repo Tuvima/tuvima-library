@@ -32,6 +32,29 @@ public sealed class EngineApiClientDetailLoadTests
         Assert.Equal("http://localhost:61495/stream/cover", result.Detail.Artwork.CoverUrl);
     }
 
+    [Fact]
+    public async Task LoadDetailPageAsync_KeepsTheExtrasAndTheOtherPartsTheEngineAddsToThePage()
+    {
+        // The page copy is built field by field; a part left out of it never reaches the page (the Extras row went missing this way).
+        const string json = """
+            { "id": "11111111-1111-1111-1111-111111111111", "entityType": 3, "title": "A show",
+              "extras": [ { "id": "22222222-2222-2222-2222-222222222222", "kind": "document", "title": "Guidebook" } ],
+              "extrasCardsPerGroup": 6,
+              "isUnmatched": true,
+              "unmatchedAssets": [ { "assetId": "33333333-3333-3333-3333-333333333333" } ] }
+            """;
+        var client = ClientReplying(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        { Content = new StringContent(json, Encoding.UTF8, "application/json") });
+
+        var result = await client.LoadDetailPageAsync(DetailEntityType.TvShow, Id);
+
+        var detail = result.Detail!;
+        Assert.Equal("Guidebook", Assert.Single(detail.Extras).Title);
+        Assert.Equal(6, detail.ExtrasCardsPerGroup);
+        Assert.True(detail.IsUnmatched);
+        Assert.Single(detail.UnmatchedAssets);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.NotFound, DetailPageLoadFailure.NotFound)]
     [InlineData(HttpStatusCode.BadRequest, DetailPageLoadFailure.NotFound)]

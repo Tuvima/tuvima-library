@@ -192,6 +192,14 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
+            // The first administrator is never created for a visitor with clear evidence of being outside the home network.
+            if (MediaEngine.Domain.Authorization.ClientIngress.IsClearlyOutside(request.OriginalClientIngress))
+            {
+                return Results.Json(
+                    new SetupBeginRefusalDto(SetupBeginRefusalReasons.RemoteRefused, "Setup has to be finished from your home network."),
+                    statusCode: StatusCodes.Status403Forbidden);
+            }
+
             if (await identity.IsAdministratorConfiguredAsync(ct).ConfigureAwait(false))
             {
                 await onboarding.SetStepAsync("profile", "passed", "Administrator account is configured.", null, null, ct).ConfigureAwait(false);
@@ -210,14 +218,14 @@ public static class SetupEndpoints
                 SessionIssueResult issued;
                 if (signIn == SetupSignInModes.ThisComputer)
                 {
-                    // From this computer or the home network: begin with a name and email, add a password later.
-                    // Both where setup began and where this request comes from must be local.
-                    if (!sessions.BeganLocally(context.Request.Headers[SetupSessionService.SessionHeader].ToString())
+                    // Only on the computer that runs Tuvima: begin with a name, add a password later.
+                    // Both where setup began and where this request comes from must be this computer.
+                    if (!sessions.BeganOnThisComputer(context.Request.Headers[SetupSessionService.SessionHeader].ToString())
                         || !ThisComputerAccess.IsAvailable(request.OriginalClientIngress))
                     {
                         return ApiErrors.Conflict(
                             SetupAdministratorRefusalCodes.NotAvailableHere,
-                            "Starting without a password is only offered on your home network.");
+                            "Starting without a password is only offered on the computer that runs Library. Choose a password instead.");
                     }
 
                     if (!string.IsNullOrEmpty(request.Password))

@@ -9,7 +9,7 @@
 .pnow-row__label { color: var(--tl-text-primary); }
 .pnow-row__load { flex-direction: row; align-items: center; flex-wrap: wrap; gap: var(--tl-space-2); }
 .pnow-row__action { display: flex; justify-content: flex-end; min-width: 80px; }
-.pnow-chip { display: inline-flex; align-items: center; padding: 0 var(--tl-space-2); min-height: 24px; border-radius: var(--tl-radius-sm); border: 1px solid var(--tl-border-default); color: var(--tl-text-secondary); white-space: nowrap; }
+.pnow-chip { display: inline-flex; align-items: center; padding: 0 var(--tl-space-2); min-height: 24px; border-radius:var(--tl-radius-pill); border: 1px solid var(--tl-border-default); color: var(--tl-text-secondary); white-space: nowrap; }
 .pnow-chip--light { color: var(--tl-text-primary); }
 .pnow-chip--medium { color: var(--tl-text-primary); border-color: var(--tl-accent-primary); }
 .pnow-chip--heavy { color: var(--tl-text-primary); border-color: var(--tl-accent-primary); font-weight: var(--tl-type-label-weight); }

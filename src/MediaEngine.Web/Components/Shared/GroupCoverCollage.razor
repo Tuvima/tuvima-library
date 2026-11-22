@@ -1,0 +1,127 @@
+@namespace MediaEngine.Web.Components.Shared
+@using System.Globalization
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.MediaTiles
+
+@* The cover collage of a group tile (a collection, Series or Universe; issue 1175). One shared look for every place a group tile is drawn:
+   the covers of the group's titles in one row, each in its own shape and all at one height, then a solid band with the group's name and
+   count. How many covers show depends on the tile's own width (3, then 4, then at most 6, the rest counted in a "+N" chip); the plan for
+   every width is drawn here and a container query in the stylesheet picks one. The rule itself is GroupCollageLayout. *@
+@if (HasPictures)
+{
+    <div class="group-collage" style="@_rootStyle" data-arrangement="@_arrangement.ToString().ToLowerInvariant()" aria-hidden="true">
+        <div class="group-collage__area">
+            @if (!string.IsNullOrWhiteSpace(CustomCoverUrl))
+            {
+                @* A cover somebody chose for the group: shown whole, never cropped, in place of the member covers. *@
+                <img class="group-collage__custom"
+                     src="@MediaTileArtworkUrl.ForDrawnSize(CustomCoverUrl, DrawnPx)"
+                     srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(CustomCoverUrl, DrawnPx)"
+                     alt=""
+                     loading="@Loading"
+                     decoding="async" />
+            }
+            else
+            {
+                @for (var index = 0; index < _covers.Count; index++)
+                {
+                    var cover = _covers[index];
+                    <span class="@CoverClass(index)" data-shape="@ShapeName(cover.Item.Shape)" style="@CoverStyle(cover)">
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(cover.Item.ImageUrl, DrawnPx)"
+                             srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover.Item.ImageUrl, DrawnPx)"
+                             alt=""
+                             loading="@Loading"
+                             decoding="async" />
+                    </span>
+                }
+            }
+        </div>
+        @if (string.IsNullOrWhiteSpace(CustomCoverUrl))
+        {
+            @foreach (var plan in _plans.Where(plan => plan.HiddenCount > 0))
+            {
+                <span class="group-collage__more" data-tier="@plan.TierCovers">+@plan.HiddenCount.ToString(CultureInfo.CurrentCulture)</span>
+            }
+        }
+        <div class="group-collage__band">
+            <span class="group-collage__name" data-overflow-tooltip="@Title">@Title</span>
+            @if (!string.IsNullOrWhiteSpace(CountText))
+            {
+                <span class="group-collage__count">@CountText</span>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>The group's members in order; only those with a picture are drawn.</summary>
+    [Parameter] public IReadOnlyList<ArtworkStackItem> Members { get; set; } = [];
+
+    /// <summary>Every title the group holds, with or without a cover: the "+N" chip counts the ones not drawn.</summary>
+    [Parameter] public int TotalCount { get; set; }
+
+    /// <summary>The group's name, on the solid band.</summary>
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The count line under the name ("10 titles", "6 books"); none when null.</summary>
+    [Parameter] public string? CountText { get; set; }
+
+    /// <summary>A cover a person chose for the group; it replaces the member covers.</summary>
+    [Parameter] public string? CustomCoverUrl { get; set; }
+
+    [Parameter] public bool Eager { get; set; }
+
+    /// <summary>The long side one cover is drawn at, in CSS pixels (the small picture copy covers every tile width).</summary>
+    [Parameter] public int DrawnPx { get; set; } = ArtworkSize.SmallPx;
+
+    private IReadOnlyList<GroupCollagePlan> _plans = [];
+    private IReadOnlyList<GroupCollageCover> _covers = [];
+    private GroupCollageArrangement _arrangement = GroupCollageArrangement.Empty;
+    private string _rootStyle = string.Empty;
+
+    private bool HasPictures => _arrangement != GroupCollageArrangement.Empty || !string.IsNullOrWhiteSpace(CustomCoverUrl);
+
+    private string Loading => Eager ? "eager" : "lazy";
+
+    protected override void OnParametersSet()
+    {
+        _plans = GroupCollageLayout.PlansForAllTiers(Members, TotalCount);
+        var widest = _plans[^1];
+        _arrangement = widest.Arrangement;
+        _covers = widest.Covers;
+        _rootStyle = RootStyle(_plans);
+    }
+
+    // One pair of numbers per width tier (how many covers, their aspects added up); the stylesheet picks the pair for the tile's width.
+    private static string RootStyle(IReadOnlyList<GroupCollagePlan> plans)
+    {
+        var parts = plans.Select(plan =>
+            $"--n{Number(plan.TierCovers)}:{Number(plan.Covers.Count)};--sa{Number(plan.TierCovers)}:{Number(plan.AspectSum)};");
+        var widest = plans[^1];
+        var pair = widest.Arrangement == GroupCollageArrangement.Corners ? $"--pair:{Number(widest.AspectSum)};" : string.Empty;
+        return string.Concat(parts) + pair;
+    }
+
+    private static string CoverStyle(GroupCollageCover cover) =>
+        $"--a:{Number(cover.Aspect)};--x:{Number(cover.Offset)};";
+
+    private string CoverClass(int index) => _arrangement == GroupCollageArrangement.Corners
+        ? $"group-collage__cover is-corner-{(index == 0 ? "first" : "second")}"
+        : index switch
+        {
+            < GroupCollageLayout.NarrowCovers => "group-collage__cover",
+            < GroupCollageLayout.MediumCovers => "group-collage__cover is-from-medium",
+            _ => "group-collage__cover is-from-wide",
+        };
+
+    private static string ShapeName(ArtworkShape shape) => shape switch
+    {
+        ArtworkShape.Square => "square",
+        ArtworkShape.Wide => "wide",
+        _ => "portrait",
+    };
+
+    private static string Number(double value) => value.ToString("0.####", CultureInfo.InvariantCulture);
+
+    private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
+}

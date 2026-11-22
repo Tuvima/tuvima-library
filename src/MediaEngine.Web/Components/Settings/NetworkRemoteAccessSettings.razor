@@ -28,12 +28,13 @@
                 @* Home network: status cards, Test connection, the address and the discovery switch. Nothing to type. *@
                 <NetworkOverviewPanel Settings="@_settings" Status="@_status"
                                       StatusRefreshRequested="RefreshStatusAsync" />
+                <ReachOtherDevicesPanel Settings="@_settings" SaveRequested="SaveAsync" />
                 <LocalNetworkSettingsPanel Settings="@_settings" Status="@_status"
                                            SaveRequested="SaveAsync" />
                 break;
             case "remote":
-                <RemoteAccessSettingsPanel Settings="@_settings" Status="@_status"
-                                           SaveRequested="SaveAsync" />
+                <RemoteAccessSettingsPanel Settings="@_settings"
+                                           SaveRequested="SaveAsync" StatusRefreshRequested="RefreshStatusAsync" />
                 break;
             case "advanced":
                 <AdvancedNetworkSettingsPanel Settings="@_settings" Status="@_status"
@@ -51,13 +52,9 @@
 @code {
     [Parameter] public string Subsection { get; set; } = "home";
 
-    /// <summary>
-    /// Tells the Settings page whether remote access is not set up (the connection mode is still "local-only"), so the
-    /// page notice under the title can offer to set it up. Raised after the settings load and after every save.
-    /// </summary>
-    [Parameter] public EventCallback<bool> RemoteAccessOffChanged { get; set; }
-
     private NetworkSettingsDto? _settings;
+    // What was last saved, so a failed save puts the old values back on the page instead of leaving the typed ones.
+    private NetworkSettingsDto? _lastSaved;
     private NetworkRuntimeStatusDto? _status;
     private bool _loading = true;
     private string? _failure;
@@ -77,14 +74,10 @@
         var statusTask = ApiClient.GetNetworkRuntimeStatusAsync();
         await Task.WhenAll(settingsTask, statusTask);
         _settings = await settingsTask;
+        _lastSaved = Copy(_settings);
         _status = await statusTask;
         _loading = false;
-        await ReportRemoteAccessAsync();
     }
-
-    private Task ReportRemoteAccessAsync() => RemoteAccessOffChanged.InvokeAsync(
-        _settings is not null
-        && string.Equals(_settings.Remote.ConnectionMode?.Trim(), "local-only", StringComparison.OrdinalIgnoreCase));
 
     private async Task SaveAsync()
     {
@@ -94,21 +87,26 @@
         var saved = await ApiClient.UpdateNetworkSettingsAsync(_settings);
         if (saved is null)
         {
+            _settings = Copy(_lastSaved) ?? _settings;
             _failure = L["NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe"].Value;
             return;
         }
         _settings = saved;
+        _lastSaved = Copy(saved);
         _savedNote?.Show();
-        await ReportRemoteAccessAsync();
         await RefreshStatusAsync();
     }
 
     private async Task ReplaceSettingsAsync(NetworkSettingsDto replacement)
     {
         _settings = replacement;
-        await ReportRemoteAccessAsync();
+        _lastSaved = Copy(replacement);
         await RefreshStatusAsync();
     }
+
+    private static NetworkSettingsDto? Copy(NetworkSettingsDto? settings) => settings is null
+        ? null
+        : System.Text.Json.JsonSerializer.Deserialize<NetworkSettingsDto>(System.Text.Json.JsonSerializer.Serialize(settings));
 
     private async Task RefreshStatusAsync()
     {

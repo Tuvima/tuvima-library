@@ -94,8 +94,8 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         {
             token.ThrowIfCancellationRequested();
             connection.Execute("""
-            INSERT INTO activity_run_items (id, run_id, work_id, asset_id, media_type, title, group_key, group_title, group_work_id, created_at)
-            VALUES (@Id, @RunId, @WorkId, @AssetId, @MediaType, @Title, @GroupKey, @GroupTitle, @GroupWorkId, @created);
+            INSERT INTO activity_run_items (id, run_id, work_id, asset_id, media_type, title, group_key, group_title, group_work_id, created_at, size_bytes)
+            VALUES (@Id, @RunId, @WorkId, @AssetId, @MediaType, @Title, @GroupKey, @GroupTitle, @GroupWorkId, @created, @SizeBytes);
             """, new
             {
                 item.Id,
@@ -107,6 +107,7 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
                 item.GroupKey,
                 item.GroupTitle,
                 item.GroupWorkId,
+                item.SizeBytes,
                 created = Iso(item.CreatedAt),
             }, transaction);
             connection.Execute("""
@@ -239,7 +240,8 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
                    MAX(group_work_id) AS GroupWorkId,
                    MIN(work_id) AS FirstWorkId,
                    MIN(asset_id) AS FirstAssetId,
-                   COUNT(*) AS ItemCount
+                   COUNT(*) AS ItemCount,
+                   COALESCE(SUM(size_bytes), 0) AS SizeBytes
             FROM activity_run_items
             WHERE run_id IN (SELECT id FROM activity_runs WHERE COALESCE(scan_id, id) = @entryId AND (@filterLibraries = 0 OR library_id IN @libraries))
               AND (@filterTypes = 0 OR media_type IN @mediaTypes)
@@ -257,9 +259,33 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
             offset = Math.Max(0, offset),
         });
         IReadOnlyList<ActivityRunGroup> groups = rows
-            .Select(row => new ActivityRunGroup(row.GroupKey, row.GroupTitle, row.MediaType, row.GroupWorkId, row.FirstWorkId, row.FirstAssetId, row.ItemCount))
+            .Select(row => new ActivityRunGroup(row.GroupKey, row.GroupTitle, row.MediaType, row.GroupWorkId, row.FirstWorkId, row.FirstAssetId, row.ItemCount, row.SizeBytes))
             .ToList();
         return Task.FromResult(groups);
+    }
+
+    public Task<IReadOnlyList<ActivityRunFile>> ListGroupFilesAsync(Guid entryId, string groupKey, ActivityRunScope? scope, int limit, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var libraries = scope?.LibraryIds is { Count: > 0 } chosenLibraries ? chosenLibraries.Select(id => id.ToLowerInvariant()).ToArray() : null;
+        using var connection = db.CreateConnection();
+        var rows = connection.Query<FileRow>("""
+            SELECT work_id AS WorkId, asset_id AS AssetId, title AS Title, size_bytes AS SizeBytes
+            FROM activity_run_items
+            WHERE run_id IN (SELECT id FROM activity_runs WHERE COALESCE(scan_id, id) = @entryId AND (@filterLibraries = 0 OR library_id IN @libraries))
+              AND group_key = @groupKey
+            ORDER BY created_at, title COLLATE NOCASE
+            LIMIT @limit;
+            """, new
+        {
+            entryId,
+            groupKey,
+            filterLibraries = libraries is null ? 0 : 1,
+            libraries = libraries ?? [string.Empty],
+            limit = Math.Clamp(limit, 1, MaxLimit),
+        });
+        IReadOnlyList<ActivityRunFile> files = rows.Select(row => new ActivityRunFile(row.WorkId, row.AssetId, row.Title, row.SizeBytes)).ToList();
+        return Task.FromResult(files);
     }
 
     public Task<IReadOnlyList<ActivityTitleHit>> SearchTitlesAsync(ActivityRunQuery query, CancellationToken ct = default)
@@ -460,6 +486,15 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
         public Guid? FirstWorkId { get; set; }
         public Guid? FirstAssetId { get; set; }
         public int ItemCount { get; set; }
+        public long SizeBytes { get; set; }
+    }
+
+    private sealed class FileRow
+    {
+        public Guid? WorkId { get; set; }
+        public Guid? AssetId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public long SizeBytes { get; set; }
     }
 
     private sealed class HitRow

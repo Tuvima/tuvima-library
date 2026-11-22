@@ -17,9 +17,9 @@
                     }
                 </div>
 
-                @if (!string.IsNullOrWhiteSpace(Shelf.SeeAllRoute))
+                @if (HasViewAllTile)
                 {
-                    <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-link">@(DeviceContext.IsPhone ? "See All" : "View all")</a>
+                    <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-link">@L["Common_ViewAll"]</a>
                 }
 
                 @if (!string.IsNullOrEmpty(LanePlace))
@@ -29,7 +29,7 @@
             </div>
         }
 
-        <MediaShelfScroller ItemCount="@(Shelf.Items.Count + (HasViewAllTile ? 1 : 0))" AriaLabel="@Shelf.Title">
+        <MediaShelfScroller ItemCount="@(Shelf.Items.Count + (HasViewAllTile ? 1 : 0))" AriaLabel="@Shelf.Title" OnOverflowChanged="OnOverflowChanged">
                     @foreach (var (item, index) in Shelf.Items.Select((item, index) => (item, index)))
                     {
                         @if (UseContinueWatchingOrListeningTiles)
@@ -79,7 +79,18 @@ else if (ShowHeader && !string.IsNullOrWhiteSpace(EmptyMessage))
     /// <summary>Raised with the shelf key after a lane is hidden, so the page drops it at once.</summary>
     [Parameter] public EventCallback<string> OnLaneHidden { get; set; }
 
-    private bool HasViewAllTile => !string.IsNullOrWhiteSpace(Shelf.SeeAllRoute);
+    // "View all" shows only when the row holds more than fits at the current width (issue 1119). It starts shown, so a page
+    // without scripting still reaches the whole shelf; the row reports back once it has measured.
+    private bool _overflows = true;
+    private bool HasViewAllTile => !string.IsNullOrWhiteSpace(Shelf.SeeAllRoute) && _overflows;
+    private async Task OnOverflowChanged(bool overflows)
+    {
+        if (_overflows == overflows) return;
+        _overflows = overflows;
+        await OverflowChanged.InvokeAsync(overflows);
+    }
+    /// <summary>Raised when the row starts or stops holding more than fits, so a header drawn outside this shelf can show or hide its own View all.</summary>
+    [Parameter] public EventCallback<bool> OverflowChanged { get; set; }
 
     private string ContinueRowClass => UseContinueWatchingOrListeningTiles ? "is-continue-row" : string.Empty;
 

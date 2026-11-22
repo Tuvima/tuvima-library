@@ -11,7 +11,7 @@ Shy, 2026-10-17: closed router ports are the gatekeeper. An accidentally forward
 ## Trade-offs accepted
 - **Plain http if a port is forwarded.** The Dashboard serves http only. If someone forwards its port to the internet, sign-ins and pairing codes cross the internet unencrypted. The guides say to use Tailscale or an HTTPS reverse proxy for outside access.
 - **The no-password account is open to anyone who reaches the server.** Adding a password or passkey closes it for that account.
-- **A leaked cast link works for anyone who reaches the server.** The one-title secret link is the credential; it expires with the title and stops when the phone signs out.
+- **A cast link works on the home network only (changed 2026-11-19, issue 1211).** The one-title secret link is still the credential; it expires with the title and stops when the phone signs out, and the Dashboard relay refuses it from outside the home network.
 - **Pairing guessing is limited only by the throttle.** The pairing throttle keys on connection address and is now the main brake on code guessing.
 - Pre-release: old `who_can_connect` and `native_app_access.enabled` values in a user's `network.json` are ignored, not converted. Apple, Roku and TV web apps do not yet use the outside address; they follow separately.
 

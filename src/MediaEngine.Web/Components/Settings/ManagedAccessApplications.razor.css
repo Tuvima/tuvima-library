@@ -1,4 +1,5 @@
 .access-notice { margin-bottom: 1rem; }
+.access-devices-note { margin: 0; }
 .access-form-section { display: grid; gap: .75rem; }
 .access-form-section + .access-form-section { padding-top: 1.1rem; border-top: 1px solid var(--tl-border-default); }
 .access-native-label, .access-form-section small { color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
@@ -6,8 +7,6 @@
 .access-permission-row { display: grid; gap: .25rem; padding: .7rem; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm); }
 .access-permission-row.is-unavailable { opacity: .72; }
 .access-permission-row > div { display: flex; gap: .35rem; }
-
-.access-phone-note { margin: 0 0 1rem; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 
 .access-cards { margin-bottom: 1rem; }
 .access-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: 0; color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }

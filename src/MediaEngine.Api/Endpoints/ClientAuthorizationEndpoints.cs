@@ -55,6 +55,7 @@ public static class ClientAuthorizationEndpoints
             HttpRequest httpRequest,
             HttpResponse httpResponse,
             ClientAuthorizationService authorization,
+            [FromServices] MediaEngine.Identity.Contracts.IOutsideAccessPolicy outsideAccess,
             CancellationToken ct) =>
         {
             OAuthTokenRequest request;
@@ -65,6 +66,19 @@ public static class ClientAuthorizationEndpoints
             catch (JsonException)
             {
                 return OAuthError("invalid_request", "The request body is invalid.");
+            }
+
+            // With away-from-home access off, a paired app cannot get new tokens from outside; its tokens are not revoked, so it
+            // works again at home and when outside access is switched back on.
+            if (RequestIngress.DeviceRefusedWhileOutsideAccessOff(httpRequest.HttpContext, outsideAccess))
+            {
+                return OAuthError("access_denied", "Away-from-home access is off. Connect from home to sign in again.");
+            }
+
+            // A refresh token from a no-password account's device is a home-only token too: it cannot be exchanged from outside.
+            if (RequestIngress.HomeOnlyTokenRefused(httpRequest.HttpContext, request.RefreshToken))
+            {
+                return OAuthError("access_denied", "This device can only be used on the home network.");
             }
 
             httpResponse.Headers.CacheControl = "no-store";

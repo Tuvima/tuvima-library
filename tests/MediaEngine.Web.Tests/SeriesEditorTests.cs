@@ -413,7 +413,8 @@ public sealed class SeriesEditorTests : AsyncBunitContext
         window.WaitForElement("[data-series-members]");
 
         Assert.True(editor.Fields.IsSeries);
-        Assert.Equal(["1 · Dune", "2 · Dune Messiah"], window.FindAll("[data-series-members] li").Select(line => line.TextContent.Trim()));
+        Assert.Equal(["Dune", "Dune Messiah"], window.FindAll("[data-series-members] .tl-order__title").Select(line => line.TextContent.Trim()));
+        Assert.Equal(["1", "2"], window.FindAll("[data-series-members] .tl-order__num").Select(line => line.TextContent.Trim()));
         Assert.Contains("Reading order", window.Find("[data-series-members]").GetAttribute("aria-label"), StringComparison.Ordinal);
         Assert.Equal(["Details", "History"], Tabs(window));
     }
@@ -476,10 +477,118 @@ public sealed class SeriesEditorTests : AsyncBunitContext
         var window = RenderWindow(editor);
         window.WaitForElement("[data-series-members]");
 
-        Assert.Equal(["1 · Dune", "2 · Dune Messiah"], window.FindAll("[data-series-members] li").Select(line => line.TextContent.Trim()));
+        Assert.Equal(["Dune", "Dune Messiah"], window.FindAll("[data-series-members] .tl-order__title").Select(line => line.TextContent.Trim()));
+        Assert.Equal(["1", "2"], window.FindAll("[data-series-members] .tl-order__num").Select(line => line.TextContent.Trim()));
         window.FindAll("[data-series-members] li button")[1].Click();
 
         window.WaitForAssertion(() => Assert.Equal([BookTwo], opened));
+    }
+
+    // -- The order block: the rules, then the result (group pages and tiles D5, mock screen C) -----
+
+    private static EditorSubjectMemberDto Member(string title, int? number, string? placedBy, string? year = null) => new()
+    {
+        Id = Guid.NewGuid(),
+        Title = title,
+        Number = number,
+        MediaType = "Books",
+        Year = year,
+        PlacedBy = placedBy,
+    };
+
+    private async Task<IRenderedComponent<CascadingValue<EditingModeContext>>> RenderOrderAsync(params EditorSubjectMemberDto[] members)
+    {
+        var series = Grouping(EditorSubjectKinds.Series);
+        series.Members.AddRange(members);
+        var editor = await StartSubjectAsync(series);
+        var window = RenderWindow(editor);
+        window.WaitForElement("[data-series-members]");
+        return window;
+    }
+
+    [Fact]
+    public async Task TheOrderBlock_ShowsTheRulesInTheOrderTheyAreTried_EachWithHowManyTitlesItPlaced()
+    {
+        var window = await RenderOrderAsync(
+            Member("Leviathan Wakes", 1, EditorSeriesOrderRuleKeys.Number, "2011"),
+            Member("Caliban's War", 2, EditorSeriesOrderRuleKeys.Number, "2012"),
+            Member("The Churn", null, EditorSeriesOrderRuleKeys.Date, "2014"),
+            Member("Notes", null, EditorSeriesOrderRuleKeys.Title));
+
+        var rules = window.FindAll("[data-order-rules] li");
+
+        Assert.Equal(["Series number", "Publication date", "Title"], rules.Select(rule => rule.QuerySelector(".tl-order__rule-name")!.TextContent.Trim()));
+        Assert.Equal(["2 of 4 placed", "1 of 4 placed", "1 of 4 placed"], rules.Select(rule => rule.QuerySelector(".tl-order__rule-count")!.TextContent.Trim()));
+        Assert.Equal(["1", "2", "3"], rules.Select(rule => rule.QuerySelector(".tl-order__rule-step")!.TextContent.Trim()));
+        Assert.Equal(["Leviathan Wakes", "Caliban's War", "The Churn", "Notes"], window.FindAll(".tl-order__title").Select(title => title.TextContent.Trim()));
+        Assert.Equal("Book · 2011", window.FindAll(".tl-order__detail")[0].TextContent.Trim());
+        Assert.Empty(window.FindAll("[data-order-unknown]"));
+    }
+
+    [Fact]
+    public async Task ATitlePlacedByALaterRule_ShowsAnAmberChip_AndTheOthersShowTheFirstRulesNeutrally()
+    {
+        var window = await RenderOrderAsync(
+            Member("Abaddon's Gate", 3, EditorSeriesOrderRuleKeys.Number, "2013"),
+            Member("The Churn", null, EditorSeriesOrderRuleKeys.Date, "2014"));
+
+        var chips = window.FindAll(".tl-order__chip");
+
+        Assert.Equal(["Series number", "Publication date"], chips.Select(chip => chip.TextContent.Trim()));
+        Assert.DoesNotContain("tl-order__chip--later", chips[0].ClassList);
+        Assert.Contains("tl-order__chip--later", chips[1].ClassList);
+        Assert.Equal("true", chips[1].GetAttribute("data-later"));
+    }
+
+    [Fact]
+    public async Task WhenOneRulePlacedEveryTitle_TheOrderBlockShowsOnePill_AndEveryChipNamesIt()
+    {
+        var window = await RenderOrderAsync(
+            Member("Dune", 1, EditorSeriesOrderRuleKeys.Number),
+            Member("Dune Messiah", 2, EditorSeriesOrderRuleKeys.Number));
+
+        Assert.Single(window.FindAll("[data-order-rules] li"));
+        Assert.Contains("2 of 2 placed", window.Find("[data-order-rules] li").TextContent, StringComparison.Ordinal);
+        Assert.Equal(["Series number", "Series number"], window.FindAll(".tl-order__chip").Select(chip => chip.TextContent.Trim()));
+        Assert.Empty(window.FindAll(".tl-order__chip--later"));
+    }
+
+    [Fact]
+    public async Task WhenNoOrderIsKnown_TheRulesAreaSaysSo_AndTheTitlesAreListedWithoutChips()
+    {
+        var window = await RenderOrderAsync(
+            Member("Alpha", null, EditorSeriesOrderRuleKeys.Title),
+            Member("Beta", null, EditorSeriesOrderRuleKeys.Title));
+
+        Assert.Equal("No order known. Titles are listed A to Z.", window.Find("[data-order-unknown]").TextContent.Trim());
+        Assert.Empty(window.FindAll("[data-order-rules]"));
+        Assert.Empty(window.FindAll(".tl-order__chip"));
+        Assert.Equal(["Alpha", "Beta"], window.FindAll(".tl-order__title").Select(title => title.TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task WhenTheEngineNamesNoRule_TheOrderBlockShowsOnlyTheResultList()
+    {
+        var window = await RenderOrderAsync(Member("Dune", 1, null), Member("Dune Messiah", 2, null));
+
+        Assert.Empty(window.FindAll("[data-order-rules]"));
+        Assert.Empty(window.FindAll("[data-order-unknown]"));
+        Assert.Empty(window.FindAll(".tl-order__chip"));
+        Assert.Equal(2, window.FindAll(".tl-order__row").Count);
+    }
+
+    [Fact]
+    public void OnAPhone_TheOrderBlockMarksItselfSoTheRuleChipDropsUnderTheTitle()
+    {
+        var members = new[] { new EditorSeriesMember(BookOne, "Dune", "1 · Dune", "1", "Books", "1965", EditorSeriesOrderRuleKeys.Number) };
+
+        var block = Render<EditorSeriesOrderBlock>(parameters => parameters
+            .Add(component => component.Members, members)
+            .Add(component => component.Heading, "Reading order")
+            .Add(component => component.Phone, true));
+
+        Assert.Equal("true", block.Find("[data-series-members]").GetAttribute("data-phone"));
+        Assert.Equal("Series number", block.Find(".tl-order__chip").TextContent.Trim());
     }
 
     [Fact]

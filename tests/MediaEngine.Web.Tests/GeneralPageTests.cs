@@ -35,6 +35,8 @@ public sealed class GeneralPageTests : AsyncBunitContext
                 _ => Task.FromResult<NotificationListResponse?>(new NotificationListResponse()));
             stub.SetHandler(nameof(IEngineApiClient.GetNotificationSettingsAsync),
                 _ => Task.FromResult<NotificationSettingsResponse?>(new NotificationSettingsResponse()));
+            stub.SetHandler(nameof(IEngineApiClient.GetMailServerAsync),
+                _ => Task.FromResult<MediaEngine.Contracts.Notifications.MailServerSettingsDto?>(new() { Configured = true, Host = "smtp.example.test", Port = 587, FromAddress = "library@example.test" }));
             stub.SetHandler(nameof(IEngineApiClient.GetAuthSettingsAsync),
                 _ => Task.FromResult<AuthSettingsDto?>(new AuthSettingsDto
                 {
@@ -61,7 +63,7 @@ public sealed class GeneralPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void General_ShowsRightNow_ThenNameAndAddress_ThenLanguageAndRegion_AndNoNotifications()
+    public void General_ShowsNameAndAddress_ThenLanguageAndRegion_WithNoStatusTilesAndNoNotifications()
     {
         var cut = Render<GeneralPage>();
 
@@ -72,16 +74,19 @@ public sealed class GeneralPageTests : AsyncBunitContext
         Assert.True(name >= 0 && name < language, "Name and address, then Language and region.");
         Assert.Empty(cut.FindAll("[data-testid='general-notifications']"));
         Assert.Contains("Name and address", cut.Markup, StringComparison.Ordinal);
+        // The two status tiles ("Adding to your library", "Playing now") are gone: the tabs already show that status.
+        Assert.Empty(cut.FindAll("[data-testid='general-right-now']"));
+        Assert.DoesNotContain("Adding to your library", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Notifications_IsItsOwnTab_AndCarriesTheTestEmailThatWasOnSignInMethods()
+    public void Notifications_IsItsOwnTab_AndCarriesTheMailServerForm()
     {
         var cut = Render<GeneralPage>(parameters => parameters.Add(page => page.Subsection, "notifications"));
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='notifications-email-test-send']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='notifications-mail-test']")));
         Assert.Contains("Notifications", cut.Find("#general-notifications-heading").TextContent, StringComparison.Ordinal);
-        Assert.Contains("Send test email to my account", cut.Find("[data-testid='notifications-email-test-send']").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Send test to me", cut.Find("[data-testid='notifications-mail-test']").TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-testid='general-name-address']"));
     }
 

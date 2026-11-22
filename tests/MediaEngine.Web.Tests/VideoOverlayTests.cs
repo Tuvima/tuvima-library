@@ -284,9 +284,9 @@ public sealed class VideoOverlayTests : AsyncBunitContext
     [Theory]
     [InlineData("phone", 390, true)]
     [InlineData("phone", 844, true)]
-    [InlineData("desktop", 600, true)]
-    [InlineData("desktop", 720, true)]
-    [InlineData("desktop", 721, false)]
+    [InlineData("desktop", 599, true)]
+    [InlineData("desktop", 600, false)]
+    [InlineData("desktop", 720, false)]
     [InlineData("tablet", 800, false)]
     [InlineData("desktop", 1280, false)]
     public async Task Host_DrawsThePhoneOverlayExactlyWhenTheAudioBarDrawsItsPhoneForm(string formFactor, int width, bool phone)

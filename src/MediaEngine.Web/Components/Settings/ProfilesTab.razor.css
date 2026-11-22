@@ -1,7 +1,7 @@
 .profiles-tab { display: grid; gap: 24px; width: 100%; box-sizing: border-box; }
 .profiles-tab__loading { display: grid; gap: 12px; }
 .profiles-tab__people { display: grid; gap: 16px; }
-.profiles-tab__toolbar { display: flex; justify-content: flex-end; }
+.profiles-tab__households-note { margin: 0; text-align: end; }
 .profiles-tab__group { display: grid; gap: 8px; }
 /* The people sit inside a standard settings card, so the list draws no box of its own. */
 .profiles-tab__list { margin: 0; padding: 0; list-style: none; }
@@ -25,8 +25,13 @@
     .profiles-tab__row-avatar { width: 48px; height: 48px; }
 }
 
-.access-phone-note {
-    margin: 0 0 1rem;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-type-secondary-size);
+/* On a phone each person is a card: avatar and name on top, role chips under them, then a full-width Edit button (Look v3.2 D3). The buttons are 44 px high
+   through the shared tap-target rule and fill the card through their FullWidth setting. */
+@media (max-width: 600px) {
+    .profiles-tab__line { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-areas: "avatar who" "badges badges" "edit edit"; gap: 8px 12px; align-items: center; }
+    .profiles-tab__row-avatar { grid-area: avatar; }
+    .profiles-tab__who { grid-area: who; }
+    .profiles-tab__badges { grid-area: badges; justify-content: flex-start; }
+    .profiles-tab__edit-cell { grid-area: edit; display: block; }
+    .profiles-tab__item--add { padding: 8px 0; }
 }

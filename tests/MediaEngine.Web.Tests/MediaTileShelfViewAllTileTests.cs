@@ -89,7 +89,7 @@ public sealed class MediaTileShelfViewAllTileTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("phone", "See All")]
+    [InlineData("phone", "View all")]
     [InlineData("desktop", "View all")]
     public async Task HeaderLinkKeepsItsWordingNextToTheEndTile(string formFactor, string wording)
     {

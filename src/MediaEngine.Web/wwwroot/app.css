@@ -738,6 +738,9 @@ code{
 .media-tile-actions__notice { position:absolute; top:100%; right:0; width:max-content; max-width:16rem; }
 .media-tile-actions .media-tile-action.app-icon-button { --app-control-height:var(--tl-tile-menu-button); min-height:var(--tl-tile-menu-button); background:transparent; color:var(--tl-on-scrim); }
 .media-tile-actions .media-tile-action.app-icon-button .tl-icon-root { filter:var(--tl-tile-mark-shadow); }
+/* A page that draws its own menu in the slot (the Playlists page's playlist menu) gets the same bare light "..." as the tile's own. */
+.media-tile-actions .app-row-menu__trigger { min-width:var(--tl-tile-menu-button); min-height:var(--tl-tile-menu-button); background:transparent; color:var(--tl-on-scrim); }
+.media-tile-actions .app-row-menu__trigger .tl-icon-root { filter:var(--tl-tile-mark-shadow); }
 .media-tile-actions .media-tile-action.app-icon-button.app-icon-button--plain:hover:not(:disabled):not([aria-disabled="true"]),
 .media-tile-actions .media-tile-action.app-icon-button.app-icon-button--plain[aria-expanded="true"] { background:transparent; }
 @media (prefers-reduced-motion: reduce){
@@ -2588,7 +2591,6 @@ input.app-control.tl-input-slot,
 .tl-u-overflow-y-auto { overflow-y: auto !important; }
 
 .tl-u-padding-32px-0 { padding: 32px 0 !important; }
-.tl-u-padding-left-75px { padding-left: 75px !important; }
 
 .tl-u-text-align-center { text-align: center !important; }
 .tl-u-text-decoration-none { text-decoration: none !important; }
@@ -2664,6 +2666,19 @@ input.app-control.tl-input-slot,
 
 .dev-harness-chip {
     min-height: 32px;
+}
+
+/* Developer Tools on a phone (Settings alignment D13): chips and the tools' actions are 48 px tall, and each action runs the full
+   width of its card. These classes sit on shared App* components, which a component's isolated stylesheet cannot reach. */
+:root[data-form-factor="phone"] .dev-harness-chip {
+    min-height: var(--tl-touch-target-min);
+}
+
+:root[data-form-factor="phone"] .dev-harness-action,
+:root[data-form-factor="phone"] .pt-search-action,
+:root[data-form-factor="phone"] .enr-search-action {
+    width: 100%;
+    min-height: var(--tl-touch-target-min);
 }
 
 .dev-harness-helper {
@@ -2982,6 +2997,8 @@ button.app-menu-item {
     font-weight: 500; line-height: 1.3; max-width: min(var(--tl-tooltip-max-width), calc(100vw - 16px)); box-shadow: var(--tl-shadow-md);
     animation: tl-tooltip-in 100ms ease-out;
 }
+/* A tooltip's optional caution line (the folder picker's Managed tooltip): amber, on its own line. */
+.playback-tooltip__warning { display: block; margin-top: 4px; color: var(--tl-status-warning); }
 /* A rated title shows its state at rest on every surface (Look pass v2 A7). */
 @keyframes tl-tooltip-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .playback-tooltip { animation: none; } }
@@ -3050,7 +3067,7 @@ button.app-menu-item {
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-chrome__bottom { bottom: max(6px, var(--tl-safe-area-bottom)); gap: 0; }
     .video-playback-host.is-expanded .playback-seek-rail--video { gap: 4px; }
 }
-@media (max-width: 720px){
+@media (max-width: 600px){
     .playback-panel .playback-context-tabs { gap: 4px; padding: 4px; border: 0; background: var(--playback-surface-hover); border-radius: 8px; }
     .playback-panel .playback-context-tabs [role="tab"] { flex: 1; border: 0; border-radius: 6px; }
     .playback-panel .playback-context-tabs [role="tab"][aria-selected="true"] { background: var(--playback-accent-soft); color: var(--playback-text); }
@@ -3194,6 +3211,15 @@ button.app-menu-item {
     border-color: var(--tl-menu-divider) !important;
 }
 
+/* The grips a finger drags a playlist row by in the Listen sidebar and the section rail's reorder mode (touch-reorder.js): only the grip stops the
+   page scrolling under a finger, and a long press on it selects nothing. The queue handle and the song table's grip say the same in their own sheets. */
+.listen-rail__drag,
+.media-section-shell__drag-handle {
+    touch-action: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
 /* Shared 44px tap-target contract. Touch devices and any window narrower than the desktop form factor
    (a mouse-driven narrow window complies too). The 48px dock/button token above is unchanged. Text links
    inside running prose are deliberately left alone. */
@@ -3216,6 +3242,8 @@ button.app-menu-item {
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
     :root:root .listen-rail__more,
+    :root:root .listen-rail__drag,
+    :root:root .media-section-shell__drag-handle,
     :root:root .listen-rail__item,
     :root:root .tl-series-carousel__arrow,
     :root:root .sme-section-nav__item,
@@ -3241,6 +3269,13 @@ button.app-menu-item {
         min-height: var(--tl-tap-target-min);
     }
 
+    /* The general rule (Look v3.2 D2): every pressable thing gets the minimum touch box, so a new button needs no entry in the list above.
+       The list above stays for anchors and widgets that are not buttons. Hidden-from-view helpers are skipped. */
+    :root:root :where(button, summary, select, [role="button"], [role="switch"], [role="checkbox"], [role="radio"]):not(.sr-only, .visually-hidden) {
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+    }
+
     /* A tooltip on something that cannot take focus itself (an info icon, a status symbol, a disabled button) makes its holder
        focusable so keyboard users can read it (playback-tooltip.js). That holder is then a target too, so it gets the full
        44 x 44 box with the icon centred. */
@@ -3249,6 +3284,13 @@ button.app-menu-item {
         min-height: var(--tl-tap-target-min);
         align-items: center;
         justify-content: center;
+    }
+
+    /* The queue's drag handle keeps its 24 px drawing in its column; its touchable area grows to the 44 px target around it. */
+    :root:root .qp__handle::after {
+        content: "";
+        position: absolute;
+        inset: calc((var(--tl-tap-target-min) - 100%) / -2);
     }
 
     /* The Settings banner's X (32px on desktop). */
@@ -3271,8 +3313,9 @@ button.app-menu-item {
 
     :root:root .shelf-header__link,
     :root:root .media-tile-shelf-link,
+    :root:root .recent-view-all,
     :root:root .layout-shell__brand-link,
-    :root:root .settings-breadcrumbs a,
+    :root:root .settings-frame__back,
     :root:root .skip-to-content {
         display: inline-flex;
         align-items: center;
@@ -3284,14 +3327,6 @@ button.app-menu-item {
     :root:root .media-tile-shelf-link {
         min-width: var(--tl-tap-target-min);
         justify-content: flex-end;
-    }
-
-    /* Settings breadcrumb links: a short label such as "Profiles" is still a full 44 x 44 tap target. The extra class beats
-       the isolated rule's min-width: 0. */
-    :root:root .app-breadcrumbs.settings-breadcrumbs a {
-        min-width: var(--tl-tap-target-min);
-        min-height: var(--tl-tap-target-min);
-        justify-content: center;
     }
 
     /* Search overlay: the text field and each section's "See all" link. */
@@ -4059,6 +4094,18 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
     border-radius: var(--tl-radius-md);
 }
 
+/* A song row's "..." is a plain icon button: no border, only a hover highlight, at the right end of the row (issue 1163). */
+.song-table__cell--actions .app-row-menu__trigger {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+.song-table__cell--actions .app-row-menu__trigger:hover,
+.song-table__cell--actions .app-row-menu__trigger:focus-visible {
+    background: var(--tl-accent-primary-soft);
+}
+
 .app-row-menu__sheet,
 .app-menu-sheet {
     --tl-menu-item-height: var(--tl-menu-sheet-row-height);
@@ -4199,7 +4246,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 @media (prefers-reduced-motion: reduce){
     .tl-enrichment-pending { animation: none; }
 }
-@media (max-width: 720px){
+@media (max-width: 600px){
     .playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__appbar,
     .playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__intent-dock {
         display: none !important;
@@ -4771,10 +4818,6 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .folder-table__actions .folder-table__menu .folder-table__menu-trigger.app-overflow-menu__trigger { min-width: 44px; min-height: 44px; }
 /* Show details only where the Files value is folded away (the card layout), which follows the table's own width. */
 @container folder-table (max-width: 840px) { .folder-table__expand { display: inline-flex; align-items: center; justify-content: center; } }
-/* Under 840px folders are read-only: the row menu goes (display:none, so it is not focusable). */
-@media (max-width: 840px) {
-    .folder-table__menu { display: none; }
-}
 
 /* Settings banner X (SettingsNoticeBubble): an AppNativeButton, so its root styles live here. Touch and narrow windows grow it to 44px
    in the shared tap-target block. */
@@ -4830,7 +4873,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .lib-area--view { --lib-area-colour: var(--tl-area-view); }
 .lib-area--vault { --lib-area-colour: var(--tl-area-vault); }
 /* Library area chips (LibraryAreaChips). Global on purpose: the chip is the root of the shared native button, so a scoped sheet never reached it. */
-.lib-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); font: inherit; font-weight: 600; cursor: pointer; }
+.lib-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--tl-border-subtle); border-radius:var(--tl-radius-pill); background: transparent; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); font: inherit; font-weight: 600; cursor: pointer; }
 .lib-chip:hover { background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 10%, transparent); }
 .lib-chip:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .lib-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
@@ -4839,7 +4882,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 /* Activity page (LibraryActivity*, spec library-activity): the roots of shared buttons, links and the filter row are not reached by the pieces' scoped sheets,
    so their layout sits here. The chips are the shared toggle chip (button.app-toggle-chip, whose own sheet is scoped, hence the element in the selectors): the area chips are
    outlined in their area colour (lib-area--*; All libraries in the accent) and a pressed one adds a soft fill of that colour. */
-button.app-toggle-chip.lact-chip { gap: 4px; min-height: 34px; padding: 0 14px; border-radius: var(--tl-radius-sm); border-color: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 75%, transparent); background: transparent; color: var(--tl-text-secondary); font-weight: var(--tl-font-weight-regular); }
+button.app-toggle-chip.lact-chip { gap: 4px; min-height: 34px; padding: 0 14px; border-radius:var(--tl-radius-pill); border-color: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 75%, transparent); background: transparent; color: var(--tl-text-secondary); font-weight: var(--tl-font-weight-regular); }
 button.app-toggle-chip.lact-chip--all { --lib-area-colour: var(--tl-accent-primary); }
 button.app-toggle-chip.lact-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); color: var(--tl-text-primary); }
 .lact-controls { flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
@@ -4848,6 +4891,13 @@ button.app-toggle-chip.lact-chip.is-on { border-color: var(--lib-area-colour, va
 .lact-group__toggle:focus-visible, .lact-box__toggle:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .lact-box__toggle { display: grid; grid-template-areas: "what covers status chev"; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; column-gap: var(--tl-space-4); width: 100%; box-sizing: border-box; padding: var(--tl-space-2) var(--tl-space-3); border: 0; border-radius: var(--tl-radius-lg); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .lact-box__toggle:hover { background: var(--tl-bg-surface-hover); }
+/* The batch list's own buttons and pills (LibraryActivityEntryList): they sit on shared parts' roots, so their rules live here with the other lact- rules. */
+.lact-batch .lact-batch__sort { display: inline-flex; align-items: center; gap: var(--tl-space-1); padding: var(--tl-space-1) 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.lact-batch .lact-batch__sort:hover { color: var(--tl-text-primary); }
+.lact-batch .lact-batch__sort:focus-visible, .lact-batch .lact-batch__toggle:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.lact-batch .lact-batch__toggle { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--tl-radius-sm); background: none; color: var(--tl-text-muted); cursor: pointer; }
+.lact-batch .lact-batch__toggle:hover { background: var(--tl-bg-surface-hover); color: var(--tl-text-primary); }
+.lact-batch__row.is-file .lact-batch__pill { opacity: 0.8; }
 /* A phone: the title and its counts line (up to two lines) with the chevron, then the two covers with the "+N" on the left and the one status on the right. */
 @media (max-width: 600px) {
     .lact-box__toggle { grid-template-areas: "what chev" "covers status"; grid-template-columns: minmax(0, 1fr) auto; row-gap: var(--tl-space-2); }
@@ -5203,6 +5253,32 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     color: var(--tl-text-secondary);
 }
 
+/* The Series dropdown triggers (AppRowButtons, so their root carries no component scope): the same box as the Season and episode dropdowns of every
+   other item (.tl-hnav__trigger in EditorHeaderNav), so the Series header looks and sizes the same (issue 1250). The element is named so the rule outranks the shared button's own reset (a scoped rule that sits later in the page). */
+button.tl-snav__trigger {
+    gap: 0.625rem;
+    height: var(--tl-control-height-md);
+    min-width: 12.5rem;
+    max-width: 100%;
+    padding: 0 0.75rem 0 0.625rem;
+    border: 1px solid var(--tl-border-strong);
+    border-radius: var(--tl-radius-md);
+    background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent);
+    color: var(--tl-text-primary);
+}
+
+button.tl-snav__trigger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--tl-bg-surface-hover) 85%, transparent);
+}
+
+button.tl-snav__trigger.is-open {
+    border-color: var(--tl-accent-primary);
+}
+
+.tl-snav--stacked button.tl-snav__trigger {
+    width: 100%;
+}
+
 .tl-hnav__home.is-current {
     box-shadow: 0 0 0 2px var(--tl-accent-primary-hover);
 }
@@ -5537,7 +5613,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .view-edit-contents__tile.is-removed{opacity:.5}
 .view-edit-contents__tile.is-selected{outline:2px solid var(--tl-accent-primary);outline-offset:2px}
 .view-edit-contents__name{overflow:hidden;color:var(--tl-text-secondary);font-size:var(--tl-font-size-xs,.75rem);text-overflow:ellipsis;white-space:nowrap}
-.view-edit-contents__badge{position:absolute;left:var(--tl-space-1);bottom:var(--tl-space-1);display:inline-flex;align-items:center;gap:2px;padding:0 var(--tl-space-1);border-radius:var(--tl-radius-sm,4px);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font-size:var(--tl-font-size-xs,.75rem)}
+.view-edit-contents__badge{position:absolute;left:var(--tl-space-1);bottom:var(--tl-space-1);display:inline-flex;align-items:center;gap:2px;padding:0 var(--tl-space-1);border-radius:var(--tl-radius-pill);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font-size:var(--tl-font-size-xs,.75rem)}
 .tl-editor-panel__header{display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:var(--tl-space-3);padding:var(--tl-space-2) var(--tl-space-4);border-bottom:1px solid var(--tl-divider)}
 .tl-editor-panel__title{margin:0;font-size:var(--tl-font-size-lg);font-weight:var(--tl-font-weight-semibold)}
 .tl-editor-panel__title:focus-visible{outline:var(--tl-focus-ring-width) solid var(--tl-focus-ring);outline-offset:var(--tl-focus-ring-offset)}
@@ -5559,6 +5635,17 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-editor-field__reset{align-self:flex-start}
 .tl-editor-field__tools{display:inline-flex;align-items:center;gap:var(--tl-space-2);margin-left:auto}
 .tl-editor-field__lockstate{display:inline-flex;align-items:center;gap:var(--tl-space-1);color:var(--tl-accent-primary-hover);font-weight:500}
+/* The lock sits inside the box at its right edge (issue 1124): no words, the colour says the state. Locked is the accent purple, unlocked (open to typing) is amber. */
+.tl-editor-field__box{position:relative;min-width:0}
+.tl-editor-field__box[data-lock-box="true"] :is(.tl-input,input,select,textarea){padding-inline-end:calc(var(--tl-control-height-sm) + var(--tl-space-2))}
+.tl-editor-field__box[data-lock-box="true"] .tl-editor-field__chips{padding-inline-end:calc(var(--tl-control-height-sm) + var(--tl-space-2))}
+.tl-editor-field__box>.tl-editor-field__lockstate{position:absolute;top:0;bottom:0;right:var(--tl-space-1);z-index:1}
+/* A tall box (a description) keeps the lock at its top right; every one-line box centers it (issue 1159). */
+.tl-editor-field__box:has(textarea)>.tl-editor-field__lockstate{bottom:auto}
+.tl-editor-field__box>.tl-editor-field__lockstate .tl-editor-field__lock-toggle{color:var(--tl-accent-primary-hover)}
+.tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="unlocked"] .tl-editor-field__lock-toggle,.tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="unlocked"]{color:var(--tl-status-warning)}
+.tl-editor-field__box>.tl-editor-field__lockstate[data-lock-state="locked"] .tl-editor-field__lock-toggle{color:var(--tl-accent-primary-hover)}
+.tl-editor-touch .tl-editor-field__box>.tl-editor-field__lockstate{top:0}
 .tl-editor-field--form-locked .tl-input,.tl-editor-field__chips{border-style:dashed}
 .tl-editor-field[data-form-row-field] .tl-input{font-weight:var(--tl-type-control-weight)}
 .tl-editor-field--form-locked textarea.tl-input{outline-style:dashed}
@@ -5837,6 +5924,50 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     height: var(--tl-viewer-close);
 }
 
+/* Photo, video and audio viewer root (MediaViewerShell). AppViewer draws this element, so the shell's scoped CSS cannot reach it; without a grid here
+   the bar and body stack at their natural height, the stage collapses and the photo opens small (spec view-people-search WP13). */
+.media-viewer { z-index: 1600; display: grid; grid-template-rows: auto minmax(0, 1fr); color: var(--tl-text-primary); background: color-mix(in srgb, var(--tl-bg-root) 98.5%, transparent); }
+.media-viewer.media-viewer--video { grid-template-rows: minmax(0, 1fr); }
+
+/* Photos smart search bar (view-people-search WP4): the chip remove button and the text box are drawn by shared components, so their rules live here. */
+.view-smart-search__chip .view-smart-search__remove{display:inline-grid;width:2.75rem;height:2.75rem;margin-block:-.25rem;place-items:center;border:0;border-radius:50%;background:transparent;color:inherit;cursor:pointer}
+.view-smart-search__chip .view-smart-search__remove:hover,.view-smart-search__chip .view-smart-search__remove:focus-visible{background:var(--tl-bg-surface-hover)}
+.view-smart-search .view-smart-search__input{flex:1 1 8rem;width:auto;min-width:6rem}
+
+/* People: faces, the "Who's this?" row and the face pickers (spec view-people-search WP9). View-only; shared parts are untouched. */
+.view-face-image { width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; background: var(--tl-border-subtle); display: block; }
+.view-face-box { position: absolute; box-sizing: border-box; border: 2px solid var(--tl-accent-primary-hover); border-radius: .35rem; pointer-events: none; }
+.view-face-box--unnamed { border-style: dashed; }
+.view-face-box small { position: absolute; left: 0; top: 100%; max-width: 100%; padding: .1rem .35rem; border-radius: .25rem; background: var(--tl-bg-surface-hover); color: inherit; font-size: var(--tl-font-size-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-face-tile { display: grid; justify-items: center; gap: .35rem; width: 7rem; min-height: 44px; padding: .35rem; border: 2px solid transparent; border-radius: .75rem; background: transparent; color: inherit; cursor: pointer; text-align: center; }
+.view-face-tile:hover { background: var(--tl-bg-surface-hover); }
+.view-face-tile:focus-visible { outline: 2px solid var(--tl-accent-primary-hover); }
+.view-face-tile span { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.view-face-tile--check { width: 5.5rem; }
+.view-face-tile--check.view-face-tile--on { border-color: var(--tl-accent-primary-hover); }
+.view-face-tile--check:not(.view-face-tile--on) .view-face-image { opacity: .35; }
+.view-face-grid { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: .75rem; }
+.view-face-grid--preview li { width: 4rem; }
+.view-face-hint { color: var(--tl-text-secondary); margin: 0 0 .75rem; }
+.view-whos-this { margin: 0 0 1.5rem; }
+.view-whos-this header { display: grid; gap: .15rem; margin-bottom: .5rem; }
+.view-whos-this h2 { margin: 0; font-size: var(--tl-font-size-lg); }
+.view-whos-this small { color: var(--tl-text-secondary); }
+.view-whos-this ul { list-style: none; margin: 0; padding: 0 0 .25rem; display: flex; gap: .75rem; overflow-x: auto; scroll-snap-type: x proximity; }
+.view-whos-this li { flex: 0 0 auto; scroll-snap-align: start; }
+.view-person-header { display: flex; align-items: center; gap: 1rem; margin: 0 0 1rem; }
+.view-person-header .view-face-image { width: 5rem; flex: 0 0 5rem; }
+.view-person-header__text { flex: 1 1 auto; display: grid; gap: .15rem; }
+.view-person-header__text h2 { margin: 0; }
+.view-person-header__text small { color: var(--tl-text-secondary); }
+.view-face-status { color: var(--tl-text-secondary); margin: 0 0 1rem; }
+.view-people-hidden { margin: 0 0 1rem; }
+.view-people-settings { display: grid; gap: .75rem; margin-top: 2rem; max-width: 46rem; }
+.view-people-settings h3 { margin: 0; }
+@media (max-width: 640px) {
+    .view-face-tile { width: 6rem; }
+    .view-person-header .view-face-image { width: 4rem; flex-basis: 4rem; }
+}
 /* Window footer (Look v3 D14, D15.3; Shy 2026-11-07: as in the mock): every button sits in one right-hand group in reading order,
    destructive (outlined red), then Cancel or Discard, then the one primary last. Only a quiet extra action marked app-footer-start
    (for example Reset) sits alone at the far left. Phones stack the buttons full width, primary on top. The one exception is the short
@@ -5870,19 +6001,98 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 }
 
 /* Dragging songs onto a playlist (Listen music spec D10): song-table.js adds .is-song-drop-over to the [data-song-drop] target under the pointer, and the picture a ticked row drags with. */
-[data-song-drop].is-song-drop-over{outline:2px solid var(--tl-accent-primary);outline-offset:-2px;border-radius:var(--tl-radius-sm,6px);background:color-mix(in srgb,var(--tl-accent-primary) 22%,transparent)}
+/* While songs or photos are being dragged, every place that takes them shows a quiet dashed outline, so you can see where to let go; the one under the
+   pointer turns solid purple with a soft fill. Look v3 tokens only; no movement, so the rail does not jump under the pointer. */
+body.is-song-dragging [data-song-drop]{outline:1px dashed var(--tl-accent-primary-border);outline-offset:-1px;transition:outline-color 120ms ease,background-color 120ms ease}
+body [data-song-drop].is-song-drop-over{outline:2px solid var(--tl-accent-primary);outline-offset:-2px;background:var(--tl-accent-primary-soft)}
 .song-table__drag-picture{padding:6px 12px;border-radius:var(--tl-radius-sm,6px);background:var(--tl-accent-primary);color:var(--tl-text-on-accent);font-family:var(--font-ui,sans-serif);font-size:var(--tl-type-control-size);font-weight:600}
+/* The folder picker on a phone (issue 1155): the drives are a row of chips across the top instead of a column on the left, so the folder list has the whole width,
+   and the access choice and buttons stay pinned under the list. Global because the sidebar belongs to the shared browser frame, not to the picker. */
+@media (max-width: 840px) {
+    :root .server-folder-picker .app-browser__side { flex-direction: row; flex-wrap: nowrap; gap: var(--tl-space-2); max-height: none; overflow-x: auto; overflow-y: hidden; padding-bottom: var(--tl-space-1); }
+    :root .server-folder-picker .app-browser__side > * { display: contents; }
+    :root .server-folder-picker .app-browser__side hr, .server-folder-picker .app-browser__side h3 { display: none; }
+    :root .server-folder-picker .app-browser__side ul { display: flex; flex-direction: row; flex: none; gap: var(--tl-space-2); margin: 0; padding: 0; list-style: none; }
+    :root .server-folder-picker .app-browser-side-item { width: auto; min-height: var(--tl-tap-target-min); padding-inline: var(--tl-space-3); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm); white-space: nowrap; }
+    :root .server-folder-picker .app-browser-side-item[aria-current="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
+    :root .server-folder-picker .app-browser-side-item__detail { display: none; }
+    :root .server-folder-picker__handling { flex-basis: 100%; }
+    :root .server-folder-picker__footer .app-action-bar { width: 100%; }
+    :root .server-folder-picker__footer .app-action-bar .app-button { flex: 1 1 0; min-height: var(--tl-tap-target-min); }
+}
+
+/* The Add to playlist picker's rows (PlaylistPickerDialog): AppNativeButton draws them, so these rules cannot be scoped to the dialog. */
+.playlist-picker__list .playlist-picker__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--tl-space-3);
+    width: 100%;
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    color: var(--tl-text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-root);
+}
+
+.playlist-picker__list .playlist-picker__row:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 72%, var(--tl-border-subtle));
+}
+
+.playlist-picker__list .playlist-picker__row:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.playlist-picker__list .playlist-picker__row.is-selected {
+    border-color: var(--tl-accent-primary);
+    box-shadow: inset 0 0 0 1px var(--tl-accent-primary);
+    background: color-mix(in srgb, var(--tl-accent-primary) 11%, var(--tl-bg-root));
+}
+
+.playlist-picker__list .playlist-picker__row:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.playlist-picker__list .playlist-picker__row--new {
+    background: var(--tl-bg-surface-raised);
+}
+
+@media (max-width: 600px) {
+    .playlist-picker__list .playlist-picker__row {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
 /* Hero: sized to its content, with room under the floating top bar, instead of one full screen of backdrop. */
 html[data-form-factor="phone"] .tl-detail-page {
-    --cinematic-hero-phone-min-height: 22rem;
+    /* A short hero (issue 1182): the menu bar's own height plus the logo, facts and buttons, so the first row of content shows without scrolling. */
+    --cinematic-hero-phone-min-height: 0px;
+    /* The same 40 px buttons as the phone Home hero (issue 1180). */
+    --tl-hero-action-height: 40px;
+    --tl-hero-action-label-size: 15px;
+    --tl-hero-action-icon-size: 20px;
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__inner {
-    padding: calc(var(--app-topbar-height, 65px) + 2.5rem) 16px 1.25rem;
+    padding: calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + 0.5rem) 16px 1rem;
     align-items: flex-end;
+}
+
+/* The title logo is about half the width of the screen, not the full width (issue 1182). */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__logo {
+    width: min(50%, 14rem);
+    max-height: 5rem;
+    margin-bottom: 0.25rem;
+    object-fit: contain;
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__copy {
@@ -5898,76 +6108,124 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__
     text-wrap: balance;
 }
 
-/* Fact rows wrap as chips instead of scrolling sideways. */
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-metadata-stack,
+/* Facts line and genres, sized for a phone (issues 1261, 1182; approved mock: 12 px facts with a small boxed rating, one line that wraps, never sideways).
+   The selectors are written long on purpose: the hero's own scoped rules (nowrap facts, 16 px text) are more specific than a short phone rule. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-metadata-stack,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero--watch .tl-detail-metadata-stack {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     overflow: visible;
     justify-items: start;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-metadata-row,
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-row,
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-row--facts {
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-row,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-watch-metadata-row,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-watch-metadata-row--facts {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     flex-wrap: wrap;
-    gap: 0.4rem;
-    font-size: var(--tl-font-size-sm);
+    justify-content: flex-start;
+    gap: 0.15rem 0.45rem;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    font-size: var(--tl-font-size-xs);
+    font-weight: var(--tl-font-weight-regular, 400);
+    line-height: 16px;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-separator {
-    display: none;
-}
-
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-item:not(.tl-detail-watch-metadata-item--classification) {
-    padding: 0.28rem 0.65rem;
-    border: 1px solid var(--tl-wash-light-5);
-    border-radius: var(--tl-radius-pill);
-    background: var(--tl-scrim-dark-3);
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-watch-metadata-item,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-metadata-item,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-metadata-item__value {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: var(--tl-font-size-xs);
+    line-height: 16px;
     white-space: normal;
 }
 
-/* Genre chips keep a 44px tap box; the visible pill is drawn smaller inside it. */
+/* Only the rating (the classification) is boxed, as a small boxed mark. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero--watch .tl-detail-watch-metadata-item--classification {
+    padding: 0 5px;
+    border: 1px solid var(--tl-wash-light-5);
+    border-radius: 4px;
+    background: transparent;
+    font-size: var(--tl-font-size-xs);
+    line-height: 16px;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-watch-metadata-item .tl-icon-root {
+    font-size: var(--tl-icon-size-xs);
+}
+
+/* Genre chips keep a 44 px tap box; the visible pill inside it is a small 26 px one. */
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genres {
     flex-wrap: wrap;
-    gap: 0 0.45rem;
-    margin-top: 0.25rem;
+    gap: 0 0.4rem;
+    margin-top: 0;
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre {
     position: relative;
     isolation: isolate;
     min-height: var(--tl-tap-target-min, 44px);
-    padding-inline: 0.9rem;
+    padding: 0 0.7rem;
     border: 0;
     background: transparent;
     backdrop-filter: none;
     box-shadow: none;
+    font-size: var(--tl-font-size-xs);
 }
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre::before {
     content: "";
     position: absolute;
-    z-index: 0;
-    inset: 0.4rem 0;
+    z-index: -1;
+    inset: 9px 0;
     border: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-primary)) 48%, var(--tl-wash-light-5));
-    border-radius: var(--tl-radius-round);
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-scrim-dark-3);
 }
 
-/* Actions: one full-width primary button, then a row of 44px round icons with their names underneath. */
+/* Actions (approved mock): one line. A wide Resume button takes the room that is left, with the round companions beside it, without their names
+   (each keeps its spoken name and long-press tooltip). Nothing is wider than the screen. */
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions {
-    --media-rate-trigger-size: 44px;
-    flex-direction: column;
-    align-items: stretch;
+    /* Only the hero's round buttons shrink to 40 px; other large controls on the page keep the shared tap-target size. */
+    --tl-control-height-lg: 40px;
+    --media-rate-trigger-size: 40px;
+    flex-direction: row;
+    align-items: flex-start;
     flex-wrap: nowrap;
-    gap: 0.9rem;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-actions {
-    width: 100%;
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-primary-actions {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-secondary-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-secondary-actions .app-icon-button__label {
+    display: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero__copy,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero__identity {
+    min-width: 0;
 }
 
 /* The More menu is a bottom sheet on phones. */

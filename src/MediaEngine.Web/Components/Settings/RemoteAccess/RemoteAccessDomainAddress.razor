@@ -1,0 +1,67 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* Own-domain wizard, screen 1: Address (mock-ups 6b A). One plain question first: does the person own a domain? "How to get one" opens
+   the public domain guide in a new tab and buys nothing. The person types only the front part and the domain; the full https address is
+   built and shown. Library never buys a domain or keeps registrar details. *@
+<div class="ra-domain" data-remote-screen="domain-address">
+    <RemoteAccessCard Key="own-domain" Title="@L["RemoteAccessDomainAddress_Question"].Value">
+        <RemoteAccessRow Key="own-yes" Title="@L["RemoteAccessDomainAddress_Yes"].Value" Detail="@L["RemoteAccessDomainAddress_YesText"].Value">
+            <Actions>
+                <AppButton Label="@L["RemoteAccessDomainAddress_UseMine"].Value" ButtonStyle="@(Owns ? AppButtonStyle.Outlined : AppButtonStyle.Filled)"
+                           Tone="@(Owns ? AppUiTone.Neutral : AppUiTone.Primary)" OnClick="UseMineAsync" data-remote-action="use-my-domain" />
+            </Actions>
+        </RemoteAccessRow>
+        <RemoteAccessRow Key="own-no" Title="@L["RemoteAccessDomainAddress_No"].Value" Detail="@L["RemoteAccessDomainAddress_NoText"].Value">
+            <Actions>
+                <a class="ra-domain__link" href="@RemoteAccessGuideLinks.DomainNames" target="_blank" rel="noopener noreferrer" data-remote-link="domain-help">@L["RemoteAccessDomainAddress_HowToGetOne"]</a>
+            </Actions>
+        </RemoteAccessRow>
+    </RemoteAccessCard>
+
+    @if (Owns)
+    {
+        <RemoteAccessCard Key="pick-name" Title="@L["RemoteAccessDomainAddress_PickName"].Value">
+            <div class="ra-domain__name">
+                <AppTextField T="string" Value="@Front" ValueChanged="@(value => FrontChanged.InvokeAsync(value))" FullWidth="false"
+                              Label="@L["RemoteAccessDomainAddress_FrontName"].Value" Placeholder="@OwnDomainAddress.SuggestedFrontName" data-remote-field="front" />
+                <span class="ra-domain__dot" aria-hidden="true">.</span>
+                <AppTextField T="string" Value="@Domain" ValueChanged="@(value => DomainChanged.InvokeAsync(value))" FullWidth="false"
+                              Label="@L["RemoteAccessDomainAddress_Domain"].Value" Placeholder="yourname.com" data-remote-field="domain" />
+            </div>
+            @if (BuiltAddress is not null)
+            {
+                <p class="ra-domain__built" data-remote-built-address>@L["RemoteAccessDomainAddress_YourAddress"] <span class="ra-domain__mono">@BuiltAddress</span></p>
+            }
+            else if (!string.IsNullOrWhiteSpace(Domain))
+            {
+                <p class="ra-domain__problem" role="alert" data-remote-address-problem>@L["RemoteAccessDomainAddress_Problem"]</p>
+            }
+        </RemoteAccessCard>
+    }
+
+    <div class="ra-domain__actions">
+        <AppButton Label="@L["Common_Continue"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!Owns || BuiltAddress is null || Busy)"
+                   OnClick="ContinueRequested" data-remote-action="continue" />
+        <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+    </div>
+</div>
+
+@code {
+    /// <summary>The person said they own a domain.</summary>
+    [Parameter] public bool Owns { get; set; }
+
+    [Parameter] public string Front { get; set; } = string.Empty;
+    [Parameter] public string Domain { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string?> FrontChanged { get; set; }
+    [Parameter] public EventCallback<string?> DomainChanged { get; set; }
+    [Parameter] public EventCallback OwnsChosen { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback ContinueRequested { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+
+    private string? BuiltAddress => OwnDomainAddress.Build(Front, Domain);
+
+    private Task UseMineAsync() => OwnsChosen.InvokeAsync();
+}

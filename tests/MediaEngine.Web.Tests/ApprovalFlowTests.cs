@@ -195,14 +195,16 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
 
         var text = cut.Markup;
         Assert.Contains("AI features are plugins", text, StringComparison.Ordinal);
-        Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/plugins");
+        // One link to Plugins on the whole tab, not one beside every plugin as well.
+        Assert.Single(cut.FindAll("a"), link => (link.GetAttribute("href") ?? "").StartsWith("/settings/plugins", StringComparison.Ordinal));
         Assert.DoesNotContain("Save features", text, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("input[role=switch]"));
+        // The only switch is the Whisper pack of the models section, never an AI feature.
+        Assert.All(cut.FindAll("input[role=switch]"), toggle => Assert.Equal("Optional Whisper feature pack", toggle.GetAttribute("aria-label")));
         Assert.Empty(cut.FindAll(".local-ai-settings__summary-card"));
     }
 
     [Fact]
-    public void LocalAiUsage_ListsPluginsAgainstTheirAllowance_WithALinkToTheirPluginCard()
+    public void LocalAiUsage_ListsPluginsAgainstTheirAllowance_WithNoLinkOfItsOwn()
     {
         _usage = new AiUsageResponse
         {
@@ -227,7 +229,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
         Assert.Contains("Smart labelling", status.Markup, StringComparison.Ordinal);
         Assert.Contains("130 of 120 requests this hour", status.Markup, StringComparison.Ordinal);
         Assert.Contains("Needs attention", status.Markup, StringComparison.Ordinal);
-        Assert.Contains(status.FindAll("a"), link => link.GetAttribute("href") == "/settings/plugins?plugin=tuvima.ai-vibe-tags");
+        Assert.DoesNotContain(status.FindAll("a"), link => (link.GetAttribute("href") ?? "").Contains("?plugin=", StringComparison.Ordinal));
         Assert.Empty(status.FindAll("table"));
 
         // Advanced holds the detailed usage table and not the plugin list.
@@ -246,7 +248,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
         Assert.Contains("Requests per hour", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Busy seconds per hour", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Longest wait", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Save allowance");
+        Assert.Equal("Save changes", cut.Find("[data-testid=local-ai-budget] [data-settings-save-bar] button").TextContent.Trim());
     }
 
     [Fact]

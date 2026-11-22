@@ -1,0 +1,54 @@
+/* The playlist's small window (Rename, or Edit description and cover): the cover block under the description. Controls are 44 px. */
+.playlist-edit__cover {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.playlist-edit__label {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-control-size);
+    font-weight: var(--tl-type-control-weight);
+}
+
+.playlist-edit__status,
+.playlist-edit__hint {
+    margin: 0;
+    color: var(--tl-text-muted);
+    line-height: 1.5;
+}
+
+.playlist-edit__hint {
+    font-size: var(--tl-font-size-sm);
+}
+
+.playlist-edit__cover-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* The file picker is a button-looking label; the real input (the shared app-artwork-picker__input) sits over it, invisible, so a click and the keyboard both reach it. */
+.playlist-edit__pick {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: 0 1rem;
+    color: var(--tl-text-primary);
+    border: 1px solid var(--tl-border-strong, var(--tl-border-subtle));
+    border-radius: var(--tl-control-radius);
+    cursor: pointer;
+}
+
+.playlist-edit__pick:hover {
+    background: var(--tl-wash-light-3);
+}
+
+.playlist-edit__pick:focus-within {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 2px;
+}

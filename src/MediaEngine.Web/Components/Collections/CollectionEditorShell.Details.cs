@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Constants;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using DayMonth = MediaEngine.Domain.Models.DayMonth;
@@ -157,13 +158,13 @@ public partial class CollectionEditorShell
     private static string DefaultIconForCollectionType(string collectionType) => collectionType switch
     {
         "Smart" => AppMaterialIcons.Outlined.AutoAwesomeMotion,
-        "Playlist" => AppMaterialIcons.Outlined.QueueMusic,
+        CollectionTypeNames.Playlist => AppMaterialIcons.Outlined.QueueMusic,
         "Mix" => AppMaterialIcons.Outlined.GraphicEq,
         "System" => AppMaterialIcons.Outlined.SettingsSuggest,
         _ => AppMaterialIcons.Outlined.Collections,
     };
 
-    private static string? IconLabelFor(string? icon) =>
+    private string? IconLabelFor(string? icon) =>
         IconChoices.FirstOrDefault(choice => string.Equals(choice.Icon, icon, StringComparison.Ordinal)).Label
         ?? "Collection";
 

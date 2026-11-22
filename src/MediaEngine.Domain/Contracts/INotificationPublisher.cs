@@ -39,6 +39,11 @@ public static class NotificationEventIds
     public const string AccountInvited = "account.invited";
     public const string RecycleBinKeepRequested = "recycle_bin.keep_requested";
     public const string RecycleBinLeavingSoon = "recycle_bin.leaving_soon";
+    public const string AccountNewDevice = "account.new_device";
+    public const string SecurityFailedSignIns = "security.failed_sign_ins";
+    public const string LibraryDriveOffline = "library.drive_offline";
+    public const string LibraryUpdateAvailable = "library.update_available";
+    public const string EncodeFailedRepeatedly = "encode.failed_repeatedly";
 
     /// <summary>The "Send test" message. Never routed; it goes straight to the channel being tested.</summary>
     public const string SystemTest = "system.test";

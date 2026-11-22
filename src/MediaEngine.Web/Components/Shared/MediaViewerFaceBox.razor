@@ -1,0 +1,14 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* One face frame drawn over a photo in the viewer. X, Y, Width and Height are fractions of the picture (0 to 1); a face with no name is dashed. *@
+<span class="@(Name is null ? "view-face-box view-face-box--unnamed" : "view-face-box")" style="@BoxStyle">@if (Name is not null) { <small>@Name</small> }</span>
+@code {
+    [Parameter] public double X { get; set; }
+    [Parameter] public double Y { get; set; }
+    [Parameter] public double Width { get; set; }
+    [Parameter] public double Height { get; set; }
+    [Parameter] public string? Name { get; set; }
+
+    private string BoxStyle => string.Create(System.Globalization.CultureInfo.InvariantCulture,
+        $"left:{X * 100:0.##}%;top:{Y * 100:0.##}%;width:{Width * 100:0.##}%;height:{Height * 100:0.##}%");
+}

@@ -1,0 +1,171 @@
+/* The cover collage of a group tile (issue 1175). The numbers here are the ones in GroupCollageLayout (a test keeps them together):
+   covers 6 px from the tile's left, right and top edges, a 48 px solid band at the bottom with 6 px between it and the covers, 5 px
+   between neighbouring covers. The tile is 16 by 9. The tile's own width picks how many covers show: under 300 px three, under 380 px
+   four, otherwise up to six. */
+.group-collage {
+    position: absolute;
+    inset: 0;
+    container-type: inline-size;
+    container-name: group-collage;
+    color: var(--tl-text-primary);
+    pointer-events: none;
+}
+
+/* The covers area is a size container, so a cover's height can be worked out from its width and height (container units). */
+.group-collage__area {
+    --n: var(--n6);
+    --sa: var(--sa6);
+    position: absolute;
+    inset: 6px 6px 54px;
+    container-type: size;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+/* One row, one height: as tall as the area, or as tall as lets every cover and every gap fit across, whichever is smaller. Each cover
+   keeps its own width over height, so none is cropped or stretched and a mixed row (book, album, film) stays even. */
+.group-collage__cover {
+    flex: none;
+    display: block;
+    height: min(100cqh, calc((100cqw - (var(--n) - 1) * 5px) / var(--sa)));
+    aspect-ratio: var(--a);
+    overflow: hidden;
+    border-radius: var(--tl-radius-xs);
+    background: var(--tl-bg-surface-raised);
+    box-shadow: 0 2px 8px var(--tl-scrim-dark-4);
+}
+
+.group-collage__cover img,
+.group-collage__custom {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.group-collage__custom {
+    border-radius: var(--tl-radius-xs);
+}
+
+/* Two titles: opposite corners (the first top left, the second bottom right), one height, overlapping a little in the middle, the
+   pair centred. The second sits above the first. */
+.group-collage[data-arrangement="corners"] .group-collage__area {
+    --h: min(92cqh, calc(100cqw / var(--pair)));
+    display: block;
+}
+
+.group-collage[data-arrangement="corners"] .group-collage__cover {
+    position: absolute;
+    height: var(--h);
+    left: calc(50cqw - var(--pair) * var(--h) / 2 + var(--x) * var(--h));
+}
+
+.group-collage__cover.is-corner-first {
+    top: 0;
+}
+
+.group-collage__cover.is-corner-second {
+    bottom: 0;
+    z-index: 1;
+}
+
+/* "+N": the titles not drawn, above the band at the right. Only the chip for the tile's width tier shows. */
+.group-collage__more {
+    position: absolute;
+    right: 8px;
+    bottom: 54px;
+    z-index: 3;
+    display: none;
+    padding: 2px 8px;
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-pill);
+    background: color-mix(in srgb, var(--tl-bg-root) 90%, transparent);
+    color: var(--tl-text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--tl-tile-text-floor);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.group-collage__more[data-tier="6"] {
+    display: block;
+}
+
+/* The name sits on a solid dark band, so it reads over any cover, even a very bright one. */
+.group-collage__band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    box-sizing: border-box;
+    height: 48px;
+    padding: 4px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: color-mix(in srgb, var(--tl-bg-root) 94%, transparent);
+    border-top: 1px solid var(--tl-border-subtle);
+    font-family: var(--font-ui);
+}
+
+.group-collage__name,
+.group-collage__count {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--tl-tile-text-floor);
+    line-height: 1.3;
+}
+
+.group-collage__name {
+    color: var(--tl-text-primary);
+    font-weight: 600;
+}
+
+.group-collage__count {
+    color: var(--tl-text-secondary);
+}
+
+/* Four covers from 300 px of tile width. */
+@container group-collage (max-width: 379.99px) {
+    .group-collage__area {
+        --n: var(--n4);
+        --sa: var(--sa4);
+    }
+
+    .group-collage__cover.is-from-wide {
+        display: none;
+    }
+
+    .group-collage__more[data-tier="6"] {
+        display: none;
+    }
+
+    .group-collage__more[data-tier="4"] {
+        display: block;
+    }
+}
+
+/* Three covers under 300 px. */
+@container group-collage (max-width: 299.99px) {
+    .group-collage__area {
+        --n: var(--n3);
+        --sa: var(--sa3);
+    }
+
+    .group-collage__cover.is-from-medium {
+        display: none;
+    }
+
+    .group-collage__more[data-tier="4"] {
+        display: none;
+    }
+
+    .group-collage__more[data-tier="3"] {
+        display: block;
+    }
+}

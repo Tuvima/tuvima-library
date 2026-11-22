@@ -163,7 +163,7 @@ public sealed class ActivityRunRecorder(
             return;
         }
 
-        var (groupKey, groupName) = Stack(mediaType, workId, assetId, title, groupTitle, filePath);
+        var (groupKey, groupName) = Stack(mediaType, workId, assetId, title, groupTitle, filePath, groupWorkId);
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -191,12 +191,33 @@ public sealed class ActivityRunRecorder(
             }
 
             await store.AddItemAsync(
-                new ActivityRunItemRecord(Guid.NewGuid(), run.Id, workId, assetId, mediaType, title, groupKey, groupName, groupWorkId, now),
+                new ActivityRunItemRecord(Guid.NewGuid(), run.Id, workId, assetId, mediaType, title, groupKey, groupName, groupWorkId, now, SizeOf(filePath)),
                 now, ct).ConfigureAwait(false);
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    /// <summary>The file's size on disk for the batch list (review mock-ups D3); 0 when there is no file to measure, such as a removal.</summary>
+    private long SizeOf(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return 0;
+        }
+
+        try
+        {
+            var file = new FileInfo(filePath);
+            return file.Exists ? file.Length : 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            // A file the Engine cannot measure still joins the batch, only without a size.
+            logger.LogDebug(ex, "The size of {Path} could not be read for the activity batch.", filePath);
+            return 0;
         }
     }
 
@@ -218,11 +239,18 @@ public sealed class ActivityRunRecorder(
     }
 
     /// <summary>
-    /// The stacking rule (D12): episodes into one tile per show, tracks into one per album, other videos into one per root folder;
+    /// The stacking rule (D12): episodes into one tile per show, tracks into one per album, other videos into one per root folder (the folder's own record, however deep the sub-folder);
     /// movies, books, audiobooks and comics are one tile each.
     /// </summary>
-    internal static (string Key, string Title) Stack(string mediaType, Guid? workId, Guid? assetId, string title, string? groupTitle, string? filePath)
+    internal static (string Key, string Title) Stack(
+        string mediaType, Guid? workId, Guid? assetId, string title, string? groupTitle, string? filePath, Guid? groupWorkId = null)
     {
+        // A folder of videos stacks by its root, however deep the sub-folder a video sits in, so a course with sections is one row (issue 1157).
+        if (mediaType == "Videos" && groupWorkId is { } root && root != Guid.Empty && !string.IsNullOrWhiteSpace(groupTitle))
+        {
+            return ($"Videos|{root:N}", groupTitle.Trim());
+        }
+
         if (mediaType is "TV" or "Music" && !string.IsNullOrWhiteSpace(groupTitle))
         {
             return ($"{mediaType}|{groupTitle.Trim().ToLowerInvariant()}", groupTitle.Trim());

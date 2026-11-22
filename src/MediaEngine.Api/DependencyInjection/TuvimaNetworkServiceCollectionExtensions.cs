@@ -18,6 +18,12 @@ public static class TuvimaNetworkServiceCollectionExtensions
         services.AddSingleton(NetworkTopologyProbe.Capture());
         services.AddSingleton<INetworkTopologyService, NetworkTopologyService>();
         services.AddSingleton<NetworkStatusService>();
+        services.AddSingleton<IRemoteAddressProbe, RemoteAddressProbe>();
+        services.AddSingleton<IRemoteSignInReadinessReader, RemoteSignInReadinessReader>();
+        services.AddSingleton<IOutsideSignInHistory, OutsideSignInHistory>();
+        services.AddSingleton<IOutsideAccessGate, OutsideAccessGate>();
+        services.AddSingleton<IRemoteCheckService, RemoteCheckService>();
+        services.AddSingleton<IRemoteFixService, RemoteFixService>();
         services.AddSingleton<IRouterPortMapper, PcpRouterPortMapper>();
         services.AddSingleton<IRouterPortMapper, NatPmpRouterPortMapper>();
         services.AddHttpClient<UpnpRouterPortMapper>(client => client.Timeout = TimeSpan.FromSeconds(8));

@@ -56,7 +56,7 @@
     min-width: 6.9rem;
     min-height: 3rem;
     padding: 0.55rem 0.9rem;
-    border-radius: 0.42rem;
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-scrim-dark-5);
     box-shadow: 0 0.6rem 1.3rem var(--tl-scrim-dark-1);
     backdrop-filter: blur(8px);

@@ -18,6 +18,15 @@ public sealed record PlaybackCapacityDto
     /// <summary>The graphics card's name when the test used it, or null.</summary>
     public string? CardName { get; init; }
 
+    /// <summary>How many 4K (3840 x 2160) conversions at once kept up in real time; 0 when the computer cannot keep up with even one, or the test did not run.</summary>
+    public int FourKStreamsSupported { get; init; }
+
+    /// <summary>How many times faster than playback one 1080p conversion ran (12 means 12x); 0 when not measured.</summary>
+    public double SpeedFactor { get; init; }
+
+    /// <summary>The overall score out of 100 drawn as the gauge (the Engine's capacity score rule); 0 when not measured.</summary>
+    public int Score { get; init; }
+
     /// <summary>One plain sentence saying why a test did not run or fell back, or null.</summary>
     public string? Reason { get; init; }
 

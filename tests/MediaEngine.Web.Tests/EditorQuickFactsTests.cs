@@ -105,6 +105,27 @@ public sealed class EditorQuickFactsTests
     }
 
     [Fact]
+    public void AVideoFolderWithSections_CountsSectionsAndVideosSeparately()
+    {
+        var model = EditorQuickFactsBuilder.Build(
+            QuickFactsKind.VideoSeries, Fields(), new ItemQuickFactsDto { DirectOwned = 14, DirectTotal = 14, LeafOwned = 88, LeafTotal = 88 });
+
+        Assert.Equal("14", ValueOf(model, "sections"));
+        Assert.Equal("Sections", LabelOf(model, "sections"));
+        Assert.Equal("88", ValueOf(model, "videos"));
+    }
+
+    [Fact]
+    public void AFlatVideoFolder_CountsItsVideosOnce()
+    {
+        var model = EditorQuickFactsBuilder.Build(
+            QuickFactsKind.VideoSeries, Fields(), new ItemQuickFactsDto { DirectOwned = 9, DirectTotal = 9, LeafOwned = 9, LeafTotal = 9 });
+
+        Assert.Equal("9", ValueOf(model, "videos"));
+        Assert.DoesNotContain("sections", Keys(model));
+    }
+
+    [Fact]
     public void AnEpisode_ShowsAirDateRuntimeSizeAndQuality()
     {
         var model = EditorQuickFactsBuilder.Build(

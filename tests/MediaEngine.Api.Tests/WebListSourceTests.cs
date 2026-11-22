@@ -1270,7 +1270,7 @@ public sealed class WebListSourceTests : IDisposable
             int? offset, int? limit, CancellationToken ct) => Task.FromResult(new List<CollectionMediaLookupDto>());
 
         public Task<List<CollectionItemDto>> ResolveItemsAsync(
-            Guid collectionId, IReadOnlyList<CollectionItem> items, CancellationToken ct, IReadOnlySet<Guid>? allowedWorkIds = null) =>
+            Guid collectionId, IReadOnlyList<CollectionItem> items, CancellationToken ct, IReadOnlySet<Guid>? allowedWorkIds = null, bool songsAreMembers = false) =>
             Task.FromResult(new List<CollectionItemDto>());
 
         public Task<List<CollectionResolvedItemDto>> ResolveMetadataAsync(IReadOnlyList<Guid> workIds, CancellationToken ct) =>

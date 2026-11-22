@@ -46,11 +46,8 @@ public sealed class SongDragToPlaylistTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ =>
                 Task.FromResult(_alreadyInPlaylist.Select(id => new CollectionItemDto { Id = Guid.NewGuid(), WorkId = id, Title = "Held" }).ToList()));
-            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemAsync), args =>
-            {
-                _added.Add(((Guid)args![0]!, (Guid)args[1]!));
-                return Task.FromResult(true);
-            });
+            stub.SetHandler(nameof(IEngineApiClient.AddCollectionItemsAsync), args =>
+                PlaylistAddSpy.Answer(args, _alreadyInPlaylist, (playlist, work) => _added.Add((playlist, work))));
             stub.SetHandler(nameof(IEngineApiClient.CreateCollectionWithItemsAsync), args =>
             {
                 _created.Add(((string)args![0]!, (IReadOnlyList<Guid>)args[8]!));
@@ -262,11 +259,11 @@ public sealed class SongDragToPlaylistTests : AsyncBunitContext
         RowElement(table, rows[0]).DragStart();
         var tile = MediaTileComposerService.FromPlaylist(Playlist("Newest rock", membershipMode: "Smart"));
 
-        var cut = Render<MediaSquareTile>(parameters => parameters.Add(component => component.Item, tile));
-        cut.Find("article").TriggerEvent("ondrop", new Microsoft.AspNetCore.Components.Web.DragEventArgs());
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, tile));
+        cut.Find("article.media-tile").TriggerEvent("ondrop", new Microsoft.AspNetCore.Components.Web.DragEventArgs());
 
         Assert.False(tile.AcceptsSongDrops);
-        Assert.Null(cut.Find("article").GetAttribute("data-song-drop"));
+        Assert.Null(cut.Find("article.media-tile").GetAttribute("data-song-drop"));
         Assert.Empty(_added);
         Assert.True(Services.GetRequiredService<SongDragDropService>().IsCarrying);
     }
@@ -290,9 +287,9 @@ public sealed class SongDragToPlaylistTests : AsyncBunitContext
         RowElement(table, rows[0]).DragStart();
         var tile = MediaTileComposerService.FromPlaylist(Playlist("Road trip"));
 
-        var cut = Render<MediaSquareTile>(parameters => parameters.Add(component => component.Item, tile));
-        Assert.Equal("playlist", cut.Find("article").GetAttribute("data-song-drop"));
-        cut.Find("article").TriggerEvent("ondrop", new Microsoft.AspNetCore.Components.Web.DragEventArgs());
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, tile));
+        Assert.Equal("playlist", cut.Find("article.media-tile").GetAttribute("data-song-drop"));
+        cut.Find("article.media-tile").TriggerEvent("ondrop", new Microsoft.AspNetCore.Components.Web.DragEventArgs());
 
         cut.WaitForAssertion(() => Assert.Equal(2, _added.Count));
         Assert.All(_added, entry => Assert.Equal(RoadTrip, entry.Playlist));

@@ -48,17 +48,24 @@ public sealed class NetworkSettingsUiTests
     [Fact]
     public void RemoteAccessOffersOnlySupportedSecurePathsAndKeepsRouterToolsAdvanced()
     {
-        var remote = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor");
+        // The guided flow (spec remote-access) replaced the radio list: Tailscale, an own proxy address and "not now" are the choices.
+        var panel = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor");
+        var flow = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccess/RemoteAccessFlow.razor");
+        var own = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccess/RemoteAccessOwnAddressStep.razor");
         var advanced = Read(@"src/MediaEngine.Web/Components/Settings/AdvancedNetworkSettingsPanel.razor");
+        var remote = flow + own;
 
-        Assert.Contains("Not set up — Default", remote, StringComparison.Ordinal);
-        Assert.Contains("Tailscale Serve", remote, StringComparison.Ordinal);
-        Assert.Contains("HTTPS reverse proxy", remote, StringComparison.Ordinal);
-        Assert.Contains("Test remote access", remote, StringComparison.Ordinal);
-        Assert.Contains("TestRemoteNetworkAsync", remote, StringComparison.Ordinal);
+        Assert.Contains("<RemoteAccessFlow", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("role=\"radiogroup\"", panel + remote, StringComparison.Ordinal);
+        Assert.Contains("\"tailscale\"", flow, StringComparison.Ordinal);
+        Assert.Contains("\"custom\"", remote, StringComparison.Ordinal);
+        Assert.Contains("\"local-only\"", flow, StringComparison.Ordinal);
+        Assert.Contains("Public HTTPS address", own, StringComparison.Ordinal);
+        Assert.Contains("Test remote access", own, StringComparison.Ordinal);
+        Assert.Contains("TestRemoteNetworkAsync", own, StringComparison.Ordinal);
         Assert.DoesNotContain("secure-provider", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("Automatic Router Configuration", remote, StringComparison.Ordinal);
-        Assert.Contains("Port Forwarding &amp; Router Mapping", advanced, StringComparison.Ordinal);
+        Assert.Contains("Port forwarding &amp; router mapping", advanced, StringComparison.Ordinal);
         Assert.Contains("PCP, NAT-PMP, and UPnP", advanced, StringComparison.Ordinal);
         Assert.Contains("ManualPortForwardingDialog", advanced, StringComparison.Ordinal);
     }
@@ -140,9 +147,12 @@ public sealed class NetworkSettingsUiTests
     [Fact]
     public void RemoteAccessHasNoConnectionRuleChoiceOrOutsideChecklist()
     {
-        var remote = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor");
+        var flowFolder = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
+            "src", "MediaEngine.Web", "Components", "Settings", "RemoteAccess"));
+        var remote = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor")
+            + string.Concat(Directory.EnumerateFiles(flowFolder, "*.razor").Select(LocalizedSource.ReadAllText));
 
-        Assert.Contains("How the internet reaches Library", remote, StringComparison.Ordinal);
+        Assert.Contains("How will the internet reach this server?", remote, StringComparison.Ordinal);
         Assert.Contains("Test remote access", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("Who can connect", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("Anywhere", remote, StringComparison.Ordinal);
@@ -214,8 +224,8 @@ public sealed class NetworkSettingsUiTests
         Assert.DoesNotContain("Settings.Remote.PublicHostname", advanced, StringComparison.Ordinal);
         var host = Read(@"src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor");
 
-        Assert.Contains("Test Connection", overview, StringComparison.Ordinal);
-        Assert.Contains("Connection Status", overview, StringComparison.Ordinal);
+        Assert.Contains("Test connection", overview, StringComparison.Ordinal);
+        Assert.Contains("Connection status", overview, StringComparison.Ordinal);
         // The server addresses and uptime moved off the Network overview (the System summary shows them), and the
         // streaming limits moved to Streaming; Network has no Streaming page.
         Assert.DoesNotContain("Server information", overview, StringComparison.Ordinal);

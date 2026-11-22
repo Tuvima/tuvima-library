@@ -43,7 +43,7 @@
     place-items: center;
     width: 2.25rem;
     height: 2.25rem;
-    border-radius: var(--tl-radius-sm);
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-bg-surface-elevated);
     color: var(--tl-text-secondary);
     font-size: var(--tl-type-overline-size);

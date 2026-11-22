@@ -1,0 +1,87 @@
+.ra-on {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.ra-on__text {
+    margin: 0 0 var(--tl-space-3, 12px);
+    color: var(--tl-text-secondary);
+}
+
+.ra-on__busy {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3, 12px);
+}
+
+.ra-on__qr-row {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-4, 16px);
+}
+
+.ra-on__qr {
+    width: 96px;
+    height: 96px;
+    flex: none;
+    overflow: hidden;
+    border: 6px solid var(--tl-text-on-accent);
+    border-radius: 8px;
+    background: var(--tl-text-on-accent);
+}
+
+.ra-on__address {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--tl-space-3, 12px);
+}
+
+.ra-on__address code {
+    align-self: flex-start;
+    padding: 2px 6px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: 6px;
+    background: var(--tl-bg-shell);
+    color: var(--tl-text-primary);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: var(--tl-type-secondary-size);
+    overflow-wrap: anywhere;
+}
+
+.ra-on__address-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-3, 12px);
+}
+
+.ra-on__failure {
+    margin: var(--tl-space-2, 8px) 0 0;
+    color: var(--tl-text-danger);
+    font-size: var(--tl-type-secondary-size);
+}
+
+@media (max-width: 600px) {
+    .ra-on__qr-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ra-on__address,
+    .ra-on__address-actions {
+        width: 100%;
+    }
+
+    .ra-on__address-actions {
+        flex-direction: column;
+    }
+
+    .ra-on__address-actions .app-button {
+        width: 100%;
+        justify-content: center;
+    }
+}

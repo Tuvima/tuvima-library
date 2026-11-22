@@ -39,6 +39,27 @@
     ]
   },
 
+  "face_models": [
+    {
+      "name": "face_detection_yunet_2023mar.onnx",
+      "url": "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+      "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+    },
+    {
+      "name": "face_recognition_sface_2021dec.onnx",
+      "url": "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx",
+      "sha256": "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79"
+    }
+  ],
+
+  "face_runtime": [
+    { "platform": "win-x64", "name": "onnxruntime.dll", "url": "https://github.com/Tuvima/tuvima-library/releases/download/onnxruntime-1.24.4/onnxruntime-1.24.4-win-x64.dll", "sha256": "b95efb2113b603bbbf3f191061c5516a871ed546893c820e4f3b7b6c358dbf2a" },
+    { "platform": "win-arm64", "name": "onnxruntime.dll", "url": "https://github.com/Tuvima/tuvima-library/releases/download/onnxruntime-1.24.4/onnxruntime-1.24.4-win-arm64.dll", "sha256": "724d81ac50b11bfaa01ab3ce01b99fb6734a4b762259a8be4395ca662ce99fe6" },
+    { "platform": "linux-x64", "name": "libonnxruntime.so", "url": "https://github.com/Tuvima/tuvima-library/releases/download/onnxruntime-1.24.4/onnxruntime-1.24.4-linux-x64.so", "sha256": "d132535d051344ff5c64c9c200004150559049a81ed330eb4422c1962fb6b7e4" },
+    { "platform": "linux-arm64", "name": "libonnxruntime.so", "url": "https://github.com/Tuvima/tuvima-library/releases/download/onnxruntime-1.24.4/onnxruntime-1.24.4-linux-arm64.so", "sha256": "52b2a0e75e79468404284fec38ad5ee1a7a996232274f5e1b84f3e793fb07554" },
+    { "platform": "osx-arm64", "name": "libonnxruntime.dylib", "url": "https://github.com/Tuvima/tuvima-library/releases/download/onnxruntime-1.24.4/onnxruntime-1.24.4-osx-arm64.dylib", "sha256": "0db33e160224e480c17932799d1dfaea59853b8e722b57bf61932c87e03586f0" }
+  ],
+
   "exiftool": {
     "version": "13.59",
     "auto_install": true,

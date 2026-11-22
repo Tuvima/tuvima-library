@@ -1,0 +1,27 @@
+.ra-check {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.ra-check__ok {
+    margin: 0 0 var(--tl-space-3, 12px);
+    color: var(--tl-status-success);
+}
+
+.ra-check__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-3, 12px);
+}
+
+@media (max-width: 600px) {
+    .ra-check__actions {
+        flex-direction: column;
+    }
+
+    .ra-check__actions .app-button {
+        width: 100%;
+        justify-content: center;
+    }
+}

@@ -7,8 +7,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// A collection's (and a Universe's) Items row on its details page sits in the shared shelf row, so every title can be
-/// reached: wheel and touch swipe scroll it, and arrows appear when it overflows (spec details-and-tile-fixes D7).
+/// A Universe's Items row on its details page sits in the shared shelf row, so every title can be reached: wheel and touch swipe scroll it,
+/// and arrows appear when it overflows (spec details-and-tile-fixes D7). A collection's own page lists its titles as a numbered cover grid
+/// instead (spec group-pages-and-tiles D4).
 /// </summary>
 public sealed class CollectionItemsRowTests : AsyncBunitContext
 {
@@ -18,12 +19,19 @@ public sealed class CollectionItemsRowTests : AsyncBunitContext
         Services.AddLogging();
     }
 
-    [Theory]
-    [InlineData(DetailEntityType.Collection)]
-    [InlineData(DetailEntityType.Universe)]
-    public void TheItemsRow_IsTheSharedScrollingShelf_AndEveryItemIsInIt(DetailEntityType owner)
+    [Fact]
+    public void ACollectionsItems_AreANumberedCoverGrid_WithEveryItemInIt()
     {
-        var cut = RenderRow(DetailPrimaryModuleKind.CollectionItems, owner, 14);
+        var cut = RenderRow(DetailPrimaryModuleKind.CollectionItems, DetailEntityType.Collection, 14);
+
+        Assert.Empty(cut.FindComponents<MediaShelfScroller>());
+        Assert.Equal(14, cut.FindAll(".group-member-grid .group-member").Count);
+    }
+
+    [Fact]
+    public void TheUniversesItemsRow_IsTheSharedScrollingShelf_AndEveryItemIsInIt()
+    {
+        var cut = RenderRow(DetailPrimaryModuleKind.CollectionItems, DetailEntityType.Universe, 14);
 
         Assert.Empty(cut.FindAll(".tl-detail-primary-module__rail"));
         cut.FindComponent<MediaShelfScroller>();
@@ -35,7 +43,7 @@ public sealed class CollectionItemsRowTests : AsyncBunitContext
     [Fact]
     public async Task TheItemsRow_ShowsNoArrowsUntilItOverflows_ThenOffersTheDirectionsThatExist()
     {
-        var cut = RenderRow(DetailPrimaryModuleKind.CollectionItems, DetailEntityType.Collection, 14);
+        var cut = RenderRow(DetailPrimaryModuleKind.CollectionItems, DetailEntityType.Universe, 14);
         var shelf = cut.FindComponent<MediaShelfScroller>();
 
         Assert.Empty(cut.FindAll(".media-tile-shelf-arrow"));

@@ -15,7 +15,7 @@ internal sealed class AlwaysUsableAdministrators : IUsableAdministratorService
         Task.FromResult(true);
 
     public Task<UsableAdministratorStatus> EvaluateForRemoteAsync(CancellationToken ct) =>
-        Task.FromResult(new UsableAdministratorStatus(true, true, true));
+        Task.FromResult(new UsableAdministratorStatus(true, true));
 
     public Task<bool> OnlyThisComputerAdministratorsAsync(CancellationToken ct) => Task.FromResult(false);
 }

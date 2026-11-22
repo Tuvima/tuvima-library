@@ -72,16 +72,17 @@
                 <NotMatchedTag />
             }
         }
-        @if (IsSeasonContainer && (AirDate is not null || !string.IsNullOrWhiteSpace(Item.Duration)))
+        @if (IsSeasonContainer && (AirDate is not null || RuntimeLabel is not null))
         {
             <div class="tl-series-item__meta">
                 @if (AirDate is { } airDate)
                 {
                     <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" Size="AppIconSize.Control20" />@airDate</span>
                 }
-                @if (!string.IsNullOrWhiteSpace(Item.Duration))
+                @* The episode's own length ("42 min", "1h 5m"); nothing while neither the file's nor the provider's length is known (issue 1171). *@
+                @if (RuntimeLabel is { } runtime)
                 {
-                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Schedule" Size="AppIconSize.Control20" />@Item.Duration</span>
+                    <span class="tl-series-item__runtime"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Schedule" Size="AppIconSize.Control20" />@runtime</span>
                 }
             </div>
         }
@@ -107,4 +108,6 @@
     [Parameter] public string? AirDate { get; set; }
     [Parameter] public string? ItemDate { get; set; }
     [Parameter] public string MissingIcon { get; set; } = string.Empty;
+
+    private string? RuntimeLabel => EpisodeRuntimeLabel.For(Item, L);
 }

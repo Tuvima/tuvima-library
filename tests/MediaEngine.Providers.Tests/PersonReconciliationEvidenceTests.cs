@@ -78,6 +78,56 @@ public sealed class PersonReconciliationEvidenceTests
             supported, "Unknown", "Project Hail Mary"));
     }
 
+    [Fact]
+    public void NamesakeTheWorksSubjectPointsTo_IsFavouredOverTheChosenPerson()
+    {
+        var comedian = Namesake("Q5573861", "Australian comedian and actor");
+        var player = Namesake("Q352159", "American basketball player (born 1988)");
+
+        Assert.True(PersonReconciliationService.ContextFavoursAnotherNamesake(
+            [comedian, player], "Q5573861", "Stephen Curry MasterClass Learn basketball shooting from the all-time great"));
+        Assert.True(PersonReconciliationService.ContextFavoursAnotherNamesake(
+            [comedian, player], "Q5573861", "Teaches basketballers how to shoot"));
+    }
+
+    [Fact]
+    public void ChosenPersonStands_WhenTheWorkSaysNothing_FitsTheChosenPerson_OrFitsBoth()
+    {
+        var comedian = Namesake("Q5573861", "Australian comedian and actor");
+        var player = Namesake("Q352159", "American basketball player (born 1988)");
+
+        Assert.False(PersonReconciliationService.ContextFavoursAnotherNamesake([comedian, player], "Q5573861", "Part 01"));
+        Assert.False(PersonReconciliationService.ContextFavoursAnotherNamesake([comedian, player], "Q352159", "Learn basketball shooting"));
+        Assert.False(PersonReconciliationService.ContextFavoursAnotherNamesake(
+            [Namesake("Q1", "basketball coach"), player], "Q1", "Learn basketball shooting"));
+        Assert.False(PersonReconciliationService.ContextFavoursAnotherNamesake([comedian], "Q5573861", "basketball"));
+    }
+
+    [Fact]
+    public void SameNamePeople_TheOneTheWorksTextFitsIsChosen_AndNoFitLeavesThemUnmatched()
+    {
+        var comedian = Namesake("Q5573861", "Australian comedian and actor");
+        var player = Namesake("Q352159", "American basketball player (born 1988)");
+
+        var switched = PersonReconciliationService.ChooseNamesakeFromContext([comedian, player], "MasterClass NBA champion teaches shooting", "Q5573861");
+        Assert.Equal(PersonReconciliationService.NamesakeOutcome.Switch, switched.Outcome);
+        Assert.Equal("Q352159", switched.Person!.Id);
+        Assert.Equal(PersonReconciliationService.NamesakeOutcome.Keep,
+            PersonReconciliationService.ChooseNamesakeFromContext([comedian, player], "Learn basketball", "Q352159").Outcome);
+        Assert.Equal(PersonReconciliationService.NamesakeOutcome.Unmatched,
+            PersonReconciliationService.ChooseNamesakeFromContext([comedian, player], "Part 01", "Q5573861").Outcome);
+        Assert.Equal(PersonReconciliationService.NamesakeOutcome.Keep,
+            PersonReconciliationService.ChooseNamesakeFromContext([comedian], "Part 01", "Q5573861").Outcome);
+    }
+
+    private static ReconciliationResult Namesake(string qid, string description) => new()
+    {
+        Id = qid,
+        Name = "Stephen Curry",
+        Description = description,
+        Score = 91,
+    };
+
     private static PersonSearchResult Candidate(
         string qid,
         IReadOnlyList<string> occupations,

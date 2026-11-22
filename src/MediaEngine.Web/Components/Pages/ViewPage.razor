@@ -30,8 +30,8 @@
     @if (!_initializing && Workspace.Scopes is not null && Workspace.CanViewPhotoTimeline)
     {
         <AppButton Href="/view/contributions" Label="@L["Common_Contributions"].Value" StartIcon="@AppMaterialIcons.Outlined.MoveToInbox" ButtonStyle="AppButtonStyle.Text" />
-        @if (DeviceContext.IsTouch) { <AppButton Class="view-select-toggle" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" Label="@(_selectMode ? "Done" : "Select")" aria-pressed="@(_selectMode ? "true" : "false")" OnClick="ToggleSelectMode" /> }
-        @if (!Workspace.ScopeKind.CarriesProfileId()) { <AppTooltip Text="@L["ViewFolderRules_UploadsNeedManagedTooltip"].Value" Suppressed="@(!_uploadsOff)"><label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@(_uploading || _uploadsOff)" data-uploads-off="@(_uploadsOff ? "true" : null)"><InputFile class="view-add-media__input" OnChange="PickedAsync" multiple disabled="@(_uploading || _uploadsOff)" accept="image/*,video/*" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label></AppTooltip> }
+        @if (DeviceContext.IsTouch) { <AppButton Class="view-select-toggle" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" Label="@(_selectMode ? L["ViewPage_Done"].Value : L["ViewPage_Select"].Value)" aria-pressed="@(_selectMode ? "true" : "false")" OnClick="ToggleSelectMode" /> }
+        @if (!Workspace.ScopeKind.CarriesProfileId()) { <AppTooltip Text="@L["ViewFolderRules_UploadsNeedManagedTooltip"].Value" Suppressed="@(!_uploadsOff)"><label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@(_uploading || _uploadsOff)" data-uploads-off="@(_uploadsOff ? "true" : null)"><InputFile class="view-add-media__input" OnChange="PickedAsync" multiple disabled="@(_uploading || _uploadsOff)" accept="image/*,video/*" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? L["ViewPage_Uploading"].Value : L["ViewPage_AddMedia"].Value)</span></label></AppTooltip> }
     }
 </HeaderActions>
 <ChildContent>
@@ -46,11 +46,15 @@ else
                            ActiveKey="@_filter"
                            SearchValue="@_search"
                            SearchChanged="SearchChanged"
-                           SearchPlaceholder="Search photos, dates, devices, locations, and tags"
-                           SearchAriaLabel="Search Photos"
-                           QuickFilterAriaLabel="Photos quick filters"
-                           AdvancedFilterAriaLabel="More photo filters"
+                           SearchPlaceholder="@L["ViewPage_SearchPlaceholder"].Value"
+                           SearchAriaLabel="@L["ViewPage_SearchPhotos"].Value"
+                           QuickFilterAriaLabel="@L["ViewPage_PhotosQuickFilters"].Value"
+                           AdvancedFilterAriaLabel="@L["ViewPage_MorePhotoFilters"].Value"
                            HasActiveAdvancedFilters="@(_filter is "hidden" or "trash" or "documents" || _addedBy.Count > 0 || _tags.Count > 0 || _includeMissing || _folder is not null)">
+        <SearchContent>
+            <ViewSmartSearch Chips="@_chips" Text="@_search" Placeholder="@SearchPlaceholder" AriaLabel="@L["ViewPage_SearchPhotos"].Value"
+                             TextChanged="@(text => SearchChanged(text))" ChipAdded="ChipAddedAsync" ChipRemoved="ChipRemovedAsync" />
+        </SearchContent>
         <QuickFilters>
             @foreach (var filter in PrimaryFilters)
             {
@@ -64,13 +68,14 @@ else
             {
                 <AppNativeButton Type="button" Class="@FilterClass("documents")" OnClick="@(_ => SetFilterAsync("documents"))">@L["Common_Documents"]</AppNativeButton>
             }
-            @if (!string.IsNullOrWhiteSpace(_search))
+            @if (!string.IsNullOrWhiteSpace(EffectiveSearch))
             {
                 <AppNativeButton Type="button" Class="@FilterClass(_includeMissing ? _filter : string.Empty)" aria-pressed="@(_includeMissing ? "true" : "false")" OnClick="@(_ => ToggleMissingAsync())">@L["ViewPage_IncludeMissingFiles"]</AppNativeButton>
             }
             @if (!_initializing && Workspace.Scopes is not null && Workspace.CanViewPhotoTimeline)
             {
-            <label><span>@L["ViewPage_Density"]</span><AppSelect Native="true" Value="@Workspace.Density.ToString()" ValueChanged="DensityChangedAsync" aria-label="@L["ViewPage_TimelineDensity"].Value">@foreach (var density in Enum.GetValues<ViewTimelineDensity>()) { <option value="@density">@density</option> }</AppSelect></label>
+            <AppCheckbox Value="@Workspace.ReadWordsInPhotos" ValueChanged="ReadWordsChangedAsync" Label="@L["ViewPage_ReadWordsInPhotos"].Value" />
+            <label><span>@L["ViewPage_Density"]</span><AppSelect Options="@DensityOptions" Value="@Workspace.Density.ToString()" ValueChanged="DensityChangedAsync" AriaLabel="@L["ViewPage_TimelineDensity"].Value" /></label>
             }
             @* Which folder the items are in: only once Photos has two or more folders. *@
             <ViewFolderFilter ProfileId="@_profileId" Folders="_folders" Kind="@ViewContentKinds.Photos" Selected="_folder" SelectedChanged="FolderChangedAsync" />
@@ -86,7 +91,7 @@ else
     @if (_filter == "trash") { <ViewTrashHeader IsMine="@(Workspace.ScopeKind == ViewScopeKind.Mine)" Version="@_trashVersion" OnChanged="@(() => LoadAsync())" /> }
     @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="@(SelectedActions.HasFlag(ViewActions.AddToGallery) ? EventCallback.Factory.Create<Guid>(this, AddSelectionToGalleryAsync) : default)" OnCreateGallery="@CreateGalleryCallback" OnDownload="@BarCallback(ViewActions.Download, DownloadSelectionAsync)" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="@BarCallback(ViewActions.Favorite, FavoriteSelectionAsync)" OnEdit="@BarCallback(ViewActions.Edit, EditSelectionAsync)" OnHide="@BarCallback(ViewActions.Hide, HideSelectionAsync)" OnArchive="@BarCallback(ViewActions.Archive, ArchiveSelectionAsync)" OnRestore="RestoreSelectionAsync" ShowRestore="@SelectedActions.HasFlag(ViewActions.Restore)" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash" && AnySelected(ViewActions.Trash))" /> }
     @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPage_LoadingPhotos"].Value" Message="@L["ViewPage_BuildingYourPersonalTimeline"].Value" /> }
-    else if (_page is null) { <AppErrorState Title="@L["Common_PhotosCouldNotBeLoaded"].Value" Message="The Engine did not return a timeline." Retry="@(() => LoadAsync())" /> }
+    else if (_page is null) { <AppErrorState Title="@L["Common_PhotosCouldNotBeLoaded"].Value" Message="@L["ViewPage_NoTimeline"].Value" Retry="@(() => LoadAsync())" /> }
     else if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@EmptyTitle" Message="@EmptyMessage" /> }
     else
     {
@@ -97,7 +102,7 @@ else
                 <AppNativeButton Type="button" Class="app-discovery-filter__tab is-active" AriaLabel="@L["ViewPage_ClearDay"].Value" OnClick="@(_ => ClearDayAsync())">@L["ViewPage_DayChipLabel", day.ToString("D")] ✕</AppNativeButton>
             </div>
         }
-        else if (_filter == "all" && string.IsNullOrWhiteSpace(_search) && Workspace.ScopeKind == ViewScopeKind.Mine && _onThisDay is { Years.Count: > 0 })
+        else if (_filter == "all" && string.IsNullOrWhiteSpace(EffectiveSearch) && !_chips.Any(chip => chip.Kind == "year") && Workspace.ScopeKind == ViewScopeKind.Mine && _onThisDay is { Years.Count: > 0 })
         {
             <ViewOnThisDayStrip Years="@_onThisDay.Years" CurrentYear="@Today.Year" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpenYear="OpenDayAsync" />
         }
@@ -110,7 +115,7 @@ else
         <span class="view-timeline-observer-anchor" @ref="_timelineSentinel" aria-hidden="true"></span>
         @if (_page.HasMore)
         {
-            <div class="view-load-more" aria-live="polite"><span class="view-load-more__status">@(_loadingMore ? "Loading more photos…" : _page.Items.Count >= MaximumWindowItems ? "Continue into an older window, or use the date navigator. Your selection is kept." : "More photos load as you scroll")</span><AppButton ButtonStyle="AppButtonStyle.Text" Disabled="@_loadingMore" OnClick="LoadMoreAsync">@(_loadingMore ? "Loading…" : _page.Items.Count >= MaximumWindowItems ? "Continue to older photos" : "Load more")</AppButton></div>
+            <div class="view-load-more" aria-live="polite"><span class="view-load-more__status">@(_loadingMore ? L["ViewPage_LoadingMorePhotos"].Value : _page.Items.Count >= MaximumWindowItems ? L["ViewPage_ContinueOlderWindow"].Value : L["ViewPage_MoreLoadAsYouScroll"].Value)</span><AppButton ButtonStyle="AppButtonStyle.Text" Disabled="@_loadingMore" OnClick="LoadMoreAsync">@(_loadingMore ? L["ViewPage_Loading"].Value : _page.Items.Count >= MaximumWindowItems ? L["ViewPage_ContinueToOlderPhotos"].Value : L["ViewPage_LoadMore"].Value)</AppButton></div>
         }
     }
 }
@@ -122,8 +127,8 @@ else
 @code {
     // Videos is offered only while personal videos are allowed for this profile.
     private IReadOnlyDictionary<string, string> PrimaryFilters => Workspace.CanViewPersonalVideos
-        ? new Dictionary<string, string> { ["all"] = "All", ["recent"] = L["ViewPage_RecentlyAdded"].Value, ["favorites"] = "Favorites", ["videos"] = "Videos", ["archive"] = "Archive" }
-        : new Dictionary<string, string> { ["all"] = "All", ["recent"] = L["ViewPage_RecentlyAdded"].Value, ["favorites"] = "Favorites", ["archive"] = "Archive" };
+        ? new Dictionary<string, string> { ["all"] = L["ViewPage_FilterAll"].Value, ["recent"] = L["ViewPage_RecentlyAdded"].Value, ["favorites"] = L["ViewPage_FilterFavorites"].Value, ["videos"] = L["ViewPage_FilterVideos"].Value, ["archive"] = L["ViewPage_FilterArchive"].Value }
+        : new Dictionary<string, string> { ["all"] = L["ViewPage_FilterAll"].Value, ["recent"] = L["ViewPage_RecentlyAdded"].Value, ["favorites"] = L["ViewPage_FilterFavorites"].Value, ["archive"] = L["ViewPage_FilterArchive"].Value };
     // The Shared Library's "added by" chips and the tag chips; the choices come from the Engine, the chosen ids are sent as added_by and tag.
     private readonly HashSet<Guid> _addedBy = [];
     private readonly HashSet<Guid> _tags = [];
@@ -155,11 +160,11 @@ else
     protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; Orchestrator.OnProfileChanged += OnProfileChanged; DeviceContext.OnChanged += DeviceChanged; await InitializeAsync(); }
     private void DeviceChanged() => _ = InvokeAsync(() => { if (!DeviceContext.IsTouch) { _selectMode = false; } StateHasChanged(); });
     // A new profile starts with no chips and no filter: a chip or a kind filter left from the last profile could not be seen, so it could not be switched off.
-    private async Task InitializeAsync() { _initializing = true; _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; _filter = "all"; _folder = null; _day = null; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await LoadFoldersAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; if (!Workspace.CanViewPhotoTimeline) { _loading = false; return; } _ = LoadOnThisDayAsync(); await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); }
-    private ViewAssetQueryOptions Query(string? cursor = null, DateTimeOffset? anchorBefore = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, _filter switch { "videos" => ["video"], "documents" => ["document"], _ => null }, _filter == "favorites", _filter == "hidden", _filter switch { "archive" => "archived", "trash" => "trashed", _ => "active" }, AnchorBefore: anchorBefore,
+    private async Task InitializeAsync() { _initializing = true; _addedBy.Clear(); _tags.Clear(); _chips.Clear(); _addedByChoices = []; _tagChoices = []; _filter = "all"; _folder = null; _day = null; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.RefreshReadWordsInPhotosAsync(); await LoadFoldersAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; if (!Workspace.CanViewPhotoTimeline) { _loading = false; return; } _ = LoadOnThisDayAsync(); await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); }
+    private ViewAssetQueryOptions Query(string? cursor = null, DateTimeOffset? anchorBefore = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, EffectiveSearch, _filter switch { "videos" => ["video"], "documents" => ["document"], _ => null }, _filter == "favorites", _filter == "hidden", _filter switch { "archive" => "archived", "trash" => "trashed", _ => "active" }, AnchorBefore: anchorBefore,
         Documents: _tags.Count > 0 ? new ViewDocumentFilterDto(TagIds: _tags.ToList()) : null, AddedBy: _addedBy.Count > 0 ? _addedBy.ToList() : null, Sources: _folder is { } folder ? [folder] : null,
-        IncludeMissing: _includeMissing && !string.IsNullOrWhiteSpace(_search), Sort: _filter == "recent" ? "added" : null,
-        From: _day is { } day ? new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : null, To: _day is { } end ? new DateTimeOffset(end.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero) : null);
+        IncludeMissing: _includeMissing && !string.IsNullOrWhiteSpace(EffectiveSearch), Sort: _filter == "recent" ? "added" : null,
+        From: _day is { } day ? new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : ViewSearchChips.YearRange(_chips).From, To: _day is { } end ? new DateTimeOffset(end.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero) : ViewSearchChips.YearRange(_chips).To);
     private async Task LoadFoldersAsync()
     {
         var photos = await FolderGate.FoldersAsync(ViewContentKinds.Photos);
@@ -241,7 +246,10 @@ else
         _loadingMore = false;
         _observeTimeline = _page.Items.Count > 0;
     }
-    private async Task ScopeSwitchedAsync() { await InvokeAsync(async () => { _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; _day = null; _ = LoadOnThisDayAsync(); await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); StateHasChanged(); }); }
+    private async Task ScopeSwitchedAsync() { await InvokeAsync(async () => { _addedBy.Clear(); _tags.Clear(); _chips.Clear(); _addedByChoices = []; _tagChoices = []; _day = null; _ = LoadOnThisDayAsync(); await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); StateHasChanged(); }); }
+    private string SearchPlaceholder => L[Workspace.ReadWordsInPhotos ? "ViewPage_SearchPlaceholderWithWords" : "ViewPage_SearchPlaceholder"].Value;
+    private async Task ReadWordsChangedAsync(bool readWords) { if (!await Workspace.SetReadWordsInPhotosAsync(readWords)) Ribbon.Add(L["ViewPage_ReadWordsCouldNotBeSaved"].Value, AppSeverity.Error); }
+    private IReadOnlyList<AppSelectOption> DensityOptions => [new(nameof(ViewTimelineDensity.Compact), L["ViewPage_DensityCompact"].Value), new(nameof(ViewTimelineDensity.Comfortable), L["ViewPage_DensityComfortable"].Value), new(nameof(ViewTimelineDensity.Relaxed), L["ViewPage_DensityRelaxed"].Value)];
     private async Task DensityChangedAsync(string? selected) { if (Enum.TryParse<ViewTimelineDensity>(selected, out var density) && !await Workspace.SetDensityAsync(density)) Ribbon.Add(L["ViewPage_TimelineDensityCouldNotBe"].Value, AppSeverity.Error); }
     private async Task SearchChanged(object? value)
     {
@@ -257,6 +265,17 @@ else
         }
         catch (OperationCanceledException) { }
     }
+    // The smart search bar: chosen suggestions are chips that combine with the typed words (spec view-people-search D5); a year chip becomes a date range.
+    private List<ViewSearchChip> _chips = [];
+    private string EffectiveSearch => ViewSearchChips.SearchText(_chips, _search);
+    private async Task ChipAddedAsync(ViewSearchChip chip)
+    {
+        if (chip.Kind == "year") _chips.RemoveAll(existing => existing.Kind == "year");
+        if (!_chips.Any(existing => existing.Kind == chip.Kind && string.Equals(existing.Value, chip.Value, StringComparison.OrdinalIgnoreCase))) _chips.Add(chip);
+        _day = null;
+        await LoadAsync();
+    }
+    private async Task ChipRemovedAsync(ViewSearchChip chip) { _chips.Remove(chip); await LoadAsync(); }
     private async Task ToggleMissingAsync() { _includeMissing = !_includeMissing; await LoadAsync(); }
     private async Task SetFilterAsync(string filter) { _filter = filter; _day = null; await LoadAsync(); }
     private string FilterClass(string filter) => $"app-discovery-filter__tab{(_filter == filter ? " is-active" : "")}";
@@ -273,11 +292,11 @@ else
     private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private string ScopeDescription => Workspace.ScopeKind switch
     {
-        ViewScopeKind.Mine => "Your private photo and video timeline.",
+        ViewScopeKind.Mine => L["ViewPage_ScopeMine"].Value,
         ViewScopeKind.Profile when Workspace.IsOtherPerson(Workspace.ScopeProfileId) => $"Read-only: {SelectedScopeLabel}'s photos. Your look is recorded and shown to their household.",
-        ViewScopeKind.Profile => $"Photos and videos shared by {SelectedScopeLabel}.",
+        ViewScopeKind.Profile => L["ViewPage_ScopeProfile", SelectedScopeLabel].Value,
         ViewScopeKind.OtherShared => "Read-only: another household's Shared Library. Your look is recorded and shown to that household.",
-        _ => "Photos and videos in the Shared Library."
+        _ => L["ViewPage_ScopeShared"].Value
     };
     private string SelectedScopeLabel => Workspace.Scopes?.AvailableScopes.FirstOrDefault(scope =>
         scope.Kind == Workspace.ScopeKind && (scope.Kind != ViewScopeKind.Profile || scope.ProfileId == Workspace.ScopeProfileId))?.Label
@@ -398,7 +417,7 @@ else
     private async Task CreateGalleryFromSelectionAsync() { if (_viewSectionShell is null) return; await _viewSectionShell.BeginManualGalleryCreateAsync(_selected); ClearSelection(); }
     private async Task AddActiveToGalleryAsync(Guid id) { if (_activeItem is null) return; var result = await ApiClient.AddViewGalleryItemsAsync(id, [_activeItem.Id]); if (result is not null) Ribbon.Add(GalleryResult(result), AppSeverity.Success); }
     private static string GalleryResult(AddViewGalleryItemsResponseDto result) => result.AlreadyPresent > 0 ? $"{result.Added} added · {result.AlreadyPresent} already in Gallery" : $"{result.Added} added";
-    private async Task ArchiveSelectionAsync() { if (!await ViewTrashConfirmation.AskArchiveAsync(DialogService, _selected.Count)) return; await MutateSelectionAsync(ApiClient.ArchiveViewItemAsync, "Archived selected items."); }
+    private async Task ArchiveSelectionAsync() { if (!await ViewTrashConfirmation.AskArchiveAsync(DialogService, _selected.Count)) return; await MutateSelectionAsync(ApiClient.ArchiveViewItemAsync, L["ViewPage_Archived"].Value); }
     private async Task TrashSelectionAsync()
     {
         if (TryRefuseTrash()) return;
@@ -412,14 +431,14 @@ else
         }
 
         if (!await ViewTrashConfirmation.AskTrashAsync(DialogService, _selected.Count - readOnly.Count)) return;
-        await MutateSelectionAsync(ApiClient.TrashViewItemAsync, "Moved selected items to Trash.", readOnly);
+        await MutateSelectionAsync(ApiClient.TrashViewItemAsync, L["ViewPage_SelectionMovedToTrash"].Value, readOnly);
         if (note is not null) Ribbon.Add(note, AppSeverity.Warning);
     }
     // Only items on the loaded page are known; one selected from a date group that isn't loaded is left to the Engine's refusal.
     private bool IsKnownReadOnly(Guid id) => _page?.Items.FirstOrDefault(item => item.Id == id) is { CanTrash: false };
     private bool AnySelectedTrashable => _selected.Any(id => !IsKnownReadOnly(id));
     // A file deleted outside Library shows dimmed with this note; a Trash failure note shows in Trash.
-    private string? ItemNote(LocalAssetDto item) => item.FileMissing ? "File missing" : TrashNote(item);
+    private string? ItemNote(LocalAssetDto item) => item.FileMissing ? L["ViewPage_FileMissing"].Value : TrashNote(item);
     private string? TrashNote(LocalAssetDto item) => _filter == "trash" && Workspace.TrashFailureReason(item.Id) is { } reason ? EmptyTrashText.FailureNote(reason) : null;
     private bool _mutatingSelection;
     private async Task MutateSelectionAsync(Func<Guid, CancellationToken, Task<bool>> action, string message, IReadOnlySet<Guid>? skip = null)
@@ -502,7 +521,7 @@ else
     {
         if (TryRefuseTrash() || !item.CanTrash) return;
         if (!await ViewTrashConfirmation.AskTrashAsync(DialogService)) return;
-        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Ribbon.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
+        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Ribbon.Add(L["ViewPage_SelectionMovedToTrash"].Value, AppSeverity.Success); }
         else Ribbon.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
     }
     private EventCallback EditCallback => EditorHost.CanEdit && _filter != "trash" ? EventCallback.Factory.Create(this, EditSelectionAsync) : default;
@@ -517,7 +536,7 @@ else
         if (closed.Changed) { ClearSelection(); await LoadAsync(preserveSelection: false); }
     }
 
-    private Task FavoriteSelectionAsync() => MutateSelectionAsync((id, ct) => ApiClient.SetViewItemFavoriteAsync(id, true, ct), "Favorited selected items.");
+    private Task FavoriteSelectionAsync() => MutateSelectionAsync((id, ct) => ApiClient.SetViewItemFavoriteAsync(id, true, ct), L["ViewPage_Favorited"].Value);
     private async Task SubmitSelectionToSharedAsync()
     {
         var ids = _selected.ToList();
@@ -526,11 +545,11 @@ else
             new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
         if (await dialog.Result is not { Canceled: false, Data: ViewSharedContributionSubmitRequest request }) return;
         var contribution = await ApiClient.SubmitViewSharedContributionAsync(request);
-        if (contribution is null) { Ribbon.Add(ApiClient.LastError ?? "The contribution could not be submitted.", AppSeverity.Error); return; }
+        if (contribution is null) { Ribbon.Add(ApiClient.LastError ?? L["ViewPage_ContributionFailed"].Value, AppSeverity.Error); return; }
         Ribbon.Add($"{contribution.Items.Count} items submitted to the Shared Library.", AppSeverity.Success);
         ClearSelection();
     }
-    private Task RestoreSelectionAsync() { _trashVersion++; return MutateSelectionAsync(async (id, ct) => { var restored = await ApiClient.RestoreViewItemAsync(id, ct); if (restored) Workspace.ClearTrashFailures([id]); return restored; }, "Restored selected items to Photos."); }
+    private Task RestoreSelectionAsync() { _trashVersion++; return MutateSelectionAsync(async (id, ct) => { var restored = await ApiClient.RestoreViewItemAsync(id, ct); if (restored) Workspace.ClearTrashFailures([id]); return restored; }, L["ViewPage_Restored"].Value); }
     private async Task ToggleFavoriteAsync() { if (_activeItem is null) return; var value = !_activeItem.Favorite; if (await ApiClient.SetViewItemFavoriteAsync(_activeItem.Id, value)) Replace(_activeItem with { Favorite = value }); }
     private async Task ArchiveActiveAsync() { if (_activeItem is not null && await ViewTrashConfirmation.AskArchiveAsync(DialogService) && await ApiClient.ArchiveViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); }
     private async Task HideActiveAsync() { if (_activeItem is not null && await ApiClient.SetViewItemHiddenAsync(_activeItem.Id, true)) { Ribbon.Add(L["ViewPage_ItemHidden"].Value, AppSeverity.Success); await RemoveActiveAsync(); } else Ribbon.Add(L["ViewPage_HideFailed"].Value, AppSeverity.Error); }
@@ -559,8 +578,8 @@ else
             : item.OwnerProfileId.HasValue && item.OwnerProfileId != _profileId
                 ? (ViewScopeKind.Profile, item.OwnerProfileId)
                 : (ViewScopeKind.Mine, null);
-    private string EmptyTitle => !string.IsNullOrWhiteSpace(_search) ? "No matching items" : _filter switch { "favorites" => "No favorites yet", "videos" => "No videos yet", "archive" => "Archive is empty", "trash" => "Trash is empty", "hidden" => "No hidden items", "documents" => "No documents yet", "recent" => L["ViewPage_NothingAddedYet"].Value, _ => "No personal media yet" };
-    private string EmptyMessage => !string.IsNullOrWhiteSpace(_search) ? "Try a different search." : "Items matching this View filter will appear here.";
+    private string EmptyTitle => !string.IsNullOrWhiteSpace(EffectiveSearch) || _chips.Count > 0 ? L["ViewPage_EmptyNoMatch"].Value : _filter switch { "favorites" => L["ViewPage_EmptyFavorites"].Value, "videos" => L["ViewPage_EmptyVideos"].Value, "archive" => L["ViewPage_EmptyArchive"].Value, "trash" => L["ViewPage_EmptyTrash"].Value, "hidden" => L["ViewPage_EmptyHidden"].Value, "documents" => L["ViewPage_EmptyDocuments"].Value, "recent" => L["ViewPage_NothingAddedYet"].Value, _ => L["ViewPage_EmptyPersonal"].Value };
+    private string EmptyMessage => !string.IsNullOrWhiteSpace(EffectiveSearch) || _chips.Count > 0 ? L["ViewPage_TrySearch"].Value : L["ViewPage_FilterEmptyHint"].Value;
     private async Task JumpToBucketAsync(ViewTimelineBucketDto bucket)
     {
         if (_timelineModule is not null && await _timelineModule.InvokeAsync<bool>("jumpToPeriod", bucket.Year, bucket.Month)) return;

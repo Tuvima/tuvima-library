@@ -1,0 +1,257 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one "pick a result" window (review mock-ups 2026-11-18 D7): a title, a search box that starts filled in with a Search button, a list of results
+   (small cover, title, a muted second line) where the first is the "Best match" and starts selected, and Cancel / Use this. Subtitles and lyrics both open
+   it from "Find another"; the host owns the search, this owns the shape. *@
+<AppDialogShell Framed="true" Visible="@Visible" Title="@Title" Size="@(HasDetail ? "Large" : "Medium")" HostClass="app-pick-result-host" OnClose="CancelAsync">
+    <ChildContent>
+        <div class="app-dialog-shell__pad app-dialog-shell__pad--flow">
+            <div class="app-pick-result" data-pick-dialog data-pick-cover="@CoverShapeName" data-pick-detail="@(HasDetail ? "true" : null)">
+                <div class="app-pick-result__search" data-pick-search-row>
+                    <AppTextField Class="app-pick-result__box" Label="@L["PickResult_SearchBox"].Value" HideLabel="true" Value="@_query"
+                                  ValueChanged="@(value => _query = value ?? string.Empty)" OnKeyDown="OnBoxKeyAsync" data-pick-box="true" />
+                    <AppButton Class="app-pick-result__go" Label="@L["PickResult_Search"].Value" Disabled="@(Loading || string.IsNullOrWhiteSpace(_query))"
+                               OnClick="SearchAsync" data-pick-search="true" />
+                </div>
+                @Filters
+                @if (Loading)
+                {
+                    <p class="app-pick-result__status" role="status" data-pick-state="searching">@(string.IsNullOrWhiteSpace(LoadingText) ? L["PickResult_Searching"].Value : LoadingText)</p>
+                }
+                else if (Results.Count == 0)
+                {
+                    if (Empty is not null)
+                    {
+                        @Empty
+                    }
+                    else if (!string.IsNullOrWhiteSpace(Message))
+                    {
+                        <p class="app-pick-result__status" role="status" data-pick-state="empty">@Message</p>
+                    }
+                }
+                else
+                {
+                    <div class="app-pick-result__body">
+                    <div class="app-pick-result__list" role="radiogroup" aria-label="@Title" data-pick-results>
+                        @for (var index = 0; index < Results.Count; index++)
+                        {
+                            var result = Results[index];
+                            var selected = string.Equals(result.Key, _selectedKey, StringComparison.Ordinal);
+                            <button type="button" role="radio" aria-checked="@(selected ? "true" : "false")" disabled="@Busy"
+                                    class="@(selected ? "app-pick-result__row is-selected" : "app-pick-result__row")"
+                                    data-pick-result="@result.Key" data-pick-selected="@(selected ? "true" : null)" @onclick="@(() => SelectAsync(result))">
+                                @* A result with no picture has no cover box at all (a lyrics or subtitle result does not name an album or a poster). *@
+                                @if (!string.IsNullOrWhiteSpace(result.CoverUrl))
+                                {
+                                    <span class="app-pick-result__cover" aria-hidden="true">
+                                        <img class="app-pick-result__picture" alt="" loading="lazy" decoding="async"
+                                             src="@MediaTileArtworkUrl.ForDrawnSize(result.CoverUrl, 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(result.CoverUrl, 96)" />
+                                    </span>
+                                }
+                                <span class="app-pick-result__copy">
+                                    <strong class="app-pick-result__title" data-overflow-tooltip="@result.Title">@result.Title</strong>
+                                    @if (!string.IsNullOrWhiteSpace(result.Subtitle))
+                                    {
+                                        <span class="app-pick-result__sub" data-pick-sub>@result.Subtitle</span>
+                                    }
+                                    @if (result.Checks is { Count: > 0 })
+                                    {
+                                        <span class="app-pick-result__checks" data-pick-checks>
+                                            @foreach (var check in result.Checks)
+                                            {
+                                                <span class="@CheckClass(check)" data-pick-check="@check.Tone.ToString().ToLowerInvariant()">@check.Text</span>
+                                            }
+                                        </span>
+                                    }
+                                    @* Phone: one column, so the words sit inside the row; on desktop, tablet and TV they are in the pane beside the list (D12). *@
+                                    @if (result.Lines is { Count: > 0 })
+                                    {
+                                        <span class="app-pick-result__inline-lines" data-pick-inline-lines>
+                                            @foreach (var line in result.Lines)
+                                            {
+                                                <span class="app-pick-result__line">@if (line.Time is not null) { <span class="app-pick-result__time">@line.Time</span> }@line.Text</span>
+                                            }
+                                        </span>
+                                    }
+                                    @if (result.Preview != AppPickPreview.None)
+                                    {
+                                        <span class="app-pick-result__previewlink" data-pick-preview="@result.Preview.ToString().ToLowerInvariant()">@PreviewText(result.Preview)</span>
+                                    }
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(result.Note))
+                                {
+                                    <span class="app-pick-result__pill app-pick-result__pill--note" data-pick-note>@result.Note</span>
+                                }
+                                @if (index == 0)
+                                {
+                                    <span class="app-pick-result__pill" data-pick-best>@L["PickResult_BestMatch"]</span>
+                                }
+                            </button>
+                        }
+                    </div>
+                    @if (HasDetail)
+                    {
+                        <aside class="app-pick-result__pane" data-pick-pane aria-live="polite">
+                            @if (Selected is { } shown)
+                            {
+                                <strong class="app-pick-result__pane-title">@shown.Title</strong>
+                                @if (shown.Lines is { Count: > 0 })
+                                {
+                                    <div class="app-pick-result__pane-lines" data-pick-pane-lines>
+                                        @foreach (var line in shown.Lines)
+                                        {
+                                            <p class="app-pick-result__line">@if (line.Time is not null) { <span class="app-pick-result__time">@line.Time</span> }@line.Text</p>
+                                        }
+                                    </div>
+                                }
+                                else if (shown.Preview != AppPickPreview.None)
+                                {
+                                    <p class="app-pick-result__pane-note" data-pick-pane-state="@shown.Preview.ToString().ToLowerInvariant()">@PreviewText(shown.Preview, pane: true)</p>
+                                }
+                            }
+                            else
+                            {
+                                <p class="app-pick-result__pane-note">@L["PickResult_PanePrompt"]</p>
+                            }
+                        </aside>
+                    }
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Problem))
+                {
+                    <p class="app-pick-result__problem" role="status" data-pick-problem>@Problem</p>
+                }
+                @AfterResults
+            </div>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar>
+            <AppButton Label="@L["Search_Cancel"].Value" OnClick="CancelAsync" data-pick-action="cancel" />
+            <AppButton Label="@L["PickResult_UseThis"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Loading="@Busy" Disabled="@(Selected is null || Selected.InUse || Loading)" OnClick="UseAsync" data-pick-action="use" />
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    /// <summary>Whether the window is open. Closing it (Cancel, the X, Escape) calls <see cref="OnCancel"/>; the host decides what to do with that.</summary>
+    [Parameter] public bool Visible { get; set; } = true;
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The text the search box starts with. A new value (or the window opening again) puts it back in the box.</summary>
+    [Parameter] public string SearchText { get; set; } = string.Empty;
+
+    /// <summary>The results, best match first. The first starts selected.</summary>
+    [Parameter] public IReadOnlyList<AppPickResult> Results { get; set; } = [];
+
+    [Parameter] public AppPickCoverShape CoverShape { get; set; } = AppPickCoverShape.Portrait;
+
+    /// <summary>True while a search runs: the list is replaced by one waiting line and Search waits.</summary>
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public string? LoadingText { get; set; }
+
+    /// <summary>True while the chosen result is being used; the rows and Use this wait.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>One plain sentence shown when there are no results (and no <see cref="Empty"/> block).</summary>
+    [Parameter] public string? Message { get; set; }
+
+    /// <summary>A fuller "nothing to show" block (a sentence with its detail and actions); used instead of <see cref="Message"/> when given.</summary>
+    [Parameter] public RenderFragment? Empty { get; set; }
+
+    /// <summary>A line under the list saying why the last "Use this" did not work.</summary>
+    [Parameter] public string? Problem { get; set; }
+
+    /// <summary>Extra controls between the search row and the list (the subtitle language).</summary>
+    [Parameter] public RenderFragment? Filters { get; set; }
+
+    /// <summary>Extra content under the list (a note, "This one is wrong").</summary>
+    [Parameter] public RenderFragment? AfterResults { get; set; }
+
+    /// <summary>Search was pressed (or Enter): the box's text, trimmed.</summary>
+    [Parameter] public EventCallback<string> OnSearch { get; set; }
+
+    /// <summary>Use this was pressed with a result selected.</summary>
+    [Parameter] public EventCallback<AppPickResult> OnUse { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    /// <summary>A different row was selected (a subtitle row that has not been read yet is read now).</summary>
+    [Parameter] public EventCallback<AppPickResult> OnSelect { get; set; }
+
+    private string _query = string.Empty;
+    private string? _previousSearchText;
+    private bool _wasVisible;
+    private string? _selectedKey;
+    private string _resultKeys = string.Empty;
+
+    private AppPickResult? Selected => Results.FirstOrDefault(result => string.Equals(result.Key, _selectedKey, StringComparison.Ordinal));
+    private string CoverShapeName => CoverShape == AppPickCoverShape.Square ? "square" : "portrait";
+
+    protected override void OnParametersSet()
+    {
+        // The box starts filled in, and again each time the window opens or the host hands over new text; typing in between is never overwritten.
+        if (Visible && (!_wasVisible || !string.Equals(SearchText, _previousSearchText, StringComparison.Ordinal)))
+        {
+            _query = SearchText;
+            _previousSearchText = SearchText;
+        }
+        _wasVisible = Visible;
+
+        // A new list selects its best match (the first); the same list keeps the person's own choice.
+        var keys = string.Join('\u001f', Results.Select(result => result.Key));
+        if (!string.Equals(keys, _resultKeys, StringComparison.Ordinal) || Selected is null)
+        {
+            _resultKeys = keys;
+            _selectedKey = Results.FirstOrDefault()?.Key;
+        }
+    }
+
+    // Rows that carry words or checks (lyrics and subtitles) get the words pane beside the list.
+    private bool HasDetail => Results.Any(result => result.Lines is not null || result.Checks is { Count: > 0 } || result.Preview != AppPickPreview.None);
+
+    private static string CheckClass(AppPickCheck check) => $"app-pick-result__check app-pick-result__check--{check.Tone.ToString().ToLowerInvariant()}";
+
+    private string PreviewText(AppPickPreview preview, bool pane = false) => preview switch
+    {
+        AppPickPreview.Reading => L["PickResult_Reading"].Value,
+        AppPickPreview.Failed => L["PickResult_CouldNotRead"].Value,
+        _ => pane ? L["PickResult_PaneNotRead"].Value : L["PickResult_Preview"].Value,
+    };
+
+    private async Task SelectAsync(AppPickResult result)
+    {
+        var changed = !string.Equals(result.Key, _selectedKey, StringComparison.Ordinal);
+        _selectedKey = result.Key;
+        if (changed || result.Preview is AppPickPreview.Failed or AppPickPreview.Available)
+        {
+            await OnSelect.InvokeAsync(result);
+        }
+    }
+
+    private Task OnBoxKeyAsync(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAsync() : Task.CompletedTask;
+
+    private async Task SearchAsync()
+    {
+        var text = _query.Trim();
+        if (Loading || text.Length == 0)
+        {
+            return;
+        }
+        await OnSearch.InvokeAsync(text);
+    }
+
+    private async Task UseAsync()
+    {
+        if (Selected is { InUse: false } chosen && !Busy)
+        {
+            await OnUse.InvokeAsync(chosen);
+        }
+    }
+
+    private Task CancelAsync() => OnCancel.InvokeAsync();
+}

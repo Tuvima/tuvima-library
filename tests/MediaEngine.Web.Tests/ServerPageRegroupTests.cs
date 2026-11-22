@@ -29,7 +29,7 @@ public sealed class ServerPageRegroupTests
     public static TheoryData<MovedPanel> MovedPanels =>
     [
         new("Remote Streaming Quality", "/settings/network/streaming", "/settings/playback", SettingsSection.Playback, null,
-            "StreamingLimitsPanel.razor", "Remote Streaming Quality", "NetworkRemoteAccessSettings.razor", "StreamingLimits"),
+            "StreamingLimitsPanel.razor", "Remote playback quality", "NetworkRemoteAccessSettings.razor", "StreamingLimits"),
         new("Upload Capacity and the bandwidth test", "/settings/network/streaming", "/settings/playback", SettingsSection.Playback, null,
             "StreamingLimitsPanel.razor", "TestNetworkBandwidthAsync", "NetworkRemoteAccessSettings.razor", "StreamingLimits"),
         new("Remote streams share the connection automatically", "/settings/network/streaming", "/settings/playback", SettingsSection.Playback, null,
@@ -49,7 +49,7 @@ public sealed class ServerPageRegroupTests
         new("Playback tools and services (was Current status)", "/settings/delivery", "/settings/tools", SettingsSection.Tools, null,
             "PlaybackToolsStatusCard.razor", "Heading=\"Playback tools and services\"", "PlaybackDeliverySettingsTab.razor", "Current status"),
         // The runtime stays on Local AI > Runtime until Developer tools rebuilds Local AI; it is not on Tools and requirements.
-        new("Resource profile and benchmark", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
+        new("Resource profile and benchmark", "/settings/tools", "/settings/ai/status", SettingsSection.LocalAi, "status",
             "LocalAiSettingsTab.razor", "<ModelsTab />", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
         new("Runtime settings", "/settings/tools", "/settings/ai/advanced", SettingsSection.LocalAi, "advanced",
             "LocalAiRuntimePanel.razor", "Heading=\"Runtime settings\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
@@ -109,7 +109,7 @@ public sealed class ServerPageRegroupTests
             rows.Single(node => node.Section == SettingsSection.Network).Tabs.Select(tab => tab.Label));
         Assert.Equal(["Quality", "Advanced"],
             rows.Single(node => node.Section == SettingsSection.Playback).Tabs.Select(tab => tab.Label));
-        Assert.Equal(["Status", "Models", "Advanced"],
+        Assert.Equal(["Status and models", "Advanced"],
             rows.Single(node => node.Section == SettingsSection.LocalAi).Tabs.Select(tab => tab.Label));
         Assert.Empty(rows.Single(node => node.Section == SettingsSection.Plugins).Tabs);
     }

@@ -73,19 +73,81 @@ public sealed class TextTrackSubtitleAlternativesTests : IDisposable
     // ── The list ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task TheSubtitleList_DownloadsNothing_AndKeepsNoPreview()
+    public async Task TheSubtitleList_ReadsOnlyTheBestMatch_AndSavesNothing()
     {
-        _source.Results = [Result("a"), Result("b")];
+        _source.Results = [Result("a"), Result("b"), Result("c")];
 
         var list = await Worker().FindAlternativesAsync(_movieAsset, TextTrackKind.Subtitles, null);
 
         Assert.Equal("Found", list.Status);
-        Assert.Equal(["a", "b"], list.Items.Select(item => item.SourceId).Order());
-        Assert.All(list.Items, item => { Assert.Null(item.Preview); Assert.True(item.IsTimed); });
+        Assert.Equal(["a", "b", "c"], list.Items.Select(item => item.SourceId).Order());
+        Assert.All(list.Items, item => Assert.True(item.IsTimed));
         Assert.Equal("Spy Source", list.SourceName);
         Assert.Equal("de", list.Language);
-        Assert.Equal(0, _source.Downloads);
+        // The best match (first) is read at once, with its first lines and where its file ends; the others wait until they are selected (D10).
+        Assert.Equal(1, _source.Downloads);
+        var best = list.Items[0];
+        Assert.Equal("Hello", Assert.Single(best.PreviewLines!).Text);
+        Assert.Equal(1d, best.PreviewLines![0].AtSeconds);
+        Assert.Equal(2d, best.EndsAtSeconds);
+        Assert.All(list.Items.Skip(1), item => Assert.Null(item.PreviewLines));
         Assert.Empty(await _tracks.GetByAssetAsync(_movieAsset, TextTrackKind.Subtitles));
+    }
+
+    [Fact]
+    public async Task APreviewRequest_ReadsExactlyOneFile_InTheListsLanguage_AndSavesNothing()
+    {
+        _source.Results = [Result("a"), Result("b")];
+
+        var read = await Worker().PreviewAlternativeAsync(_movieAsset, TextTrackKind.Subtitles, _source.Name, "b", null, language: "French");
+
+        Assert.Equal("Found", read.Status);
+        Assert.Equal("b", read.Item!.SourceId);
+        Assert.Equal("Hello", read.Item.PreviewLines![0].Text);
+        Assert.Equal(["French"], _source.SearchedLanguages);
+        Assert.Equal(1, _source.Downloads);
+        Assert.Empty(await _tracks.GetByAssetAsync(_movieAsset, TextTrackKind.Subtitles));
+    }
+
+    [Fact]
+    public async Task APreviewOfAResultTheSourceNoLongerOffers_IsNotFound()
+    {
+        _source.Results = [Result("a")];
+
+        var read = await Worker().PreviewAlternativeAsync(_movieAsset, TextTrackKind.Subtitles, _source.Name, "zzz", null);
+
+        Assert.Equal("NotFound", read.Status);
+        Assert.Equal(0, _source.Downloads);
+    }
+
+    [Theory]
+    [InlineData(7000, 7200, "Fits")]     // the credits carry no speech: ending 200 s early is normal
+    [InlineData(7260, 7200, "Fits")]
+    [InlineData(6300, 7200, "Off")]      // 15 minutes short
+    [InlineData(7500, 7200, "Off")]
+    public void ASubtitleFilesEndAgainstTheFilmsLength_IsFitsOrOff(double endsAt, double film, string expected)
+    {
+        var (check, difference) = TextTrackEnrichmentWorker.SubtitleLengthCheck(endsAt, film);
+
+        Assert.Equal(expected, check);
+        Assert.Equal(endsAt - film, difference);
+    }
+
+    [Theory]
+    [InlineData(222, 222, "Fits", 0)]
+    [InlineData(224, 222, "Fits", 2)]
+    [InlineData(250, 222, "Off", 28)]
+    [InlineData(200, 222, "Off", -22)]
+    public void ALyricsLengthAgainstTheSongsLength_IsFitsOrOff_WithTheSignedDifference(double result, double song, string expected, double difference)
+    {
+        Assert.Equal((expected, difference), TextTrackEnrichmentWorker.LyricsLengthCheck(result, song));
+    }
+
+    [Fact]
+    public void AnUnknownLength_GivesNoCheck()
+    {
+        Assert.Equal((null, null), TextTrackEnrichmentWorker.LyricsLengthCheck(null, 222));
+        Assert.Equal((null, null), TextTrackEnrichmentWorker.SubtitleLengthCheck(7000, null));
     }
 
     [Fact]

@@ -135,7 +135,7 @@ public partial class MediaBrowseShell
     {
         ("Music", "songs" or "tracks") => "Search songs, artists, or albums...",
         ("Music", "artists") => "Search artists...",
-        ("Music", "playlists") => "Search playlists...",
+        ("Music", "playlists") => L["MediaBrowseShell_SearchPlaylists"].Value,
         ("Music", _) => "Search albums or artists...",
         ("Books", _) => "Search books or authors...",
         ("Comics", _) => "Search comics or creators...",
@@ -184,7 +184,7 @@ public partial class MediaBrowseShell
         HasQualifyingFilters
             ? "Remove a filter or clear all filters to broaden the results."
             : IsPlaylistGrouping
-                ? "Create a playlist or smart playlist to organize music for later."
+                ? L["MediaBrowseShell_NoPlaylistsMessage"].Value
             : IsContainerGrouping
                 ? $"{ActiveGroupingLabel} appear when matching library metadata is available."
                 : $"Once supported {CurrentTab.Label.ToLowerInvariant()} files are ingested, they will appear here.";

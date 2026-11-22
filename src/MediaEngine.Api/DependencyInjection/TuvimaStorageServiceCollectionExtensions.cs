@@ -46,6 +46,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IDocumentRuleRepository, DocumentRuleRepository>();
         services.AddSingleton<DocumentRulesQueue>();
         services.AddSingleton<IViewProfileRepository, ViewProfileRepository>();
+        services.AddSingleton<IViewFaceRepository, ViewFaceRepository>();
         services.AddSingleton<IViewPersonalSpaceRepository, ViewPersonalSpaceRepository>();
         services.AddSingleton<IViewSharedLibraryRepository, ViewSharedLibraryRepository>();
         services.AddSingleton<IProfilePersonalMediaRepository, ProfilePersonalMediaRepository>();
@@ -117,6 +118,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAssetExportService, AssetExportService>();
         services.AddSingleton<ITextTrackExportService, TextTrackExportService>();
         services.AddSingleton<ICollectionRepository, CollectionRepository>();
+        services.AddSingleton<IPlaylistRepository, PlaylistRepository>();
         services.AddSingleton<ICollectionPlacementRepository, CollectionPlacementRepository>();
         services.AddSingleton<ICollectionListRepository, CollectionListRepository>();
         services.AddSingleton<IListImportCandidateRepository, ListImportCandidateRepository>();
@@ -170,12 +172,14 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddScoped<IPasskeyHandler<Account>, PasskeyHandler<Account>>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IAuthenticationPolicyProvider, ConfigurationAuthenticationPolicyProvider>();
+        services.AddSingleton<IOutsideAccessPolicy, ConfigurationOutsideAccessPolicy>();
         services.AddSingleton<AuthenticationProviderConfigurationService>();
         services.AddSingleton<AuthenticationPolicyMutationGate>();
         services.AddSingleton<ExternalIdentityTransactionService>();
         services.AddSingleton<IFirstRunSetupState, MediaEngine.Api.Services.FirstRunSetupState>();
         services.AddSingleton<IFirstPartyIdentityService, FirstPartyIdentityService>();
         services.AddSingleton<IProfilePinVerifier>(sp => (FirstPartyIdentityService)sp.GetRequiredService<IFirstPartyIdentityService>());
+        services.AddSingleton<IOutsideSessionEnder>(sp => (FirstPartyIdentityService)sp.GetRequiredService<IFirstPartyIdentityService>());
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultAdministrationService>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultOperationGate>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultFolderAttachmentService>();

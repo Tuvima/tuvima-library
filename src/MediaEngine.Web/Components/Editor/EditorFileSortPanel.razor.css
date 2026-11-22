@@ -119,7 +119,7 @@
 .tl-filesort__tag {
     padding: 0 var(--tl-space-2);
     border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-sm);
+    border-radius: var(--tl-radius-pill);
     font-size: var(--tl-font-size-xs);
     color: var(--tl-text-muted);
 }

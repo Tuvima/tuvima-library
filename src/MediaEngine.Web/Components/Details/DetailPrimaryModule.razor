@@ -9,12 +9,11 @@
 @if (Model.PrimaryModule.Kind != DetailPrimaryModuleKind.None)
 {
     <div id="detail-primary-module" class="@RootClass">
-        @* One shared collapse arrow heads the row (AppCollapsibleRow); its filters sit at the end of that heading. *@
+        @* No heading text on any details page (issue 1172): the dropdowns say which group this is and the count sits under the list. Only a row's filters keep a line. *@
         <div class="tl-detail-primary-module__frame">
             <AppCollapsibleRow Title="@RowTitle"
-                               Summary="@RowSummary"
                                RowKind="@RowKind"
-                               HideHeading="@IsEpisodeRow"
+                               HideTitle="true"
                                Actions="@ModuleControls">
                 <div class="tl-detail-primary-module__viewport">
                     @if (Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes
@@ -22,8 +21,7 @@
                     {
                         <SequencePlacementPanel Placement="Model.SequencePlacement"
                                                 DetailSurface="true"
-                                                ShowIdentity="false"
-                                                OwnedLineBelow="@IsEpisodeRow"
+                                                MemberGrid="@GroupPageRules.IsSeries(Model.EntityType)"
                                                 Extras="Model.Extras"
                                                 RequestedSeasonId="SelectedSeasonId"
                                                 OnSeasonSelected="OnSeasonSelected"
@@ -35,7 +33,26 @@
                     }
                     else
                     {
-                        @if (Model.PrimaryModule.Kind == DetailPrimaryModuleKind.CollectionItems)
+                        @if (IsCollectionGrid)
+                        {
+                            @* A collection's own page: its titles as a numbered cover grid, like a Series (spec group-pages-and-tiles D4). *@
+                            <GroupMemberGrid AriaLabel="@RowTitle">
+                                @for (var index = 0; index < FilteredItems.Count; index++)
+                                {
+                                    var item = FilteredItems[index];
+                                    <GroupMemberCell @key="@($"{item.EntityType}:{item.Id}")"
+                                                     Title="@item.Title"
+                                                     Number="@((index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                                                     ArtworkUrl="@item.ArtworkUrl"
+                                                     Detail="@item.Year"
+                                                     IsOwned="item.IsOwned"
+                                                     Route="@(item.IsOwned ? ResolveRoute(item) : null)"
+                                                     Shape="@GroupPageRules.MemberShape(item.EntityType)"
+                                                     Icon="@MediaTypeIcon(item.EntityType)" />
+                                }
+                            </GroupMemberGrid>
+                        }
+                        else if (Model.PrimaryModule.Kind == DetailPrimaryModuleKind.CollectionItems)
                         {
                             @* A collection's or Universe's Items scroll in the shared shelf row (wheel, touch swipe, arrows), the one the Home and episode rows use. *@
                             <MediaShelfScroller ItemCount="@FilteredItems.Count" AriaLabel="@RowTitle">
@@ -50,6 +67,10 @@
                         }
                     }
                 </div>
+                @if (ShowOwnedLine)
+                {
+                    <DetailOwnedLine Text="@OwnedLineText" />
+                }
             </AppCollapsibleRow>
         </div>
     </div>
@@ -278,12 +299,6 @@
         }
     };
 
-    // An episode row has no heading line of its own: the count sits at the top of the page and "N episodes owned" under the
-    // tiles (spec details-and-tile-fixes D9). A folder of Other videos keeps its "Videos" heading.
-    private bool IsEpisodeRow => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Episodes
-        && Model.SequencePlacement is { } placement
-        && !VideoFolderWording.IsVideoFolderList(placement.ContainerLabel, placement.ItemLabel);
-
     private string RowTitle => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Sequence
         ? StringHelpers.FirstNonBlank(Model.SequencePlacement?.ContainerTitle, Model.PrimaryModule.Title, "Series")!
         : StringHelpers.FirstNonBlank(Model.PrimaryModule.Title, "Library")!;
@@ -297,22 +312,27 @@
     };
 
 
-    private string? RowSummary
+    // The count under a list of titles ("15 titles"); a Series, show or folder counts through SequencePlacementPanel's own line.
+    private bool ShowOwnedLine => !(Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes
+            && Model.SequencePlacement is not null)
+        && FilteredItems.Count > 0;
+
+    // A collection's own page lists its titles as a numbered cover grid; the line under it says how many are owned of the list's known total.
+    private bool IsCollectionGrid => Model.EntityType == DetailEntityType.Collection
+        && Model.PrimaryModule.Kind == DetailPrimaryModuleKind.CollectionItems;
+
+    private string OwnedLineText => IsCollectionGrid ? CollectionOwnedLine : DisplayFormat.FormatCountNoun(FilteredItems.Count, "title");
+
+    // An imported list knows titles the library does not own ("You own 10 of 11 titles."); any other collection holds only what is owned.
+    private string CollectionOwnedLine
     {
         get
         {
-            if (Model.SequencePlacement is { } placement
-                && Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes)
-            {
-                var owned = placement.Groups.Count > 0
-                    ? placement.Groups.Sum(group => group.OwnedCount)
-                    : placement.OrderedItems.Count(item => item.IsOwned);
-                var noun = owned == 1 ? placement.ItemLabel : placement.ItemPluralLabel;
-                return $"{owned} {noun.ToLowerInvariant()} owned";
-            }
-
-            var count = FilteredItems.Count;
-            return count == 0 ? null : $"{count} {(count == 1 ? "title" : "titles")}";
+            var owned = FilteredItems.Count(item => item.IsOwned);
+            var missing = Model.CollectionInfo?.List?.Missing.Count ?? 0;
+            return missing > 0 || owned == 0
+                ? GroupPageRules.OwnedLine(owned, owned + missing, "title")
+                : $"You own {DisplayFormat.FormatCountNoun(owned, "title")}.";
         }
     }
 

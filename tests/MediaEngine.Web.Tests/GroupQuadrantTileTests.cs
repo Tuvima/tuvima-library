@@ -8,9 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The quadrant tile for groups and for people with works (spec details-and-tile-fixes D1, D2): four covers in a 2 by 2 grid, the kind
-/// word top left and the count bottom left; a person's square photo bottom left with the count beside it; a person with no works is a
-/// square photo. The fan, the single-cover group fallback and the round person tile are gone.
+/// The quadrant tile for people with works (spec details-and-tile-fixes D2): four covers in a 2 by 2 grid, a person's square photo
+/// bottom left with the count beside it; a person with no works is a square photo. A group of titles is the landscape cover collage
+/// (<see cref="GroupCollageTileTests"/>). The fan, the single-cover group fallback and the round person tile are gone.
 /// </summary>
 public sealed class GroupQuadrantTileTests : AsyncBunitContext
 {
@@ -21,77 +21,26 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AGroupWithFiveCovers_DrawsOnlyTheFirstFourInOrder()
-    {
-        var group = Group(Covers("/c/1.jpg", "/c/2.jpg", "/c/3.jpg", "/c/4.jpg", "/c/5.jpg"));
-
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, group));
-
-        var sources = cut.FindAll("img.media-tile-quadrant").Select(image => image.GetAttribute("src")).ToList();
-        Assert.Equal(4, sources.Count);
-        for (var index = 0; index < 4; index++)
-        {
-            Assert.Contains($"/c/{index + 1}.jpg", sources[index], StringComparison.Ordinal);
-        }
-
-        Assert.Empty(cut.FindAll(".media-tile-quadrant.is-empty"));
-    }
-
-    [Fact]
-    public void AGroupWithThreeCovers_FillsWhatExists_AndLeavesTheFourthCellPlain()
-    {
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Group(Covers("/c/1.jpg", "/c/2.jpg", "/c/3.jpg"))));
-
-        Assert.Equal(3, cut.FindAll("img.media-tile-quadrant").Count);
-        Assert.Single(cut.FindAll(".media-tile-quadrant.is-empty"));
-    }
-
-    [Fact]
-    public void AGroupTile_CarriesItsNameOnTheArtAboveTheCount_AndAChosenCoverKeepsTheName()
-    {
-        var grid = Render<MediaTile>(p => p.Add(c => c.Item, Group(Covers("/c/1.jpg", "/c/2.jpg"))));
-        var chosen = Render<MediaTile>(p => p.Add(c => c.Item, Group(Covers("/c/1.jpg"), customCover: "/art/chosen.jpg")));
-        var plain = Render<MediaTile>(p => p.Add(c => c.Item, Group([])));
-
-        Assert.Equal("Group", grid.Find(".media-tile-name").TextContent.Trim());
-        Assert.Single(grid.FindAll(".media-tile-scrim"));
-        Assert.Equal("Group", chosen.Find(".media-tile-name").TextContent.Trim());
-        // The plain tile already says its name once, in the fallback panel.
-        Assert.Empty(plain.FindAll(".media-tile-name"));
-        Assert.Equal("Group", plain.Find(".media-tile-fallback__title").TextContent.Trim());
-    }
-
-    [Fact]
     public void AGroupWithNoCovers_IsThePlainTileWithTheKindIcon()
     {
         var cut = Render<MediaTile>(p => p.Add(c => c.Item, Group([])));
 
         Assert.Empty(cut.FindAll(".media-tile-quadrants"));
+        Assert.Empty(cut.FindAll(".group-collage"));
         Assert.Single(cut.FindAll(".media-tile-fallback"));
     }
 
-    [Fact]
-    public void AGroupWithACustomCover_DrawsThatCoverInsteadOfTheQuadrants()
+    [Theory]
+    [InlineData("/v/folder.jpg", null, "/v/folder.jpg")]
+    [InlineData(null, "/v/frame.jpg", "/v/frame.jpg")]
+    public void AFolderOfVideosWithNoChosenCover_DrawsItsFolderPictureOrAFrameFromItsVideos(string? tileImage, string? memberImage, string expected)
     {
-        var group = Group(Covers("/c/1.jpg", "/c/2.jpg"), customCover: "/art/chosen.jpg");
+        var item = Group(memberImage is null ? [] : Covers(memberImage), mediaKind: MediaEngine.Domain.Services.VideoFolderWording.FolderMediaType, tileImage: tileImage);
 
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, group));
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, item));
 
-        Assert.Empty(cut.FindAll(".media-tile-quadrants"));
-        Assert.Contains("chosen.jpg", cut.Find("img.media-tile-image").GetAttribute("src"), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void AGroupOfAlbums_IsASquareTile_AndAGroupOfPostersIsAPosterTile()
-    {
-        var albums = Group(Covers("/a/1.jpg", "/a/2.jpg"), shape: MediaTileShape.Square);
-        var posters = Group(Covers("/p/1.jpg", "/p/2.jpg"));
-
-        var square = Render<MediaTile>(p => p.Add(c => c.Item, albums));
-        var poster = Render<MediaTile>(p => p.Add(c => c.Item, posters));
-
-        Assert.Contains("is-square", square.Find("article.media-tile").ClassList);
-        Assert.Contains("is-portrait", poster.Find("article.media-tile").ClassList);
+        Assert.Empty(cut.FindAll(".media-tile-fallback"));
+        Assert.Contains(cut.FindAll("img"), img => (img.GetAttribute("src") ?? string.Empty).Contains(expected, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -196,15 +145,19 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
     }
 
     [Fact]
-    public void GroupTileShape_IsSquareOnlyWhenEveryShownCoverIsSquare()
+    public void GroupTileShape_IsLandscapeForAGroupOfTitles_AndSquareOnlyForAPersonWhoseEveryShownCoverIsSquare()
     {
-        Assert.Equal(MediaTileShape.Square, GroupTileShape.For(Covers(ArtworkShape.Square, "/a/1.jpg", "/a/2.jpg")));
-        Assert.Equal(MediaTileShape.Portrait, GroupTileShape.For(Covers(ArtworkShape.Portrait, "/p/1.jpg", "/p/2.jpg")));
-        Assert.Equal(MediaTileShape.Portrait, GroupTileShape.For([
+        Assert.Equal(MediaTileShape.Landscape, GroupTileShape.For(Covers(ArtworkShape.Square, "/a/1.jpg", "/a/2.jpg")));
+        Assert.Equal(MediaTileShape.Landscape, GroupTileShape.For(Covers(ArtworkShape.Portrait, "/p/1.jpg", "/p/2.jpg")));
+        Assert.Equal(MediaTileShape.Landscape, GroupTileShape.For([]));
+
+        Assert.Equal(MediaTileShape.Square, GroupTileShape.ForPerson(Covers(ArtworkShape.Square, "/a/1.jpg", "/a/2.jpg")));
+        Assert.Equal(MediaTileShape.Portrait, GroupTileShape.ForPerson(Covers(ArtworkShape.Portrait, "/p/1.jpg", "/p/2.jpg")));
+        Assert.Equal(MediaTileShape.Portrait, GroupTileShape.ForPerson([
             new ArtworkStackItem { ImageUrl = "/a/1.jpg", Shape = ArtworkShape.Square },
             new ArtworkStackItem { ImageUrl = "/p/1.jpg", Shape = ArtworkShape.Portrait },
         ]));
-        Assert.Equal(MediaTileShape.Portrait, GroupTileShape.For([]));
+        Assert.Equal(MediaTileShape.Portrait, GroupTileShape.ForPerson([]));
     }
 
     [Fact]
@@ -247,7 +200,7 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ACollectionOfAlbumsIsSquare_AndItsChosenCoverIsCarriedAsTheCustomCover()
+    public void ACollectionOfAlbumsIsTheLandscapeCollage_AndItsChosenCoverIsCarriedAsTheCustomCover()
     {
         var collection = new CollectionManagementCatalogViewModel
         {
@@ -272,7 +225,7 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
         var chosen = CollectionSurfaceTileComposer.FromCollection(collection);
         var stacked = CollectionSurfaceTileComposer.FromCollection(automatic);
 
-        Assert.Equal(MediaTileShape.Square, chosen.Shape);
+        Assert.Equal(MediaTileShape.Landscape, chosen.Shape);
         Assert.Equal("/stream/artwork/chosen", chosen.CustomCoverUrl);
         Assert.Null(stacked.CustomCoverUrl);
         Assert.Equal(2, stacked.GroupCovers.Count);
@@ -283,7 +236,9 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
         MediaTileShape shape = MediaTileShape.Portrait,
         MediaTileGroupKind kind = MediaTileGroupKind.Collection,
         string? customCover = null,
-        string? newLabel = null) => new()
+        string? newLabel = null,
+        string? mediaKind = null,
+        string? tileImage = null) => new()
         {
             Id = Guid.NewGuid(),
             CollectionId = Guid.NewGuid(),
@@ -294,6 +249,8 @@ public sealed class GroupQuadrantTileTests : AsyncBunitContext
             Shape = shape,
             NewLabel = newLabel,
             CustomCoverUrl = customCover,
+            MediaKind = mediaKind ?? string.Empty,
+            TileImageUrl = tileImage,
             ArtworkStackItems = covers,
             NavigationUrl = "/details/collection/group",
             PreviewTotalCount = covers.Count,

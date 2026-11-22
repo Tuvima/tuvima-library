@@ -1,0 +1,28 @@
+.ra-test {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.ra-test__busy {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3, 12px);
+}
+
+.ra-test__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-3, 12px);
+}
+
+@media (max-width: 600px) {
+    .ra-test__actions {
+        flex-direction: column;
+    }
+
+    .ra-test__actions .app-button {
+        width: 100%;
+        justify-content: center;
+    }
+}

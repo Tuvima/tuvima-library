@@ -422,7 +422,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var title = host.FindAll(".app-dialog-shell__title").Last();
         Assert.Equal("Where is it? · Movies", Text(title));
         Assert.Equal(["Watch", "Movies"], host.Find("[data-picker-chips]").QuerySelectorAll("span").Select(Text).ToArray());
-        Assert.NotNull(host.Find("[data-folder-name]"));
+        Assert.Empty(host.FindAll("[data-folder-name]"));
         Assert.NotNull(host.Find("[data-folder-handling]"));
         Assert.Empty(host.FindAll("[data-picker-safety]"));
         var buttons = host.FindAll(".server-folder-picker__footer button").Select(Text).ToArray();
@@ -838,7 +838,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WithOnlyAnEmptyLibraryThePageSaysNoLibrariesYetAndTheImportFolderRowStaysListed()
+    public void WithOnlyAnEmptyLibraryThePageShowsOnlyTheEmptyStateAndAddLibrary_NoImportRowTableOrFilters()
     {
         _configuration!.Libraries.Clear();
         _configuration.Libraries.Add(new() { Id = HomeVideosId, Name = "Home videos", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], Sources = [] });
@@ -846,7 +846,12 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         Assert.Contains("No libraries yet", Text(cut.Find("[data-empty=none]")));
         Assert.Empty(cut.FindAll("tr[data-area]"));
-        Assert.Equal("not-set", cut.Find("tr[data-library=import] [data-import-status]").GetAttribute("data-import-status"));
+        // No ghost row: the pinned Import folder row, the table, the filters and the footer wait until a library exists.
+        Assert.Empty(cut.FindAll("tr[data-library=import]"));
+        Assert.Empty(cut.FindAll("table"));
+        Assert.Empty(cut.FindAll(".libs__filters"));
+        Assert.Empty(cut.FindAll("[data-libs-footer]"));
+        Assert.Contains(cut.FindAll("[data-empty=none] button"), button => button.TextContent.Contains("Add library", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -955,14 +960,13 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
     // 10. Phone: counts and status, nothing that changes anything.
     [Fact]
-    public async Task OnAPhoneTheOverviewShowsRowsWithTheNoteAndNoControlToChangeAnything()
+    public async Task OnAPhoneTheOverviewShowsRowsWithNoNoteAndTheSameControlsAsADesktop()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync("mobile");
         var cut = OpenAndSettle();
 
-        Assert.Contains("Use a desktop or tablet to change folders.", cut.Markup);
+        Assert.DoesNotContain("Use a desktop or tablet to change folders.", cut.Markup);
         Assert.NotEmpty(cut.FindAll($"tr[data-library='{MoviesId}']"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Add library");
     }
 
     // Libraries v3 D22: Add library sits at the top right of the page header, on the title row, never in the page content.
@@ -1116,14 +1120,14 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhoneALibrarysPageKeepsTheCountsAndStatusWithoutAnyControlThatChangesFolders()
+    public async Task OnAPhoneALibrarysPageOffersTheSameFolderControlsAsADesktop()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync("mobile");
         var cut = Open(MoviesId);
         cut.WaitForElement(".libpage");
 
-        Assert.Contains("Use a desktop or tablet to change folders.", cut.Markup);
-        Assert.Empty(cut.FindAll(".libpage__actions"));
+        Assert.DoesNotContain("Use a desktop or tablet to change folders.", cut.Markup);
+        Assert.Equal(["Scan now", "Add folder", "Add files"], cut.FindAll(".libpage__actions button").Select(Text).ToArray());
     }
 
     [Fact]

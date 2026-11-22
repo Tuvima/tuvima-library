@@ -1,0 +1,254 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject IAppDialogService Dialogs
+@inject IServiceProvider Services
+@inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Playlists page (spec listen-playlists WP3, spec group-pages-and-tiles WP1, mockup A): a title, Sort and New playlist, then a tile for every
+   playlist, as many across as fit and two across on a phone. Every playlist (hand-made, Smart, Favorites) is the shared square album
+   quadrant of MediaTile, drawn from PlaylistTileComposer. New playlist opens one small window (name, Hand-picked or Smart); the page only asks for
+   it and hands the answer to its host. A hand-made playlist's tile takes songs dragged onto it (never a Smart or built-in list's) and the sentence
+   about how the drop went shows right here, in place. Every playlist tile has the shared playlist "..." menu; its actions go to the host. *@
+<section class="playlist-tiles" data-playlist-tiles aria-label="@L["Glossary_Playlists"].Value">
+    <header class="playlist-tiles__header">
+        <h2 class="playlist-tiles__title">@L["Glossary_Playlists"]</h2>
+        @if (CanSort)
+        {
+            <div class="playlist-tiles__sort">
+                <AppOverflowMenu Label="@SortLabel" ShowIcon="false" EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
+                                 AriaLabel="@L["Common_Sort"].Value" Size="AppControlSize.Normal"
+                                 AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
+                    @foreach (var choice in PlaylistTileRules.SortChoices)
+                    {
+                        var chosen = choice;
+                        <AppMenuItem Label="@SortWord(chosen)" Checked="@(_sort == chosen)" OnClick="@(() => ChooseSort(chosen))" />
+                    }
+                </AppOverflowMenu>
+            </div>
+        }
+        <div class="playlist-tiles__new">
+            <AppButton ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Primary"
+                       StartIcon="@AppMaterialIcons.Filled.Add"
+                       Label="@(DeviceContext.IsPhone ? L["PlaylistTiles_NewShort"].Value : L["ListenPage_NewPlaylist"].Value)"
+                       OnClick="NewPlaylistAsync"
+                       data-playlist-new="true" />
+        </div>
+    </header>
+
+    @if (_notice is not null)
+    {
+        <AppAlert Severity="_noticeSeverity" ShowCloseIcon="true" CloseIconClicked="@(() => _notice = null)" data-playlist-drop-notice>@_notice</AppAlert>
+    }
+
+    @if (Loading)
+    {
+        <div class="playlist-tiles__grid" aria-busy="true" data-playlist-tiles-loading>
+            @for (var index = 0; index < 8; index++)
+            {
+                <div class="playlist-tiles__skeleton"><AppSkeleton Height="10rem" /></div>
+            }
+        </div>
+    }
+    else if (Playlists.Count == 0 && !ShowFavorites)
+    {
+        <AppEmptyState Title="@L["PlaylistTiles_EmptyTitle"].Value"
+                       Message="@L["PlaylistTiles_EmptyMessage"].Value"
+                       Icon="@AppMaterialIcons.Outlined.QueueMusic"
+                       Class="playlist-tiles__empty" />
+    }
+    else
+    {
+        <div class="playlist-tiles__grid" data-playlist-tiles-grid>
+            @if (ShowFavorites)
+            {
+                <div class="playlist-tiles__cell" @key="FavoritesKey" data-playlist-tile="@FavoritesKey">
+                    <MediaTile Item="@FavoritesTile" ShowActions="false" />
+                </div>
+            }
+            @foreach (var playlist in Shown)
+            {
+                var shown = playlist;
+                <div class="playlist-tiles__cell" @key="shown.Id" data-playlist-tile="@shown.Id.ToString("D")">
+                    <MediaTile Item="@TileFor(shown)" ShowActions="false" OnSongsDropped="@(() => OnSongsDropped.InvokeAsync(shown))">
+                        <Menu>
+                            <PlaylistActionsMenu Playlist="@shown"
+                                                 OnEditRules="OnEditRules"
+                                                 OnRename="OnRename"
+                                                 OnEditDetails="OnEditDetails"
+                                                 OnDuplicate="OnDuplicate"
+                                                 OnTogglePin="OnTogglePin"
+                                                 OnDelete="OnDelete"
+                                                 OnMoveUp="@(CanReorder ? EventCallback.Factory.Create<ManagedCollectionViewModel>(this, MoveUpAsync) : default)"
+                                                 OnMoveDown="@(CanReorder ? EventCallback.Factory.Create<ManagedCollectionViewModel>(this, MoveDownAsync) : default)"
+                                                 CanMoveUp="@CanMove(shown, -1)"
+                                                 CanMoveDown="@CanMove(shown, 1)" />
+                        </Menu>
+                    </MediaTile>
+                </div>
+            }
+        </div>
+    }
+    <div class="sr-only" role="status" aria-live="polite" data-playlist-tiles-announce>@_announcement</div>
+</section>
+
+@code {
+    private const string FavoritesKey = "favorites";
+    private const string FavoritesRoute = "/listen/music/playlists/system/favorite-songs";
+
+    private PlaylistTileSort _sort = PlaylistTileSort.Manual;
+    private string? _notice;
+    private AppSeverity _noticeSeverity = AppSeverity.Info;
+    private SongDragDropService? _drops;
+
+    /// <summary>The playlists in the order this profile keeps them (pinned first); Sort changes only what this page draws.</summary>
+    [Parameter] public IReadOnlyList<ManagedCollectionViewModel> Playlists { get; set; } = [];
+
+    /// <summary>True while the playlists are being read: skeleton tiles.</summary>
+    [Parameter] public bool Loading { get; set; }
+
+    /// <summary>Favorites is the built-in first tile (heart, the profile's hearted songs); it has no menu and takes no drops.</summary>
+    [Parameter] public bool ShowFavorites { get; set; }
+
+    /// <summary>How many songs are hearted; null when not known (the tile then shows the word only).</summary>
+    [Parameter] public int? FavoritesCount { get; set; }
+
+    /// <summary>
+    /// The album covers of each playlist's songs in song order, by playlist id (the host reads them; the tile draws the first four different ones).
+    /// A playlist missing here, or with none, is the shared no-covers tile with the playlist icon.
+    /// </summary>
+    [Parameter] public IReadOnlyDictionary<Guid, IReadOnlyList<string>>? AlbumCovers { get; set; }
+
+    /// <summary>New playlist, Hand-picked: the name typed. The host makes the playlist.</summary>
+    [Parameter] public EventCallback<string> OnCreateHandPicked { get; set; }
+
+    /// <summary>New playlist, Smart: the name typed (may be empty). The host opens the rule editor.</summary>
+    [Parameter] public EventCallback<string> OnCreateSmart { get; set; }
+
+    /// <summary>Songs were dropped on a tile and the add finished; the host may read the playlists again.</summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnSongsDropped { get; set; }
+
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnEditRules { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnRename { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnEditDetails { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnDuplicate { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnTogglePin { get; set; }
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnDelete { get; set; }
+
+    /// <summary>
+    /// Move up: the tile's "..." menu moves the playlist one place earlier in the order this profile keeps (spec listen-playlists D3, WP5), and the
+    /// host saves it on the profile. Offered only in Manual sort, where the tiles are drawn in that order.
+    /// </summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveUp { get; set; }
+
+    /// <summary>Move down: one place later in the profile's order; see <see cref="OnMoveUp"/>.</summary>
+    [Parameter] public EventCallback<ManagedCollectionViewModel> OnMoveDown { get; set; }
+
+    private bool CanSort => !Loading && Playlists.Count > 1;
+
+    private string? _announcement;
+
+    private bool CanReorder => _sort == PlaylistTileSort.Manual && Playlists.Count > 1 && (OnMoveUp.HasDelegate || OnMoveDown.HasDelegate);
+
+    // A move that would change nothing on screen is greyed: the first tile, the last tile, and the edge between pinned and other playlists
+    // (pinned ones always come first).
+    private bool CanMove(ManagedCollectionViewModel playlist, int direction)
+        => ListenPlaylistOrderState.CanMoveWithinGroup(Playlists, playlist.Id, direction);
+
+    private Task MoveUpAsync(ManagedCollectionViewModel playlist) => MoveAsync(playlist, -1, OnMoveUp);
+
+    private Task MoveDownAsync(ManagedCollectionViewModel playlist) => MoveAsync(playlist, 1, OnMoveDown);
+
+    private async Task MoveAsync(ManagedCollectionViewModel playlist, int direction, EventCallback<ManagedCollectionViewModel> move)
+    {
+        if (!CanMove(playlist, direction))
+        {
+            return;
+        }
+
+        var place = Playlists.ToList().FindIndex(candidate => candidate.Id == playlist.Id) + direction + 1;
+        await move.InvokeAsync(playlist);
+        _announcement = L["PlaylistTiles_Moved", playlist.Name, place, Playlists.Count].Value;
+    }
+
+    private IReadOnlyList<ManagedCollectionViewModel> Shown => PlaylistTileRules.Sort(Playlists, _sort);
+
+    private string SortLabel => L["PlaylistTiles_SortBy", SortWord(_sort)].Value;
+
+    private string SortWord(PlaylistTileSort sort) => sort switch
+    {
+        PlaylistTileSort.Name => L["PlaylistTiles_SortName"].Value,
+        PlaylistTileSort.RecentlyAdded => L["PlaylistTiles_SortRecentlyAdded"].Value,
+        _ => L["PlaylistTiles_SortManual"].Value,
+    };
+
+    // The words of the type line, in this person's language ("Playlist · 48 songs · 3 h 12 min", "Smart playlist · 32 songs", "Built in · 126 songs").
+    private PlaylistTileWords Words => new(
+        L["PlaylistTiles_TypePlaylist"].Value,
+        L["PlaylistTiles_TypeSmartPlaylist"].Value,
+        L["PlaylistTiles_TypeBuiltIn"].Value,
+        L["PlaylistTiles_MetaShortOne"].Value,
+        L["PlaylistTiles_MetaShortMany"].Value);
+
+    // On a phone the line leaves out the length so two tiles fit across.
+    private MediaTileViewModel TileFor(ManagedCollectionViewModel playlist)
+    {
+        var covers = AlbumCovers is not null && AlbumCovers.TryGetValue(playlist.Id, out var found) ? found : null;
+        return PlaylistTileComposer.Compose(playlist, covers, PlaylistTileComposer.TypeLine(playlist, Words, includeLength: !DeviceContext.IsPhone));
+    }
+
+    private MediaTileViewModel FavoritesTile => PlaylistTileComposer.ComposeBuiltIn(L["Glossary_Favorites"].Value, FavoritesRoute, FavoritesCount, Words);
+
+    protected override void OnInitialized()
+    {
+        _drops = Services.GetService<SongDragDropService>();
+        if (_drops is not null)
+        {
+            _drops.NoticeRaised += OnDropNotice;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_drops is not null)
+        {
+            _drops.NoticeRaised -= OnDropNotice;
+        }
+    }
+
+    private void ChooseSort(PlaylistTileSort sort) => _sort = sort;
+
+    // The one sentence about a drop ("3 songs added to Road trip"): the table the songs came from is not on this page, so it shows here.
+    private void OnDropNotice(SongDropNotice drop)
+    {
+        _notice = drop.Notice.Message;
+        _noticeSeverity = drop.Notice.Severity;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    // One small window for both kinds: a bottom sheet on a phone and on a touch tablet.
+    private async Task NewPlaylistAsync()
+    {
+        _notice = null;
+        var dialog = await Dialogs.ShowAsync<NewPlaylistDialog>(
+            string.Empty,
+            new AppDialogParameters<NewPlaylistDialog>(),
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small, Sheet = AppDialogSheetMode.PhoneAndTablet });
+        if (await dialog.Result is not { Canceled: false, Data: NewPlaylistChoice choice })
+        {
+            return;
+        }
+
+        await (choice.IsSmart ? OnCreateSmart : OnCreateHandPicked).InvokeAsync(choice.Name);
+    }
+}

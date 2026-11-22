@@ -1,0 +1,80 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Listen playlists mockups</title>
+<style>
+:root{--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--menu:#2F3039;--text:#F2F2F5;--mute:#9EA4BC;--acc:#8852FC;--line:#2a2b33;--ok:#3DBE7A}
+*{box-sizing:border-box}body{margin:0;background:#0a0b0e;color:var(--text);font:14px/1.4 system-ui,sans-serif;padding:24px}
+h1{font-size:20px}h2{font-size:15px;margin:32px 0 8px;color:var(--mute);font-weight:600}
+.row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.desk{width:760px;background:var(--page);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+.phone{width:320px;background:var(--page);border:1px solid var(--line);border-radius:22px;overflow:hidden;position:relative;min-height:560px}
+.bar{background:var(--nav);padding:12px 16px;display:flex;gap:16px;color:var(--mute);border-bottom:1px solid var(--line)}
+.pad{padding:16px}.btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border-radius:22px;border:1px solid #444654;background:none;color:var(--text)}
+.btn.f{background:var(--acc);border-color:var(--acc)}.ib{width:44px;height:44px;border-radius:50%;border:1px solid #444654;display:inline-grid;place-items:center}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.phone .grid{grid-template-columns:repeat(2,1fr)}
+.tile{background:var(--card);border-radius:8px;padding:8px}.cov{aspect-ratio:1;border-radius:6px;background:linear-gradient(135deg,#3b2a6b,#1f3a5f);display:grid;grid-template-columns:1fr 1fr;gap:2px;overflow:hidden}
+.cov i{background:#4a3a8a}.cov i:nth-child(2){background:#2d5a8a}.cov i:nth-child(3){background:#6a3a7a}.cov i:nth-child(4){background:#2d6a6a}
+.tile b{display:block;margin-top:6px}.tile span{color:var(--mute);font-size:12px}
+.li{display:flex;align-items:center;gap:12px;min-height:52px;padding:4px 12px;border-bottom:1px solid var(--line)}
+.li:hover{background:var(--hover)}.sm{width:40px;height:40px;border-radius:4px;background:#3b2a6b;flex:none}.grow{flex:1}.mut{color:var(--mute);font-size:12px}
+.menu{background:var(--menu);border-radius:10px;padding:6px;width:230px;box-shadow:0 8px 24px #0009}.menu div{min-height:44px;display:flex;align-items:center;padding:0 12px;border-radius:6px}.menu div:hover{background:var(--hover)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--menu);border-radius:18px 18px 0 0;padding:12px 16px 20px}.sheet:before{content:"";display:block;width:40px;height:4px;background:#666;border-radius:2px;margin:0 auto 12px}
+.dim{position:absolute;inset:0;background:#000a}
+.search{background:var(--card);border-radius:22px;min-height:44px;display:flex;align-items:center;padding:0 16px;color:var(--mute);margin-bottom:8px}
+.chk{color:var(--ok);margin-left:auto}.n{position:absolute;width:22px;height:22px;border-radius:50%;background:#E8A317;color:#000;font-weight:700;font-size:12px;display:grid;place-items:center;z-index:5}
+.key{max-width:900px;color:var(--mute)}.key li{margin:4px 0}.key b{color:var(--text)}
+</style></head><body>
+<h1>Listen: playlists (dark only; questions 140 to 143 all answered with the recommended option)</h1>
+<p class="key">Numbered markers match the key under each mockup. Wording is words, not icons, for type; heart is only for songs; 44px controls; phone has the same features as desktop. Note: "Export as M3U" is drawn in the menus but is out of scope for v1 (spec listen-playlists D2); it stays hidden until the later M3U spec.</p>
+
+<h2>A. Desktop: Playlists page and the sidebar (the sidebar keeps every playlist as a drop target for dragged songs)</h2>
+<div class="row"><div class="desk"><div class="bar"><span>Home</span><span>Read</span><span>Watch</span><b style="color:var(--text)">Listen</b></div>
+<div style="display:flex"><div style="width:190px;background:var(--nav);border-right:1px solid var(--line);padding:10px 8px;min-height:330px"><div class="mut" style="padding:4px 8px">Library</div><div class="mut" style="padding:4px 8px">Formats</div><div style="display:flex;align-items:center;padding:4px 8px;margin-top:6px;border:1px dashed #5a5a70;border-radius:6px"><b class="grow">Playlists</b><span>+</span></div><div class="mut" style="padding:10px 8px;border-radius:6px;background:var(--hover);color:var(--text);border:1px solid var(--acc)"><div style="display:flex"><span class="grow">Road trip</span><span>⋯</span></div><span style="font-size:11px;color:var(--ok)">Drop to add 3 songs</span></div><div class="menu" style="position:absolute;left:150px;top:150px;width:200px;z-index:6"><div>Rename</div><div>Edit description and cover</div><div>Duplicate</div><div>Pin to top</div><div>Export as M3U</div><div style="color:#ff6b6b">Delete</div></div><div class="mut" style="padding:10px 8px;display:flex"><span class="grow">Favorites</span><span>⋯</span></div><div class="mut" style="padding:10px 8px">Focus (Smart, no drops)</div><div class="mut" style="padding:10px 8px;display:flex"><span class="grow">Sunday jazz</span><span>⋯</span></div><div class="mut" style="padding:10px 8px;color:var(--acc)">See all</div></div><div class="pad grow"><div style="display:flex;align-items:center;gap:12px"><h2 style="margin:0;color:var(--text);font-size:20px">Playlists</h2><span class="grow"></span><button class="btn">Sort: Manual ▾</button><button class="btn f">+ New playlist</button></div>
+<div class="grid" style="margin-top:14px">
+<div class="tile"><div class="cov"><i></i><i></i><i></i><i></i></div><b>Favorites</b><span>Songs · 128 · 7 h 40 m</span></div>
+<div class="tile"><div class="cov"><i></i><i></i><i></i><i></i></div><b>Road trip</b><span>Songs · 42 · 2 h 55 m</span></div>
+<div class="tile"><div class="cov"><i></i><i></i><i></i><i></i></div><b>Focus</b><span>Smart · Songs · 310</span></div>
+<div class="tile"><div class="cov"><i></i><i></i><i></i><i></i></div><b>Sunday jazz</b><span>Songs · 19 · 1 h 12 m</span></div></div></div></div>
+<span class="n" style="left:610px;top:60px">1</span><span class="n" style="left:700px;top:60px">2</span><span class="n" style="left:200px;top:150px">3</span><span class="n" style="left:4px;top:140px">16</span><span class="n" style="left:4px;top:200px">17</span><span class="n" style="left:350px;top:140px">18</span></div></div>
+<ol class="key"><li><b>1 Sort</b>: Manual (drag order), Name, Recently played, Recently added.</li><li><b>2 New playlist</b>: opens one small window: name, "Smart" or "Hand-picked" as two buttons (no dropdown). Same on phone.</li><li><b>16 Sidebar drop targets (desktop)</b>: every hand-made playlist and the Playlists heading (drop = New playlist, asks for a name) accept dragged songs, as today; Smart and system lists refuse. Same sentence after a drop: "3 songs added to Road trip".</li><li><b>18 "…" on every sidebar playlist</b> (today it only has Rename and Delete): the same menu as the playlist page, a bottom sheet on touch tablets. Smart lists show Edit rules, Rename, Duplicate and Delete; Favorites shows none.</li><li><b>17 See all</b> opens this page. Tiles (3) accept dropped songs too, and phones and touch use the Add to playlist picker (C) instead of dragging.</li><li><b>3 Tiles</b>: type in words ("Smart", "Songs"), count and length. Long press or right click opens the playlist menu (Rename, Duplicate, Pin to top, Export M3U, Delete).</li></ol>
+
+<h2>B. Desktop: a playlist's own page, header and menu</h2>
+<div class="row"><div class="desk"><div class="bar"><span>Home</span><span>Read</span><span>Watch</span><b style="color:var(--text)">Listen</b></div>
+<div class="pad" style="display:flex;gap:16px"><div style="width:140px" class="cov"><i></i><i></i><i></i><i></i></div>
+<div class="grow"><div class="mut">Playlist · yours</div><h2 style="margin:2px 0;color:var(--text);font-size:24px">Road trip</h2><div class="mut">42 songs · 2 h 55 m · Songs I play when I drive.</div>
+<div style="display:flex;gap:8px;margin-top:10px"><button class="btn f">Play</button><button class="btn">Shuffle</button><button class="btn">Sort ▾</button><button class="btn">Reorder</button><span class="ib">⋯</span></div></div></div>
+<div class="menu" style="position:absolute;right:20px;top:200px"><div>Rename</div><div>Edit description and cover</div><div>Duplicate</div><div>Pin to top</div><div>Export as M3U</div><div style="color:#ff6b6b">Delete</div></div>
+<div class="li"><span class="mut">1</span><span class="sm"></span><span class="grow">Song one<br><span class="mut">Artist · Album</span></span><span class="mut">3:42</span></div>
+<div class="li"><span class="mut">2</span><span class="sm"></span><span class="grow">Song two<br><span class="mut">Artist · Album</span></span><span class="mut">4:05</span></div>
+<span class="n" style="left:176px;top:96px">4</span><span class="n" style="left:540px;top:130px">5</span><span class="n" style="left:690px;top:150px">6</span><span class="n" style="left:600px;top:186px">7</span></div></div>
+<ol class="key"><li><b>4 Header</b>: cover (mosaic or your own), owner, song count, length and description. Saved playlists from others show their owner.</li><li><b>5 Sort</b>: Title, Artist, Album, Date added, Length; then "Keep this order" saves it as the manual order (bar with Save and Cancel, like Reorder).</li><li><b>6 Reorder</b>: existing mode; adds Move to top and Move to bottom, and touch drag.</li><li><b>7 Menu</b>: rename, description, cover, duplicate, pin, M3U export, delete (asks once).</li></ol>
+
+<h2>C. Add to playlist picker (one flow everywhere: song menu, selection bar, player bar, drag, queue)</h2>
+<div class="row"><div class="phone" style="min-height:520px"><div class="dim"></div><div class="sheet" style="top:90px">
+<b>Add 3 songs to…</b><div class="search" style="margin-top:8px">Search playlists</div>
+<div class="li" style="background:var(--hover)"><span class="sm" style="background:var(--acc)"></span><span class="grow">+ New playlist</span></div>
+<div class="li"><span class="sm"></span><span class="grow">Road trip<br><span class="mut">42 songs</span></span><span class="chk">✓ Already in</span></div>
+<div class="li"><span class="sm"></span><span class="grow">Sunday jazz<br><span class="mut">19 songs</span></span></div>
+<div class="li"><span class="sm"></span><span class="grow">Workout<br><span class="mut">64 songs</span></span></div>
+<button class="btn f" style="width:100%;margin-top:12px;justify-content:center">Add</button></div>
+<span class="n" style="left:12px;top:100px">8</span><span class="n" style="left:12px;top:170px">9</span><span class="n" style="left:200px;top:220px">10</span></div>
+<ol class="key"><li><b>8 Search</b> and a list with covers and counts; same bottom sheet on phone, small window on desktop.</li><li><b>9 New playlist</b> row asks for a name in place, with a visible Create button.</li><li><b>10 Already in</b> tick on playlists that hold every chosen song. After Add, one line in place: "3 songs added to Road trip" (same sentence on every path; no toast).</li></ol></div>
+
+<h2>D. Phone: Playlists page, a playlist, Save queue as playlist</h2>
+<div class="row">
+<div class="phone"><div class="bar">Listen</div><div class="pad"><div style="display:flex;align-items:center"><b style="font-size:18px" class="grow">Playlists</b><button class="btn f">+ New</button></div>
+<div style="margin:10px 0"><button class="btn">Sort: Manual ▾</button></div><div class="grid">
+<div class="tile"><div class="cov"><i></i><i></i><i></i><i></i></div><b>Favorites</b><span>128 songs</span></div><div class="tile"><div class="cov"><i></i><i></i><i></i><i></i></div><b>Road trip</b><span>42 songs</span></div>
+<div class="tile"><div class="cov"><i></i><i></i><i></i><i></i></div><b>Focus</b><span>Smart · 310</span></div><div class="tile"><div class="cov"><i></i><i></i><i></i><i></i></div><b>Sunday jazz</b><span>19 songs</span></div></div></div>
+<span class="n" style="left:8px;top:60px">11</span><span class="n" style="left:200px;top:60px">12</span></div>
+<div class="phone"><div class="bar">‹ Playlists</div><div class="pad" style="text-align:center"><div class="cov" style="width:150px;margin:0 auto"><i></i><i></i><i></i><i></i></div><b style="font-size:20px;display:block;margin-top:8px">Road trip</b><div class="mut">42 songs · 2 h 55 m</div>
+<div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><button class="btn f">Play</button><button class="btn">Shuffle</button><span class="ib">⋯</span></div></div>
+<div class="li"><span style="color:var(--mute)">⠿</span><span class="sm"></span><span class="grow">Song one<br><span class="mut">Artist</span></span><span class="ib" style="border:0">⋯</span></div>
+<div class="li"><span style="color:var(--mute)">⠿</span><span class="sm"></span><span class="grow">Song two<br><span class="mut">Artist</span></span><span class="ib" style="border:0">⋯</span></div>
+<span class="n" style="left:8px;top:300px">13</span><span class="n" style="left:230px;top:236px">14</span></div>
+<div class="phone"><div class="bar">Up next</div><div class="pad"><div style="display:flex;align-items:center"><b class="grow">Queue · 12 songs</b><button class="btn">Clear</button></div>
+<button class="btn" style="width:100%;margin-top:10px;justify-content:center">Save queue as playlist</button></div>
+<div class="li"><span style="color:var(--mute)">⠿</span><span class="sm"></span><span class="grow">Next song<br><span class="mut">Artist</span></span></div>
+<div class="li"><span style="color:var(--mute)">⠿</span><span class="sm"></span><span class="grow">After that<br><span class="mut">Artist</span></span></div>
+<span class="n" style="left:8px;top:70px">15</span></div></div>
+<ol class="key"><li><b>11 New</b> works on phone with Smart and Hand-picked buttons; Smart is no longer hidden.</li><li><b>12 Sort</b> same as desktop.</li><li><b>13 Grip</b>: touch drag by the grip; the "…" menu also has Move to top and Move to bottom.</li><li><b>14 Menu</b>: the same items as desktop (rename, duplicate, export, delete).</li><li><b>15 Save queue as playlist</b> in the queue panel (desktop and phone): asks for a name, saves the upcoming songs plus the current one, never changes the queue.</li></ol>
+<p class="key">The sidebar goes away on phones only: Playlists is a page, reached from the Listen menu. Desktop and tablet keep the sidebar and its drop targets.</p>
+</body></html>

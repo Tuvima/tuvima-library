@@ -11,7 +11,7 @@ public sealed class SettingsNavTests
     public void CanonicalAccessSections_AreAvailableOnMobile(string subsection)
     {
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, subsection));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, subsection, "unknown-detail"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, subsection, "unknown-detail"));
     }
 
     [Fact]
@@ -120,11 +120,11 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void Profile_HasOverviewActivityTasteLinkedAccountsAndImportAsTabs_AndNoAppsPage()
+    public void Profile_HasOverviewActivityTasteAndLinkedAccountsAsTabs_ImportIsAButtonNotATab_AndNoAppsPage()
     {
         var profile = SettingsNav.MenuGroups[0].Nodes[0];
         Assert.Equal("Profile", profile.Label);
-        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts", "Import"], profile.Tabs.Select(tab => tab.Label));
+        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], profile.Tabs.Select(tab => tab.Label));
         var activity = profile.Tabs[1];
         Assert.Equal(SettingsSection.Overview, activity.Section);
         Assert.Equal(SettingsNav.ActivitySubsection, activity.Subsection);
@@ -140,6 +140,14 @@ public sealed class SettingsNavTests
         Assert.DoesNotContain(SettingsNav.MenuGroups.SelectMany(group => group.Nodes).SelectMany(node => node.Tabs), tab => tab.Label == "Apps");
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Overview, "apps"));
         Assert.Equal("Overview", SettingsNav.FindMenuLocation(SettingsSection.Overview)!.Tab!.Label);
+
+        // Import is a button on Profile > Overview that opens the same page at the same address; it sits beneath Profile in the breadcrumb.
+        Assert.DoesNotContain(profile.Tabs, tab => tab.Label == "Import");
+        Assert.Equal("/settings/overview/import", SettingsNav.RouteFor(SettingsSection.Overview, SettingsNav.ImportSubsection));
+        var import = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.ImportSubsection)!;
+        Assert.Equal("Profile", import.Page.Label);
+        Assert.Null(import.Tab);
+        Assert.Equal("Import", import.Leaf);
     }
 
     [Fact]
@@ -152,7 +160,6 @@ public sealed class SettingsNavTests
     }
 
     [Theory]
-    [InlineData(SettingsSection.LocalAi, "models", "/settings/ai/models")]
     [InlineData(SettingsSection.LocalAi, "advanced", "/settings/ai/advanced")]
     [InlineData(SettingsSection.Playback, "advanced", "/settings/playback/advanced")]
     [InlineData(SettingsSection.Network, "home", "/settings/network/home")]
@@ -175,8 +182,8 @@ public sealed class SettingsNavTests
             .Select(item => item.Label)
             .ToArray();
 
-        // Which AI features run is decided on the Plugins page, so Local AI keeps Status, Models and Advanced.
-        Assert.Equal(["Status", "Models", "Advanced"], labels);
+        // Which AI features run is decided on the Plugins page, so Local AI keeps one Status and models tab and Advanced.
+        Assert.Equal(["Status and models", "Advanced"], labels);
         Assert.Equal("status", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.LocalAi, "unknown"));
     }
@@ -204,26 +211,49 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void APersonsPreferencesTab_IsAvailableOnAPhone_ButTheirAccessTabIsNot()
+    public void APersonsPreferencesAndAccessTabs_AreBothAvailableOnAPhone()
     {
         var id = Guid.NewGuid().ToString("D");
 
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "preferences"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "access"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "access"));
     }
 
     [Fact]
-    public void MobileAvailability_WithholdsComplexAdministrationButKeepsMonitoringSummaries()
+    public void MobileAvailability_IsFullForEverySettingsPageExceptDeveloperTools()
     {
         Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Profiles));
-        Assert.Equal(SettingsMobileAvailability.SummaryOnly, SettingsNav.GetMobileAvailability(SettingsSection.AdminOverview));
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.AdminOverview));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
 
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "home"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "advanced"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Network, "advanced"));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers, null, "tmdb"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Playback, "advanced"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Providers, null, "tmdb"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Playback, "advanced"));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.AdminOverview, SettingsNav.LogsSubsection));
+    }
+
+    [Fact]
+    public void EveryNonDeveloperSettingsRoute_IsAvailableOnAPhone()
+    {
+        var developer = new[] { SettingsSection.ProviderTester, SettingsSection.EnrichmentTester, SettingsSection.DevHarness };
+
+        foreach (var item in SettingsNav.AllItems.Where(item => !developer.Contains(item.Value)))
+        {
+            Assert.Equal(SettingsMobileAvailability.Full, item.MobileAvailability);
+            Assert.True(SettingsNav.IsVisibleOnMobile(item.Value), item.Value.ToString());
+            Assert.True(SettingsNav.IsMobileRouteAvailable(item.Value), item.Value.ToString());
+            foreach (var subsection in SettingsNav.GetSubsections(item.Value))
+            {
+                Assert.True(SettingsNav.IsMobileRouteAvailable(item.Value, subsection.Slug), $"{item.Value}/{subsection.Slug}");
+            }
+        }
+
+        foreach (var section in developer)
+        {
+            Assert.True(SettingsNav.IsMobileRouteAvailable(section), section.ToString());
+        }
     }
 
     [Theory]
@@ -383,19 +413,19 @@ public sealed class SettingsNavTests
             Labels(groups, "server"));
         Assert.Equal(["Developer Tools"], Labels(groups, "developer"));
 
-        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts", "Import"], TabLabels(groups, "Profile"));
+        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], TabLabels(groups, "Profile"));
         Assert.Empty(TabLabels(groups, "Manage Profiles"));
         Assert.Equal(["Sign-in", "Devices"], TabLabels(groups, "Security & Devices"));
         Assert.Equal(["Libraries", "Needs Review", "Matching", "Rules"], TabLabels(groups, "Libraries"));
         Assert.Equal(["Quality", "Advanced"], TabLabels(groups, "Playback"));
-        Assert.Equal(["General", "Notifications", "Library activity", "Playing now"], TabLabels(groups, "General"));
+        Assert.Equal(["Name and address", "Notifications", "Library activity", "Playing now"], TabLabels(groups, "General"));
         Assert.Equal(["Users", "Households", "Advanced"], TabLabels(groups, "Users & Households"));
         Assert.Equal(["Home network", "Remote access", "Advanced"], TabLabels(groups, "Network & Remote Access"));
         Assert.Empty(TabLabels(groups, "Tools"));
-        Assert.Equal(["Status", "Models", "Advanced"], TabLabels(groups, "Local AI"));
+        Assert.Equal(["Status and models", "Advanced"], TabLabels(groups, "Local AI"));
         Assert.Empty(TabLabels(groups, "Plugins"));
         Assert.Empty(TabLabels(groups, "Integrations"));
-        Assert.Equal(["Backups", "Destinations", "Advanced"], TabLabels(groups, "Backups"));
+        Assert.Equal(["Back up and restore", "Destinations", "Advanced"], TabLabels(groups, "Backups"));
         Assert.Equal(["Health", "Scheduled tasks", "Logs", "Advanced"], TabLabels(groups, "System"));
         Assert.Equal(["Provider Tester", "Enrichment Tester", "Development data"], TabLabels(groups, "Developer Tools"));
 
@@ -541,7 +571,6 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Access, "households")]
     [InlineData(SettingsSection.Access, "advanced")]
     [InlineData(SettingsSection.LocalAi, "status")]
-    [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.LocalAi, "advanced")]
     [InlineData(SettingsSection.Playback, "advanced")]
     [InlineData(SettingsSection.Backups, "destinations")]
@@ -558,6 +587,7 @@ public sealed class SettingsNavTests
     [Theory]
     [InlineData(SettingsSection.Network, "streaming")]
     [InlineData(SettingsSection.LocalAi, "runtime")]
+    [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.Plugins, "jobs-health")]
     [InlineData(SettingsSection.Plugins, "catalog")]
     [InlineData(SettingsSection.Plugins, "capabilities")]
@@ -660,16 +690,16 @@ public sealed class SettingsNavTests
         Assert.False(SettingsNav.IsVisible(SettingsSection.Review, administrationAllowed: false));
 
         // Only Needs Review changed: its neighbours keep the availability they had.
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.LibraryRules));
-        Assert.Equal(SettingsMobileAvailability.SummaryOnly, SettingsNav.GetMobileAvailability(SettingsSection.Providers));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.LibraryRules));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.Providers));
     }
 
     [Fact]
-    public void ProviderTesterAndDevelopmentData_KeepTheirDesktopOnlyAvailability()
+    public void DeveloperTools_AreFullyAvailableOnAPhone()
     {
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.ProviderTester));
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.EnrichmentTester));
-        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.ProviderTester));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.EnrichmentTester));
+        Assert.Equal(SettingsMobileAvailability.Full, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
     }
 
     [Fact]
@@ -719,15 +749,12 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void ProfilesRoute_AcceptsAPersonId_AndRejectsOtherSubsections()
+    public void ProfilesRoute_AcceptsAPersonId_AndOtherSubsectionsHaveNoSettingsAddress()
     {
         var id = Guid.NewGuid().ToString("D");
 
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, "household"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, "households"));
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "extra"));
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Profiles, "household"));
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Profiles, "households"));
         Assert.Equal("households", SettingsNav.ResolveSubsection(SettingsSection.Access, "households")?.Slug);
@@ -810,7 +837,6 @@ public sealed class SettingsNavTests
         Assert.DoesNotContain(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "household");
         Assert.Contains(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "households" && subsection.Label == "Households");
         Assert.Contains(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "users" && subsection.Label == "Users");
-        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, "household"));
         // Retired addresses are not forwarded (settings-and-setup-simplified D19).
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Access, "household"));
         Assert.Throws<ArgumentOutOfRangeException>(() => SettingsNav.RouteFor(SettingsSection.Access, "household"));

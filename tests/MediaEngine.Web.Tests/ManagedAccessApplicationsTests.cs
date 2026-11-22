@@ -372,6 +372,24 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheList_HasNoNativeClientsRow_ButOneLineLinkingToDevices()
+    {
+        _handler.IncludeBuiltInLibraryApps = true;
+        JSInterop.Setup<string?>("localStorage.getItem", "tuvima.integrations.layout").SetResult("list");
+        var cut = Render<ManagedAccessApplications>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var row = Assert.Single(cut.FindAll("[data-testid=integration-rows] tbody tr"));
+            Assert.Contains("Living room", row.TextContent);
+        });
+        Assert.DoesNotContain("Tuvima native clients", cut.Markup, StringComparison.Ordinal);
+        var link = cut.Find("[data-integrations-devices-link] a");
+        Assert.Equal("/settings/security/devices", link.GetAttribute("href"));
+        Assert.Equal("Devices", link.TextContent.Trim());
+    }
+
+    [Fact]
     public void ServerIntegration_ShowsWebhookDeliveryState()
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
@@ -766,7 +784,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhone_ApplicationsReadAsCardsWithoutManageControls()
+    public async Task OnAPhone_ApplicationsAreCardsWithTheSameManageControlsAsADesktop()
     {
         await UsePhoneAsync();
 
@@ -775,9 +793,9 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var card = cut.WaitForElement("article[aria-label='Living room']");
         Assert.DoesNotContain("User Client", card.TextContent);
         Assert.Equal("Status: Disabled", card.QuerySelector(".app-status-dot")!.GetAttribute("aria-label"));
-        Assert.Contains("Manage on a computer or tablet", cut.WaitForElement("p[role='note']").TextContent);
-        Assert.Empty(cut.FindAll("button[aria-label^='Actions for']"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Manage") || button.TextContent.Contains("New integration"));
+        Assert.NotEmpty(cut.FindAll("[aria-label='Manage for Living room']"));
+        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Contains("New integration"));
+        Assert.DoesNotContain("computer or tablet", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1069,6 +1087,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             }
         }
         public ApplicationTypeDto ApplicationType { get => _type; set => _type = value; }
+        public bool IncludeBuiltInLibraryApps { get; set; }
 
         private readonly object _requestLock = new();
         private readonly List<RequestRecord> _requests = [];
@@ -1092,7 +1111,9 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 
             if (request.Method == HttpMethod.Get && path == "/access/applications")
             {
-                return Json(new[] { Application() });
+                return Json(IncludeBuiltInLibraryApps
+                    ? new[] { Application(), ApplicationFor(MediaEngine.Domain.Entities.BuiltInApplicationIds.NativeClient, "Tuvima native clients") }
+                    : new[] { Application() });
             }
 
             if (request.Method == HttpMethod.Get && path == "/access/applications/permissions")

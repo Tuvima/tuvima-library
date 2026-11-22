@@ -51,6 +51,17 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
     }, true);
 }
 
+// The tooltip's text, with an optional amber caution line under it (data-playback-tooltip-warning).
+function fillTooltip(tooltip, root) {
+    tooltip.textContent = root.dataset.playbackTooltip || '';
+    const warning = root.dataset.playbackTooltipWarning;
+    if (!warning) return;
+    const line = document.createElement('span');
+    line.className = 'playback-tooltip__warning';
+    line.textContent = warning;
+    tooltip.append(line);
+}
+
 // A tooltip lives in the browser's top layer (popover="manual" + showPopover()), inside the open modal dialog when there is one, so a
 // dialog or its backdrop can never cover it (F9). Without a dialog it goes in the fullscreen element, else the body.
 function tooltipHost() {
@@ -64,7 +75,7 @@ function openTooltip(root, target) {
     const tooltip = document.createElement('span');
     tooltip.id = `playback-tooltip-${++nextId}`;
     tooltip.className = 'playback-tooltip'; tooltip.role = 'tooltip';
-    tooltip.textContent = root.dataset.playbackTooltip;
+    fillTooltip(tooltip, root);
     tooltip.setAttribute('popover', 'manual');
     // The browser's own popover box (centred, inset 0, scrolling) is replaced by the plain fixed box the position below is worked out for.
     tooltip.style.inset = 'auto'; tooltip.style.margin = '0'; tooltip.style.overflow = 'visible';
@@ -124,7 +135,7 @@ export function attach(root, options) {
     const observer = new MutationObserver(() => {
         if (!tooltip) return;
         if (root.dataset.playbackTooltipSuppressed === 'true' || target?.getAttribute('aria-expanded') === 'true') hide();
-        else tooltip.textContent = root.dataset.playbackTooltip || '';
+        else fillTooltip(tooltip, root);
     });
     observer.observe(root, { subtree: true, attributes: true, attributeFilter: ['data-playback-tooltip', 'data-playback-tooltip-suppressed', 'aria-expanded'] });
     root.addEventListener('pointerenter', enter);
@@ -203,7 +214,7 @@ function refreshActive(changed) {
     const shown = active.root;
     if (!shown || !(changed === shown || shown.contains?.(changed))) return;
     if (shown.dataset.playbackTooltipSuppressed === 'true' || ownerTarget?.getAttribute('aria-expanded') === 'true') closeOwnerTip();
-    else ownerTip.textContent = shown.dataset.playbackTooltip || '';
+    else fillTooltip(ownerTip, shown);
 }
 
 // An owner still waiting to show (a hover or press timer) is dropped once Blazor removes it, so nothing keeps the removed element.

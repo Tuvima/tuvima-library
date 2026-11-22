@@ -9,25 +9,25 @@ public sealed class AuthenticationSettingsUiTests
         var client = Read("src/MediaEngine.Web/Services/Integration/EngineApiClient.Details.cs");
 
         Assert.Contains("UpdateAuthSettingsAsync", component, StringComparison.Ordinal);
-        Assert.Contains("Password sign-in", component, StringComparison.Ordinal);
+        Assert.Contains("Allow passwords", component, StringComparison.Ordinal);
         Assert.Contains("Passkey sign-in", component, StringComparison.Ordinal);
         Assert.DoesNotContain("Who can connect", component, StringComparison.Ordinal);
         Assert.DoesNotContain("Allow remote sign-in", component, StringComparison.Ordinal);
         Assert.Contains("Session lifetime (hours)", component, StringComparison.Ordinal);
         Assert.Contains("Maximum active sessions per account", component, StringComparison.Ordinal);
-        Assert.Contains("Trusted local networks", component, StringComparison.Ordinal);
+        Assert.Contains("Extra home network ranges", component, StringComparison.Ordinal);
         Assert.Contains("SaveProviderAsync", component, StringComparison.Ordinal);
         Assert.Contains("DeleteExternalAuthProviderAsync", component, StringComparison.Ordinal);
         Assert.Contains("Client secret", component, StringComparison.Ordinal);
-        Assert.Contains("Disabled=\"@(!ExternalCapableMode)\"", component, StringComparison.Ordinal);
+        Assert.Contains("SaveSwitchAsync", component, StringComparison.Ordinal);
         Assert.DoesNotContain("session-policy", component, StringComparison.Ordinal);
         Assert.Contains("Configured, not ready", component, StringComparison.Ordinal);
         // The test email moved to Server > General > Notifications (settings-and-setup-simplified D10).
         Assert.DoesNotContain("Send test email to my account", component, StringComparison.Ordinal);
         Assert.DoesNotContain("SendCurrentAccountTestEmailAsync", component, StringComparison.Ordinal);
-        var emailTest = Read("src/MediaEngine.Web/Components/Settings/General/NotificationsEmailTest.razor");
-        Assert.Contains("DashboardAuthenticationEndpoints.SendCurrentAccountTestEmailAsync", emailTest, StringComparison.Ordinal);
-        Assert.DoesNotContain("@bind-Value=\"_testEmail", emailTest, StringComparison.Ordinal);
+        var mailServer = Read("src/MediaEngine.Web/Components/Settings/General/NotificationsMailServer.razor");
+        Assert.Contains("TestMailServerAsync", mailServer, StringComparison.Ordinal);
+        Assert.DoesNotContain("@bind-Value=\"_testEmail", mailServer, StringComparison.Ordinal);
         Assert.Contains("if (_saving || _disposed) return;", component, StringComparison.Ordinal);
         Assert.Contains("OperationCanceledException", component, StringComparison.Ordinal);
         Assert.Contains("Use an https address with no path (http is allowed only for localhost).", component, StringComparison.Ordinal);

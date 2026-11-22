@@ -22,14 +22,30 @@ public sealed record TextTrackAlternative(
     bool IsHearingImpaired,
     string? ReleaseName,
     string? Preview,
-    bool IsCurrent);
+    bool IsCurrent,
+    string? Title = null,
+    string? Artist = null,
+    string? Album = null,
+    double? LengthSeconds = null,
+    double? ItemLengthSeconds = null,
+    IReadOnlyList<TextTrackPreviewLine>? PreviewLines = null,
+    double? EndsAtSeconds = null,
+    string? LengthCheck = null,
+    double? LengthDifferenceSeconds = null);
+
+/// <summary>One line of a result's preview: the words, and (subtitles) the second at which they appear.</summary>
+public sealed record TextTrackPreviewLine(double? AtSeconds, string Text);
+
+/// <summary>The words of one result, read on request (<c>Found</c>, <c>NotFound</c>, <c>Unavailable</c> or a source status).</summary>
+public sealed record TextTrackPreviewResult(string Status, TextTrackAlternative? Item, string Message);
 
 /// <param name="Status">
 /// <c>Found</c>, <c>NoneFound</c>, <c>NoSourceOn</c>, <c>NotAllowed</c>, <c>Blocked</c> (the library never looks anything up),
 /// <c>Unavailable</c> (a source could not be reached) or <c>AssetMissing</c> / <c>Unsupported</c>. For subtitles it can also be
 /// <c>IdentityUnverified</c> (the movie or episode cannot be identified for an online search), <c>SourceKeyRequired</c> (a source is
 /// switched on but its key is missing or was refused), <c>LimitReached</c> (a source's allowance or rate limit is used up) or
-/// <c>LanguageUnknown</c> (the language asked for cannot be searched).
+/// <c>LanguageUnknown</c> (the language asked for cannot be searched). For a search by typed words it can also be
+/// <c>TextSearchUnsupported</c> (no source that is switched on can be searched by words).
 /// </param>
 /// <param name="SourceName">The display name of the source the status is about, when there is one.</param>
 /// <param name="Language">The language code that was searched, for subtitles.</param>
@@ -46,17 +62,38 @@ public sealed record TextTrackAlternativesResult(
 /// </summary>
 public sealed partial class TextTrackEnrichmentWorker
 {
-    private const int MaxAlternatives = 5;
+    private const int MaxAlternatives = 8;
     private const int PreviewLines = 2;
+
+    /// <summary>Lines shown from a lyrics result (Find another results v2 D3: six, with three in the row on a phone).</summary>
+    private const int LyricsPreviewLines = 6;
+
+    /// <summary>Lines shown from a subtitle result (D3, D10).</summary>
+    private const int SubtitlePreviewLines = 3;
+
+    /// <summary>A lyrics length within this many seconds of the song's reads "Fits the song" (the same window the source's own score calls a full match).</summary>
+    private const double LyricsFitsWithinSeconds = 2;
+
+    /// <summary>
+    /// A subtitle file fits the film when its last line comes up to this many seconds before the film ends (credits carry no speech) ...
+    /// </summary>
+    private const double SubtitleEndsEarlyAllowanceSeconds = 600;
+
+    /// <summary>... or up to this many seconds after it.</summary>
+    private const double SubtitleEndsLateAllowanceSeconds = 120;
 
     public async Task<TextTrackAlternativesResult> FindAlternativesAsync(
         Guid assetId,
         TextTrackKind kind,
         PluginAudience? requester,
         CancellationToken ct = default,
-        string? language = null)
+        string? language = null,
+        string? query = null)
     {
-        var session = await OpenSessionAsync(assetId, kind, requester, language, ct).ConfigureAwait(false);
+        query = NormalizeSearchText(query);
+        // One fixed line per search, with no typed text in it, so the log shows whether the words reached the Engine.
+        _logger.LogInformation("Find another {Kind} for asset {AssetId}: searching by typed words: {ByWords}", kind, assetId, query is not null);
+        var session = await OpenSessionAsync(assetId, kind, requester, language, query, ct).ConfigureAwait(false);
         if (session.Failure is not null)
         {
             return session.Failure;
@@ -64,10 +101,26 @@ public sealed partial class TextTrackEnrichmentWorker
 
         string? searchLanguage = null;
         var providers = session.Providers;
+        if (query is not null)
+        {
+            // Words a person typed go only to sources that can be searched by words; the rest are left out and, when none is left, named.
+            var byText = providers.Where(provider => provider.SupportsSearchText(session.MediaType)).ToList();
+            if (byText.Count == 0)
+            {
+                var names = string.Join(" and ", providers.Select(provider => provider.DisplayName));
+                return new("TextSearchUnsupported", [],
+                    $"{names} can only find {kind.ToString().ToLowerInvariant()} for the item itself, not by words you type.",
+                    providers.FirstOrDefault()?.DisplayName);
+            }
+
+            providers = byText;
+        }
+
         if (kind == TextTrackKind.Subtitles)
         {
-            // The movie or episode must be identified before an online search can say anything (same rule as the refresh).
-            if (SubtitleIdentityMissing(session.Lookup!, session.MediaType))
+            // The movie or episode must be identified before an online search can say anything (same rule as the refresh);
+            // words a person typed name what to look for, so they need no identity.
+            if (query is null && SubtitleIdentityMissing(session.Lookup!, session.MediaType))
             {
                 return new("IdentityUnverified", [], "The movie or episode identity could not be verified for an online subtitle search.");
             }
@@ -115,29 +168,17 @@ public sealed partial class TextTrackEnrichmentWorker
 
             foreach (var candidate in candidates
                          .Where(candidate => !candidate.IsInstrumental && !rejected.Contains((candidate.Provider, candidate.SourceId)))
-                         .OrderByDescending(candidate => candidate.DurationMatchScore ?? 0)
+                         .OrderByDescending(candidate => candidate.MatchScore ?? 0)
+                         .ThenByDescending(candidate => candidate.DurationMatchScore ?? 0)
                          .ThenByDescending(candidate => candidate.Confidence)
                          .Take(MaxAlternatives))
             {
-                // A subtitle list never downloads anything: a download happens only when one is chosen. Lyrics keep their preview.
-                var download = kind == TextTrackKind.Subtitles
-                    ? null
-                    : await TryDownloadAsync(provider, candidate, ct).ConfigureAwait(false);
-                items.Add(new TextTrackAlternative(
-                    candidate.Provider,
-                    provider.DisplayName,
-                    candidate.SourceId,
-                    candidate.Language,
-                    kind == TextTrackKind.Subtitles
-                        || (download is not null && !string.Equals(download.SourceFormat, "txt", StringComparison.OrdinalIgnoreCase)),
-                    candidate.Confidence,
-                    candidate.DurationMatchScore,
-                    candidate.IsHearingImpaired,
-                    candidate.ReleaseName,
-                    download is null ? null : Preview(download),
-                    current is not null
-                        && string.Equals(current.Provider, candidate.Provider, StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(current.SourceId, candidate.SourceId, StringComparison.OrdinalIgnoreCase)));
+                // A lyrics list reads each result's words (D3). A subtitle list reads only the best match, at once (D10); every other
+                // row is read when it is selected, so one search never spends the source's daily allowance on files nobody opens.
+                var download = kind == TextTrackKind.Lyrics || items.Count == 0
+                    ? await TryDownloadAsync(provider, candidate, ct).ConfigureAwait(false)
+                    : null;
+                items.Add(BuildAlternative(kind, provider, candidate, download, current, session.Lookup!.DurationSeconds));
             }
         }
 
@@ -195,9 +236,11 @@ public sealed partial class TextTrackEnrichmentWorker
         string sourceId,
         PluginAudience? requester,
         CancellationToken ct = default,
-        string? language = null)
+        string? language = null,
+        string? query = null)
     {
-        var session = await OpenSessionAsync(assetId, kind, requester, language, ct).ConfigureAwait(false);
+        // The same words the list was searched with, so the same result is found again.
+        var session = await OpenSessionAsync(assetId, kind, requester, language, NormalizeSearchText(query), ct).ConfigureAwait(false);
         if (session.Failure is not null)
         {
             return new(session.Failure.Status, kind, 0, 0, null, session.Failure.Message);
@@ -333,6 +376,149 @@ public sealed partial class TextTrackEnrichmentWorker
         }
     }
 
+    /// <summary>Everything the results list says about one result: its own name, the words (or the first lines), and the length check.</summary>
+    private static TextTrackAlternative BuildAlternative(
+        TextTrackKind kind,
+        ITextTrackProvider provider,
+        TextTrackCandidate candidate,
+        TextTrackDownload? download,
+        TextTrack? current,
+        double? itemLengthSeconds)
+    {
+        var lines = download is null ? null : PreviewLinesOf(kind, download);
+        double? endsAt = kind == TextTrackKind.Subtitles && download is not null ? EndOf(download) : null;
+        var (check, difference) = kind == TextTrackKind.Lyrics
+            ? LyricsLengthCheck(candidate.SourceDurationSeconds, itemLengthSeconds)
+            : SubtitleLengthCheck(endsAt, itemLengthSeconds);
+        return new TextTrackAlternative(
+            candidate.Provider,
+            provider.DisplayName,
+            candidate.SourceId,
+            candidate.Language,
+            kind == TextTrackKind.Subtitles
+                || (download is not null && !string.Equals(download.SourceFormat, "txt", StringComparison.OrdinalIgnoreCase)),
+            candidate.Confidence,
+            candidate.DurationMatchScore,
+            candidate.IsHearingImpaired,
+            candidate.ReleaseName,
+            download is null ? null : Preview(download),
+            current is not null
+                && string.Equals(current.Provider, candidate.Provider, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(current.SourceId, candidate.SourceId, StringComparison.OrdinalIgnoreCase),
+            candidate.Title,
+            candidate.Artist,
+            candidate.Album,
+            candidate.SourceDurationSeconds,
+            itemLengthSeconds,
+            lines,
+            endsAt,
+            check,
+            difference);
+    }
+
+    /// <summary>"Fits" or "Off" for a lyrics result, with how many seconds longer (positive) or shorter it is; both null when either length is unknown.</summary>
+    public static (string? Check, double? Difference) LyricsLengthCheck(double? resultSeconds, double? songSeconds)
+    {
+        if (resultSeconds is not > 0 || songSeconds is not > 0)
+        {
+            return (null, null);
+        }
+
+        var difference = Math.Round(resultSeconds.Value - songSeconds.Value);
+        return (Math.Abs(difference) <= LyricsFitsWithinSeconds ? "Fits" : "Off", difference);
+    }
+
+    /// <summary>The same check for a subtitle file read from the source: where its last line is against the film's length (negative: it ends early).</summary>
+    public static (string? Check, double? Difference) SubtitleLengthCheck(double? endsAtSeconds, double? filmSeconds)
+    {
+        if (endsAtSeconds is not > 0 || filmSeconds is not > 0)
+        {
+            return (null, null);
+        }
+
+        var difference = Math.Round(endsAtSeconds.Value - filmSeconds.Value);
+        return (difference >= -SubtitleEndsEarlyAllowanceSeconds && difference <= SubtitleEndsLateAllowanceSeconds ? "Fits" : "Off", difference);
+    }
+
+    private static double? EndOf(TextTrackDownload download)
+    {
+        var parsed = MediaEngine.Providers.Services.SubtitleLineParser.Parse(download.Content, download.SourceFormat);
+        return parsed.Count == 0 ? null : parsed.Max(line => line.EndMs) / 1000d;
+    }
+
+    /// <summary>The words a result carries: up to six plain lyric lines, or the first three spoken lines with the second each appears.</summary>
+    private static IReadOnlyList<TextTrackPreviewLine>? PreviewLinesOf(TextTrackKind kind, TextTrackDownload download)
+    {
+        if (kind == TextTrackKind.Subtitles)
+        {
+            var spoken = MediaEngine.Providers.Services.SubtitleLineParser.Parse(download.Content, download.SourceFormat)
+                .Take(SubtitlePreviewLines)
+                .Select(line => new TextTrackPreviewLine(line.StartMs / 1000d, line.Text))
+                .ToList();
+            return spoken.Count == 0 ? null : spoken;
+        }
+
+        var lines = PlainLines(download.Content).Take(LyricsPreviewLines).Select(line => new TextTrackPreviewLine(null, line)).ToList();
+        return lines.Count == 0 ? null : lines;
+    }
+
+    private static IEnumerable<string> PlainLines(string content) => content
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(line => System.Text.RegularExpressions.Regex.Replace(line, @"^(\[[^\]]*\])+\s*", string.Empty))
+        .Where(line => line.Length > 0 && !string.Equals(line, "WEBVTT", StringComparison.OrdinalIgnoreCase)
+            && !line.Contains("-->", StringComparison.Ordinal) && !int.TryParse(line, out _));
+
+    /// <summary>
+    /// Reads one result's words on request (Find another results v2 D10): a subtitle row other than the best match is read when it is
+    /// selected. Uses the same search words and language as the list, so the same result is found again; nothing is saved.
+    /// </summary>
+    public async Task<TextTrackPreviewResult> PreviewAlternativeAsync(
+        Guid assetId,
+        TextTrackKind kind,
+        string provider,
+        string sourceId,
+        PluginAudience? requester,
+        CancellationToken ct = default,
+        string? language = null,
+        string? query = null)
+    {
+        var session = await OpenSessionAsync(assetId, kind, requester, language, NormalizeSearchText(query), ct).ConfigureAwait(false);
+        if (session.Failure is not null)
+        {
+            return new(session.Failure.Status, null, session.Failure.Message);
+        }
+
+        foreach (var source in session.Providers.Where(source => string.Equals(source.Name, provider, StringComparison.OrdinalIgnoreCase)))
+        {
+            IReadOnlyList<TextTrackCandidate> candidates;
+            try
+            {
+                candidates = await source.SearchAsync(session.Lookup!, ct).ConfigureAwait(false);
+            }
+            catch (TextTrackLookupException ex)
+            {
+                return new(kind == TextTrackKind.Subtitles ? StatusFor(ex) : "Unavailable", null, ex.Message);
+            }
+
+            var chosen = candidates.FirstOrDefault(candidate =>
+                string.Equals(candidate.SourceId, sourceId, StringComparison.OrdinalIgnoreCase));
+            if (chosen is null)
+            {
+                break;
+            }
+
+            var download = await TryDownloadAsync(source, chosen, ct).ConfigureAwait(false);
+            if (download is null)
+            {
+                return new("Unavailable", null, "The result could not be read.");
+            }
+
+            return new("Found", BuildAlternative(kind, source, chosen, download, null, session.Lookup!.DurationSeconds), string.Empty);
+        }
+
+        return new("NotFound", null, "That result is no longer offered by the source.");
+    }
+
     private static string? Preview(TextTrackDownload download)
     {
         var lines = download.Content
@@ -383,8 +569,10 @@ public sealed partial class TextTrackEnrichmentWorker
     /// <summary>
     /// Works out which sources may be asked for this item and by this person, with the same rules as an ordinary lookup, and builds the lookup.
     /// <paramref name="language"/> (a name or a code) replaces the title's own language for a subtitle search.
+    /// <paramref name="query"/>, when there is one, is the words a person typed to search by instead of the item's own details.
     /// </summary>
-    private async Task<Session> OpenSessionAsync(Guid assetId, TextTrackKind kind, PluginAudience? requester, string? language, CancellationToken ct)
+    private async Task<Session> OpenSessionAsync(
+        Guid assetId, TextTrackKind kind, PluginAudience? requester, string? language, string? query, CancellationToken ct)
     {
         var session = await CheckSourcesAsync(assetId, kind, requester, ct).ConfigureAwait(false);
         if (session.Failure is not null)
@@ -398,8 +586,11 @@ public sealed partial class TextTrackEnrichmentWorker
             lookup = lookup with { Language = language.Trim() };
         }
 
-        return session with { Lookup = lookup };
+        return session with { Lookup = lookup with { SearchText = query, Interactive = true } };
     }
+
+    /// <summary>The words a person typed to search by, trimmed; <c>null</c> when there are none.</summary>
+    private static string? NormalizeSearchText(string? query) => string.IsNullOrWhiteSpace(query) ? null : query.Trim();
 
     /// <summary>The checks of <see cref="OpenSessionAsync"/> that need no lookup of the title and contact no source.</summary>
     private async Task<Session> CheckSourcesAsync(Guid assetId, TextTrackKind kind, PluginAudience? requester, CancellationToken ct)

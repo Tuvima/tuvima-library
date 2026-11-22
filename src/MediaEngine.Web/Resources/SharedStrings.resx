@@ -426,7 +426,7 @@
     <value>Everyone sharing this Library sees the same language and spelling.</value>
   </data>
   <data name="Settings_LanguageSaveFailed" xml:space="preserve">
-    <value>The language could not be saved. Check the Engine connection.</value>
+    <value>The language could not be saved. Check the server connection.</value>
   </data>
   <data name="ArtworkAssetBrowser_RelatedTo" xml:space="preserve">
     <value>Related to</value>
@@ -1610,8 +1610,8 @@
   <data name="PlaybackLyrics_EditLyrics" xml:space="preserve">
     <value>Edit lyrics</value>
   </data>
-  <data name="PlaybackLyrics_ThisOneIsWrong" xml:space="preserve">
-    <value>This one is wrong</value>
+  <data name="PlaybackLyrics_HideTheseLyrics" xml:space="preserve">
+    <value>Hide these lyrics for this song</value>
   </data>
   <data name="PlaybackLyrics_LyricLines" xml:space="preserve">
     <value>Lyric lines</value>
@@ -1711,9 +1711,6 @@
   </data>
   <data name="Common_Kids" xml:space="preserve">
     <value>Kids</value>
-  </data>
-  <data name="TopNavAccountMenu_AddAPassword" xml:space="preserve">
-    <value>Add a password</value>
   </data>
   <data name="TopNavAccountMenu_WhoSWatching" xml:space="preserve">
     <value>Who's watching?</value>
@@ -2436,7 +2433,7 @@
     <value>Settings page</value>
   </data>
   <data name="Settings_EngineStateCouldNotBe" xml:space="preserve">
-    <value>Engine state could not be loaded. This page is read-only, and saved values have not been replaced with sample defaults.</value>
+    <value>Server state could not be loaded. This page is read-only, and saved values have not been replaced with sample defaults.</value>
   </data>
   <data name="Settings_LoadingSettings" xml:space="preserve">
     <value>Loading settings</value>
@@ -2454,7 +2451,7 @@
     <value>Back to mobile settings</value>
   </data>
   <data name="Settings_CheckingWhatThisEngineOffers" xml:space="preserve">
-    <value>Checking what this Engine offers</value>
+    <value>Checking what this server offers</value>
   </data>
   <data name="Settings_NotAvailableInThisBuild" xml:space="preserve">
     <value>Not available in this build</value>
@@ -3567,7 +3564,7 @@
     <value>The Library's engine isn't responding</value>
   </data>
   <data name="ActivityLogPanel_CheckThatTheEngineIs" xml:space="preserve">
-    <value>Check that the Engine is running, then try again.</value>
+    <value>Check that the server is running, then try again.</value>
   </data>
   <data name="ActivityLogPanel_EventsNewestFirst" xml:space="preserve">
     <value>Events, newest first</value>
@@ -3603,7 +3600,7 @@
     <value>Inspect the local Dashboard listener and address binding.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_AdvancedDirectAccessThroughYour" xml:space="preserve">
-    <value>Advanced direct access through your own local TLS reverse proxy.</value>
+    <value>For people who already run their own secure web server in front of Library.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_PCPNATPMPAndUPnP" xml:space="preserve">
     <value>PCP, NAT-PMP, and UPnP are never enabled by default. Library maps only the HTTPS reverse-proxy port below and never maps its Dashboard HTTP listener directly.</value>
@@ -3612,16 +3609,16 @@
     <value>The public address lives on</value>
   </data>
   <data name="Common_RemoteAccess" xml:space="preserve">
-    <value>Remote Access</value>
+    <value>Remote access</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_ReverseProxyTrust" xml:space="preserve">
-    <value>Reverse Proxy Trust</value>
+    <value>Servers you trust to pass visitors in</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_AcceptForwardedClientAndHTTPS" xml:space="preserve">
-    <value>Accept forwarded client and HTTPS information only from known proxy peers.</value>
+    <value>Only the servers listed here may tell Library where a visitor really comes from.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_ForwardedHeadersFromEveryOther" xml:space="preserve">
-    <value>Forwarded headers from every other peer are ignored. A Dashboard restart applies proxy trust changes.</value>
+    <value>Anything that arrives through other servers is ignored. Changes apply after Library restarts.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_Diagnostics" xml:space="preserve">
     <value>Diagnostics</value>
@@ -3636,7 +3633,7 @@
     <value>Tailscale or a documented reverse proxy is the supported default for remote access.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_ResetNetworkSettings" xml:space="preserve">
-    <value>Reset Network Settings</value>
+    <value>Reset network settings</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_RestoreLocalFirstDefaultsAnd" xml:space="preserve">
     <value>Restore local-first defaults and turn off remote access.</value>
@@ -3656,9 +3653,6 @@
   <data name="AdvancedNetworkSettingsPanel_TryPCPNATPMPThen" xml:space="preserve">
     <value>Try PCP, NAT-PMP, then UPnP for the explicitly configured TLS listener.</value>
   </data>
-  <data name="AdvancedNetworkSettingsPanel_SaveDirectSettings" xml:space="preserve">
-    <value>Save direct settings</value>
-  </data>
   <data name="AdvancedNetworkSettingsPanel_SetUpManually" xml:space="preserve">
     <value>Set up manually</value>
   </data>
@@ -3670,9 +3664,6 @@
   </data>
   <data name="AdvancedNetworkSettingsPanel_TrustedProxyNetworks" xml:space="preserve">
     <value>Trusted proxy networks</value>
-  </data>
-  <data name="AdvancedNetworkSettingsPanel_SaveProxyTrust" xml:space="preserve">
-    <value>Save proxy trust</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_ResetNetworkSettings2" xml:space="preserve">
     <value>Reset network settings?</value>
@@ -3758,9 +3749,6 @@
   <data name="BackupRecoveryPanel_RecoveryPoints" xml:space="preserve">
     <value>Recovery points</value>
   </data>
-  <data name="BackupRecoveryPanel_CreatingDownloadingTestingAndRestoring" xml:space="preserve">
-    <value>Creating, downloading, testing, and restoring recovery points is available on desktop and tablet.</value>
-  </data>
   <data name="BackupRecoveryPanel_RestoreTestFailed" xml:space="preserve">
     <value>Restore test failed</value>
   </data>
@@ -3786,7 +3774,7 @@
     <value>Total archive size</value>
   </data>
   <data name="BackupRecoveryPanel_BackupLocationAndRetentionAre" xml:space="preserve">
-    <value>Backup location and retention are controlled by the Engine's server configuration.</value>
+    <value>Backup location and retention are controlled by the server's configuration.</value>
   </data>
   <data name="BackupRecoveryPanel_RecoveryPoint" xml:space="preserve">
     <value>Recovery point</value>
@@ -4065,19 +4053,19 @@
     <value>Playback delivery needs attention</value>
   </data>
   <data name="EncodeSettingsTab_EngineWarnings" xml:space="preserve">
-    <value>Engine warnings</value>
+    <value>Server warnings</value>
   </data>
   <data name="EncodeSettingsTab_TheEngineReportedNoPlayback" xml:space="preserve">
-    <value>The Engine reported no playback delivery warnings.</value>
+    <value>The server reported no playback delivery warnings.</value>
   </data>
   <data name="EncodeSettingsTab_CurrentStreamingPreference" xml:space="preserve">
-    <value>Current Streaming preference</value>
+    <value>Current playback preference</value>
   </data>
   <data name="EncodeSettingsTab_PlaybackChecks" xml:space="preserve">
     <value>Playback checks</value>
   </data>
   <data name="EncodeSettingsTab_TechnicalChecksReportedDirectlyBy" xml:space="preserve">
-    <value>Technical checks reported directly by the Engine.</value>
+    <value>Technical checks reported directly by the server.</value>
   </data>
   <data name="EncodeSettingsTab_DiagnosticsAreUnavailable" xml:space="preserve">
     <value>Diagnostics are unavailable</value>
@@ -4092,7 +4080,7 @@
     <value>Playback delivery settings are unavailable</value>
   </data>
   <data name="EncodeSettingsTab_StartTheEngineOrRetry" xml:space="preserve">
-    <value>Start the Engine or retry before changing hardware acceleration and optimized copies.</value>
+    <value>Start the server or retry before changing hardware acceleration and optimized copies.</value>
   </data>
   <data name="EncodeSettingsTab_HardwareAcceleration" xml:space="preserve">
     <value>Hardware acceleration</value>
@@ -4187,12 +4175,6 @@
   <data name="LocalAiBlockedNotice_SeeTools" xml:space="preserve">
     <value>See tools</value>
   </data>
-  <data name="RemoteAccessOffNotice_RemoteAccessIsOffSo" xml:space="preserve">
-    <value>Remote access is off, so the Library only works at home.</value>
-  </data>
-  <data name="RemoteAccessOffNotice_SetUp" xml:space="preserve">
-    <value>Set up</value>
-  </data>
   <data name="HomeSettingsPage_Slides" xml:space="preserve">
     <value>Slides</value>
   </data>
@@ -4266,13 +4248,13 @@
     <value>No provider is set for this kind of media.</value>
   </data>
   <data name="IngestionFlowEditor_LoadingTheIngestionFlow" xml:space="preserve">
-    <value>Loading the Ingestion Flow</value>
+    <value>Loading the ingestion flow</value>
   </data>
   <data name="IngestionFlowEditor_TheIngestionFlowIsUnavailable" xml:space="preserve">
     <value>The Ingestion Flow is unavailable</value>
   </data>
   <data name="IngestionFlowEditor_StartTheEngineAndRetry" xml:space="preserve">
-    <value>Start the Engine and retry. No sample flow is being shown.</value>
+    <value>Start the server and retry. No sample flow is being shown.</value>
   </data>
   <data name="IngestionFlowEditor_Changed" xml:space="preserve">
     <value>Changed</value>
@@ -4745,9 +4727,6 @@
   <data name="ViewFileHandlingTab_UseTheDefault" xml:space="preserve">
     <value>Use the default</value>
   </data>
-  <data name="ViewFileHandlingTab_SaveLayout" xml:space="preserve">
-    <value>Save layout</value>
-  </data>
   <data name="ViewFileHandlingTab_OriginalsRemainProtectedThroughoutIndexi" xml:space="preserve">
     <value>Originals remain protected throughout indexing and sharing.</value>
   </data>
@@ -4883,11 +4862,8 @@
   <data name="ViewImportPanel_RemoveNow" xml:space="preserve">
     <value>Remove now</value>
   </data>
-  <data name="LibrariesTab_LibraryStorageAndIntakeAre" xml:space="preserve">
-    <value>Library storage and intake are read-only on mobile. Use a desktop or tablet to change library configuration.</value>
-  </data>
   <data name="LibrariesTab_TheEngineIsUnavailableExisting" xml:space="preserve">
-    <value>The Engine is unavailable. Existing library values remain visible and are not replaced with sample data.</value>
+    <value>The server is unavailable. Existing library values remain visible and are not replaced with sample data.</value>
   </data>
   <data name="LibrariesTab_LibrarySettingsAreUnavailable" xml:space="preserve">
     <value>Library settings are unavailable</value>
@@ -4998,7 +4974,7 @@
     <value>Checking the file write schedule…</value>
   </data>
   <data name="LibraryWriteSchedulePanel_TheEngineIsUnavailableSo" xml:space="preserve">
-    <value>The Engine is unavailable, so the file write schedule can't be shown.</value>
+    <value>The server is unavailable, so the file write schedule can't be shown.</value>
   </data>
   <data name="LibraryWriteSchedulePanel_WriteChangesIntoFilesEvery" xml:space="preserve">
     <value>Write changes into files every</value>
@@ -5067,7 +5043,7 @@
     <value>AI configuration unavailable</value>
   </data>
   <data name="LocalAiBudgetPanel_TheAllowanceIsHiddenUntil" xml:space="preserve">
-    <value>The allowance is hidden until the Engine returns the saved configuration.</value>
+    <value>The allowance is hidden until the server returns the saved configuration.</value>
   </data>
   <data name="LocalAiBudgetPanel_RequestsPerHour" xml:space="preserve">
     <value>Requests per hour</value>
@@ -5077,9 +5053,6 @@
   </data>
   <data name="LocalAiBudgetPanel_LongestWaitSeconds" xml:space="preserve">
     <value>Longest wait (seconds)</value>
-  </data>
-  <data name="LocalAiBudgetPanel_SaveAllowance" xml:space="preserve">
-    <value>Save allowance</value>
   </data>
   <data name="LocalAiModelFilesPanel_ModelFiles" xml:space="preserve">
     <value>Model files</value>
@@ -5094,7 +5067,7 @@
     <value>Benchmark</value>
   </data>
   <data name="LocalAiRuntimePanel_EngineMemory" xml:space="preserve">
-    <value>Engine memory</value>
+    <value>Server memory</value>
   </data>
   <data name="LocalAiRuntimePanel_CPUPressure" xml:space="preserve">
     <value>CPU pressure</value>
@@ -5106,7 +5079,7 @@
     <value>Runtime settings</value>
   </data>
   <data name="LocalAiRuntimePanel_RuntimeControlsAreHiddenUntil" xml:space="preserve">
-    <value>Runtime controls are hidden until the Engine returns saved configuration.</value>
+    <value>Runtime controls are hidden until the server returns saved configuration.</value>
   </data>
   <data name="LocalAiRuntimePanel_ModelsDirectory" xml:space="preserve">
     <value>Models directory</value>
@@ -5122,9 +5095,6 @@
   </data>
   <data name="LocalAiRuntimePanel_EnrichmentBatchSize" xml:space="preserve">
     <value>Enrichment batch size</value>
-  </data>
-  <data name="LocalAiRuntimePanel_SaveRuntimeSettings" xml:space="preserve">
-    <value>Save runtime settings</value>
   </data>
   <data name="LocalAiRuntimePanel_RuntimeDiagnostics" xml:space="preserve">
     <value>Runtime diagnostics</value>
@@ -5148,13 +5118,13 @@
     <value>Usage unavailable</value>
   </data>
   <data name="LocalAiUsagePanel_TheEngineCouldNotBe" xml:space="preserve">
-    <value>The Engine could not be asked for Local AI usage.</value>
+    <value>The server could not be asked for Local AI usage.</value>
   </data>
   <data name="LocalAiUsagePanel_PluginsUsingLocalAI" xml:space="preserve">
     <value>Plugins using Local AI</value>
   </data>
   <data name="LocalAiUsagePanel_EachAIFeatureIsA" xml:space="preserve">
-    <value>Each AI feature is a plugin. Open one to switch it on or off or change when it runs.</value>
+    <value>Each AI feature is a plugin. This is how much of its hourly allowance each one has used.</value>
   </data>
   <data name="LocalAiUsagePanel_NoPluginUsesLocalAI" xml:space="preserve">
     <value>No plugin uses Local AI</value>
@@ -5166,19 +5136,19 @@
     <value>Nothing has asked Local AI for anything in this period.</value>
   </data>
   <data name="LocalNetworkSettingsPanel_ServerPort" xml:space="preserve">
-    <value>Server Port</value>
+    <value>Server port</value>
   </data>
   <data name="LocalNetworkSettingsPanel_PortUsedByLibraryFor" xml:space="preserve">
     <value>Port used by Library for local connections.</value>
   </data>
   <data name="LocalNetworkSettingsPanel_NetworkInterface" xml:space="preserve">
-    <value>Network Interface</value>
+    <value>Network interface</value>
   </data>
   <data name="LocalNetworkSettingsPanel_WhichNetworkInterfaceShouldLibrary" xml:space="preserve">
     <value>Which network interface should Library listen on.</value>
   </data>
   <data name="LocalNetworkSettingsPanel_ChangePort" xml:space="preserve">
-    <value>Change Port</value>
+    <value>Change port</value>
   </data>
   <data name="LocalNetworkSettingsPanel_NetworkInterface2" xml:space="preserve">
     <value>Network interface</value>
@@ -5205,7 +5175,7 @@
     <value>Let devices find Library by name</value>
   </data>
   <data name="LocalNetworkSettingsPanel_IPv6Support" xml:space="preserve">
-    <value>IPv6 Support</value>
+    <value>IPv6 support</value>
   </data>
   <data name="LocalNetworkSettingsPanel_AllowConnectionsOverIPv6When" xml:space="preserve">
     <value>Allow connections over IPv6 when the network supports it.</value>
@@ -5273,17 +5243,11 @@
   <data name="LogRetentionPanel_KeepAtMostMBAll" xml:space="preserve">
     <value>Keep at most (MB, all files together)</value>
   </data>
-  <data name="LogRetentionPanel_SaveLimits" xml:space="preserve">
-    <value>Save limits</value>
-  </data>
   <data name="LogsPage_LogsViews" xml:space="preserve">
     <value>Logs views</value>
   </data>
   <data name="ManagedAccessApplications_AdministratorAccessIsRequiredTo" xml:space="preserve">
     <value>Administrator access is required to manage applications.</value>
-  </data>
-  <data name="Common_ManageOnAComputerOr" xml:space="preserve">
-    <value>Manage on a computer or tablet.</value>
   </data>
   <data name="Common_NewIntegration" xml:space="preserve">
     <value>New integration</value>
@@ -5382,7 +5346,7 @@
     <value>Opens profile</value>
   </data>
   <data name="ManagedAccessUsers_UsersAndSignIn" xml:space="preserve">
-    <value>Users and Sign-in</value>
+    <value>Users and sign-in</value>
   </data>
   <data name="ManagedAccessUsers_ChangeEmail" xml:space="preserve">
     <value>Change email</value>
@@ -5502,7 +5466,7 @@
     <value>Create this port-forwarding rule in your router, then ask Library to test it again.</value>
   </data>
   <data name="ManualPortForwardingDialog_CopyRule" xml:space="preserve">
-    <value>Copy Rule</value>
+    <value>Copy rule</value>
   </data>
   <data name="ManualPortForwardingDialog_IVeConfiguredThisTest" xml:space="preserve">
     <value>I've configured this — Test Again</value>
@@ -5640,10 +5604,10 @@
     <value>Review</value>
   </data>
   <data name="NetworkOverviewPanel_TestConnection" xml:space="preserve">
-    <value>Test Connection</value>
+    <value>Test connection</value>
   </data>
   <data name="NetworkOverviewPanel_ConnectionStatus" xml:space="preserve">
-    <value>Connection Status</value>
+    <value>Connection status</value>
   </data>
   <data name="NetworkOverviewPanel_ALiveSummaryOfHow" xml:space="preserve">
     <value>A live summary of how devices can reach Library.</value>
@@ -5664,7 +5628,7 @@
     <value>Network settings are unavailable</value>
   </data>
   <data name="NetworkRemoteAccessSettings_StartTheEngineOrRetry" xml:space="preserve">
-    <value>Start the Engine or retry before changing connectivity settings.</value>
+    <value>Start the server or retry before changing connectivity settings.</value>
   </data>
   <data name="NetworkTestDialog_RunningConnectionChecks" xml:space="preserve">
     <value>Running connection checks…</value>
@@ -5798,12 +5762,6 @@
   <data name="NotificationsPanel_ByDefaultOnlyAShort" xml:space="preserve">
     <value>By default only a short title like “A backup did not finish” leaves this computer.</value>
   </data>
-  <data name="NotificationsPanel_IncludeDetailsInMessagesThat" xml:space="preserve">
-    <value>Include details in messages that leave this computer</value>
-  </data>
-  <data name="NotificationsPanel_AddsWhatHappenedSuchAs" xml:space="preserve">
-    <value>Adds what happened, such as the plugin or tool involved. Leave this off if your email is not private to you.</value>
-  </data>
   <data name="OfflineDownloadsTab_Asset" xml:space="preserve">
     <value>Asset</value>
   </data>
@@ -5821,9 +5779,6 @@
   </data>
   <data name="OfflineDownloadsTab_OptimizedCopiesWillAppearHere" xml:space="preserve">
     <value>Optimized copies will appear here when an encode is queued from a supported media item.</value>
-  </data>
-  <data name="GeneralNameAddress_TheLibraryAppsWillBe" xml:space="preserve">
-    <value>The Library apps will be linked here once they are published.</value>
   </data>
   <data name="GeneralNameAddress_AtHome" xml:space="preserve">
     <value>Numeric address</value>
@@ -6128,6 +6083,9 @@
   <data name="ProfilesTab_ThePeopleCouldnTBe" xml:space="preserve">
     <value>The people couldn't be loaded. Reload the page to try again.</value>
   </data>
+  <data name="ProfilesTab_AddPerson" xml:space="preserve">
+    <value>Add person</value>
+  </data>
   <data name="ProfilesTab_OpeningYourProfile" xml:space="preserve">
     <value>Opening your profile</value>
   </data>
@@ -6197,36 +6155,6 @@
   <data name="RecycleBinSection_OtherMedia" xml:space="preserve">
     <value>Other media: {0}, {1}</value>
   </data>
-  <data name="RemoteAccessSettingsPanel_OptionalAddASecureOutside" xml:space="preserve">
-    <value>Optional. Add a secure outside address so apps and other devices can reach Library away from home. Library sign-in is always required.</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_TailscaleIsASupportedDeployment" xml:space="preserve">
-    <value>Tailscale is a supported deployment preset, not an embedded VPN. Install it on the host or use the official sidecar preset.</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_HowTheInternetReachesLibrary" xml:space="preserve">
-    <value>How the internet reaches Library</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_LocalAccessWorksWithoutRouter" xml:space="preserve">
-    <value>Local access works without router, DNS, or certificate setup. Pick a secure path only if you want to reach Library from outside your home.</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_TestRemoteAccess" xml:space="preserve">
-    <value>Test remote access</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_TailscaleServe" xml:space="preserve">
-    <value>Tailscale Serve</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_HTTPSReverseProxy" xml:space="preserve">
-    <value>HTTPS Reverse Proxy</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_TheAddressMustHaveA" xml:space="preserve">
-    <value>The address must have a trusted certificate and route to this Dashboard.</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_PublicHTTPSAddress" xml:space="preserve">
-    <value>Public HTTPS address</value>
-  </data>
-  <data name="RemoteAccessSettingsPanel_SaveAndVerify" xml:space="preserve">
-    <value>Save and verify</value>
-  </data>
   <data name="ScheduledTasksCard_ChangeItIn" xml:space="preserve">
     <value>Change it in {0}</value>
   </data>
@@ -6258,10 +6186,10 @@
     <value>No scheduled tasks yet</value>
   </data>
   <data name="ScheduledTasksCard_TheEngineIsStillStarting" xml:space="preserve">
-    <value>The Engine is still starting. Check again in a moment.</value>
+    <value>The server is still starting. Check again in a moment.</value>
   </data>
   <data name="SecuritySettingsPage_YourAccountHasNoPassword" xml:space="preserve">
-    <value>Your account has no password, so it only works at home. Add one any time below.</value>
+    <value>Your account has no password, so it works on your home network only. Add one any time below to use Library away from home.</value>
   </data>
   <data name="SecuritySettingsPage_LoadingAccountSecurity" xml:space="preserve">
     <value>Loading account security</value>
@@ -6287,18 +6215,6 @@
   <data name="SecuritySettingsPage_WhoViewedYourPhotos" xml:space="preserve">
     <value>Who viewed your photos</value>
   </data>
-  <data name="SecurityTab_AuthenticationMode" xml:space="preserve">
-    <value>Authentication mode</value>
-  </data>
-  <data name="SecurityTab_LocalAccountSignIn" xml:space="preserve">
-    <value>Local account sign-in</value>
-  </data>
-  <data name="SecurityTab_OptionalSignIn" xml:space="preserve">
-    <value>Optional sign-in</value>
-  </data>
-  <data name="SecurityTab_SignInRequired" xml:space="preserve">
-    <value>Sign-in required</value>
-  </data>
   <data name="SecurityTab_HowPeopleSignIn" xml:space="preserve">
     <value>How people sign in</value>
   </data>
@@ -6323,18 +6239,6 @@
   <data name="SecurityTab_Passkeys" xml:space="preserve">
     <value>Passkeys</value>
   </data>
-  <data name="SecurityTab_RecoveryDelivery" xml:space="preserve">
-    <value>Recovery delivery</value>
-  </data>
-  <data name="NotificationsEmailTest_SMTPServer" xml:space="preserve">
-    <value>SMTP server</value>
-  </data>
-  <data name="NotificationsEmailTest_SMTPState" xml:space="preserve">
-    <value>SMTP state</value>
-  </data>
-  <data name="NotificationsEmailTest_SendsOnlyToTheEmail" xml:space="preserve">
-    <value>Sends only to the email address on your current signed-in account.</value>
-  </data>
   <data name="SecurityTab_ExternalProviders" xml:space="preserve">
     <value>External providers</value>
   </data>
@@ -6356,9 +6260,6 @@
   <data name="SecurityTab_AuthenticationConfigurationIsUnavailable" xml:space="preserve">
     <value>Authentication configuration is unavailable</value>
   </data>
-  <data name="SecurityTab_PasswordSignIn" xml:space="preserve">
-    <value>Password sign-in</value>
-  </data>
   <data name="SecurityTab_AllowAccountPasswordsAndPassword" xml:space="preserve">
     <value>Allow account passwords and password recovery.</value>
   </data>
@@ -6366,13 +6267,13 @@
     <value>Passkey sign-in</value>
   </data>
   <data name="SecurityTab_AllowPasskeysAndPlatformCredentials" xml:space="preserve">
-    <value>Allow passkeys and platform credentials when the canonical origin is ready.</value>
+    <value>Let people sign in with a passkey. This needs the public address to be set.</value>
   </data>
   <data name="SecurityTab_ExternalProviderSignIn" xml:space="preserve">
     <value>External provider sign-in</value>
   </data>
   <data name="SecurityTab_TrustedLocalNetworks" xml:space="preserve">
-    <value>Trusted local networks</value>
+    <value>Extra home network ranges</value>
   </data>
   <data name="SecurityTab_InvitationLifetimeHours" xml:space="preserve">
     <value>Invitation lifetime (hours)</value>
@@ -6382,9 +6283,6 @@
   </data>
   <data name="SecurityTab_MaximumActiveSessionsPerAccount" xml:space="preserve">
     <value>Maximum active sessions per account</value>
-  </data>
-  <data name="NotificationsEmailTest_SendTestEmailToMy" xml:space="preserve">
-    <value>Send test email to my account</value>
   </data>
   <data name="SecurityTab_ProviderId" xml:space="preserve">
     <value>Provider id</value>
@@ -6425,9 +6323,6 @@
   <data name="SecurityTab_Scopes" xml:space="preserve">
     <value>Scopes</value>
   </data>
-  <data name="SecurityTab_SaveProvider" xml:space="preserve">
-    <value>Save provider</value>
-  </data>
   <data name="SecurityTab_DeleteProvider" xml:space="preserve">
     <value>Delete provider</value>
   </data>
@@ -6450,7 +6345,7 @@
     <value>No sign-ins match</value>
   </data>
   <data name="Common_LimitsAndQuality" xml:space="preserve">
-    <value>Limits and Quality</value>
+    <value>Limits and quality</value>
   </data>
   <data name="StreamingLimitsPanel_ProtectYourUploadConnectionWhile" xml:space="preserve">
     <value>Protect your upload connection while Library chooses an appropriate playback quality.</value>
@@ -6462,13 +6357,13 @@
     <value>Library shares your internet connection between remote streams automatically.</value>
   </data>
   <data name="StreamingLimitsPanel_RemoteStreamingQuality" xml:space="preserve">
-    <value>Remote Streaming Quality</value>
+    <value>Remote playback quality</value>
   </data>
   <data name="StreamingLimitsPanel_Quality" xml:space="preserve">
     <value>Quality</value>
   </data>
   <data name="StreamingLimitsPanel_AutomaticUploadProtection" xml:space="preserve">
-    <value>Automatic Upload Protection</value>
+    <value>Automatic upload protection</value>
   </data>
   <data name="StreamingLimitsPanel_KeepBandwidthAvailableForThe" xml:space="preserve">
     <value>Keep bandwidth available for the rest of your home.</value>
@@ -6476,20 +6371,17 @@
   <data name="StreamingLimitsPanel_BandwidthReservedForOtherTraffic" xml:space="preserve">
     <value>Bandwidth reserved for other traffic (Mbps)</value>
   </data>
-  <data name="StreamingLimitsPanel_SaveStreamingSettings" xml:space="preserve">
-    <value>Save streaming settings</value>
-  </data>
   <data name="StreamingLimitsPanel_UploadCapacity" xml:space="preserve">
-    <value>Upload Capacity</value>
+    <value>Upload capacity</value>
   </data>
   <data name="StreamingLimitsPanel_TestBandwidth" xml:space="preserve">
-    <value>Test Bandwidth</value>
+    <value>Test bandwidth</value>
   </data>
   <data name="StreamingLimitsSettingsTab_StreamingLimitsAreUnavailable" xml:space="preserve">
-    <value>Streaming limits are unavailable</value>
+    <value>Playback limits are unavailable</value>
   </data>
   <data name="StreamingLimitsSettingsTab_StartTheEngineOrRetry" xml:space="preserve">
-    <value>Start the Engine or retry before changing streaming limits.</value>
+    <value>Start the server or retry before changing playback limits.</value>
   </data>
   <data name="SystemSummaryPage_TheLatestReadingCouldNot" xml:space="preserve">
     <value>The latest reading could not be taken, so the previous one is shown.</value>
@@ -6528,7 +6420,7 @@
     <value>Technical log</value>
   </data>
   <data name="TechnicalLogPanel_WhatTheEngineWroteTo" xml:space="preserve">
-    <value>What the Engine wrote to its log files, newest first. It can include file names and other private details, so share it with care.</value>
+    <value>What the server wrote to its log files, newest first. It can include file names and other private details, so share it with care.</value>
   </data>
   <data name="TechnicalLogPanel_SearchTheLogText" xml:space="preserve">
     <value>Search the log text…</value>
@@ -6673,6 +6565,9 @@
   </data>
   <data name="SetupProfileStage_UseLibraryOnYourOther" xml:space="preserve">
     <value>Use Library on your other devices from the start.</value>
+  </data>
+  <data name="SetupProfileStage_NoPasswordWarning" xml:space="preserve">
+    <value>Anyone on your home network who can reach Library can open this profile without a password. It never opens from outside your home network. Choose email and password if you would rather keep it private.</value>
   </data>
   <data name="SetupProfileStage_ConfirmPassword" xml:space="preserve">
     <value>Confirm password</value>
@@ -6850,6 +6745,18 @@
   </data>
   <data name="AppSaveBar_SaveChanges" xml:space="preserve">
     <value>Save changes</value>
+  </data>
+  <data name="SettingsSaveBar_SaveChanges" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="SettingsSaveBar_Saving" xml:space="preserve">
+    <value>Saving…</value>
+  </data>
+  <data name="LocalAiRuntimePanel_RuntimeSettingsCouldNotBeSaved" xml:space="preserve">
+    <value>Runtime settings could not be saved. Check the values and try again.</value>
+  </data>
+  <data name="LocalAiBudgetPanel_AllowanceCouldNotBeSaved" xml:space="preserve">
+    <value>The allowance could not be saved. Check the values and try again.</value>
   </data>
   <data name="AppStateCard_AllowedTo" xml:space="preserve">
     <value>Allowed to</value>
@@ -7029,7 +6936,7 @@
     <value>Video and audio processing</value>
   </data>
   <data name="ToolRequirementRow_Describes_adaptive_streaming" xml:space="preserve">
-    <value>Smooth streaming to phones and TVs</value>
+    <value>Smooth playback to phones and TVs</value>
   </data>
   <data name="ToolRequirementRow_Describes_tesseract" xml:space="preserve">
     <value>Reads text in scanned documents</value>
@@ -7803,13 +7710,13 @@
     <value>The PIN could not be verified. Check the PIN and try again.</value>
   </data>
   <data name="AdministratorSurfaceGate_TheEngineIsUnavailableYour" xml:space="preserve">
-    <value>The Engine is unavailable. Your settings remain locked; try again.</value>
+    <value>The server is unavailable. Your settings remain locked; try again.</value>
   </data>
   <data name="AdministratorSurfaceGate_TheEngineCouldNotConfirm" xml:space="preserve">
-    <value>The Engine could not confirm the lock. Keep this page closed and retry when it is available.</value>
+    <value>The server could not confirm the lock. Keep this page closed and retry when it is available.</value>
   </data>
   <data name="AdministratorSurfaceGate_TheEngineCouldNotConfirm2" xml:space="preserve">
-    <value>The Engine could not confirm the lock. Retry when it is available.</value>
+    <value>The server could not confirm the lock. Retry when it is available.</value>
   </data>
   <data name="AdvancedNetworkSettingsPanel_TLSAndExternalPortsMust" xml:space="preserve">
     <value>TLS and external ports must be between 1 and 65535.</value>
@@ -7917,7 +7824,7 @@
     <value>The webhook could not be deleted. Try again.</value>
   </data>
   <data name="MetadataSettingsPage_StartTheEngineAndRetry" xml:space="preserve">
-    <value>Start the Engine and retry. No sample provider state is being shown.</value>
+    <value>Start the server and retry. No sample provider state is being shown.</value>
   </data>
   <data name="NetworkRemoteAccessSettings_NetworkSettingsCouldNotBe" xml:space="preserve">
     <value>Network settings could not be saved.</value>
@@ -8012,11 +7919,8 @@
   <data name="SecurityTab_ProviderCouldNotBeDeleted" xml:space="preserve">
     <value>Provider could not be deleted.</value>
   </data>
-  <data name="NotificationsEmailTest_TestEmailCouldNotBe" xml:space="preserve">
-    <value>Test email could not be sent.</value>
-  </data>
   <data name="StreamingLimitsSettingsTab_StreamingSettingsCouldNotBe" xml:space="preserve">
-    <value>Streaming settings could not be saved.</value>
+    <value>Playback settings could not be saved.</value>
   </data>
   <data name="SetupCodeStage_TuvimaAdminSetupCode" xml:space="preserve">
     <value>tuvima-admin setup code</value>
@@ -8243,14 +8147,14 @@
   <data name="MediaGroupTile_KindCollection" xml:space="preserve">
     <value>Collection</value>
   </data>
-  <data name="ContinueTile_KindBook" xml:space="preserve">
-    <value>Book</value>
-  </data>
-  <data name="ContinueTile_KindAudiobook" xml:space="preserve">
-    <value>Audiobook</value>
-  </data>
   <data name="MediaGroupTile_KindSeries" xml:space="preserve">
     <value>Series</value>
+  </data>
+  <data name="MediaGroupTile_KindBookSeries" xml:space="preserve">
+    <value>Book series</value>
+  </data>
+  <data name="MediaGroupTile_KindAudiobookSeries" xml:space="preserve">
+    <value>Audiobook series</value>
   </data>
   <data name="MediaGroupTile_KindUniverse" xml:space="preserve">
     <value>Universe</value>
@@ -8582,9 +8486,6 @@
   <data name="GeneralNameAddress_LibraryName" xml:space="preserve">
     <value>Library name</value>
   </data>
-  <data name="GeneralNameAddress_SaveName" xml:space="preserve">
-    <value>Save name</value>
-  </data>
   <data name="GeneralNameAddress_NameNotSaved" xml:space="preserve">
     <value>The Library name could not be saved.</value>
   </data>
@@ -8596,18 +8497,6 @@
   </data>
   <data name="GeneralNameAddress_ScanHome" xml:space="preserve">
     <value>Scan to use the address at home</value>
-  </data>
-  <data name="NotificationsEmailTest_Email" xml:space="preserve">
-    <value>Email (SMTP)</value>
-  </data>
-  <data name="NotificationsEmailTest_Ready" xml:space="preserve">
-    <value>Ready</value>
-  </data>
-  <data name="NotificationsEmailTest_ConfiguredNotReady" xml:space="preserve">
-    <value>Configured, not ready</value>
-  </data>
-  <data name="NotificationsEmailTest_TestEmailSent" xml:space="preserve">
-    <value>Test email sent to your account address.</value>
   </data>
   <data name="EncodeSettingsTab_MaintenanceWindowStarts" xml:space="preserve">
     <value>Maintenance window starts</value>
@@ -8631,7 +8520,7 @@
     <value>Working</value>
   </data>
   <data name="SettingsLibrariesTabs_Libraries" xml:space="preserve">
-    <value>Libraries</value>
+    <value>Libraries list</value>
   </data>
   <data name="SettingsLibrariesTabs_NeedsReview" xml:space="preserve">
     <value>Needs Review</value>
@@ -9334,6 +9223,42 @@
   </data>
   <data name="EditorSeries_MixedOrder" xml:space="preserve">
     <value>In order</value>
+  </data>
+  <data name="EditorSeriesOrder_HowOrdered" xml:space="preserve">
+    <value>How the order is worked out</value>
+  </data>
+  <data name="EditorSeriesOrder_Rule_number" xml:space="preserve">
+    <value>Series number</value>
+  </data>
+  <data name="EditorSeriesOrder_Rule_date" xml:space="preserve">
+    <value>Publication date</value>
+  </data>
+  <data name="EditorSeriesOrder_Rule_title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="EditorSeriesOrder_Placed" xml:space="preserve">
+    <value>{0} of {1} placed</value>
+  </data>
+  <data name="EditorSeriesOrder_Unknown" xml:space="preserve">
+    <value>No order known. Titles are listed A to Z.</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Books" xml:space="preserve">
+    <value>Book</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Audiobooks" xml:space="preserve">
+    <value>Audiobook</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Comics" xml:space="preserve">
+    <value>Comic</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Movies" xml:space="preserve">
+    <value>Movie</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_TV" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Music" xml:space="preserve">
+    <value>Album</value>
   </data>
   <data name="EditorSeriesNav_Kind" xml:space="preserve">
     <value>Kind of title</value>
@@ -10068,10 +9993,7 @@
     <value>Library scans this folder and its subfolders, and keeps it organized.</value>
   </data>
   <data name="FolderStep_Lead" xml:space="preserve">
-    <value>Pick the folder on the Library server that holds your {0}. Give it a friendly name if you like.</value>
-  </data>
-  <data name="ServerFolderPicker_FriendlyNameHint" xml:space="preserve">
-    <value>Names this folder, not the library.</value>
+    <value>Pick the folder on the Library server that holds your {0}.</value>
   </data>
   <data name="LibraryEditDialog_ColFolderName" xml:space="preserve">
     <value>Folder name</value>
@@ -10216,6 +10138,60 @@
   </data>
   <data name="LibraryActivity_NoMatchHelp" xml:space="preserve">
     <value>Try a different title.</value>
+  </data>
+  <data name="LibraryActivity_BatchSummary" xml:space="preserve">
+    <value>Batch · {0}</value>
+  </data>
+  <data name="LibraryActivity_BatchTypes" xml:space="preserve">
+    <value>Media types in this batch</value>
+  </data>
+  <data name="LibraryActivity_ChipAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="LibraryActivity_CollectionWorking" xml:space="preserve">
+    <value>{0} of {1} working</value>
+  </data>
+  <data name="LibraryActivity_ColumnCover" xml:space="preserve">
+    <value>Cover</value>
+  </data>
+  <data name="LibraryActivity_ColumnSize" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="LibraryActivity_ColumnStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="LibraryActivity_ColumnTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="LibraryActivity_ColumnType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="LibraryActivity_HideFiles" xml:space="preserve">
+    <value>Hide the files in {0}</value>
+  </data>
+  <data name="LibraryActivity_PillDone" xml:space="preserve">
+    <value>{0} done</value>
+  </data>
+  <data name="LibraryActivity_PillItem" xml:space="preserve">
+    <value>{0} item</value>
+  </data>
+  <data name="LibraryActivity_PillItems" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="LibraryActivity_PillWorking" xml:space="preserve">
+    <value>{0} working</value>
+  </data>
+  <data name="LibraryActivity_ShowFiles" xml:space="preserve">
+    <value>Show the files in {0}</value>
+  </data>
+  <data name="LibraryActivity_StatusDone" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="LibraryActivity_StatusWorking" xml:space="preserve">
+    <value>Working</value>
+  </data>
+  <data name="LibraryActivity_VideoCollection" xml:space="preserve">
+    <value>Video collection</value>
   </data>
   <data name="LibraryActivity_NothingInBatch" xml:space="preserve">
     <value>Nothing to show for this batch.</value>
@@ -10425,7 +10401,7 @@
     <value>Scrub preview settings are unavailable</value>
   </data>
   <data name="ScrubPreviewSettingsCard_EngineDidNotAnswer" xml:space="preserve">
-    <value>The Engine did not answer. Start the Engine or retry.</value>
+    <value>The server did not answer. Start the server or retry.</value>
   </data>
   <data name="ScrubPreviewSettingsCard_GenerateScrubPreviews" xml:space="preserve">
     <value>Generate scrub previews</value>
@@ -10499,18 +10475,6 @@
   <data name="SubtitleAppearance_Saved" xml:space="preserve">
     <value>Changes saved automatically</value>
   </data>
-  <data name="SubtitleFind_ResultsFrom" xml:space="preserve">
-    <value>{0} results from {1}</value>
-  </data>
-  <data name="SubtitleFind_ResultFrom" xml:space="preserve">
-    <value>1 result from {0}</value>
-  </data>
-  <data name="SubtitleFind_ResultsPlain" xml:space="preserve">
-    <value>{0} results</value>
-  </data>
-  <data name="SubtitleFind_ResultPlain" xml:space="preserve">
-    <value>1 result</value>
-  </data>
   <data name="SubtitleFind_SearchingSource" xml:space="preserve">
     <value>Searching {0}…</value>
   </data>
@@ -10525,18 +10489,6 @@
   </data>
   <data name="SubtitleFind_InUse" xml:space="preserve">
     <value>In use now</value>
-  </data>
-  <data name="SubtitleFind_HearingImpaired" xml:space="preserve">
-    <value>Hearing impaired</value>
-  </data>
-  <data name="SubtitleFind_SameRelease" xml:space="preserve">
-    <value>Same release</value>
-  </data>
-  <data name="SubtitleFind_DifferentRelease" xml:space="preserve">
-    <value>Different release</value>
-  </data>
-  <data name="SubtitleFind_UseThis" xml:space="preserve">
-    <value>Use this</value>
   </data>
   <data name="SubtitleFind_ThisOneIsWrong" xml:space="preserve">
     <value>This one is wrong</value>
@@ -10597,6 +10549,12 @@
   </data>
   <data name="SubtitleFind_LanguageUnknown" xml:space="preserve">
     <value>That language is not supported for subtitle search.</value>
+  </data>
+  <data name="SubtitleFind_TextSearchUnsupported" xml:space="preserve">
+    <value>{0} can only find subtitles for the movie or episode itself, not by words you type.</value>
+  </data>
+  <data name="SubtitleFind_TextSearchUnsupportedHint" xml:space="preserve">
+    <value>Put the original text back to search for this {0} itself.</value>
   </data>
   <data name="SubtitleFind_Failed" xml:space="preserve">
     <value>The search could not be completed.</value>
@@ -10667,6 +10625,9 @@
   <data name="VideoPlaybackHost_SubtitleCanTBePrepared" xml:space="preserve">
     <value>This subtitle can't be shown right now. The video is playing as it was.</value>
   </data>
+  <data name="VideoPlaybackHost_NoSubtitleInYourLanguage" xml:space="preserve">
+    <value>No subtitles in {0} for this video.</value>
+  </data>
   <data name="AudioSubtitles_MoreLanguages" xml:space="preserve">
     <value>More languages</value>
   </data>
@@ -10729,12 +10690,6 @@
   </data>
   <data name="EditorDetailsPanel_Lock" xml:space="preserve">
     <value>Lock {0}</value>
-  </data>
-  <data name="EditorDetailsPanel_Locked" xml:space="preserve">
-    <value>Locked</value>
-  </data>
-  <data name="EditorDetailsPanel_Unlocked" xml:space="preserve">
-    <value>Unlocked</value>
   </data>
   <data name="EditorDetailsPanel_GoesBackToProvider" xml:space="preserve">
     <value>{0} goes back to the {1} value when you save.</value>
@@ -10802,6 +10757,9 @@
   <data name="PlaybackLyrics_FindAnother" xml:space="preserve">
     <value>Find another</value>
   </data>
+  <data name="PlaybackLyrics_NotTheseLyrics" xml:space="preserve">
+    <value>Not these lyrics? Find different lyrics</value>
+  </data>
   <data name="PlaybackLyrics_AboutSources" xml:space="preserve">
     <value>About lyrics sources</value>
   </data>
@@ -10819,12 +10777,6 @@
   </data>
   <data name="PlaybackLyrics_SourceLrclib" xml:space="preserve">
     <value>LRCLIB</value>
-  </data>
-  <data name="PlaybackLyrics_TimedToTheSong" xml:space="preserve">
-    <value>Timed to the song</value>
-  </data>
-  <data name="PlaybackLyrics_WordsOnly" xml:space="preserve">
-    <value>Words only</value>
   </data>
   <data name="PlaybackLyrics_InUse" xml:space="preserve">
     <value>In use</value>
@@ -12650,9 +12602,6 @@
   <data name="FolderPicker_Name" xml:space="preserve">
     <value>Name</value>
   </data>
-  <data name="FolderPicker_Modified" xml:space="preserve">
-    <value>Modified</value>
-  </data>
   <data name="FolderPicker_Open" xml:space="preserve">
     <value>Open</value>
   </data>
@@ -13409,9 +13358,6 @@
   <data name="ListenPage_PlaylistCreateFailed" xml:space="preserve">
     <value>The Playlist could not be created.</value>
   </data>
-  <data name="ListenPage_PlaylistRenameFailed" xml:space="preserve">
-    <value>The Playlist could not be renamed.</value>
-  </data>
   <data name="ListenPage_PlaylistDeleteFailed" xml:space="preserve">
     <value>The Playlist could not be deleted.</value>
   </data>
@@ -13423,21 +13369,6 @@
   </data>
   <data name="ListenPage_SongsSavedListNotRefreshed" xml:space="preserve">
     <value>The songs were saved, but the list could not be refreshed. Reload the page to see them.</value>
-  </data>
-  <data name="ListenPage_ProfileRequiredToSaveToPlaylists" xml:space="preserve">
-    <value>Choose an active profile before saving to playlists.</value>
-  </data>
-  <data name="ListenPage_AddSongsFailed" xml:space="preserve">
-    <value>Could not add songs to {0}.</value>
-  </data>
-  <data name="ListenPage_ChooseProfileBeforeCreatingPlaylists" xml:space="preserve">
-    <value>Choose an active profile before creating playlists.</value>
-  </data>
-  <data name="ListenPage_DroppedSongsPlaylistFailed" xml:space="preserve">
-    <value>Could not create a playlist for the dropped songs.</value>
-  </data>
-  <data name="ListenPage_PlaylistCreatedNotLoaded" xml:space="preserve">
-    <value>Playlist was created, but it could not be loaded yet.</value>
   </data>
   <data name="ListenPage_SongRemoveFailed" xml:space="preserve">
     <value>Song could not be removed from the playlist.</value>
@@ -13898,9 +13829,6 @@
   <data name="PlaylistMembership_NewPlaylist" xml:space="preserve">
     <value>New playlist</value>
   </data>
-  <data name="PlaylistMembership_ChooseExisting" xml:space="preserve">
-    <value>Choose an existing playlist</value>
-  </data>
   <data name="PlaylistMembership_TooManyAlbums" xml:space="preserve">
     <value>Pick up to {0} albums at a time</value>
   </data>
@@ -13923,7 +13851,7 @@
     <value>{0} added, {1} already there</value>
   </data>
   <data name="PlaylistMembership_AllAlreadyThere" xml:space="preserve">
-    <value>Those songs are already in {0}.</value>
+    <value>Already in {0}</value>
   </data>
   <data name="PlaylistMembership_SomeFailed" xml:space="preserve">
     <value>{0} added, {1} could not be added</value>
@@ -13931,8 +13859,59 @@
   <data name="PlaylistMembership_AddFailed" xml:space="preserve">
     <value>The songs could not be added to {0}.</value>
   </data>
+  <data name="PlaylistMembership_AlreadyThereSomeFailed" xml:space="preserve">
+    <value>{0} already there, {1} could not be added</value>
+  </data>
+  <data name="PlaylistMembership_SomeAlreadyThereSomeFailed" xml:space="preserve">
+    <value>{0} added, {1} already there, {2} could not be added</value>
+  </data>
+  <data name="PlaylistPicker_TitleOne" xml:space="preserve">
+    <value>Add 1 song to…</value>
+  </data>
+  <data name="PlaylistPicker_TitleMany" xml:space="preserve">
+    <value>Add {0} songs to…</value>
+  </data>
+  <data name="PlaylistPicker_Search" xml:space="preserve">
+    <value>Search playlists</value>
+  </data>
+  <data name="PlaylistPicker_Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="PlaylistPicker_SongsOne" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="PlaylistPicker_SongsMany" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="PlaylistPicker_AlreadyIn" xml:space="preserve">
+    <value>Already in</value>
+  </data>
+  <data name="PlaylistPicker_NoPlaylists" xml:space="preserve">
+    <value>You have no hand-made playlists yet.</value>
+  </data>
+  <data name="PlaylistPicker_NoMatches" xml:space="preserve">
+    <value>No playlist matches that.</value>
+  </data>
+  <data name="PlaylistPicker_Loading" xml:space="preserve">
+    <value>Loading your playlists…</value>
+  </data>
+  <data name="MediaMembershipDialog_NoCollections" xml:space="preserve">
+    <value>No editable manual collections are available.</value>
+  </data>
   <data name="PlaylistMembership_CreateFailed" xml:space="preserve">
     <value>The playlist could not be created.</value>
+  </data>
+  <data name="ViewSectionShell_GalleryDropFailed" xml:space="preserve">
+    <value>The photos could not be added to {0}.</value>
+  </data>
+  <data name="ViewSectionShell_GalleryDropFailedWhy" xml:space="preserve">
+    <value>The photos could not be added to {0}. {1}</value>
+  </data>
+  <data name="PlaylistMembership_CreateFailedWhy" xml:space="preserve">
+    <value>The playlist could not be created. {0}</value>
+  </data>
+  <data name="PlaylistMembership_AddFailedWhy" xml:space="preserve">
+    <value>The songs could not be added to {0}. {1}</value>
   </data>
   <data name="SongTable_Select" xml:space="preserve">
     <value>Select</value>
@@ -14133,7 +14112,7 @@
     <value>Library is still working on 1 file, so more items may appear here.</value>
   </data>
   <data name="NeedsReviewPage_ViewActivity" xml:space="preserve">
-    <value>View Activity</value>
+    <value>View activity</value>
   </data>
   <data name="NeedsReviewPage_Loading" xml:space="preserve">
     <value>Loading Needs Review</value>
@@ -14540,15 +14519,6 @@
   <data name="VideoOptions_PerProfile" xml:space="preserve">
     <value>Per profile. Follows you to every device.</value>
   </data>
-  <data name="VideoOptions_PerDevice" xml:space="preserve">
-    <value>Per device:</value>
-  </data>
-  <data name="VideoOptions_Devices" xml:space="preserve">
-    <value>Devices</value>
-  </data>
-  <data name="VideoOptions_ThisBrowser" xml:space="preserve">
-    <value>This browser</value>
-  </data>
   <data name="VideoOptions_PerDeviceDefaults" xml:space="preserve">
     <value>Per device. Everything defaults to Automatic.</value>
   </data>
@@ -14645,12 +14615,6 @@
   <data name="PlayingNow_GraphicsCard" xml:space="preserve">
     <value>Graphics card</value>
   </data>
-  <data name="PlayingNow_OnProcessor" xml:space="preserve">
-    <value>on the processor</value>
-  </data>
-  <data name="PlayingNow_OnGraphicsCard" xml:space="preserve">
-    <value>on the graphics card</value>
-  </data>
   <data name="PlayingNow_NobodyWatching" xml:space="preserve">
     <value>Nobody watching · stops in {0}</value>
   </data>
@@ -14682,36 +14646,1584 @@
     <value>Limits and automatic stopping:</value>
   </data>
   <data name="PlayingNow_StreamingLimits" xml:space="preserve">
-    <value>Streaming limits</value>
-  </data>
-  <data name="GeneralRightNow_AddingTitle" xml:space="preserve">
-    <value>Adding to your library</value>
-  </data>
-  <data name="GeneralRightNow_PlayingTitle" xml:space="preserve">
-    <value>Playing now</value>
-  </data>
-  <data name="GeneralRightNow_Idle" xml:space="preserve">
-    <value>Idle</value>
-  </data>
-  <data name="GeneralRightNow_Updating" xml:space="preserve">
-    <value>Updating your library · {0}%</value>
-  </data>
-  <data name="GeneralRightNow_Review" xml:space="preserve">
-    <value>Review {0} items</value>
-  </data>
-  <data name="GeneralRightNow_NothingPlaying" xml:space="preserve">
-    <value>Nothing playing</value>
-  </data>
-  <data name="GeneralRightNow_Watching" xml:space="preserve">
-    <value>{0} watching</value>
-  </data>
-  <data name="GeneralRightNow_Preparing" xml:space="preserve">
-    <value>{0} preparing</value>
+    <value>Playback limits</value>
   </data>
   <data name="EncodeSettingsTab_StopAfterLastViewer" xml:space="preserve">
     <value>Stop an unwatched encode after (seconds)</value>
   </data>
   <data name="EncodeSettingsTab_PausedCountsAsWatching" xml:space="preserve">
     <value>A paused player counts as watching for (minutes)</value>
+  </data>
+  <data name="PickResult_SearchBox" xml:space="preserve">
+    <value>Search for</value>
+  </data>
+  <data name="PickResult_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="PickResult_Searching" xml:space="preserve">
+    <value>Searching…</value>
+  </data>
+  <data name="PickResult_BestMatch" xml:space="preserve">
+    <value>Best match</value>
+  </data>
+  <data name="PickResult_UseThis" xml:space="preserve">
+    <value>Use this</value>
+  </data>
+  <data name="CapacityPanel_Title" xml:space="preserve">
+    <value>Computer capacity</value>
+  </data>
+  <data name="CapacityPanel_Tested" xml:space="preserve">
+    <value>Last tested {0}</value>
+  </data>
+  <data name="CapacityPanel_NotTested" xml:space="preserve">
+    <value>Not tested yet</value>
+  </data>
+  <data name="CapacityPanel_GaugeLabel" xml:space="preserve">
+    <value>Score {0} out of 100</value>
+  </data>
+  <data name="CapacityPanel_Streams" xml:space="preserve">
+    <value>Video streams at once</value>
+  </data>
+  <data name="CapacityPanel_FourK" xml:space="preserve">
+    <value>4K conversions at once</value>
+  </data>
+  <data name="CapacityPanel_Speed" xml:space="preserve">
+    <value>Faster than real time</value>
+  </data>
+  <data name="CapacityPanel_RunAgain" xml:space="preserve">
+    <value>Run again</value>
+  </data>
+  <data name="CapacityPanel_RunTest" xml:space="preserve">
+    <value>Run test</value>
+  </data>
+  <data name="CapacityPanel_Testing" xml:space="preserve">
+    <value>Testing…</value>
+  </data>
+  <data name="CapacityPanel_Running" xml:space="preserve">
+    <value>Testing this computer. This takes about a minute and uses the graphics card or processor heavily while it runs.</value>
+  </data>
+  <data name="CapacityPanel_CouldNotRun" xml:space="preserve">
+    <value>The test could not run. Check that the server is running, then try again.</value>
+  </data>
+  <data name="ReachDevices_Title" xml:space="preserve">
+    <value>Reach from other devices</value>
+  </data>
+  <data name="ReachDevices_Subtitle" xml:space="preserve">
+    <value>Phones, TVs and tablets on your home network</value>
+  </data>
+  <data name="ReachDevices_AddPassword" xml:space="preserve">
+    <value>Add a password</value>
+  </data>
+  <data name="ReachDevices_AddPasswordHint" xml:space="preserve">
+    <value>Until your account has a password it works on your home network only, so you cannot sign in from outside it.</value>
+  </data>
+  <data name="ReachDevices_OutsideOff" xml:space="preserve">
+    <value>Outside access: Off</value>
+  </data>
+  <data name="ReachDevices_OutsideOn" xml:space="preserve">
+    <value>Outside access: On</value>
+  </data>
+  <data name="ReachDevices_RestartNote" xml:space="preserve">
+    <value>Takes effect the next time Library starts. Restart Library to apply it.</value>
+  </data>
+  <data name="ReachDevices_ContainerNote" xml:space="preserve">
+    <value>This install already shares its port with your network. Change who can reach it in your container port settings.</value>
+  </data>
+  <data name="ReachDevices_FirewallOpen" xml:space="preserve">
+    <value>Windows allows your home networks to reach Library.</value>
+  </data>
+  <data name="ReachDevices_FirewallBlocked" xml:space="preserve">
+    <value>Windows may block other devices until you allow Library on your home (Private) networks. Only home networks are opened; public Wi-Fi stays blocked.</value>
+  </data>
+  <data name="ReachDevices_FirewallAllow" xml:space="preserve">
+    <value>Allow</value>
+  </data>
+  <data name="ReachDevices_FirewallManual" xml:space="preserve">
+    <value>Or allow it yourself: open an administrator window and run this command. It opens the port on Private networks only.</value>
+  </data>
+  <data name="ReachDevices_FirewallElsewhere" xml:space="preserve">
+    <value>To change the Windows firewall, open Settings on the computer that runs Library.</value>
+  </data>
+  <data name="ReachDevices_FirewallRefused" xml:space="preserve">
+    <value>Windows did not allow it. You can try again, or use the command below.</value>
+  </data>
+  <data name="FirewallPrompt_Title" xml:space="preserve">
+    <value>Allow Library on your home network?</value>
+  </data>
+  <data name="FirewallPrompt_Body" xml:space="preserve">
+    <value>So your phone and TV can open it. Windows will ask once. Only home (Private) networks are opened. Public Wi-Fi stays blocked.</value>
+  </data>
+  <data name="FirewallPrompt_NotNow" xml:space="preserve">
+    <value>Not now</value>
+  </data>
+  <data name="FirewallPrompt_Allow" xml:space="preserve">
+    <value>Allow</value>
+  </data>
+  <data name="FirewallPrompt_Refused" xml:space="preserve">
+    <value>Windows did not allow it. Settings, then Network, lists exactly what to allow.</value>
+  </data>
+  <data name="FirewallPrompt_SaveFailed" xml:space="preserve">
+    <value>Library could not remember your answer. You can allow it later in Settings, then Network.</value>
+  </data>
+  <data name="ViewPage_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="ViewPage_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="ViewPage_Uploading" xml:space="preserve">
+    <value>Uploading…</value>
+  </data>
+  <data name="ViewPage_AddMedia" xml:space="preserve">
+    <value>Add media</value>
+  </data>
+  <data name="ViewPage_ReadWordsInPhotos" xml:space="preserve">
+    <value>Read words in my photos</value>
+  </data>
+  <data name="ViewPage_ReadWordsCouldNotBeSaved" xml:space="preserve">
+    <value>Could not save the words in photos setting. Try again.</value>
+  </data>
+  <data name="ViewPage_SearchPlaceholderWithWords" xml:space="preserve">
+    <value>Search photos, people, places, dates, cameras, and words in photos</value>
+  </data>
+  <data name="ViewPage_SearchPlaceholder" xml:space="preserve">
+    <value>Search photos, people, places, dates, and cameras</value>
+  </data>
+  <data name="ViewPage_SearchPhotos" xml:space="preserve">
+    <value>Search Photos</value>
+  </data>
+  <data name="ViewPage_PhotosQuickFilters" xml:space="preserve">
+    <value>Photos quick filters</value>
+  </data>
+  <data name="ViewPage_MorePhotoFilters" xml:space="preserve">
+    <value>More photo filters</value>
+  </data>
+  <data name="ViewPage_NoTimeline" xml:space="preserve">
+    <value>The Engine did not return a timeline.</value>
+  </data>
+  <data name="ViewPage_LoadingMorePhotos" xml:space="preserve">
+    <value>Loading more photos…</value>
+  </data>
+  <data name="ViewPage_ContinueOlderWindow" xml:space="preserve">
+    <value>Continue into an older window, or use the date navigator. Your selection is kept.</value>
+  </data>
+  <data name="ViewPage_MoreLoadAsYouScroll" xml:space="preserve">
+    <value>More photos load as you scroll</value>
+  </data>
+  <data name="ViewPage_Loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="ViewPage_ContinueToOlderPhotos" xml:space="preserve">
+    <value>Continue to older photos</value>
+  </data>
+  <data name="ViewPage_LoadMore" xml:space="preserve">
+    <value>Load more</value>
+  </data>
+  <data name="ViewPage_FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="ViewPage_FilterFavorites" xml:space="preserve">
+    <value>Favorites</value>
+  </data>
+  <data name="ViewPage_FilterVideos" xml:space="preserve">
+    <value>Videos</value>
+  </data>
+  <data name="ViewPage_FilterArchive" xml:space="preserve">
+    <value>Archive</value>
+  </data>
+  <data name="ViewPage_ScopeMine" xml:space="preserve">
+    <value>Your private photo and video timeline.</value>
+  </data>
+  <data name="ViewPage_ScopeShared" xml:space="preserve">
+    <value>Photos and videos in the Shared Library.</value>
+  </data>
+  <data name="ViewPage_Archived" xml:space="preserve">
+    <value>Archived selected items.</value>
+  </data>
+  <data name="ViewPage_SelectionMovedToTrash" xml:space="preserve">
+    <value>Moved selected items to Trash.</value>
+  </data>
+  <data name="ViewPage_Favorited" xml:space="preserve">
+    <value>Favorited selected items.</value>
+  </data>
+  <data name="ViewPage_Restored" xml:space="preserve">
+    <value>Restored selected items to Photos.</value>
+  </data>
+  <data name="ViewPage_ContributionFailed" xml:space="preserve">
+    <value>The contribution could not be submitted.</value>
+  </data>
+  <data name="ViewPage_FileMissing" xml:space="preserve">
+    <value>File missing</value>
+  </data>
+  <data name="ViewPage_EmptyNoMatch" xml:space="preserve">
+    <value>No matching items</value>
+  </data>
+  <data name="ViewPage_EmptyFavorites" xml:space="preserve">
+    <value>No favorites yet</value>
+  </data>
+  <data name="ViewPage_EmptyVideos" xml:space="preserve">
+    <value>No videos yet</value>
+  </data>
+  <data name="ViewPage_EmptyArchive" xml:space="preserve">
+    <value>Archive is empty</value>
+  </data>
+  <data name="ViewPage_EmptyTrash" xml:space="preserve">
+    <value>Trash is empty</value>
+  </data>
+  <data name="ViewPage_EmptyHidden" xml:space="preserve">
+    <value>No hidden items</value>
+  </data>
+  <data name="ViewPage_EmptyDocuments" xml:space="preserve">
+    <value>No documents yet</value>
+  </data>
+  <data name="ViewPage_EmptyPersonal" xml:space="preserve">
+    <value>No personal media yet</value>
+  </data>
+  <data name="ViewPage_TrySearch" xml:space="preserve">
+    <value>Try a different search.</value>
+  </data>
+  <data name="ViewPage_FilterEmptyHint" xml:space="preserve">
+    <value>Items matching this View filter will appear here.</value>
+  </data>
+  <data name="ViewPage_ScopeProfile" xml:space="preserve">
+    <value>Photos and videos shared by {0}.</value>
+  </data>
+  <data name="ViewPeoplePage_NoResult" xml:space="preserve">
+    <value>The discovery service did not return a result.</value>
+  </data>
+  <data name="ViewPeoplePage_NoMatch" xml:space="preserve">
+    <value>No matching people</value>
+  </data>
+  <data name="ViewPeoplePage_NoPeople" xml:space="preserve">
+    <value>No people to show yet</value>
+  </data>
+  <data name="ViewPlacesPage_NoData" xml:space="preserve">
+    <value>The Engine did not return geographic discovery data.</value>
+  </data>
+  <data name="ViewPlacesPage_WithoutLocation" xml:space="preserve">
+    <value>Without location</value>
+  </data>
+  <data name="ViewPlacesPage_PlaceStory" xml:space="preserve">
+    <value>Place Story</value>
+  </data>
+  <data name="ViewPhotoTimeline_Video" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="ViewImmersiveViewer_ShowStill" xml:space="preserve">
+    <value>Show still</value>
+  </data>
+  <data name="ViewImmersiveViewer_PlayMotion" xml:space="preserve">
+    <value>Play motion</value>
+  </data>
+  <data name="ViewImmersiveViewer_ShowLiveStill" xml:space="preserve">
+    <value>Show Live Photo still</value>
+  </data>
+  <data name="ViewImmersiveViewer_PlayLiveMotion" xml:space="preserve">
+    <value>Play Live Photo motion</value>
+  </data>
+  <data name="ViewPage_DensityCompact" xml:space="preserve">
+    <value>Compact</value>
+  </data>
+  <data name="ViewPage_DensityComfortable" xml:space="preserve">
+    <value>Comfortable</value>
+  </data>
+  <data name="ViewPage_DensityRelaxed" xml:space="preserve">
+    <value>Relaxed</value>
+  </data>
+  <data name="ViewContributionsPage_AcceptedDestination" xml:space="preserve">
+    <value>Accepted destination</value>
+  </data>
+  <data name="ViewContributionsPage_DestinationTimeline" xml:space="preserve">
+    <value>Shared Timeline</value>
+  </data>
+  <data name="ViewContributionsPage_DestinationFolder" xml:space="preserve">
+    <value>Named Shared folder</value>
+  </data>
+  <data name="ViewGalleryDetailPage_PermissionFor" xml:space="preserve">
+    <value>Permission for {0}</value>
+  </data>
+  <data name="ViewPlacesPage_TileDisclosure" xml:space="preserve">
+    <value>Map pictures come from the online OpenFreeMap service (OpenStreetMap data). Only the area you look at is requested; your photos and their locations stay on your computer.</value>
+  </data>
+  <data name="ViewPlacesPage_BuiltInDisclosure" xml:space="preserve">
+    <value>Showing the built-in map only. No online map service is asked for anything.</value>
+  </data>
+  <data name="ViewPlacesPage_BuiltInOnly" xml:space="preserve">
+    <value>Built-in map only</value>
+  </data>
+  <data name="ViewPlacesPage_MapChoiceFailed" xml:space="preserve">
+    <value>The map choice could not be saved.</value>
+  </data>
+  <data name="ViewSmartSearch_People" xml:space="preserve">
+    <value>People</value>
+  </data>
+  <data name="ViewSmartSearch_Years" xml:space="preserve">
+    <value>Years</value>
+  </data>
+  <data name="ViewSmartSearch_Places" xml:space="preserve">
+    <value>Places</value>
+  </data>
+  <data name="ViewSmartSearch_Cameras" xml:space="preserve">
+    <value>Cameras</value>
+  </data>
+  <data name="ViewSmartSearch_Tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="ViewSmartSearch_Suggestions" xml:space="preserve">
+    <value>Search suggestions</value>
+  </data>
+  <data name="ViewSmartSearch_RemoveChip" xml:space="preserve">
+    <value>Remove {0}</value>
+  </data>
+  <data name="ViewSmartSearch_Count" xml:space="preserve">
+    <value>{0} photos</value>
+  </data>
+  <data name="PlaylistMenu_Options" xml:space="preserve">
+    <value>{0} options</value>
+  </data>
+  <data name="PlaylistMenu_EditRules" xml:space="preserve">
+    <value>Edit rules</value>
+  </data>
+  <data name="PlaylistMenu_EditDetails" xml:space="preserve">
+    <value>Edit description and cover</value>
+  </data>
+  <data name="PlaylistMenu_Duplicate" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="PlaylistMenu_PinToTop" xml:space="preserve">
+    <value>Pin to top</value>
+  </data>
+  <data name="PlaylistMenu_Unpin" xml:space="preserve">
+    <value>Unpin</value>
+  </data>
+  <data name="PlaylistEdit_RenameTitle" xml:space="preserve">
+    <value>Rename playlist</value>
+  </data>
+  <data name="PlaylistEdit_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaylistEdit_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="PlaylistEdit_Cover" xml:space="preserve">
+    <value>Cover</value>
+  </data>
+  <data name="PlaylistEdit_ChoosePicture" xml:space="preserve">
+    <value>Choose a picture</value>
+  </data>
+  <data name="PlaylistEdit_UseMosaic" xml:space="preserve">
+    <value>Use the automatic cover</value>
+  </data>
+  <data name="PlaylistEdit_CoverHelp" xml:space="preserve">
+    <value>JPG or PNG, up to 5 MB. The automatic cover is a mosaic of the songs' covers.</value>
+  </data>
+  <data name="PlaylistEdit_PictureChosen" xml:space="preserve">
+    <value>{0} will be the cover.</value>
+  </data>
+  <data name="PlaylistEdit_MosaicInUse" xml:space="preserve">
+    <value>The cover is an automatic mosaic of the songs' covers.</value>
+  </data>
+  <data name="PlaylistEdit_PictureInUse" xml:space="preserve">
+    <value>The cover is your own picture.</value>
+  </data>
+  <data name="PlaylistEdit_PictureTooLarge" xml:space="preserve">
+    <value>That picture is larger than 5 MB. Choose a smaller one.</value>
+  </data>
+  <data name="PlaylistEdit_SaveFailed" xml:space="preserve">
+    <value>Could not save. The playlist was not changed.</value>
+  </data>
+  <data name="PlaylistEdit_CoverFailed" xml:space="preserve">
+    <value>The changes were saved, but the cover was not changed.</value>
+  </data>
+  <data name="PlaylistPage_Kind" xml:space="preserve">
+    <value>Playlist</value>
+  </data>
+  <data name="PlaylistPage_KindSmart" xml:space="preserve">
+    <value>Smart playlist</value>
+  </data>
+  <data name="PlaylistPage_KindYours" xml:space="preserve">
+    <value>{0} · yours</value>
+  </data>
+  <data name="PlaylistPage_KindOwner" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="PlaylistPage_Unavailable" xml:space="preserve">
+    <value>{0} unavailable songs</value>
+  </data>
+  <data name="PlaylistPage_UnavailableOne" xml:space="preserve">
+    <value>1 unavailable song</value>
+  </data>
+  <data name="PlaylistPage_SortedBy" xml:space="preserve">
+    <value>Sorted by {0}. Keep this order to save it.</value>
+  </data>
+  <data name="PlaylistPage_KeepThisOrder" xml:space="preserve">
+    <value>Keep this order</value>
+  </data>
+  <data name="PlaylistPage_DuplicateFailed" xml:space="preserve">
+    <value>Could not duplicate the playlist. Nothing was changed.</value>
+  </data>
+  <data name="PlaylistPage_PinFailed" xml:space="preserve">
+    <value>Could not change the pin. Nothing was changed.</value>
+  </data>
+  <data name="QueueSave_Button" xml:space="preserve">
+    <value>Save queue as playlist</value>
+  </data>
+  <data name="QueueSave_NothingToSave" xml:space="preserve">
+    <value>There are no songs in the queue to save.</value>
+  </data>
+  <data name="QueueSave_NameLabel" xml:space="preserve">
+    <value>Playlist name</value>
+  </data>
+  <data name="QueueSave_DefaultName" xml:space="preserve">
+    <value>Queue, {0}</value>
+  </data>
+  <data name="QueueSave_OneSaved" xml:space="preserve">
+    <value>Saved 1 song as {0}</value>
+  </data>
+  <data name="QueueSave_ManySaved" xml:space="preserve">
+    <value>Saved {0} songs as {1}</value>
+  </data>
+  <data name="QueueSave_SkippedOne" xml:space="preserve">
+    <value>1 item was skipped because it is not a song in your library.</value>
+  </data>
+  <data name="QueueSave_SkippedMany" xml:space="preserve">
+    <value>{0} items were skipped because they are not songs in your library.</value>
+  </data>
+  <data name="QueueSave_Failed" xml:space="preserve">
+    <value>The queue could not be saved as a playlist. Your queue was not changed.</value>
+  </data>
+  <data name="PlaylistTiles_NewTitle" xml:space="preserve">
+    <value>New playlist</value>
+  </data>
+  <data name="PlaylistTiles_HandPickedHint" xml:space="preserve">
+    <value>You choose the songs.</value>
+  </data>
+  <data name="PlaylistTiles_SmartHint" xml:space="preserve">
+    <value>Fills itself from rules you set.</value>
+  </data>
+  <data name="PlaylistTiles_NewShort" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="PlaylistTiles_SortBy" xml:space="preserve">
+    <value>Sort: {0}</value>
+  </data>
+  <data name="PlaylistTiles_SortManual" xml:space="preserve">
+    <value>Manual</value>
+  </data>
+  <data name="PlaylistTiles_SortName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PlaylistTiles_SortRecentlyAdded" xml:space="preserve">
+    <value>Recently added</value>
+  </data>
+  <data name="PlaylistTiles_TypePlaylist" xml:space="preserve">
+    <value>Playlist</value>
+  </data>
+  <data name="PlaylistTiles_TypeSmartPlaylist" xml:space="preserve">
+    <value>Smart playlist</value>
+  </data>
+  <data name="PlaylistTiles_TypeBuiltIn" xml:space="preserve">
+    <value>Built in</value>
+  </data>
+  <data name="PlaylistTiles_MetaShortOne" xml:space="preserve">
+    <value>1 song</value>
+  </data>
+  <data name="PlaylistTiles_MetaShortMany" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="PlaylistTiles_EmptyTitle" xml:space="preserve">
+    <value>No playlists yet</value>
+  </data>
+  <data name="PlaylistTiles_EmptyMessage" xml:space="preserve">
+    <value>Make one with New playlist, or add songs from any song's menu.</value>
+  </data>
+  <data name="PlaylistTiles_SeeAll" xml:space="preserve">
+    <value>See all</value>
+  </data>
+  <data name="PlaylistTiles_Back" xml:space="preserve">
+    <value>Playlists</value>
+  </data>
+  <data name="Common_MoveToTop" xml:space="preserve">
+    <value>Move to top</value>
+  </data>
+  <data name="Common_MoveToBottom" xml:space="preserve">
+    <value>Move to bottom</value>
+  </data>
+  <data name="QueuePanel_MoveToBottom" xml:space="preserve">
+    <value>Move to bottom</value>
+  </data>
+  <data name="PlaylistTiles_Moved" xml:space="preserve">
+    <value>Moved {0} to place {1} of {2}</value>
+  </data>
+  <data name="PlaylistPage_AllMusic" xml:space="preserve">
+    <value>All Music</value>
+  </data>
+  <data name="PlaylistPage_SongsTableLabel" xml:space="preserve">
+    <value>{0} songs</value>
+  </data>
+  <data name="PlaylistPage_Path" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="PlaylistPage_SearchSongs" xml:space="preserve">
+    <value>Search this playlist</value>
+  </data>
+  <data name="PlaylistPage_SongView" xml:space="preserve">
+    <value>Show songs as</value>
+  </data>
+  <data name="PlaylistPage_SortLabel" xml:space="preserve">
+    <value>Sort: {0}</value>
+  </data>
+  <data name="PlaylistPage_SortOrder" xml:space="preserve">
+    <value>Playlist order</value>
+  </data>
+  <data name="PlaylistPage_TotalLine" xml:space="preserve">
+    <value>{0}, {1}</value>
+  </data>
+  <data name="PlaylistPage_AddSongsRow" xml:space="preserve">
+    <value>Add songs to this playlist</value>
+  </data>
+  <data name="PlaylistPage_NoMatches" xml:space="preserve">
+    <value>No songs match your search.</value>
+  </data>
+  <data name="PlaylistAddSongs_Title" xml:space="preserve">
+    <value>Add songs</value>
+  </data>
+  <data name="PlaylistAddSongs_Search" xml:space="preserve">
+    <value>Search your songs and albums</value>
+  </data>
+  <data name="PlaylistAddSongs_Hint" xml:space="preserve">
+    <value>Type a song, an artist or an album. Tap + to add it to the end of the playlist.</value>
+  </data>
+  <data name="PlaylistAddSongs_Results" xml:space="preserve">
+    <value>Songs and albums found</value>
+  </data>
+  <data name="PlaylistAddSongs_AddTitle" xml:space="preserve">
+    <value>Add {0} to the end of the playlist</value>
+  </data>
+  <data name="PlaylistAddSongs_Added" xml:space="preserve">
+    <value>Added</value>
+  </data>
+  <data name="PlaylistAddSongs_AlreadyIn" xml:space="preserve">
+    <value>Already in</value>
+  </data>
+  <data name="PlaylistAddSongs_AlbumSongs" xml:space="preserve">
+    <value>Album, {0} songs</value>
+  </data>
+  <data name="PlaylistAddSongs_None" xml:space="preserve">
+    <value>No songs or albums match.</value>
+  </data>
+  <data name="PlaylistAddSongs_Failed" xml:space="preserve">
+    <value>Could not add that. The playlist was not changed.</value>
+  </data>
+  <data name="ListenPage_DragToReorderPlaylist" xml:space="preserve">
+    <value>Drag to reorder {0}</value>
+  </data>
+  <data name="ListenPage_PlaylistsShelfSubtitle" xml:space="preserve">
+    <value>Saved playlists and mixes from your library</value>
+  </data>
+  <data name="ListenBrowsePage_UnsupportedPage" xml:space="preserve">
+    <value>Choose Music, Audiobooks, or Playlists to browse your library.</value>
+  </data>
+  <data name="ListenBrowsePage_PlaylistsYearSemantic" xml:space="preserve">
+    <value>Playlist update year</value>
+  </data>
+  <data name="PlaybackItemMenu_AddToPlaylist" xml:space="preserve">
+    <value>Add to playlist…</value>
+  </data>
+  <data name="CollectionEditorShell_PlaylistEditor" xml:space="preserve">
+    <value>Playlist editor</value>
+  </data>
+  <data name="CollectionEditorShell_EditPlaylist" xml:space="preserve">
+    <value>Edit Playlist</value>
+  </data>
+  <data name="CollectionEditorShell_PlaylistSubtitle" xml:space="preserve">
+    <value>Create a playlist, then choose manual or smart membership.</value>
+  </data>
+  <data name="CollectionEditorShell_CreatePlaylist" xml:space="preserve">
+    <value>Create Playlist</value>
+  </data>
+  <data name="CollectionEditorShell_SelectedPlaylistArtwork" xml:space="preserve">
+    <value>Selected playlist artwork</value>
+  </data>
+  <data name="CollectionEditorShell_CurrentPlaylistArtwork" xml:space="preserve">
+    <value>Current playlist artwork</value>
+  </data>
+  <data name="MediaBrowseShell_SearchPlaylists" xml:space="preserve">
+    <value>Search playlists...</value>
+  </data>
+  <data name="MediaBrowseShell_NoPlaylistsMessage" xml:space="preserve">
+    <value>Create a playlist or smart playlist to organize music for later.</value>
+  </data>
+  <data name="SystemSummaryPage_AddressIsSetOn" xml:space="preserve">
+    <value>The server name and addresses are set on</value>
+  </data>
+  <data name="SecurityTab_AllowPasswords" xml:space="preserve">
+    <value>Allow passwords</value>
+  </data>
+  <data name="SecurityTab_ExternalSignInHelp" xml:space="preserve">
+    <value>Let people sign in with the linked sign-in providers set up below.</value>
+  </data>
+  <data name="SecurityTab_TrustedLocalNetworksHelp" xml:space="preserve">
+    <value>Optional. Extra address ranges to treat as your home network, separated by commas, such as 192.168.1.0/24. Library already knows the usual home network addresses.</value>
+  </data>
+  <data name="ProfilesTab_HouseholdsAreManagedOn" xml:space="preserve">
+    <value>Households are created, renamed and removed on the Households page.</value>
+  </data>
+  <data name="ProfilesTab_OpenHouseholds" xml:space="preserve">
+    <value>Open Households</value>
+  </data>
+  <data name="VideoOptions_OnThisDevice" xml:space="preserve">
+    <value>On this device</value>
+  </data>
+  <data name="ManagedAccessApplications_PairedPhonesAndTVsAre" xml:space="preserve">
+    <value>Paired phones and TVs are listed on</value>
+  </data>
+  <data name="ManagedAccessApplications_OpenDevices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="SecurityTab_PasswordRecoveryEmail" xml:space="preserve">
+    <value>Password recovery email</value>
+  </data>
+  <data name="SecurityTab_SetUpInNotificationsChannelsEmail" xml:space="preserve">
+    <value>Set up in Notifications, Channels, Email</value>
+  </data>
+  <data name="SecurityTab_EmailNotConfigured" xml:space="preserve">
+    <value>Not configured.</value>
+  </data>
+  <data name="SecurityTab_EmailConfigured" xml:space="preserve">
+    <value>Configured.</value>
+  </data>
+  <data name="SecurityTab_EmailConfiguredNeedsAddress" xml:space="preserve">
+    <value>Configured. Reset links also need the public address above.</value>
+  </data>
+  <data name="RemoteAccessCheckStep_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="RemoteAccessCheckStep_CheckAgain" xml:space="preserve">
+    <value>Check again</value>
+  </data>
+  <data name="RemoteAccessCheckStep_Checking" xml:space="preserve">
+    <value>Checking your network</value>
+  </data>
+  <data name="RemoteAccessCheckStep_LookAddress" xml:space="preserve">
+    <value>Looking at the address your internet provider gives you</value>
+  </data>
+  <data name="RemoteAccessCheckStep_LookNetwork" xml:space="preserve">
+    <value>Looking at this server's network</value>
+  </data>
+  <data name="RemoteAccessCheckStep_LookRouter" xml:space="preserve">
+    <value>Looking at your router</value>
+  </data>
+  <data name="RemoteAccessCheckStep_LookTailscale" xml:space="preserve">
+    <value>Looking for Tailscale</value>
+  </data>
+  <data name="RemoteAccessCheckStep_Looking" xml:space="preserve">
+    <value>Looking now</value>
+  </data>
+  <data name="RemoteAccessCheckStep_OurSuggestion" xml:space="preserve">
+    <value>Our suggestion: {0}</value>
+  </data>
+  <data name="RemoteAccessCheckStep_SeeOptions" xml:space="preserve">
+    <value>See my options</value>
+  </data>
+  <data name="RemoteAccessCheckStep_StatusFail" xml:space="preserve">
+    <value>Not working</value>
+  </data>
+  <data name="RemoteAccessCheckStep_StatusInfo" xml:space="preserve">
+    <value>For your information</value>
+  </data>
+  <data name="RemoteAccessCheckStep_StatusOk" xml:space="preserve">
+    <value>All good</value>
+  </data>
+  <data name="RemoteAccessCheckStep_StatusWarn" xml:space="preserve">
+    <value>Needs a look</value>
+  </data>
+  <data name="RemoteAccessCheckStep_Unavailable" xml:space="preserve">
+    <value>The check could not run</value>
+  </data>
+  <data name="RemoteAccessCheckStep_UnavailableText" xml:space="preserve">
+    <value>Library could not read your network just now. Make sure the Engine is running, then choose Check again.</value>
+  </data>
+  <data name="RemoteAccessCheckStep_WhatWeFound" xml:space="preserve">
+    <value>What we found</value>
+  </data>
+  <data name="RemoteAccessChooseStep_AwayFromHome" xml:space="preserve">
+    <value>Away from home</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Best" xml:space="preserve">
+    <value>Best</value>
+  </data>
+  <data name="RemoteAccessChooseStep_ChooseOwnAddress" xml:space="preserve">
+    <value>Choose own address</value>
+  </data>
+  <data name="RemoteAccessChooseStep_ChooseTailscale" xml:space="preserve">
+    <value>Choose Tailscale</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Cost" xml:space="preserve">
+    <value>Cost</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Effort" xml:space="preserve">
+    <value>Effort</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Nobody" xml:space="preserve">
+    <value>Nobody</value>
+  </data>
+  <data name="RemoteAccessChooseStep_None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="RemoteAccessChooseStep_NotAvailable" xml:space="preserve">
+    <value>Not available</value>
+  </data>
+  <data name="RemoteAccessChooseStep_NotNow" xml:space="preserve">
+    <value>Not now</value>
+  </data>
+  <data name="RemoteAccessChooseStep_NotNowTag" xml:space="preserve">
+    <value>Keep Library at home only. You can come back any time.</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddress" xml:space="preserve">
+    <value>My own address</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressCost" xml:space="preserve">
+    <value>Free, a name costs about $10 a year</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressEffort" xml:space="preserve">
+    <value>Harder, 20+ min</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressPrivacy" xml:space="preserve">
+    <value>Public, password protected</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressRouter" xml:space="preserve">
+    <value>Yes, or a tunnel</value>
+  </data>
+  <data name="RemoteAccessChooseStep_OwnAddressTag" xml:space="preserve">
+    <value>A web address anyone you share it with can open, like Plex.</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Privacy" xml:space="preserve">
+    <value>Privacy</value>
+  </data>
+  <data name="RemoteAccessChooseStep_RouterChanges" xml:space="preserve">
+    <value>Router changes</value>
+  </data>
+  <data name="RemoteAccessChooseStep_SharedAddressWarning" xml:space="preserve">
+    <value>Your internet provider shares one public address between homes, so opening a door in your router will probably not work. A tunnel or proxy avoids that.</value>
+  </data>
+  <data name="RemoteAccessChooseStep_SmartTvs" xml:space="preserve">
+    <value>Works on smart TVs</value>
+  </data>
+  <data name="RemoteAccessChooseStep_StayAtHome" xml:space="preserve">
+    <value>Stay at home only</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Suggested" xml:space="preserve">
+    <value>Suggested for you</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Tailscale" xml:space="preserve">
+    <value>Tailscale</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleApp" xml:space="preserve">
+    <value>Everyone who connects</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleCost" xml:space="preserve">
+    <value>Free for home use</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleEffort" xml:space="preserve">
+    <value>Easy, about 5 min</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscalePrivacy" xml:space="preserve">
+    <value>Private, end to end</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleTag" xml:space="preserve">
+    <value>A private link between your devices. Nobody else can see your Library.</value>
+  </data>
+  <data name="RemoteAccessChooseStep_TailscaleTvs" xml:space="preserve">
+    <value>Some (needs app)</value>
+  </data>
+  <data name="RemoteAccessChooseStep_WhoNeedsApp" xml:space="preserve">
+    <value>Who needs an app</value>
+  </data>
+  <data name="RemoteAccessChooseStep_Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_AddressHelp" xml:space="preserve">
+    <value>Used for passkeys, linked sign-in and reset links.</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_HowReach" xml:space="preserve">
+    <value>How will the internet reach this server?</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_MayNotWork" xml:space="preserve">
+    <value>May not work</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_Proxy" xml:space="preserve">
+    <value>A proxy I run (Caddy, nginx, Traefik)</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_PublicAddress" xml:space="preserve">
+    <value>Your public web address</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_PublicAddressText" xml:space="preserve">
+    <value>Passkeys and reset links need it. It must start with https and have a trusted certificate that reaches this Dashboard.</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_PublicHttpsAddress" xml:space="preserve">
+    <value>Public HTTPS address</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_RouterDoor" xml:space="preserve">
+    <value>Open a door in my router</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_RouterDoorShared" xml:space="preserve">
+    <value>Your internet provider shares one public address between homes, so this will probably not work. Use a tunnel or a proxy instead.</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_RouterDoorText" xml:space="preserve">
+    <value>Library tries the automatic way first, then shows manual steps under Advanced. Does not work if your provider shares your address.</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_SaveAndVerify" xml:space="preserve">
+    <value>Save and verify</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_TestRemoteAccess" xml:space="preserve">
+    <value>Test remote access</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_Tunnel" xml:space="preserve">
+    <value>A tunnel (Cloudflare Tunnel)</value>
+  </data>
+  <data name="RemoteAccessOwnAddressStep_TunnelText" xml:space="preserve">
+    <value>No router changes, hides your home address. The tunnel's company sees the traffic, and a free plan may limit video: read their terms first.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_Blocked" xml:space="preserve">
+    <value>Continue stays off until the person who looks after Library has a password or passkey, so nobody gets locked out away from home. Set one, then choose Check again.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_EveryoneReady" xml:space="preserve">
+    <value>Everyone can sign in away from home</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_EveryoneReadyDetail" xml:space="preserve">
+    <value>Every profile has a password or passkey.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_HomeOnly" xml:space="preserve">
+    <value>Home only</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_NoPassword" xml:space="preserve">
+    <value>No password</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_Rule" xml:space="preserve">
+    <value>Away from home, every sign-in needs a password or passkey. Profiles without one will keep working at home but cannot sign in from outside.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_SetPassword" xml:space="preserve">
+    <value>Set a password</value>
+  </data>
+  <data name="RemoteAccessStartPage_AlreadyHaveProxy" xml:space="preserve">
+    <value>I already have a proxy or tunnel</value>
+  </data>
+  <data name="RemoteAccessStartPage_AtHomeWorking" xml:space="preserve">
+    <value>At home: working, no password needed</value>
+  </data>
+  <data name="RemoteAccessStartPage_AwayNotSetUp" xml:space="preserve">
+    <value>Away from home: not set up</value>
+  </data>
+  <data name="RemoteAccessStartPage_AwayNotSetUpText" xml:space="preserve">
+    <value>Want to watch or listen when you are not on your home network? We will check your network, suggest the easiest way, and walk you through it. It takes about 5 minutes.</value>
+  </data>
+  <data name="RemoteAccessStartPage_AwayOn" xml:space="preserve">
+    <value>Away from home: on</value>
+  </data>
+  <data name="RemoteAccessStartPage_ChangeHow" xml:space="preserve">
+    <value>Change how</value>
+  </data>
+  <data name="RemoteAccessStartPage_HomeText" xml:space="preserve">
+    <value>Phones, TVs and computers on your home network can open your Library right now. Nothing more to do.</value>
+  </data>
+  <data name="RemoteAccessStartPage_OnOwnAddress" xml:space="preserve">
+    <value>Library can be reached away from home at your own address, {0}. Outside sign-in always needs a password.</value>
+  </data>
+  <data name="RemoteAccessStartPage_OnOwnAddressNoName" xml:space="preserve">
+    <value>Your own address is the way in, but no web address is saved yet. Add it to finish.</value>
+  </data>
+  <data name="RemoteAccessStartPage_OnRouterDoor" xml:space="preserve">
+    <value>A door in your router is the way in. You can change it under Advanced. Outside sign-in always needs a password.</value>
+  </data>
+  <data name="RemoteAccessStartPage_OnTailscale" xml:space="preserve">
+    <value>Tailscale is the way in away from home. Outside sign-in always needs a password.</value>
+  </data>
+  <data name="RemoteAccessStartPage_SafetyText" xml:space="preserve">
+    <value>Outside access always needs a password. People without one can still use your Library at home. You will be asked about this in step 3.</value>
+  </data>
+  <data name="RemoteAccessStartPage_SafetyTitle" xml:space="preserve">
+    <value>Safety, before anything is switched on</value>
+  </data>
+  <data name="RemoteAccessStartPage_SetUp" xml:space="preserve">
+    <value>Set up away-from-home access</value>
+  </data>
+  <data name="RemoteAccessStartPage_TestAccess" xml:space="preserve">
+    <value>Test away-from-home access</value>
+  </data>
+  <data name="RemoteAccessStepper_Check" xml:space="preserve">
+    <value>Check</value>
+  </data>
+  <data name="RemoteAccessStepper_Choose" xml:space="preserve">
+    <value>Choose</value>
+  </data>
+  <data name="RemoteAccessStepper_Connect" xml:space="preserve">
+    <value>Connect</value>
+  </data>
+  <data name="RemoteAccessStepper_Passwords" xml:space="preserve">
+    <value>Passwords</value>
+  </data>
+  <data name="RemoteAccessStepper_Steps" xml:space="preserve">
+    <value>Steps to set up away-from-home access</value>
+  </data>
+  <data name="RemoteAccessStepper_Test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_CommandWhat" xml:space="preserve">
+    <value>the command</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_DownloadLink" xml:space="preserve">
+    <value>Open the Tailscale download page</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_Install" xml:space="preserve">
+    <value>Install Tailscale on this server</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_InstallDone" xml:space="preserve">
+    <value>Tailscale is installed on this server.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_InstallTodo" xml:space="preserve">
+    <value>Tailscale is not on this server yet. Install it, then choose Check again.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_Phone" xml:space="preserve">
+    <value>Install Tailscale on your phone or tablet</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_PhoneText" xml:space="preserve">
+    <value>Sign in with the same account. Scan this on your phone to get the app.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SecureAddress" xml:space="preserve">
+    <value>Turn on a private secure address</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SecureAddressDone" xml:space="preserve">
+    <value>Your private secure address is on.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SecureAddressTodo" xml:space="preserve">
+    <value>One command, run once on this computer. Turn on HTTPS for your Tailscale network first if it asks.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SendSteps" xml:space="preserve">
+    <value>Send me these steps</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SendStepsWhat" xml:space="preserve">
+    <value>the link to these steps</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_ServerTag" xml:space="preserve">
+    <value>On the server computer</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SignIn" xml:space="preserve">
+    <value>Sign in to Tailscale</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SignInDone" xml:space="preserve">
+    <value>Signed in to Tailscale.</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_SignInTodo" xml:space="preserve">
+    <value>Run this once on the server computer, then sign in in the window that opens.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_CopyAddress" xml:space="preserve">
+    <value>Copy address</value>
+  </data>
+  <data name="RemoteAccessOnPanel_CopyAddressWhat" xml:space="preserve">
+    <value>the address</value>
+  </data>
+  <data name="RemoteAccessOnPanel_ConfirmKeep" xml:space="preserve">
+    <value>Keep it on</value>
+  </data>
+  <data name="RemoteAccessOnPanel_ConfirmMessage" xml:space="preserve">
+    <value>No one will be able to reach Library from outside until you set it up again. Home keeps working, and nothing is deleted.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_ConfirmTitle" xml:space="preserve">
+    <value>Turn off away-from-home access?</value>
+  </data>
+  <data name="RemoteAccessOnPanel_ConfirmTurnOff" xml:space="preserve">
+    <value>Turn off</value>
+  </data>
+  <data name="RemoteAccessOnPanel_MethodLinkedAccount" xml:space="preserve">
+    <value>Linked account</value>
+  </data>
+  <data name="RemoteAccessOnPanel_MethodNoPassword" xml:space="preserve">
+    <value>No password</value>
+  </data>
+  <data name="RemoteAccessOnPanel_MethodPasskey" xml:space="preserve">
+    <value>Passkey</value>
+  </data>
+  <data name="RemoteAccessOnPanel_MethodPassword" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="RemoteAccessOnPanel_NoAddress" xml:space="preserve">
+    <value>Library does not know your away-from-home address yet. Finish the connection step first, then the code to try from your phone appears here.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_OffFailed" xml:space="preserve">
+    <value>Library could not turn it off. Make sure the Engine is running, then try again.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_OffText" xml:space="preserve">
+    <value>Turn off any time. Home keeps working.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_OffTitle" xml:space="preserve">
+    <value>Allow connections from outside</value>
+  </data>
+  <data name="RemoteAccessOnPanel_OpenAddress" xml:space="preserve">
+    <value>Open it here</value>
+  </data>
+  <data name="RemoteAccessOnPanel_PhoneIntro" xml:space="preserve">
+    <value>Scan this on your phone, away from your home Wi-Fi, to open your Library the way anyone outside would.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_PhoneTitle" xml:space="preserve">
+    <value>Try it from your phone</value>
+  </data>
+  <data name="RemoteAccessOnPanel_Refused" xml:space="preserve">
+    <value>Refused</value>
+  </data>
+  <data name="RemoteAccessOnPanel_RefusedPlain" xml:space="preserve">
+    <value>Refused.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignedIn" xml:space="preserve">
+    <value>Signed in</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignInsEmpty" xml:space="preserve">
+    <value>No one has signed in from outside yet. Try it from your phone and it appears here.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignInsLoading" xml:space="preserve">
+    <value>Reading the recent sign-ins.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignInsTitle" xml:space="preserve">
+    <value>Recent sign-ins from outside</value>
+  </data>
+  <data name="RemoteAccessOnPanel_SignInsUnavailable" xml:space="preserve">
+    <value>Library could not read the recent sign-ins. Make sure the Engine is running, then check again.</value>
+  </data>
+  <data name="RemoteAccessOnPanel_Today" xml:space="preserve">
+    <value>Today {0}</value>
+  </data>
+  <data name="RemoteAccessOnPanel_UnknownPerson" xml:space="preserve">
+    <value>A person who is no longer in Library</value>
+  </data>
+  <data name="RemoteAccessOnPanel_Yesterday" xml:space="preserve">
+    <value>Yesterday {0}</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_BlockedUnknown" xml:space="preserve">
+    <value>Library could not read who has a password, so Continue stays off. Make sure the Engine is running, then choose Check again.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_Unknown" xml:space="preserve">
+    <value>Not known</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_UnknownDetail" xml:space="preserve">
+    <value>Library needs to know who can sign in from outside before it lets you go on.</value>
+  </data>
+  <data name="RemoteAccessPasswordsStep_UnknownTitle" xml:space="preserve">
+    <value>Passwords could not be checked</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_PhoneLink" xml:space="preserve">
+    <value>Open the Tailscale download page</value>
+  </data>
+  <data name="RemoteAccessTailscaleSteps_ProxyPortNote" xml:space="preserve">
+    <value>Library now listens for Tailscale on port {0}. If this is the first time, restart Library once on the server computer so it starts listening there, then run the command below.</value>
+  </data>
+  <data name="RemoteAccessTestStep_Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="RemoteAccessTestStep_Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="RemoteAccessTestStep_Intro" xml:space="preserve">
+    <value>Library will ask the internet to reach it once, at the address you set up, and tell you what happened. It sends nothing else.</value>
+  </data>
+  <data name="RemoteAccessTestStep_NoAnswer" xml:space="preserve">
+    <value>The test could not run</value>
+  </data>
+  <data name="RemoteAccessTestStep_NoAnswerText" xml:space="preserve">
+    <value>Library could not ask the Engine to run the test. Make sure the Engine is running, then test again.</value>
+  </data>
+  <data name="RemoteAccessTestStep_Passed" xml:space="preserve">
+    <value>Passed</value>
+  </data>
+  <data name="RemoteAccessTestStep_Run" xml:space="preserve">
+    <value>Test from outside</value>
+  </data>
+  <data name="RemoteAccessTestStep_Skipped" xml:space="preserve">
+    <value>Skipped</value>
+  </data>
+  <data name="RemoteAccessTestStep_TestAgain" xml:space="preserve">
+    <value>Test again</value>
+  </data>
+  <data name="RemoteAccessTestStep_Testing" xml:space="preserve">
+    <value>Testing from outside</value>
+  </data>
+  <data name="RemoteAccessTestStep_TestingText" xml:space="preserve">
+    <value>Library is asking the internet to reach it.</value>
+  </data>
+  <data name="RemoteAccessTestStep_Title" xml:space="preserve">
+    <value>Test from outside</value>
+  </data>
+  <data name="RemoteAccessDomain_WhatThisMeans" xml:space="preserve">
+    <value>What this means</value>
+  </data>
+  <data name="RemoteAccessDomain_FixItForMe" xml:space="preserve">
+    <value>Fix it for me</value>
+  </data>
+  <data name="RemoteAccessDomain_StatusBroken" xml:space="preserve">
+    <value>Not working</value>
+  </data>
+  <data name="RemoteAccessDomain_StatusAttention" xml:space="preserve">
+    <value>Needs a look</value>
+  </data>
+  <data name="RemoteAccessDomain_StatusUnknown" xml:space="preserve">
+    <value>Not checked yet</value>
+  </data>
+  <data name="RemoteAccessDomain_FixFailed" xml:space="preserve">
+    <value>Library could not do that for you. Follow the step above instead.</value>
+  </data>
+  <data name="RemoteAccessDomain_FixDoneRestart" xml:space="preserve">
+    <value>Done. Restart Library once so it takes effect, then check again.</value>
+  </data>
+  <data name="RemoteAccessDomain_FixDone" xml:space="preserve">
+    <value>Done. Check again.</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_Question" xml:space="preserve">
+    <value>Do you own a web address?</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_Yes" xml:space="preserve">
+    <value>Yes, I own a domain</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_YesText" xml:space="preserve">
+    <value>Something like yourname.com. You will pick a front name for Library, such as library.yourname.com.</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_UseMine" xml:space="preserve">
+    <value>Use my domain</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_No" xml:space="preserve">
+    <value>No, I do not own one</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_NoText" xml:space="preserve">
+    <value>Library never buys a domain for you and never asks for your registrar login. Buy one from a registrar you trust, then come back.</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_HowToGetOne" xml:space="preserve">
+    <value>How to get a domain</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_PickName" xml:space="preserve">
+    <value>Pick the address for your Library</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_FrontName" xml:space="preserve">
+    <value>Front name</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_Domain" xml:space="preserve">
+    <value>Your domain</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_YourAddress" xml:space="preserve">
+    <value>Your Library will be at</value>
+  </data>
+  <data name="RemoteAccessDomainAddress_Problem" xml:space="preserve">
+    <value>That is not a web address Library can use. Use letters, numbers and dashes, and a domain such as yourname.com.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_ProxyText" xml:space="preserve">
+    <value>Caddy, nginx or Traefik on your server or another computer at home. Library makes the Caddy file for you.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TellTheInternet" xml:space="preserve">
+    <value>Tell the internet where your Library is</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelAccount" xml:space="preserve">
+    <value>Add {0} to your Cloudflare account</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelAccountText" xml:space="preserve">
+    <value>Sign in to Cloudflare and make a tunnel. Your domain's name servers must already be with Cloudflare.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelConnector" xml:space="preserve">
+    <value>Install the tunnel connector on the server computer</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelConnectorText" xml:space="preserve">
+    <value>Cloudflare shows you a command with your own token. Run it on the computer that runs Library.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CommandWhat" xml:space="preserve">
+    <value>the command</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelHostname" xml:space="preserve">
+    <value>Send {0} to Library</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelHostnameText" xml:space="preserve">
+    <value>In the tunnel, add a public hostname and point it at this address on the server computer.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_AddressWhat" xml:space="preserve">
+    <value>the address</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_TunnelWarning" xml:space="preserve">
+    <value>Cloudflare can see this traffic, and its free plan limits video. Many people prefer Tailscale for family.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyInstall" xml:space="preserve">
+    <value>Install Caddy</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyInstallText" xml:space="preserve">
+    <value>Get Caddy from caddyserver.com and install it. Library installs nothing for you.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyFile" xml:space="preserve">
+    <value>Name this file Caddyfile</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyFileText" xml:space="preserve">
+    <value>Your address is already filled in. Put the file in the folder Caddy starts from.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_Download" xml:space="preserve">
+    <value>Download the file</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CopyFile" xml:space="preserve">
+    <value>Copy the file</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_FileWhat" xml:space="preserve">
+    <value>the Caddy file</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyRun" xml:space="preserve">
+    <value>Start Caddy</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyRunText" xml:space="preserve">
+    <value>Caddy hands visitors to Library on port {0} of this computer.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyPorts" xml:space="preserve">
+    <value>Let ports 80 and 443 reach Caddy</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_CaddyPortsText" xml:space="preserve">
+    <value>In your router, forward ports 80 and 443 to the computer that runs Caddy. Caddy gets the secure certificate by itself.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterTry" xml:space="preserve">
+    <value>Ask your router to open the door</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterTryButton" xml:space="preserve">
+    <value>Try it for me</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterTryText" xml:space="preserve">
+    <value>Library asks the router to forward port 443 to this computer. Most home routers allow it; some do not.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterManual" xml:space="preserve">
+    <value>Or open it yourself</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterManualText" xml:space="preserve">
+    <value>In your router's settings, forward port 443 to this computer.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterProxy" xml:space="preserve">
+    <value>Point your name at your home address</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_RouterProxyText" xml:space="preserve">
+    <value>At the place you manage your domain, add a record that sends your Library's name to your home's public address.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_Live" xml:space="preserve">
+    <value>Your name reaches Library</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_LiveText" xml:space="preserve">
+    <value>Library checks that your name points here and answers.</value>
+  </data>
+  <data name="RemoteAccessDomainPoint_ShowSteps" xml:space="preserve">
+    <value>Show the steps</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_Title" xml:space="preserve">
+    <value>Secure it</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_Intro" xml:space="preserve">
+    <value>Visitors need a secure connection. Library checks that the certificate for your name is valid and renews.</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_RouterNote" xml:space="preserve">
+    <value>With a router door, Library asks for the certificate itself and renews it by itself.</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_TunnelNote" xml:space="preserve">
+    <value>Cloudflare provides and renews the certificate for you.</value>
+  </data>
+  <data name="RemoteAccessDomainSecure_CaddyNote" xml:space="preserve">
+    <value>Caddy gets and renews the certificate by itself while it runs.</value>
+  </data>
+  <data name="RemoteAccessDomainCheck_Title" xml:space="preserve">
+    <value>Check {0}</value>
+  </data>
+  <data name="RemoteAccessDomainCheck_AllGood" xml:space="preserve">
+    <value>All good. Your Library can be reached from outside.</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Steps" xml:space="preserve">
+    <value>Own address steps</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Point" xml:space="preserve">
+    <value>Point it here</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Secure" xml:space="preserve">
+    <value>Secure it</value>
+  </data>
+  <data name="RemoteAccessDomainWizard_Check" xml:space="preserve">
+    <value>Check</value>
+  </data>
+  <data name="RemoteAccessInvite_Title" xml:space="preserve">
+    <value>Share with friends</value>
+  </data>
+  <data name="RemoteAccessInvite_Intro" xml:space="preserve">
+    <value>Make a one-time invitation for a friend. They open it on their phone or computer and choose their own password. They see only the household and libraries you pick, and never get administration.</value>
+  </data>
+  <data name="RemoteAccessInvite_NotYet" xml:space="preserve">
+    <value>Set up a way in from outside first. Then you can invite a friend here.</value>
+  </data>
+  <data name="RemoteAccessInvite_Open" xml:space="preserve">
+    <value>Invite a friend</value>
+  </data>
+  <data name="RemoteAccessInvite_Name" xml:space="preserve">
+    <value>Their name</value>
+  </data>
+  <data name="RemoteAccessInvite_Email" xml:space="preserve">
+    <value>Their email</value>
+  </data>
+  <data name="RemoteAccessInvite_EmailHelp" xml:space="preserve">
+    <value>Identifies the invitation. Library does not send email by itself.</value>
+  </data>
+  <data name="RemoteAccessInvite_NewHousehold" xml:space="preserve">
+    <value>A new household for friends</value>
+  </data>
+  <data name="RemoteAccessInvite_Household" xml:space="preserve">
+    <value>Household</value>
+  </data>
+  <data name="RemoteAccessInvite_Libraries" xml:space="preserve">
+    <value>Libraries</value>
+  </data>
+  <data name="RemoteAccessInvite_NoLibraries" xml:space="preserve">
+    <value>No libraries</value>
+  </data>
+  <data name="RemoteAccessInvite_Lifetime" xml:space="preserve">
+    <value>The invitation works once and expires in 7 days.</value>
+  </data>
+  <data name="RemoteAccessInvite_Create" xml:space="preserve">
+    <value>Create invitation</value>
+  </data>
+  <data name="RemoteAccessInvite_Failed" xml:space="preserve">
+    <value>Library could not make the invitation. Try again.</value>
+  </data>
+  <data name="RemoteAccessInvite_SendByEmail" xml:space="preserve">
+    <value>Send by email</value>
+  </data>
+  <data name="RemoteAccessInvite_MailSubject" xml:space="preserve">
+    <value>Your invitation to my Library</value>
+  </data>
+  <data name="RemoteAccessInvite_MailBody" xml:space="preserve">
+    <value>I invited you to my Library. Open this link to get started: {0}</value>
+  </data>
+  <data name="RemoteAccessInvite_Cancel" xml:space="preserve">
+    <value>To cancel it before it is used, remove the sign-in under Users.</value>
+  </data>
+  <data name="RemoteAccessInvite_Another" xml:space="preserve">
+    <value>Invite another friend</value>
+  </data>
+  <data name="NotificationsMailServer_EmailServer" xml:space="preserve">
+    <value>Email server</value>
+  </data>
+  <data name="NotificationsMailServer_HelperLine" xml:space="preserve">
+    <value>The mail server Library sends email through. Alerts and password reset both use it.</value>
+  </data>
+  <data name="NotificationsMailServer_Loading" xml:space="preserve">
+    <value>Loading email settings</value>
+  </data>
+  <data name="NotificationsMailServer_GettingYourEmailSettings" xml:space="preserve">
+    <value>Getting your email settings.</value>
+  </data>
+  <data name="NotificationsMailServer_CouldNotLoad" xml:space="preserve">
+    <value>Could not load email settings</value>
+  </data>
+  <data name="NotificationsMailServer_TheLibraryCouldNotGetYourEmail" xml:space="preserve">
+    <value>Library could not get your email settings. Try again.</value>
+  </data>
+  <data name="NotificationsMailServer_MailProvider" xml:space="preserve">
+    <value>Email provider</value>
+  </data>
+  <data name="NotificationsMailServer_Encrypted" xml:space="preserve">
+    <value>encrypted</value>
+  </data>
+  <data name="NotificationsMailServer_NotEncrypted" xml:space="preserve">
+    <value>not encrypted</value>
+  </data>
+  <data name="NotificationsMailServer_ServerAddress" xml:space="preserve">
+    <value>Server address</value>
+  </data>
+  <data name="NotificationsMailServer_Port" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="NotificationsMailServer_EncryptTheConnection" xml:space="preserve">
+    <value>Encrypt the connection</value>
+  </data>
+  <data name="NotificationsMailServer_AppPasswordHelp" xml:space="preserve">
+    <value>Gmail and iCloud need an app password, not your normal password. Create one in your account's security settings, then paste it below.</value>
+  </data>
+  <data name="NotificationsMailServer_Username" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="NotificationsMailServer_UsernamePlaceholder" xml:space="preserve">
+    <value>Usually your email address</value>
+  </data>
+  <data name="NotificationsMailServer_Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="NotificationsMailServer_PasswordSaved" xml:space="preserve">
+    <value>Saved. Leave blank to keep it.</value>
+  </data>
+  <data name="NotificationsMailServer_PasswordHelp" xml:space="preserve">
+    <value>Kept on this computer and never shown again.</value>
+  </data>
+  <data name="NotificationsMailServer_SendAsName" xml:space="preserve">
+    <value>Send as (name)</value>
+  </data>
+  <data name="NotificationsMailServer_SendAsAddress" xml:space="preserve">
+    <value>Send as (address)</value>
+  </data>
+  <data name="NotificationsMailServer_SendTestToMe" xml:space="preserve">
+    <value>Send test to me</value>
+  </data>
+  <data name="NotificationsMailServer_SaveAfterTest" xml:space="preserve">
+    <value>Send a test first. Save turns on once it works.</value>
+  </data>
+  <data name="NotificationsMailServer_Saved" xml:space="preserve">
+    <value>Saved</value>
+  </data>
+  <data name="NotificationsMailServer_Other" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="NotificationsMailServer_TestCouldNotBeSent" xml:space="preserve">
+    <value>The test message could not be sent.</value>
+  </data>
+  <data name="NotificationsMailServer_CouldNotBeSaved" xml:space="preserve">
+    <value>The email settings could not be saved.</value>
+  </data>
+  <data name="NotificationChannelPicker_AddAChannel" xml:space="preserve">
+    <value>Add a channel</value>
+  </data>
+  <data name="NotificationChannelPicker_PickWhereMessagesShouldGo" xml:space="preserve">
+    <value>Pick where messages should go. You can add as many as you like.</value>
+  </data>
+  <data name="NotificationChannelPicker_Email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="NotificationChannelPicker_EmailSummary" xml:space="preserve">
+    <value>Free · any mail account · password reset uses it too</value>
+  </data>
+  <data name="NotificationChannelPicker_EmailIsSetUpUnderEmail" xml:space="preserve">
+    <value>Email is set up under Email server on this page. Alerts and password reset share it.</value>
+  </data>
+  <data name="NotificationChannelPicker_More" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="NotificationChannelPicker_Fewer" xml:space="preserve">
+    <value>Fewer</value>
+  </data>
+  <data name="NotificationChannelPicker_TheKindsOfChannelCouldNotBeLoaded" xml:space="preserve">
+    <value>The kinds of channel could not be loaded. Try again.</value>
+  </data>
+  <data name="NotificationChannelPicker_TheChannelCouldNotBeOpened" xml:space="preserve">
+    <value>That channel could not be opened. Try again.</value>
+  </data>
+  <data name="NotificationChannelForm_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="NotificationChannelForm_Optional" xml:space="preserve">
+    <value>optional</value>
+  </data>
+  <data name="NotificationChannelForm_SavedLeaveBlankToKeep" xml:space="preserve">
+    <value>Saved. Leave blank to keep it.</value>
+  </data>
+  <data name="NotificationChannelForm_SuggestANewOne" xml:space="preserve">
+    <value>Suggest a new one</value>
+  </data>
+  <data name="NotificationChannelForm_WhatLeavesYourComputer" xml:space="preserve">
+    <value>What leaves your computer:</value>
+  </data>
+  <data name="NotificationChannelForm_Remove" xml:space="preserve">
+    <value>Remove this channel</value>
+  </data>
+  <data name="NotificationChannelForm_TheChannelCouldNotBeSaved" xml:space="preserve">
+    <value>The channel could not be saved. Try again.</value>
+  </data>
+  <data name="NotificationChannelForm_TheChannelCouldNotBeRemoved" xml:space="preserve">
+    <value>The channel could not be removed. Try again.</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetails" xml:space="preserve">
+    <value>Include details</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetailsHelp" xml:space="preserve">
+    <value>Adds what happened, such as the plugin or tool involved. Off means only a short title is sent.</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetailsInEventsSent" xml:space="preserve">
+    <value>Include details in events sent to webhooks and plugins</value>
+  </data>
+  <data name="NotificationsPanel_IncludeDetailsInEventsSentHelp" xml:space="preserve">
+    <value>Plugins and webhooks you set up under Developer tools get only a short title unless this is on.</value>
+  </data>
+  <data name="NotificationsPanel_DailySummary" xml:space="preserve">
+    <value>Daily summary</value>
+  </data>
+  <data name="NotificationsPanel_DailySummaryHelp" xml:space="preserve">
+    <value>Calm updates, such as a finished backup or items waiting in Needs Review, are sent as one message a day instead of one by one. Anything that needs you still arrives at once.</value>
+  </data>
+  <data name="NotificationsPanel_SendADailySummary" xml:space="preserve">
+    <value>Send a daily summary</value>
+  </data>
+  <data name="NotificationsPanel_SendAt" xml:space="preserve">
+    <value>Send at</value>
+  </data>
+  <data name="EditorLyrics_Heading" xml:space="preserve">
+    <value>Lyrics</value>
+  </data>
+  <data name="EditorLyrics_None" xml:space="preserve">
+    <value>No song file to attach lyrics to.</value>
+  </data>
+  <data name="EditorLyrics_NoneChosen" xml:space="preserve">
+    <value>Lyrics from the song's tags or a file next to it, or none yet.</value>
+  </data>
+  <data name="EditorLyrics_NotSaved" xml:space="preserve">
+    <value>Those lyrics could not be saved.</value>
+  </data>
+  <data name="EditorLyrics_LookupFailed" xml:space="preserve">
+    <value>Other lyrics could not be looked up right now.</value>
+  </data>
+  <data name="PickResult_Synced" xml:space="preserve">
+    <value>Synced</value>
+  </data>
+  <data name="PickResult_WordsOnlyNotTimed" xml:space="preserve">
+    <value>Words only, not timed</value>
+  </data>
+  <data name="PickResult_FitsTheSong" xml:space="preserve">
+    <value>Fits the song</value>
+  </data>
+  <data name="PickResult_SecondsLongerThanSong" xml:space="preserve">
+    <value>{0} seconds longer than the song</value>
+  </data>
+  <data name="PickResult_SecondsShorterThanSong" xml:space="preserve">
+    <value>{0} seconds shorter than the song</value>
+  </data>
+  <data name="PickResult_MadeForYourFile" xml:space="preserve">
+    <value>Made for your file</value>
+  </data>
+  <data name="PickResult_DifferentReleaseMayBeOutOfStep" xml:space="preserve">
+    <value>A different release, may be out of step</value>
+  </data>
+  <data name="PickResult_FitsTheFilm" xml:space="preserve">
+    <value>Fits the film</value>
+  </data>
+  <data name="PickResult_EndsMinutesShortOfFilm" xml:space="preserve">
+    <value>Ends {0} minutes short of the film</value>
+  </data>
+  <data name="PickResult_EndsMinutesPastFilm" xml:space="preserve">
+    <value>Ends {0} minutes past the film</value>
+  </data>
+  <data name="PickResult_Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="PickResult_Reading" xml:space="preserve">
+    <value>Reading…</value>
+  </data>
+  <data name="PickResult_CouldNotRead" xml:space="preserve">
+    <value>Could not read this one</value>
+  </data>
+  <data name="PickResult_PanePrompt" xml:space="preserve">
+    <value>Choose a result to see its words.</value>
+  </data>
+  <data name="PickResult_PaneNotRead" xml:space="preserve">
+    <value>Select this result to read its first lines.</value>
+  </data>
+  <data name="PickResult_HearingImpaired" xml:space="preserve">
+    <value>Hearing impaired</value>
+  </data>
+  <data name="PickResult_UntitledResult" xml:space="preserve">
+    <value>Untitled result</value>
   </data>
 </root>

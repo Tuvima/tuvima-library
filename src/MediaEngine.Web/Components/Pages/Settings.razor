@@ -17,8 +17,9 @@
 @inject DashboardSessionAccessor Session
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 @inject DashboardIdentityClient Identity
-@inject AccountNoticeState Notices
+@inject IEngineApiClient EngineApi
 @inject SettingsAttentionState Attention
+@inject MediaEngine.Web.Services.Integration.IEngineApiClient EngineApi
 @inject DevelopmentToolsState DevelopmentTools
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
@@ -84,7 +85,8 @@ else
 
         <MediaEngine.Web.Components.Vault.VaultHiddenReminder />
 
-        <SettingsPageFrame Breadcrumbs="@Breadcrumbs"
+        <SettingsPageFrame BackHref="@BackLink?.Href"
+                           BackLabel="@BackLink?.Label"
                            Title="@GetHeroTitle()"
                            Description="@GetSectionDescription(_activeSection)"
                            Notices="@(ShowAttentionBanner ? AttentionBanner : null)"
@@ -232,7 +234,7 @@ else
                                 <GeneralPage Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Network:
-                                <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
+                                <NetworkRemoteAccessSettings Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Access:
                                 @if (_activeSubsection == SettingsNav.HouseholdsSubsection)
@@ -355,10 +357,14 @@ else
     private ElementReference _contentElement;
     private bool _scrollToTopPending;
     private bool _wasAdministrationRoute;
-    // A this-computer-only account has no password yet: its Security entry carries the attention dot until the person
-    // chooses Not now on the Secure your account card (remembered with the account); Security then shows a quiet note instead.
+    // An account without a password works on the whole home network, so having none is a normal setup and never raises the dot.
+    // The Security entry carries it only while something really needs doing: outside access is on and there is no password
+    // (SecureAccountPrompt.SecurityNeedsAttention). Outside access is read once and followed when the Network page changes it.
     private bool _thisComputerOnly;
-    private bool ShowSecurityAttentionDot => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
+    // Profile's Linked accounts tab is listed only while an installed plugin asks this profile to link an account.
+    private bool _accountsOffered;
+    private bool _outsideAccessOn;
+    private bool ShowSecurityAttentionDot => SecureAccountPrompt.SecurityNeedsAttention(_thisComputerOnly, _outsideAccessOn);
     private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
     private SettingsMenuContext MenuContext => new(
         CanManageAdministration,
@@ -371,7 +377,8 @@ else
         Attention.AiFeaturesOn,
         Attention.IntegrationsBroken,
         ToolsMissingReason,
-        _restricted);
+        _restricted,
+        _accountsOffered);
 
     // Red on Tools and requirements only for a required tool that is missing or broken; one being downloaded is not a problem.
     private string? ToolsMissingReason => Attention.MissingTools switch
@@ -424,7 +431,7 @@ else
 
     // The page's Advanced tab is open: the frame draws the one warning line first.
     private bool IsAdvancedTabOpen => CurrentLocation?.Tab?.IsAdvanced == true && !IsMobileRouteUnavailable;
-    private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
+    private SettingsBackLink? BackLink => BuildBackLink();
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
 
@@ -462,51 +469,29 @@ else
     private bool IsMobileRouteUnavailable =>
         DeviceContext.IsMobile
         && !SettingsNav.IsMobileRouteAvailable(_activeSection, _activeSubsection, Detail);
-    private string PageCanvasClass => string.Join(" ", new[]
-    {
-        "settings-page-canvas",
-        "settings-admin-panel",
-        DeviceContext.IsMobile && SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.SummaryOnly
-            ? "settings-mobile-summary"
-            : null,
-    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string PageCanvasClass => "settings-page-canvas settings-admin-panel";
     // Always the page this person is on (a page the phone menu leaves out is added to the list), never a fallback page.
     private string MobileNavigationValue => SettingsMenuBuilder.PhoneSelectorRoute(SettingsNavigationGroups, _activeSection);
     private bool IsMobileNavigationOptionSelected(string route) =>
         string.Equals(route, MobileNavigationValue, StringComparison.OrdinalIgnoreCase);
 
-    private string MobileUnavailableMessage => SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.DesktopOnly
-        ? $"{GetHeroTitle()} is intentionally withheld from mobile because it contains complex configuration or diagnostic tools. Use a desktop or tablet for this workflow."
-        : $"This part of {GetHeroTitle()} contains configuration or diagnostic tools that are safer and easier to use on a desktop or tablet. The mobile overview remains available.";
-    private string MobileFallbackRoute => SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.DesktopOnly
-        ? SettingsNav.RouteFor(SettingsSection.AdminOverview)
-        : SettingsNav.RouteFor(_activeSection);
+    // Only Developer Tools is withheld on a phone; every other Settings page works there (look-pass-v3-2 D3).
+    private string MobileUnavailableMessage =>
+        $"{GetHeroTitle()} is a developer page. Use a desktop or tablet for it.";
+    private string MobileFallbackRoute => SettingsNav.RouteFor(SettingsSection.AdminOverview);
 
     // The administrator banner sits above the breadcrumb on every Settings page; it draws nothing for anyone else or on a phone.
     private bool ShowAttentionBanner => Attention.IsServerAdministrator && !DeviceContext.IsMobile;
     private RenderFragment AttentionBanner => @<SettingsAttentionBanner />;
 
-    // Permanent page notices cannot be dismissed. Local AI shows its notice on every sub-page while it is blocked; Network
-    // shows its notice while remote access is not set up (reported by the Network page, which already reads that setting).
-    // Like the banner, neither is drawn on a phone.
+    // The permanent page notice cannot be dismissed: Local AI shows it on every sub-page while it is blocked. Like the banner, it
+    // is not drawn on a phone. Network has none: home working is the normal state, and Remote access says where it stands itself.
     private RenderFragment LocalAiNotice => @<LocalAiBlockedNotice />;
-    private RenderFragment RemoteAccessNotice => @<RemoteAccessOffNotice />;
-    private bool _remoteAccessOff;
     private RenderFragment? PageNoticeFragment => DeviceContext.IsMobile ? null : _activeSection switch
     {
         SettingsSection.LocalAi => LocalAiNotice,
-        SettingsSection.Network when _remoteAccessOff => RemoteAccessNotice,
         _ => null,
     };
-
-    private void OnRemoteAccessOffChanged(bool off)
-    {
-        if (_remoteAccessOff != off)
-        {
-            _remoteAccessOff = off;
-            StateHasChanged();
-        }
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -526,13 +511,14 @@ else
         }
 
         var developmentTools = LoadDevelopmentToolsAsync();
+        var accounts = LoadAccountsOfferedAsync();
         await LoadShellStateAsync();
         await developmentTools;
+        await accounts;
 
         Attention.Changed += OnAttentionChanged;
         LibraryKinds.Changed += OnAttentionChanged;
         Nsfw.Changed += OnAttentionChanged;
-        Notices.Changed += OnNoticesChanged;
         Orchestrator.OnProfileChanged += OnProfileChanged;
         DeviceContext.OnChanged += OnDeviceContextChanged;
 
@@ -595,7 +581,6 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        Notices.Changed -= OnNoticesChanged;
         Attention.Changed -= OnAttentionChanged;
         LibraryKinds.Changed -= OnAttentionChanged;
         Nsfw.Changed -= OnAttentionChanged;
@@ -642,6 +627,21 @@ else
         _shellStateLoading = false;
     }
 
+    // Any profile may link accounts, so the Engine's list of plugin connections is read for everyone; a list that cannot be read offers none.
+    private async Task LoadAccountsOfferedAsync()
+    {
+        try
+        {
+            var connections = await EngineApi.GetPluginConnectionsAsync();
+            _accountsOffered = connections?.Plugins.Any(plugin => plugin.Connections.Count > 0) == true;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not read which plugins offer a linked account");
+            _accountsOffered = false;
+        }
+    }
+
     // Only a server administrator is shown the Developer group, so only then is the Engine asked what it offers there.
     // It is asked beside the slower system status read, so the menu and the two development pages never wait for it.
     private async Task LoadDevelopmentToolsAsync()
@@ -666,7 +666,11 @@ else
         {
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
             _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly(principal);
-            if (_thisComputerOnly) await Notices.EnsureLoadedAsync();
+            if (_thisComputerOnly)
+            {
+                var network = await EngineApi.GetNetworkSettingsAsync();
+                _outsideAccessOn = network is not null && SecureAccountPrompt.OutsideAccessIsOn(network.Remote.ConnectionMode);
+            }
             Session.InitializeFromPrincipal(principal);
             await Identity.EnsureInitialAuthorityAsync(Session);
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
@@ -875,71 +879,34 @@ else
         }
     }
 
-    private IReadOnlyList<SettingsBreadcrumb> BuildBreadcrumbs()
+    // A page below a Settings page keeps one link back to its parent; every other page has none (settings-alignment D1).
+    private SettingsBackLink? BuildBackLink()
     {
-        var breadcrumbs = new List<SettingsBreadcrumb>
-        {
-            new("Settings", SettingsNav.RouteFor(SettingsSection.Overview)),
-        };
-
-        // Settings > Group > Page > Tab, straight from the menu. Every step is a link except the last, which is where you are.
         var location = CurrentLocation;
         var pageLabel = location?.Page.Label ?? GetHeroTitle();
-        // A group with one page of the same name (System, Developer) is not said twice.
-        if (!string.Equals(CurrentGroup.Label, pageLabel, StringComparison.Ordinal))
-        {
-            breadcrumbs.Add(new SettingsBreadcrumb(
-                CurrentGroup.Label,
-                SettingsNav.RouteFor(CurrentGroup.DefaultSection)));
-        }
-
         var pageRoute = location?.Page.Route ?? SettingsNav.RouteFor(_activeSection);
-        var steps = new List<SettingsBreadcrumb> { new(pageLabel, pageRoute) };
 
         if (_activeSection == SettingsSection.Libraries)
         {
-            // Libraries > Watch > Movies: the page is Libraries, so it is a link once the page is deeper.
+            // Libraries > Watch > Movies: one step up is the previous level.
             var levels = LibrariesLevel.Crumbs;
-            foreach (var level in levels.Skip(1))
-                steps.Add(new SettingsBreadcrumb(level.Label, level.Href));
-        }
-        else if (IsPluginDetailRoute)
-        {
-            steps.Add(new SettingsBreadcrumb(_pluginBreadcrumbName ?? "Plugin", null));
-        }
-        else if (IsIntegrationDetailRoute)
-        {
-            steps.Add(new SettingsBreadcrumb(_integrationBreadcrumbName ?? "Integration", null));
-        }
-        else if (IsProfileDetailRoute)
-        {
-            steps.Add(new SettingsBreadcrumb(_profileBreadcrumbName ?? "Profile", $"/settings/profiles/{ProfileDetailId:D}"));
-            if (ProfileTab.Length > 0)
-                steps.Add(new SettingsBreadcrumb(ProfileTab == "access" ? "Access & safety" : "Preferences", null));
-        }
-        else
-        {
-            var leaf = location?.Tab is { } leafTab ? TabLabel(leafTab) : location?.Leaf;
-            if (leaf is not null && !string.Equals(leaf, pageLabel, StringComparison.Ordinal))
-                steps.Add(new SettingsBreadcrumb(leaf, location?.Tab?.Route ?? SettingsNav.RouteFor(_activeSection)));
-            if (!string.IsNullOrWhiteSpace(Detail))
-                steps.Add(new SettingsBreadcrumb(GetDetailBreadcrumbLabel(), null));
+            return levels.Count > 1 && levels[^2].Href is { } up ? new SettingsBackLink(levels[^2].Label, up) : null;
         }
 
-        steps[^1] = steps[^1] with { Href = null };
-        breadcrumbs.AddRange(steps);
-        return breadcrumbs;
+        if (IsPluginDetailRoute || IsIntegrationDetailRoute)
+            return new SettingsBackLink(pageLabel, pageRoute);
+
+        if (IsProfileDetailRoute)
+        {
+            return ProfileTab.Length > 0
+                ? new SettingsBackLink(_profileBreadcrumbName ?? "Profile", $"/settings/profiles/{ProfileDetailId:D}")
+                : new SettingsBackLink(pageLabel, pageRoute);
+        }
+
+        return !string.IsNullOrWhiteSpace(Detail)
+            ? new SettingsBackLink(location?.Tab is { } tab ? TabLabel(tab) : pageLabel, location?.Tab?.Route ?? pageRoute)
+            : null;
     }
-
-    private string GetDetailBreadcrumbLabel() => _activeSection switch
-    {
-        SettingsSection.Libraries => "Libraries",
-        _ => FormatRouteLabel(Detail!),
-    };
-
-    private static string FormatRouteLabel(string value) =>
-        System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(value.Replace('-', ' '));
-
 
     private string GetHeroTitle()
     {
@@ -983,9 +950,8 @@ else
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => _activeSubsection switch
         {
-            "models" => "Choose the resource profile, check this machine and manage the model files.",
             SettingsNav.AdvancedSubsection => "Runtime limits, the plugin allowance and what Local AI has done lately.",
-            _ => "Manage local intelligence features while keeping technical details out of the way.",
+            _ => "How Local AI is doing, which resource profile it uses and its model files.",
         },
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
         SettingsSection.Playback => _activeSubsection switch

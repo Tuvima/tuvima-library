@@ -40,6 +40,12 @@ public static class MediaTileLabels
     {
         ArgumentNullException.ThrowIfNull(item);
 
+        // A playlist says what it is and how much it holds ("Playlist · 48 songs"); the plain count is the fallback.
+        if (item.IsPlaylist)
+        {
+            return string.IsNullOrWhiteSpace(item.TypeLine) ? GroupCount(item) : item.TypeLine;
+        }
+
         // A person counts what they have ("11 albums", "9 films"); a person tile never says "Kept".
         if (item.Person is not null)
         {
@@ -75,10 +81,21 @@ public static class MediaTileLabels
             return $"{counts[0].Count} {counts[0].Label.ToLowerInvariant()}";
         }
 
-        var total = counts.Count > 1
+        var total = GroupTotal(item);
+        return total > 0 ? $"{total} {(total == 1 ? "title" : "titles")}" : null;
+    }
+
+    /// <summary>
+    /// How many titles a group holds: the sum of its counts, or its owned or previewed total when it has no counts. The same number the
+    /// count label says, so the collage's "+N" chip never disagrees with it.
+    /// </summary>
+    public static int GroupTotal(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var counts = item.MediaCounts.Where(count => count.Count > 0).ToList();
+        return counts.Count > 0
             ? counts.Sum(count => count.Count)
             : item.GroupSummary?.OwnedCount ?? item.PreviewTotalCount ?? 0;
-        return total > 0 ? $"{total} {(total == 1 ? "title" : "titles")}" : null;
     }
 
     /// <summary>
@@ -135,6 +152,78 @@ public static class MediaTileLabels
         }
 
         return $"S{episode.SeasonNumber} E{episode.EpisodeNumber}";
+    }
+
+    /// <summary>
+    /// The first row of a Continue tile (review mock-ups D6): an episode reads "S1 E1: Title" (a video from a Videos library keeps its own
+    /// number and title), anything else its title. An episode with no title of its own says just the code.
+    /// </summary>
+    public static string ContinueHeading(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (item.EpisodeContext is not { } episode)
+        {
+            return item.Title;
+        }
+
+        if (VideoFolderWording.IsVideoItemMediaType(item.MediaKind))
+        {
+            return EpisodeHeading(item, episode);
+        }
+
+        var code = EpisodeCode(item, episode);
+        if (string.IsNullOrWhiteSpace(episode.EpisodeTitle))
+        {
+            return code ?? episode.ShowTitle;
+        }
+
+        return string.IsNullOrWhiteSpace(code) ? episode.EpisodeTitle : $"{code}: {episode.EpisodeTitle}";
+    }
+
+    /// <summary>
+    /// The second row of a Continue tile (review mock-ups D6): the type in words, then the content rating, then the year ("Film · R · 2023", "Book · 2017"); parts that are not known are left out,
+    /// null when there is none. Never a star rating, never the progress.
+    /// </summary>
+    public static string? ContinueSecondLine(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var parts = new[] { TypeWord(item), item.ContentRating?.Trim(), YearText(item) }.Where(part => !string.IsNullOrWhiteSpace(part));
+        var line = string.Join(" · ", parts);
+        return line.Length == 0 ? null : line;
+    }
+
+    /// <summary>
+    /// What a title is, in words, for the description line under a tile ("Film", "Episode", "Book", "Audiobook"): one rule for every kind,
+    /// so no tile carries a type label on its picture and no page uses icons for it (issue 1193). Null when the kind is not known.
+    /// </summary>
+    public static string? TypeWord(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (item.EpisodeContext is not null)
+        {
+            return VideoFolderWording.IsVideoItemMediaType(item.MediaKind) ? "Video" : "Episode";
+        }
+
+        return (item.MediaKind ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "movie" or "movies" => "Film",
+            "tv" => "Show",
+            "book" or "books" => "Book",
+            "audiobook" or "audiobooks" => "Audiobook",
+            "comic" or "comics" => "Comic",
+            "music" => item.Presentation == MediaTilePresentation.Album ? "Album" : "Song",
+            "video" or "videos" => "Video",
+            _ => null,
+        };
+    }
+
+    /// <summary>The percent complete a Continue tile wears as a small badge ("42%"), or null when nothing real has been done yet.</summary>
+    public static string? ContinuePercent(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return item.ProgressPct is > 0 and < 99.5
+            ? $"{Math.Round(item.ProgressPct.Value).ToString(System.Globalization.CultureInfo.InvariantCulture)}%"
+            : null;
     }
 
     /// <summary>The noun for what a group holds, singular for one.</summary>

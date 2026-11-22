@@ -18,7 +18,7 @@
         <span class="app-reorder-bar__message">@(Message ?? L["AppReorderBar_Hint"].Value)</span>
         <div class="app-reorder-bar__buttons">
             <AppButton Label="@L["AppReorderBar_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="CancelAsync" data-reorder-cancel="true" />
-            <AppButton Label="@L["AppReorderBar_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+            <AppButton Label="@(SaveLabel ?? L["AppReorderBar_Save"].Value)" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                        Loading="@Busy" Disabled="@(Busy || !Dirty)" OnClick="SaveAsync" data-reorder-save="true" />
         </div>
     </div>
@@ -42,6 +42,9 @@
     /// universal editor, turns this off so the person is asked once.
     /// </summary>
     [Parameter] public bool GuardLeaving { get; set; } = true;
+
+    /// <summary>The Save button's words; "Save" when empty (a sorted playlist says "Keep this order").</summary>
+    [Parameter] public string? SaveLabel { get; set; }
 
     /// <summary>The line on the left; "Drag to reorder" when empty.</summary>
     [Parameter] public string? Message { get; set; }

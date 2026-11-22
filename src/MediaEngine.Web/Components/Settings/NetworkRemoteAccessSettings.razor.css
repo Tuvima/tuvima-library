@@ -11,8 +11,6 @@
     gap: var(--tl-space-4, 16px);
 }
 
-.network-settings ::deep .network-panel__heading,
-.network-settings ::deep .network-panel__actions,
 .network-settings ::deep .network-card-actions,
 .network-settings ::deep .network-danger-row {
     display: flex;
@@ -21,40 +19,15 @@
     gap: var(--tl-space-3, 12px);
 }
 
-.network-settings ::deep .network-panel__heading h3,
-.network-settings ::deep .network-panel__heading p,
 .network-settings ::deep .network-supporting-copy {
     margin: 0;
 }
 
-.network-settings ::deep .network-panel__heading h3 { color: var(--tl-text-primary); font-size: var(--tl-type-subheading-size); }
-.network-settings ::deep .network-panel__heading p,
 .network-settings ::deep .network-supporting-copy { color: var(--tl-text-muted); font-size: var(--tl-type-secondary-size); }
 
-.network-settings ::deep .network-status-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--tl-space-3, 12px);
-    margin-top: var(--tl-space-4, 16px);
-}
-
-.network-settings ::deep .network-status-card {
-    min-width: 0;
-    padding: 16px;
-    border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--tl-radius-md, 10px);
-    background: color-mix(in srgb, var(--tl-bg-surface-raised) 78%, transparent);
-}
-
-.network-settings ::deep .network-status-card__label { display: flex; align-items: center; gap: 8px; color: var(--tl-text-secondary); font-size: var(--tl-type-caption-size); }
-.network-settings ::deep .network-status-card__label .tl-icon-root { font-size: var(--tl-icon-size-sm); }
-.network-settings ::deep .network-status-card__value { display: block; margin-top: 12px; color: var(--tl-text-primary); font-size: var(--tl-type-subheading-size); }
-.network-settings ::deep .network-status-card__value.is-healthy,
-.network-settings ::deep .network-status-card__value.is-available,
-.network-settings ::deep .network-status-card__value.is-enabled { color: var(--tl-status-success); }
-
-.network-settings ::deep .network-status-card__value.is-unavailable { color: var(--tl-status-warning); }
-.network-settings ::deep .network-status-card p { min-height: 2.4em; margin: 8px 0 0; color: var(--tl-text-muted); font-size: var(--tl-type-caption-size); line-height: 1.4; }
+/* The one status line: the words on the left, Test connection beside it on the right (stacked on a phone). */
+.network-settings ::deep .network-status-line { display: flex; align-items: center; justify-content: space-between; gap: var(--tl-space-3, 12px); flex-wrap: wrap; }
+.network-settings ::deep .network-status-line__text { margin: 0; min-width: 0; flex: 1 1 20ch; color: var(--tl-text-primary); overflow-wrap: anywhere; }
 
 .network-settings ::deep .network-facts {
     display: grid;
@@ -72,15 +45,6 @@
 .network-settings ::deep .network-summary-alert span { display: block; }
 .network-settings ::deep .network-summary-alert span { margin-top: 3px; font-size: var(--tl-type-secondary-size); }
 
-.network-settings ::deep .network-mode-list { display: grid; gap: 8px; margin-top: 12px; }
-.network-settings ::deep .network-mode-option { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 12px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); cursor: pointer; }
-.network-settings ::deep .network-mode-option:has(input:checked) { border-color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-accent-primary) 9%, transparent); }
-.network-settings ::deep .network-mode-option span,
-.network-settings ::deep .network-mode-option strong,
-.network-settings ::deep .network-mode-option small,
-.network-settings ::deep .network-mode-option em { display: block; }
-.network-settings ::deep .network-mode-option small { margin-top: 3px; color: var(--tl-text-muted); font-style: normal; }
-.network-settings ::deep .network-mode-option em { margin-top: 5px; color: var(--tl-status-warning); font-size: var(--tl-type-caption-size); }
 .network-settings ::deep .network-manual-rule { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
 .network-settings ::deep .network-manual-rule > div { padding: 10px 12px; border-bottom: 1px solid var(--tl-border-subtle); }
 .network-settings ::deep .network-manual-rule dt { color: var(--tl-text-muted); font-size: var(--tl-type-caption-size); }
@@ -119,17 +83,13 @@
 .network-settings ::deep .network-port-dialog__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 
 @media (max-width: 960px) {
-    .network-settings ::deep .network-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .network-settings ::deep .network-setting-row,
     .network-settings ::deep .network-setting-rows > .app-switch-row { grid-template-columns: 1fr; gap: 10px; }
 }
 
 @media (max-width: 600px) {
-    .network-settings ::deep .network-status-grid,
     .network-settings ::deep .network-facts,
     .network-settings ::deep .network-port-dialog__fields { grid-template-columns: 1fr; }
-    .network-settings ::deep .network-panel__heading,
-    .network-settings ::deep .network-panel__actions,
     .network-settings ::deep .network-danger-row { align-items: stretch; flex-direction: column; }
     .network-settings ::deep .network-advanced-card__body { padding-left: 0; }
 }

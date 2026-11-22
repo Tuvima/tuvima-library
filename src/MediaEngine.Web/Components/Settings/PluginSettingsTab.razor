@@ -280,39 +280,33 @@ else
     }
 
     private RenderFragment PluginsListPage() => @<div class="settings-plugin-page">
-        @if (!DeviceContext.IsMobile)
-        {
-            <AppListPageHeader>
-                <Actions>
-                    <AppButton Label="Upload plugin" StartIcon="@AppMaterialIcons.Outlined.UploadFile" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => _uploadOpen = true)" />
-                </Actions>
-            </AppListPageHeader>
-        }
+        <AppListPageHeader>
+            <Actions>
+                <AppButton Label="Upload plugin" StartIcon="@AppMaterialIcons.Outlined.UploadFile" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => _uploadOpen = true)" />
+            </Actions>
+        </AppListPageHeader>
         <PluginUploadDialog Open="@_uploadOpen" OnClosed="@(() => { _uploadOpen = false; })" OnUploaded="@UploadedAsync" />
         @if (_plugins.Count == 0)
         {
-            <AppEmptyState Title="No plugins installed" Message="The Engine did not return any installed extensions.">
+            <AppEmptyState Title="No plugins installed" Message="The server did not return any installed extensions.">
                 <Action><AppButton Label="Read the plugins guide" Href="@(ProjectLinks.DocsSite + "guides/developer-tools/")" Target="_blank" Size="AppControlSize.Compact" /></Action>
             </AppEmptyState>
         }
         else
         {
-            @if (!DeviceContext.IsMobile)
-            {
-                <AppSearchFilterRow Search="@_search"
-                                    SearchChanged="@(value => Narrow(() => _search = value))"
-                                    Placeholder="@L["PluginSettingsTab_SearchPluginsByNameOr"].Value"
-                                    Narrowed="@Narrowed"
-                                    OnClear="@ClearFilters">
-                    <AppTickMenu Label="Status" Options="@StatusOptions" Selected="@_statusTicks"
-                                 SelectedChanged="@(ticks => Narrow(() => _statusTicks = ticks))" />
-                    <AppTickMenu Label="Show" Options="@ShowOptions" Selected="@_showTicks"
-                                 SelectedChanged="@(ticks => Narrow(() => _showTicks = ticks))" />
-                    <AppSelect Label="Sort" HideLabel="true" Value="@_sort" Options="@SortOptions" Native="true" FullWidth="false"
-                               ValueChanged="@(value => Narrow(() => _sort = value ?? "name"))" />
-                    <AppLayoutSwitch StorageKey="tuvima.plugins.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Plugins layout" />
-                </AppSearchFilterRow>
-            }
+            <AppSearchFilterRow Search="@_search"
+                                SearchChanged="@(value => Narrow(() => _search = value))"
+                                Placeholder="@L["PluginSettingsTab_SearchPluginsByNameOr"].Value"
+                                Narrowed="@Narrowed"
+                                OnClear="@ClearFilters">
+                <AppTickMenu Label="Status" Options="@StatusOptions" Selected="@_statusTicks"
+                             SelectedChanged="@(ticks => Narrow(() => _statusTicks = ticks))" />
+                <AppTickMenu Label="Show" Options="@ShowOptions" Selected="@_showTicks"
+                             SelectedChanged="@(ticks => Narrow(() => _showTicks = ticks))" />
+                <AppSelect Label="Sort" HideLabel="true" Value="@_sort" Options="@SortOptions" Native="true" FullWidth="false"
+                           ValueChanged="@(value => Narrow(() => _sort = value ?? "name"))" />
+                <AppLayoutSwitch StorageKey="tuvima.plugins.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Plugins layout" />
+            </AppSearchFilterRow>
             <AppCountTabs Tabs="@CategoryTabs()" Selected="@_categoryTab" AriaLabel="Plugin categories"
                           SelectedChanged="@(key => Narrow(() => _categoryTab = key))" />
             var visible = VisiblePlugins();
@@ -386,19 +380,13 @@ else
         }
 
         var status = StatusOf(plugin);
-        var canChange = !DeviceContext.IsMobile;
-        // The File tab is for a computer (the same rule as editing an item); on a tablet or phone it is absent (v6 D65).
-        var canSeeFile = MediaEngine.Web.Services.Editing.EditorDeviceRule.CanEdit(DeviceContext);
-        var tab = DetailTab switch { "activity" => "activity", "file" when canSeeFile => "file", _ => "setup" };
+        var tab = DetailTab switch { "activity" => "activity", "file" => "file", _ => "setup" };
         var tabs = new List<AppCountTab>
         {
             new("setup", "Set up", null, AppMaterialIcons.Outlined.Tune, DetailHref(plugin.Id, "setup")),
             new("activity", "Activity", null, AppMaterialIcons.Outlined.History, DetailHref(plugin.Id, "activity")),
+            new("file", "File", null, AppMaterialIcons.Outlined.InsertDriveFile, DetailHref(plugin.Id, "file")),
         };
-        if (canSeeFile)
-        {
-            tabs.Add(new("file", "File", null, AppMaterialIcons.Outlined.InsertDriveFile, DetailHref(plugin.Id, "file")));
-        }
 
         // One shared frame draws the header, status sentence and tabs for every plugin and integration page (v6 D60, D69).
         return @<AppDetailPageFrame Title="@plugin.Name"
@@ -413,7 +401,7 @@ else
                 @if (IsOfficial(plugin)) { <AppOfficialPill IconSize="16" Text="Official" /> }
             </TitleExtra>
             <Actions>
-                @if (canChange && SwitchState(plugin, canChange) is { } on)
+                @if (SwitchState(plugin) is { } on)
                 {
                     <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))"
                                   Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
@@ -474,7 +462,6 @@ else
             @* One generator draws every plugin's page from the page model the Engine builds out of the plugin's JSON (v5 D46). *@
             <PluginSetupPage Plugin="@plugin"
                              Section="@section"
-                             CanChange="@(!DeviceContext.IsMobile)"
                              Attention="@attentionAsked"
                              ToolMissing="@(missing is not null)"
                              LocalAiBlocked="@(plugin.RequiresLocalAi && Attention.LocalAiBlocked)"
@@ -513,7 +500,7 @@ else
                     </td>
                     <td><PluginProvidesLine Plugin="@plugin" /></td>
                     <td>
-                        @if (SwitchState(plugin, true) is { } on)
+                        @if (SwitchState(plugin) is { } on)
                         {
                             <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))" Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
                         }
@@ -530,8 +517,6 @@ else
     private RenderFragment PluginCard(PluginSummaryResponse plugin)
     {
         var status = StatusOf(plugin);
-        // Phones read the cards; switching and configuring plugins stays on desktop and tablet.
-        var canChange = !DeviceContext.IsMobile;
         return @<AppListCard Title="@plugin.Name"
                              Description="@plugin.ShortDescription"
                              DescriptionTitle="@plugin.LongDescription"
@@ -540,7 +525,7 @@ else
                              data-health="@WordOf(plugin).ToString().ToLowerInvariant()">
             <Logo>@TileLogo(plugin, 40)</Logo>
             <Aside>
-                @if (SwitchState(plugin, canChange) is { } on)
+                @if (SwitchState(plugin) is { } on)
                 {
                     <AppSwitchRow Value="@on"
                                   ValueChanged="@(value => SetEnabledAsync(plugin, value))"
@@ -676,9 +661,9 @@ else
         string.Equals(status.HealthStatus, "Down", StringComparison.OrdinalIgnoreCase)
         || string.Equals(status.ConnectionStatus, "failed", StringComparison.OrdinalIgnoreCase);
 
-    private bool? SwitchState(PluginSummaryResponse plugin, bool canChange)
+    private bool? SwitchState(PluginSummaryResponse plugin)
     {
-        if (!canChange || (plugin.Provider?.AlwaysOn ?? false))
+        if (plugin.Provider?.AlwaysOn ?? false)
             return null;
         return plugin.Enabled;
     }
@@ -793,7 +778,7 @@ else
         <dt>Libraries</dt>
         <dd>
             @LimitedToWords(plugin)
-            @if (!DeviceContext.IsMobile && _libraryLimits.ContainsKey(plugin.Id))
+            @if (_libraryLimits.ContainsKey(plugin.Id))
             {
                 <AppButton Label="Change" Size="AppControlSize.Compact" OnClick="@(() => BeginEditLibraries(plugin))" />
             }
@@ -851,17 +836,14 @@ else
             <dt>Needed by</dt>
             <dd data-testid="plugin-needed-by">@string.Join(", ", dependencies.NeededBy.Select(dependant => dependant.Name))</dd>
         }
-        @if (!DeviceContext.IsMobile)
+        <dt>Remove</dt>
+        @if (plugin.Removable)
         {
-            <dt>Remove</dt>
-            @if (plugin.Removable)
-            {
-                <dd>@PluginRemovalSection(plugin)</dd>
-            }
-            else
-            {
-                <dd data-testid="plugin-not-removable">Official plugins can be switched off, not removed.</dd>
-            }
+            <dd>@PluginRemovalSection(plugin)</dd>
+        }
+        else
+        {
+            <dd data-testid="plugin-not-removable">Official plugins can be switched off, not removed.</dd>
         }
     </text>;
 
@@ -879,7 +861,7 @@ else
         ? null
         : @<p class="provider-about" data-testid="provider-used-in">
             @words
-            <AppButton Label="Open Matching" Href="/settings/matching" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
+            <AppButton Label="Open matching" Href="/settings/matching" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
         </p>;
 
     // "Last checked ..." for a metadata source, from the status the Engine keeps for it.

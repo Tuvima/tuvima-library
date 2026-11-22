@@ -60,6 +60,21 @@ public sealed class ViewPersistenceRepositoryTests : IDisposable
         Assert.True(await _profiles.SavePreferencesAsync(preferences with { ViewerInfoOpen = false }));
         Assert.False((await _profiles.GetPreferencesAsync(ownerId)).ViewerInfoOpen);
 
+        // The built-in map choice is its own setting: off by default, kept apart from the other preferences, and never saved for a missing profile.
+        Assert.False((await _profiles.GetPreferencesAsync(ownerId)).BuiltInMapOnly);
+        Assert.True(await _profiles.SaveBuiltInMapOnlyAsync(ownerId, true));
+        Assert.True((await _profiles.GetPreferencesAsync(ownerId)).BuiltInMapOnly);
+        Assert.True(await _profiles.SavePreferencesAsync(preferences with { ViewerInfoOpen = true }));
+        Assert.True((await _profiles.GetPreferencesAsync(ownerId)).BuiltInMapOnly);
+        Assert.False(await _profiles.SaveBuiltInMapOnlyAsync(Guid.NewGuid(), true));
+
+        // Reading the words in photos is its own switch too: off by default, kept apart from the others.
+        Assert.False((await _profiles.GetPreferencesAsync(ownerId)).ReadWordsInPhotos);
+        Assert.True(await _profiles.SaveReadWordsInPhotosAsync(ownerId, true));
+        Assert.True((await _profiles.GetPreferencesAsync(ownerId)).ReadWordsInPhotos);
+        Assert.True((await _profiles.GetPreferencesAsync(ownerId)).BuiltInMapOnly);
+        Assert.False(await _profiles.SaveReadWordsInPhotosAsync(Guid.NewGuid(), true));
+
         await Assert.ThrowsAsync<ArgumentException>(() => _profiles.SavePreferencesAsync(
             preferences with { LastScopeKind = ViewScopeKind.Mine }));
         Assert.False(await _profiles.SavePolicyAsync(

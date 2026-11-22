@@ -60,6 +60,17 @@ public sealed class LocalNetworkSettings
     [JsonPropertyName("discovery_enabled")]
     public bool DiscoveryEnabled { get; set; } = true;
 
+    /// <summary>
+    /// On by default: the Dashboard listens on the home network so phones, TVs and tablets can open it. Off binds the
+    /// Dashboard to this computer only; it takes effect when the Dashboard restarts. The Engine is always local only.
+    /// </summary>
+    [JsonPropertyName("reach_other_devices")]
+    public bool ReachOtherDevices { get; set; } = true;
+
+    /// <summary>True once the first-run Windows firewall question (home networks only) has been answered, either way.</summary>
+    [JsonPropertyName("firewall_prompt_answered")]
+    public bool FirewallPromptAnswered { get; set; }
+
     [JsonPropertyName("preferred_server_name")]
     public string PreferredServerName { get; set; } = "tuvima";
 

@@ -1,0 +1,85 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* Step 2, Choose a way (mock-ups, picture 3): three cards with the same plain rows so they compare at a glance. The way Library
+   suggests carries the purple outline and a "Suggested for you" badge. Behind a provider that shares one public address the own
+   address card says so before anything is chosen. *@
+<div class="ra-choose" data-remote-screen="choose">
+    <div class="ra-choose__options">
+        <section class="@CardClass(RemoteCheckSuggestions.Tailscale)" data-remote-method="tailscale">
+            @if (IsSuggested(RemoteCheckSuggestions.Tailscale)) { <span class="ra-choose__badge">@L["RemoteAccessChooseStep_Suggested"]</span> }
+            <h4>@L["RemoteAccessChooseStep_Tailscale"]</h4>
+            <p class="ra-choose__tag">@L["RemoteAccessChooseStep_TailscaleTag"]</p>
+            <ul class="ra-choose__facts">
+                @Fact(L["RemoteAccessChooseStep_Effort"].Value, L["RemoteAccessChooseStep_TailscaleEffort"].Value)
+                @Fact(L["RemoteAccessChooseStep_RouterChanges"].Value, L["RemoteAccessChooseStep_None"].Value)
+                @Fact(L["RemoteAccessChooseStep_WhoNeedsApp"].Value, L["RemoteAccessChooseStep_TailscaleApp"].Value)
+                @Fact(L["RemoteAccessChooseStep_SmartTvs"].Value, L["RemoteAccessChooseStep_TailscaleTvs"].Value)
+                @Fact(L["RemoteAccessChooseStep_Privacy"].Value, L["RemoteAccessChooseStep_TailscalePrivacy"].Value)
+                @Fact(L["RemoteAccessChooseStep_Cost"].Value, L["RemoteAccessChooseStep_TailscaleCost"].Value)
+            </ul>
+            <AppButton Label="@L["RemoteAccessChooseStep_ChooseTailscale"].Value" ButtonStyle="@StyleFor(RemoteCheckSuggestions.Tailscale)" Tone="@ToneFor(RemoteCheckSuggestions.Tailscale)"
+                       OnClick="@(() => MethodChosen.InvokeAsync(RemoteCheckSuggestions.Tailscale))" data-remote-action="choose-tailscale" />
+        </section>
+
+        <section class="@CardClass(RemoteCheckSuggestions.OwnAddress)" data-remote-method="own-address">
+            @if (IsSuggested(RemoteCheckSuggestions.OwnAddress)) { <span class="ra-choose__badge">@L["RemoteAccessChooseStep_Suggested"]</span> }
+            <h4>@L["RemoteAccessChooseStep_OwnAddress"]</h4>
+            <p class="ra-choose__tag">@L["RemoteAccessChooseStep_OwnAddressTag"]</p>
+            @if (SharedAddress)
+            {
+                <p class="ra-choose__warning" data-remote-shared-address>@L["RemoteAccessChooseStep_SharedAddressWarning"]</p>
+            }
+            <ul class="ra-choose__facts">
+                @Fact(L["RemoteAccessChooseStep_Effort"].Value, L["RemoteAccessChooseStep_OwnAddressEffort"].Value)
+                @Fact(L["RemoteAccessChooseStep_RouterChanges"].Value, L["RemoteAccessChooseStep_OwnAddressRouter"].Value)
+                @Fact(L["RemoteAccessChooseStep_WhoNeedsApp"].Value, L["RemoteAccessChooseStep_Nobody"].Value)
+                @Fact(L["RemoteAccessChooseStep_SmartTvs"].Value, L["RemoteAccessChooseStep_Yes"].Value)
+                @Fact(L["RemoteAccessChooseStep_Privacy"].Value, L["RemoteAccessChooseStep_OwnAddressPrivacy"].Value)
+                @Fact(L["RemoteAccessChooseStep_Cost"].Value, L["RemoteAccessChooseStep_OwnAddressCost"].Value)
+            </ul>
+            <AppButton Label="@L["RemoteAccessChooseStep_ChooseOwnAddress"].Value" ButtonStyle="@StyleFor(RemoteCheckSuggestions.OwnAddress)" Tone="@ToneFor(RemoteCheckSuggestions.OwnAddress)"
+                       OnClick="@(() => MethodChosen.InvokeAsync(RemoteCheckSuggestions.OwnAddress))" data-remote-action="choose-own-address" />
+        </section>
+
+        <section class="@CardClass(RemoteCheckSuggestions.NotNow)" data-remote-method="not-now">
+            @if (IsSuggested(RemoteCheckSuggestions.NotNow)) { <span class="ra-choose__badge">@L["RemoteAccessChooseStep_Suggested"]</span> }
+            <h4>@L["RemoteAccessChooseStep_NotNow"]</h4>
+            <p class="ra-choose__tag">@L["RemoteAccessChooseStep_NotNowTag"]</p>
+            <ul class="ra-choose__facts">
+                @Fact(L["RemoteAccessChooseStep_Effort"].Value, L["RemoteAccessChooseStep_None"].Value)
+                @Fact(L["RemoteAccessChooseStep_RouterChanges"].Value, L["RemoteAccessChooseStep_None"].Value)
+                @Fact(L["RemoteAccessChooseStep_AwayFromHome"].Value, L["RemoteAccessChooseStep_NotAvailable"].Value)
+                @Fact(L["RemoteAccessChooseStep_Privacy"].Value, L["RemoteAccessChooseStep_Best"].Value)
+            </ul>
+            <AppButton Label="@L["RemoteAccessChooseStep_StayAtHome"].Value" ButtonStyle="@StyleFor(RemoteCheckSuggestions.NotNow)" Tone="@ToneFor(RemoteCheckSuggestions.NotNow)"
+                       OnClick="NotNowChosen" data-remote-action="choose-not-now" />
+        </section>
+    </div>
+    <RemoteAccessInviteCard />
+    <div class="ra-choose__actions">
+        <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public RemoteCheckResultDto? Result { get; set; }
+
+    /// <summary>Raised with <see cref="RemoteCheckSuggestions.Tailscale"/> or <see cref="RemoteCheckSuggestions.OwnAddress"/>.</summary>
+    [Parameter] public EventCallback<string> MethodChosen { get; set; }
+    [Parameter] public EventCallback NotNowChosen { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+
+    private bool SharedAddress => Result?.Findings.Any(finding => finding.Key == RemoteCheckFindingKeys.SharedAddress) == true;
+
+    private bool IsSuggested(string method) => string.Equals(Result?.Suggestion ?? RemoteCheckSuggestions.Tailscale, method, StringComparison.Ordinal);
+
+    private string CardClass(string method) => IsSuggested(method) ? "ra-choose__option is-suggested" : "ra-choose__option";
+
+    private AppButtonStyle StyleFor(string method) => IsSuggested(method) ? AppButtonStyle.Filled : AppButtonStyle.Outlined;
+
+    private AppUiTone ToneFor(string method) => IsSuggested(method) ? AppUiTone.Primary : AppUiTone.Neutral;
+
+    private static RenderFragment Fact(string label, string value) => @<li><span>@label</span><b>@value</b></li>;
+}

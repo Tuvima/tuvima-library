@@ -181,6 +181,38 @@ public sealed class EditorSubjectMemberDto
     [JsonPropertyName("number")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Number { get; init; }
+
+    /// <summary>The media type of the member (<c>Books</c>, <c>Movies</c> and so on), for the detail line of the order list; null when unknown.</summary>
+    [JsonPropertyName("media_type")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MediaType { get; init; }
+
+    /// <summary>The member's publication date or year as the Engine holds it, for the detail line; null when it has none.</summary>
+    [JsonPropertyName("year")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Year { get; init; }
+
+    /// <summary>
+    /// The rule of the Series' order that placed this member (one of <see cref="EditorSeriesOrderRuleKeys"/>), worked out by the Engine where it sorts
+    /// the members. Null when the Engine did not say, in which case the editor lists the member without naming a rule.
+    /// </summary>
+    [JsonPropertyName("placed_by")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PlacedBy { get; init; }
+}
+
+/// <summary>
+/// The rules a Series' order is worked out by, in the order they are tried (<see cref="EditorSubjectMemberDto.PlacedBy"/>): the number the
+/// Series gives a member, then its publication date, then its title (A to Z).
+/// </summary>
+public static class EditorSeriesOrderRuleKeys
+{
+    public const string Number = "number";
+    public const string Date = "date";
+    public const string Title = "title";
+
+    /// <summary>The rules in the order they are tried.</summary>
+    public static readonly IReadOnlyList<string> InOrder = [Number, Date, Title];
 }
 
 /// <summary>One Details field of an editor subject.</summary>

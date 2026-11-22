@@ -48,42 +48,8 @@ public sealed class MediaTileComposerService
                || string.Equals(collection.CollectionType, "PlaylistFolder", StringComparison.OrdinalIgnoreCase);
     }
 
-    public static MediaTileViewModel FromPlaylist(ManagedCollectionViewModel playlist)
-    {
-        var route = $"/listen/music/playlists/{playlist.Id:D}";
-        var smallArtwork = MediaTileArtworkUrl.Sized(playlist.CoverArtworkUrl, "s");
-        var mediumArtwork = MediaTileArtworkUrl.Sized(playlist.CoverArtworkUrl, "m");
-        return new MediaTileViewModel
-        {
-            Id = playlist.Id,
-            CollectionId = playlist.Id,
-            Title = playlist.Name,
-            Subtitle = playlist.ItemCount == 1 ? "1 item" : $"{playlist.ItemCount} items",
-            Description = playlist.Description,
-            CoverUrl = playlist.CoverArtworkUrl,
-            MediaKind = "Music",
-            AccentColor = "var(--tl-media-audio)",
-            Shape = MediaTileShape.Square,
-            HoverArtworkShape = MediaTileShape.Square,
-            Presentation = MediaTilePresentation.Album,
-            SurfaceKind = MediaTileSurfaceKind.CoverSquare,
-            TileTextMode = MediaTileTextMode.Caption,
-            TileImageUrl = smallArtwork ?? playlist.CoverArtworkUrl,
-            TileImageSrcSet = MediaTileArtworkUrl.SrcSet(smallArtwork, mediumArtwork),
-            HoverImageUrl = mediumArtwork ?? playlist.CoverArtworkUrl,
-            NavigationUrl = route,
-            DetailsNavigationUrl = route,
-            PrimaryNavigationUrl = route,
-            PrimaryActionLabel = "Open",
-            SortTimestamp = playlist.ModifiedAt ?? playlist.CreatedAt,
-            IsCollection = true,
-            IsPlaylist = true,
-            AcceptsSongDrops = CollectionAuthoringRule.IsAddTarget(playlist, playlist: true),
-            MediaCounts = playlist.ItemCount > 0
-                ? [new MediaTileMediaCountViewModel(MediaEngine.Web.Components.Shared.AppMaterialIcons.Outlined.MusicNote, playlist.ItemCount == 1 ? "song" : "songs", playlist.ItemCount)]
-                : [],
-        };
-    }
+    /// <summary>A playlist as the shared tile (see <see cref="PlaylistTileComposer"/>); places that do not know the playlist's album covers pass none and get the no-covers tile.</summary>
+    public static MediaTileViewModel FromPlaylist(ManagedCollectionViewModel playlist) => PlaylistTileComposer.Compose(playlist);
 
     public static DiscoveryPageViewModel FromDisplayPage(DisplayPageDto page)
     {

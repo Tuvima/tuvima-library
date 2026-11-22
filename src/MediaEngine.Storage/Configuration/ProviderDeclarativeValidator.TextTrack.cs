@@ -7,7 +7,7 @@ namespace MediaEngine.Storage.Configuration;
 internal static partial class ProviderDeclarativeValidator
 {
     private static readonly string[] TextTrackLookupValues =
-        ["title", "artist", "album", "year", "language", "duration_seconds", "tmdb_id", "imdb_id", "season_number", "episode_number"];
+        ["title", "artist", "album", "year", "language", "duration_seconds", "tmdb_id", "imdb_id", "season_number", "episode_number", "search_text"];
 
     private static readonly string[] TextTrackStatuses =
         ["AuthenticationRequired", "QuotaExceeded", "RateLimited", "ProviderUnavailable", "ProviderError"];

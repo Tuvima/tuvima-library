@@ -151,8 +151,9 @@
     margin-left: auto;
 }
 
+/* Wide enough for the longest choice ("Recently added") at the shared control size, so the label is never cut off (issue 1121). */
 .browse-shell__sort {
-    min-width: 160px;
+    min-width: 12rem;
     margin: 0;
 }
 
@@ -184,7 +185,8 @@
     display: inline-flex;
     align-items: center;
     gap: 2px;
-    min-height: 2.75rem;
+    box-sizing: border-box;
+    min-height: var(--tl-control-height-md);
     padding: 0.18rem;
     border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-md);
@@ -198,7 +200,8 @@
     justify-content: center;
     gap: 8px;
     min-width: 92px;
-    min-height: 2.35rem;
+    align-self: stretch;
+    min-height: 0;
     padding: 0 0.9rem;
     border: 0;
     border-radius: calc(var(--tl-radius-md) - 3px);
@@ -305,8 +308,8 @@
     }
 
     .browse-shell__sort {
-        flex: 0 1 118px;
-        min-width: 0;
+        flex: 1 1 9.5rem;
+        min-width: 9.5rem;
     }
 
     .browse-shell__layout-toggle {

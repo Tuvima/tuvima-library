@@ -13,6 +13,15 @@
         {
             <img class="tl-detail-skeleton__cover" src="@MediaTileArtworkUrl.ForDrawnSize(Preview.CoverUrl, 320)" alt="" decoding="async" />
         }
+        else if (IsGroup)
+        {
+            @* A Series or collection: grey covers at the size the real covers take (GroupHeroCovers), three in a row. *@
+            <div class="tl-detail-skeleton__group-covers">
+                <div class="tl-detail-skeleton__group-cover"><AppSkeleton Width="100%" Height="100%" /></div>
+                <div class="tl-detail-skeleton__group-cover"><AppSkeleton Width="100%" Height="100%" /></div>
+                <div class="tl-detail-skeleton__group-cover"><AppSkeleton Width="100%" Height="100%" /></div>
+            </div>
+        }
         else
         {
             <AppSkeleton Class="tl-detail-skeleton__artwork" />
@@ -49,9 +58,23 @@
         <AppSkeleton Class="tl-detail-skeleton__tab" />
         <AppSkeleton Class="tl-detail-skeleton__tab" />
     </div>
+
+    @if (IsGroup)
+    {
+        @* The members' grid, grey, with the cells at their final size so nothing jumps when the real grid lands. *@
+        <div class="tl-detail-skeleton__members" aria-hidden="true">
+            @for (var index = 0; index < 6; index++)
+            {
+                <div class="tl-detail-skeleton__member"><AppSkeleton Width="100%" Height="100%" /></div>
+            }
+        </div>
+    }
 </div>
 
 @code {
+    /// <summary>True for a Series or collection page: grey covers on the right and a grey grid of members under the tabs.</summary>
+    [Parameter] public bool IsGroup { get; set; }
+
     /// <summary>What the clicked tile already knew; null on a direct address or reload.</summary>
     [Parameter] public DetailPreview? Preview { get; set; }
 }

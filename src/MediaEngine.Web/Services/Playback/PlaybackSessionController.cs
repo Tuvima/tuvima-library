@@ -2690,6 +2690,64 @@ public sealed partial class PlaybackSessionController
         }
     }
 
+    /// <summary>
+    /// While the Engine is still reading text subtitles out of the video file, asks for the manifest again every few seconds and adopts
+    /// the subtitle list it returns, so each subtitle appears in the player's menu as soon as it can be shown (issue 1166). Only the
+    /// subtitle list changes; the stream the title is playing from is never swapped. Stops when another title is playing.
+    /// </summary>
+    private CancellationTokenSource? _subtitleWatch;
+
+    /// <summary>Starts the one watch for the playing title; an earlier watch (another title, or the same title started again) is stopped first.</summary>
+    private void BeginWatchingSubtitlePreparation(Guid assetId)
+    {
+        _subtitleWatch?.Cancel();
+        _subtitleWatch = new CancellationTokenSource();
+        _ = WatchSubtitlePreparationAsync(assetId, _subtitleWatch.Token);
+    }
+
+    private async Task WatchSubtitlePreparationAsync(Guid assetId, CancellationToken ct)
+    {
+        try
+        {
+            for (var attempt = 0; attempt < 240; attempt++)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5), ct);
+                var index = _queue.FindIndex(candidate => candidate.AssetId == assetId);
+                if (index < 0 || CurrentItem?.AssetId != assetId || _queue[index].Manifest is null)
+                {
+                    return;
+                }
+
+                // Subtitles only: this read never starts, replaces or stops a conversion.
+                var refreshed = await _apiClient.GetPlaybackManifestAsync(assetId, _clientContext.Client, null, ct, subtitlesOnly: true);
+                index = _queue.FindIndex(candidate => candidate.AssetId == assetId);
+                if (refreshed is null || index < 0 || CurrentItem?.AssetId != assetId || _queue[index].Manifest is not { } latest)
+                {
+                    continue;
+                }
+
+                if (refreshed.SubtitleTracks.Count != latest.SubtitleTracks.Count || refreshed.SubtitlesPreparing != latest.SubtitlesPreparing)
+                {
+                    _queue[index] = _queue[index] with { Manifest = latest with { SubtitleTracks = refreshed.SubtitleTracks, SubtitlesPreparing = refreshed.SubtitlesPreparing } };
+                    NotifyChanged();
+                }
+
+                if (!refreshed.SubtitlesPreparing)
+                {
+                    return;
+                }
+            }
+        }
+        catch (HttpRequestException)
+        {
+            // The Engine could not be reached: the subtitles that were already offered stay, and nothing is retried until the next start.
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer watch, or a request that timed out, ends this one quietly.
+        }
+    }
+
     private async Task EnsurePlayableAsync(int index, CancellationToken ct, PlaybackRequestGuard? guard = null)
     {
         if (guard is not null && !IsCurrentRequest(guard))
@@ -2716,7 +2774,9 @@ public sealed partial class PlaybackSessionController
                     return;
                 }
                 var refreshed = await _apiClient.GetPlaybackManifestAsync(preparingAsset, _clientContext.Client, null, ct, ToConnectionContext(),
-                    adaptive: _adaptiveAudioAssets.Contains(preparingAsset));
+                    adaptive: _adaptiveAudioAssets.Contains(preparingAsset),
+                    burnSubtitleStream: _burnChoices.GetValueOrDefault(preparingAsset, -1),
+                    startSeconds: item.Manifest?.StreamStartSeconds ?? 0);
                 ct.ThrowIfCancellationRequested();
                 if ((guard is not null && !IsCurrentRequest(guard)) || index >= _queue.Count || _queue[index].AssetId != preparingAsset)
                 {
@@ -2760,6 +2820,11 @@ public sealed partial class PlaybackSessionController
                 StreamUrl = NormalizeStreamUrl(manifestStream),
                 Chapters = NormalizeChapters(item.Manifest.Chapters),
             };
+            if (item.Manifest.SubtitlesPreparing && item.AssetId is { } subtitleAsset)
+            {
+                // The Engine offers a text subtitle only once it has read it out of the file, which takes a while for a big film.
+                BeginWatchingSubtitlePreparation(subtitleAsset);
+            }
             return;
         }
 
@@ -2814,7 +2879,8 @@ public sealed partial class PlaybackSessionController
             _clientContext.Client,
             profileId,
             ct,
-            ToConnectionContext());
+            ToConnectionContext(),
+            startSeconds: item.InitialPositionSeconds);
         ct.ThrowIfCancellationRequested();
         if ((guard is not null && !IsCurrentRequest(guard)) || index >= _queue.Count || _queue[index].WorkId != item.WorkId)
         {
@@ -2926,6 +2992,7 @@ public sealed partial class PlaybackSessionController
     };
 
     private readonly HashSet<Guid> _adaptiveAudioAssets = [];
+    private readonly Dictionary<Guid, int> _burnChoices = [];
 
     /// <summary>
     /// Restarts the playing video on the Engine's adaptive stream, which carries every audio track, and resumes from the same second
@@ -2934,15 +3001,31 @@ public sealed partial class PlaybackSessionController
     /// could not provide the stream; the video keeps playing as it was.
     /// </summary>
     public async Task<bool> SwitchVideoToAdaptiveAsync(CancellationToken ct = default, double? resumeSeconds = null, int? burnSubtitleStream = null)
+        => await StartVideoStreamAtAsync(ct, resumeSeconds, burnSubtitleStream, force: false);
+
+    /// <summary>
+    /// A jump (or a step) to a second the converted stream does not hold: the Engine starts a second conversion at that point and the player moves to it
+    /// (seek-past-prepared-stream D1). <paramref name="filmSeconds"/> is in the film's own time. False when the Engine could not provide the stream; the
+    /// video keeps playing as it was.
+    /// </summary>
+    public Task<bool> RestartVideoAtAsync(double filmSeconds, CancellationToken ct = default)
+        => StartVideoStreamAtAsync(ct, Math.Max(0, filmSeconds), null, force: true);
+
+    private async Task<bool> StartVideoStreamAtAsync(CancellationToken ct, double? resumeSeconds, int? burnSubtitleStream, bool force)
     {
         if (CurrentItem is not { AssetId: Guid assetId } item || !MediaKindClassifier.IsVideo(item.MediaType))
         {
             return false;
         }
 
-        if (burnSubtitleStream is null && item.Manifest?.RecommendedDelivery == PlaybackDeliveryModes.Hls && !string.IsNullOrWhiteSpace(item.StreamUrl))
+        if (!force && burnSubtitleStream is null && item.Manifest?.RecommendedDelivery == PlaybackDeliveryModes.Hls && !string.IsNullOrWhiteSpace(item.StreamUrl))
         {
             return true;
+        }
+
+        if (burnSubtitleStream is { } chosenBurn)
+        {
+            _burnChoices[assetId] = chosenBurn;
         }
 
         var index = _queue.FindIndex(entry => entry.AssetId == assetId && entry.WorkId == item.WorkId);
@@ -2953,7 +3036,8 @@ public sealed partial class PlaybackSessionController
 
         var profileId = _preferences is null ? null : (await _preferences.GetAsync(ct))?.ProfileId;
         var manifest = await _apiClient.GetPlaybackManifestAsync(assetId, _clientContext.Client,
-            profileId == Guid.Empty ? null : profileId, ct, ToConnectionContext(), adaptive: true, burnSubtitleStream: burnSubtitleStream);
+            profileId == Guid.Empty ? null : profileId, ct, ToConnectionContext(), adaptive: true,
+            burnSubtitleStream: _burnChoices.GetValueOrDefault(assetId, -1), startSeconds: resumeSeconds ?? CurrentTimeSeconds);
         if (manifest is null || manifest.RecommendedDelivery != PlaybackDeliveryModes.Hls
             || manifest.HlsStatus is "failed" or "unavailable"
             || index >= _queue.Count || _queue[index].AssetId != assetId)

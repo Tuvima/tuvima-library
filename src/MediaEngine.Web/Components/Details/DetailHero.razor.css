@@ -1,22 +1,13 @@
+/* The artwork slot of a Series' or collection's page (spec group-pages-and-tiles D2): the group's covers on the right, vertically centered,
+   in the room the copy column leaves (44vw each side of the middle). GroupHeroCovers draws them; this only places them. */
 .tl-detail-collection-artwork {
     position: absolute;
     top: 50%;
-    right: clamp(1rem, 2vw, 3rem);
-    z-index: 4;
-    width: clamp(44rem, 56vw, 64rem);
-    height: clamp(30rem, 60svh, 42rem);
+    right: clamp(1rem, 4.25vw, 5.5rem);
+    z-index: 3;
+    max-width: 44vw;
     transform: translateY(-50%);
     pointer-events: none;
-    filter: drop-shadow(0 2.2rem 4rem var(--tl-scrim-dark-5));
-}
-
-.tl-detail-collection-artwork ::deep .media-artwork-group-preview {
-    overflow: visible;
-}
-
-.tl-detail-collection-artwork ::deep .media-artwork-group-preview__artwork {
-    border-radius: 0.65rem;
-    box-shadow: 0 1.7rem 3.5rem var(--tl-scrim-dark-5);
 }
 
 .tl-detail-person-role {
@@ -55,23 +46,52 @@
     font-size: var(--tl-icon-size-xs);
 }
 
-@media (max-width: 1180px) {
+/* A phone: the covers sit on top, centered, under the top bar, and the text follows under them (DetailHeroContent.razor.css keeps the room). */
+@media (width < 840px) {
     .tl-detail-collection-artwork {
-        right: 1.5rem;
-        width: 58vw;
-        opacity: 0.58;
+        top: calc(var(--app-topbar-height, 65px) + 1.25rem);
+        right: 1.25rem;
+        left: 1.25rem;
+        max-width: none;
+        transform: none;
     }
 }
 
-@media (width < 840px) {
-    .tl-detail-collection-artwork {
-        top: calc(var(--app-topbar-height, 65px) + 2rem);
-        right: 1rem;
-        width: min(72vw, 24rem);
-        height: 30svh;
-        transform: none;
-        opacity: 0.42;
-    }
+/* The path above a group's title: Read, then Series. */
+.tl-detail-hero__path {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-caption-size);
+}
+
+.tl-detail-hero__path a {
+    color: var(--tl-accent-primary-hover);
+}
+
+/* A group's facts as pills in words (square corners, as every pill). */
+.tl-detail-group-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tl-detail-group-pill {
+    padding: 2px 9px;
+    border-radius: var(--tl-radius-pill);
+    background: color-mix(in srgb, var(--tl-text-primary) 14%, transparent);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-caption-size);
+    line-height: 1.5;
+}
+
+.tl-detail-group-pill--type {
+    background: var(--tl-accent-primary-soft);
+    color: var(--tl-accent-primary-hover);
 }
 
 /* Detail-only presentation. Native markup is scoped here; retained ::deep
@@ -231,7 +251,7 @@
     align-items: center;
     padding: 0.32rem 0.72rem;
     border: 1px solid color-mix(in srgb, var(--tl-detail-primary, var(--tl-accent-collection)) 46%, color-mix(in srgb, var(--tl-text-primary) 26%, transparent));
-    border-radius: 0.5rem;
+    border-radius: var(--tl-radius-pill);
     background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.48);
     color: rgba(var(--hero-text-rgb, 246, 240, 232), 0.88);
     font-size: var(--tl-type-label-size);

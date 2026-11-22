@@ -132,7 +132,7 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
             DisplayPath = PathOf(relative),
             Directories = relative switch
             {
-                "" => [new() { Name = "Movies", RelativePath = "Movies" }, new() { Name = "TV", RelativePath = "TV" }],
+                "" => [new() { Name = "Movies", RelativePath = "Movies", ItemCount = 38 }, new() { Name = "TV", RelativePath = "TV", ItemCount = 1 }],
                 "Movies" => [new() { Name = "Action", RelativePath = Child("Action") }],
                 "media" => [new() { Name = "movies", RelativePath = Child("movies") }, new() { Name = "tv", RelativePath = Child("tv") }],
                 "media/movies" => [new() { Name = "2024", RelativePath = Child("2024") }],
@@ -211,18 +211,42 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFriendlyNameStartsEmptyOnABareDriveRootAndFollowsAChosenFolder()
+    public async Task ThereIsNoFriendlyNameBoxAndTheFolderNameFollowsTheChosenFolder()
     {
         _root = WholeDrive;
         var host = Render<AppDialogHost>();
-        var parameters = new AppDialogParameters<ServerFolderPicker> { { picker => picker.ShowFolderName, true } };
+        var names = new List<string>();
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { picker => picker.ShowFolderName, true },
+            { picker => picker.FolderNameChanged, EventCallback.Factory.Create<string>(this, name => names.Add(name)) },
+        };
         await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
         host.WaitForElement(FolderRows);
 
-        Assert.Equal(string.Empty, host.Find("[data-folder-name] input").GetAttribute("value") ?? string.Empty);
+        Assert.Empty(host.FindAll("[data-folder-name]"));
 
         Row(host, "Movies").Click();
-        host.WaitForAssertion(() => Assert.Equal("Movies", host.Find("[data-folder-name] input").GetAttribute("value")));
+        host.WaitForAssertion(() => Assert.Equal("Movies", names.LastOrDefault()));
+    }
+
+    [Fact]
+    public async Task TheFolderNameFollowsTheNewFolderEvenWhenTheHostPassesAnOldName()
+    {
+        _root = WholeDrive;
+        var host = Render<AppDialogHost>();
+        var names = new List<string>();
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { picker => picker.ShowFolderName, true },
+            { picker => picker.FolderName, "Films" },
+            { picker => picker.FolderNameChanged, EventCallback.Factory.Create<string>(this, name => names.Add(name)) },
+        };
+        await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
+        host.WaitForElement(FolderRows);
+
+        Row(host, "Movies").Click();
+        host.WaitForAssertion(() => Assert.Equal("Movies", names.LastOrDefault()));
     }
 
     [Fact]
@@ -380,14 +404,14 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFriendlyNameIsTheOnlyTextBoxUntilTypeAPathIsChosen()
+    public async Task NoTextBoxShowsUntilTypeAPathIsChosen()
     {
         var host = Render<AppDialogHost>();
         var parameters = new AppDialogParameters<ServerFolderPicker> { { picker => picker.ShowFolderName, true } };
         await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
         host.WaitForElement(FolderRows);
 
-        Assert.Single(host.FindAll("[data-folder-name] input"));
+        Assert.Empty(host.FindAll("[data-folder-name] input"));
         Assert.Empty(host.FindAll("input[aria-label='Folder path']"));
     }
 
@@ -464,12 +488,13 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFolderPickerHidesTheModifiedCellAndItsHeadingTogether()
+    public async Task TheFolderPickerShowsHowManyItemsAreInsideEachFolderInPlaceOfTheModifiedDate()
     {
         var host = await OpenPickerAsync();
 
-        Assert.Single(host.FindAll("th.is-wide-only"));
-        Assert.Equal(2, host.FindAll("td.is-wide-only").Count);
+        // The Items column is always shown (a phone too); the old Modified column is gone (issue 1155).
+        Assert.Empty(host.FindAll("th.is-wide-only"));
+        Assert.Equal(["38 items", "1 item"], host.FindAll(".app-browser-folder--folder .app-browser-folder__middle").Select(cell => cell.TextContent.Trim()).ToArray());
     }
 
     [Fact]

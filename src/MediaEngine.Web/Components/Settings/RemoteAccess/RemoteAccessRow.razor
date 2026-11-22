@@ -1,0 +1,64 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* One line of a card: a 22 px tick (or a step number), a plain sentence with a smaller line under it, and the action at the far end
+   (mock-ups: .row, .dot). The tick is never the only signal: it carries words, and a step still to do shows its number. *@
+<div class="ra-row" data-remote-row="@Key" data-remote-status="@StatusName">
+    @if (Tone is { } tone)
+    {
+        <AppStatusDot Tick="true" Tone="@tone" Sentence="@(StatusText ?? string.Empty)" />
+    }
+    else if (Number is { } number)
+    {
+        <span class="@NumberClass" aria-hidden="true">@number</span>
+    }
+    <div class="ra-row__body">
+        <div class="ra-row__title">
+            <span>@Title</span>
+            @if (!string.IsNullOrWhiteSpace(Tag))
+            {
+                <span class="ra-row__tag">@Tag</span>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Detail))
+        {
+            <small class="ra-row__detail">@Detail</small>
+        }
+        @ChildContent
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="ra-row__actions">@Actions</div>
+    }
+</div>
+
+@code {
+    /// <summary>Tells the rows of one screen apart for tests and the browser checks.</summary>
+    [Parameter] public string? Key { get; set; }
+
+    /// <summary>The tick: green done, amber needs a look, red not working, grey not known. Left empty, the row shows its number instead.</summary>
+    [Parameter] public AppStatusDotTone? Tone { get; set; }
+
+    /// <summary>The words the tick says (read aloud and shown on hover).</summary>
+    [Parameter] public string? StatusText { get; set; }
+
+    /// <summary>The step number shown when there is no tick.</summary>
+    [Parameter] public int? Number { get; set; }
+
+    /// <summary>The step that is next: its number is amber instead of grey.</summary>
+    [Parameter] public bool Current { get; set; }
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Detail { get; set; }
+
+    /// <summary>A small label beside the title ("On the server computer").</summary>
+    [Parameter] public string? Tag { get; set; }
+
+    /// <summary>More under the sentence: a command with its Copy button, a link, a QR code.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>The button at the far end of the row.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    private string StatusName => Tone?.ToString().ToLowerInvariant() ?? "pending";
+    private string NumberClass => Current ? "ra-num ra-num--current" : "ra-num";
+}

@@ -59,6 +59,20 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
     /// <summary>What went wrong on <see cref="FailedSourceId"/>: <c>download</c> or <c>remove</c>.</summary>
     public string? FailedAction { get; private set; }
 
+    /// <summary>The row being read now (its source id), or null.</summary>
+    public string? ReadingSourceId => _reading.Count == 0 ? null : _reading.Last();
+
+    private readonly List<string> _reading = [];
+
+    /// <summary>True while that row's file is being read (several rows can be read at once when the person moves quickly).</summary>
+    public bool IsReading(string sourceId) => _reading.Contains(sourceId);
+
+    /// <summary>The row that could not be read, so it says so; the row can still be used.</summary>
+    public string? PreviewFailedSourceId { get; private set; }
+
+    /// <summary>Changes whenever a row's reading state changes, so a view can tell that its rows need drawing again.</summary>
+    public int PreviewVersion { get; private set; }
+
     private static string DefaultLanguageName
     {
         get
@@ -96,12 +110,22 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         CancelSearch();
         Loading = false; StillSearching = false; Response = null; Failed = false; SourceName = null;
         ChoosingSourceId = null; FailedSourceId = null; FailedAction = null;
+        _reading.Clear(); PreviewFailedSourceId = null; PreviewVersion++;
+        _query = null;
         Raise();
     }
 
-    /// <summary>The view opened: works out the language from the profile and searches once.</summary>
-    public Task OpenAsync(SubtitleLanguageSettingsDto? profile)
+    /// <summary>The text the search box started with (the title and year); a search sends its own text only once the person changed it.</summary>
+    public string Prefill { get; private set; } = string.Empty;
+
+    /// <summary>What the person typed when it differs from <see cref="Prefill"/>; null while the box is as it was filled in.</summary>
+    private string? _query;
+
+    /// <summary>The window opened: remembers the box's starting text, works out the language from the profile and searches once.</summary>
+    public Task OpenAsync(SubtitleLanguageSettingsDto? profile, string? prefill = null)
     {
+        Prefill = prefill ?? string.Empty;
+        _query = null;
         var preferred = profile is null ? [] : VideoPresentationResolver.SubtitleLanguagesInOrder(profile);
         Language = preferred.Count > 0 ? preferred[0] : DefaultLanguageName;
         Languages = preferred
@@ -123,6 +147,17 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         return SearchAsync();
     }
 
+    /// <summary>Search was pressed with the box's text: asks the sources again (the text counts only when it differs from the starting text).</summary>
+    public Task SearchTextAsync(string text)
+    {
+        if (ChoosingSourceId is not null)
+        {
+            return Task.CompletedTask;
+        }
+        _query = FindDialogSearchText.EditedOrNull(Prefill, text);
+        return SearchAsync();
+    }
+
     /// <summary>Asks the sources once, in <see cref="Language"/>. Also the "Try again" action.</summary>
     public async Task SearchAsync()
     {
@@ -135,12 +170,13 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         var token = _search.Token;
         Loading = true; StillSearching = false; Response = null; Failed = false;
         ChoosingSourceId = null; FailedSourceId = null; FailedAction = null;
+        _reading.Clear(); PreviewFailedSourceId = null; PreviewVersion++;
         Raise();
         _ = WatchAsync(generation, token);
         TextTrackAlternativesResponse? answer;
         try
         {
-            answer = await api.GetTextTrackAlternativesAsync(assetId, SubtitlesKind, token, Language);
+            answer = await api.GetTextTrackAlternativesAsync(assetId, SubtitlesKind, token, Language, _query);
         }
         catch (OperationCanceledException)
         {
@@ -160,6 +196,52 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         Raise();
     }
 
+    /// <summary>
+    /// Reads one result's first lines and where its file ends (Find another results v2 D10). The best match was read with the list, so a row
+    /// that already carries its lines is not read again; one tap reads exactly one file.
+    /// </summary>
+    public async Task PreviewAsync(TextTrackAlternativeDto item)
+    {
+        if (_assetId is not Guid assetId || Response is null || item.preview_lines.Count > 0
+            || _reading.Contains(item.source_id) || ChoosingSourceId is not null)
+        {
+            return;
+        }
+        var generation = _generation;
+        _reading.Add(item.source_id); PreviewFailedSourceId = null; PreviewVersion++;
+        Raise();
+        TextTrackAlternativePreviewResponse? read = null;
+        try
+        {
+            read = await api.GetTextTrackAlternativePreviewAsync(assetId, SubtitlesKind, item.provider, item.source_id, _search.Token, Language, _query);
+        }
+        catch (OperationCanceledException)
+        {
+            // A new search started while the file was being read; its answer replaces this list.
+        }
+        if (_disposed || generation != _generation || Response is null)
+        {
+            return;
+        }
+        _reading.Remove(item.source_id); PreviewVersion++;
+        if (read is not { status: "Found", item: { } fresh })
+        {
+            PreviewFailedSourceId = item.source_id;
+            Raise();
+            return;
+        }
+        Response = Response with
+        {
+            items = Response.items
+                .Select(other => string.Equals(other.provider, item.provider, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(other.source_id, item.source_id, StringComparison.OrdinalIgnoreCase)
+                        ? fresh with { is_current = other.is_current }
+                        : other)
+                .ToList(),
+        };
+        Raise();
+    }
+
     /// <summary>"Use this": downloads that one result and shows it at once. On failure the list stays and that row says so.</summary>
     public async Task ChooseAsync(TextTrackAlternativeDto item)
     {
@@ -174,7 +256,7 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         try
         {
             choice = await api.ChooseTextTrackAlternativeAsync(
-                assetId, new ChooseTextTrackAlternativeRequest { kind = SubtitlesKind, provider = item.provider, source_id = item.source_id, language = Language });
+                assetId, new ChooseTextTrackAlternativeRequest { kind = SubtitlesKind, provider = item.provider, source_id = item.source_id, language = Language, query = _query });
         }
         catch (OperationCanceledException)
         {

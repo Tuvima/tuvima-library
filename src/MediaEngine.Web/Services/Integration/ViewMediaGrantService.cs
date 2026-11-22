@@ -9,6 +9,8 @@ public enum ViewMediaResourceKind : byte
     Thumbnail = 1,
     Content = 2,
     Preview = 3,
+    /// <summary>A small square of one recognized face; the grant's asset id is the face id.</summary>
+    FaceCrop = 4,
 }
 
 public enum ViewMediaResourceRole : byte

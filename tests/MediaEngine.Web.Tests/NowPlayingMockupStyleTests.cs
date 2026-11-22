@@ -24,7 +24,9 @@ public sealed class NowPlayingMockupStyleTests
         Assert.Contains("padding:6px14px;", Rule(css, ".np__top"));
         Assert.Contains("--playback-glyph-size:24px;", Rule(css, ".np__top"));
         Assert.Contains("padding:012px010px;", Rule(css, ".np__top ::deep .np__back"));
-        Assert.Contains("min-height:var(--playback-control-target);", Rule(css, ".np__top ::deep button"));
+        Assert.Contains("min-height:44px;", Rule(css, ".np__top ::deep button"));
+        Assert.Contains("--playback-glyph-size:16px;", Rule(css, ".np__top ::deep .np__back"));
+        Assert.Contains("font:400var(--np-artist-size)/1.45var(--font-ui);", Rule(css, ".np__top"));
     }
 
     [Fact]
@@ -36,11 +38,19 @@ public sealed class NowPlayingMockupStyleTests
 
         Assert.Contains("grid-template-columns:minmax(0,280px)minmax(0,1fr);", body);
         Assert.Contains("gap:40px;", body);
-        Assert.Contains("padding:8px48px24px;", body);
+        Assert.Contains("padding:8pxmax(48px,calc((100%-1180px)/2+48px))24px;", body);
         Assert.Contains("width:min(280px,100%);", cover);
         Assert.Contains("aspect-ratio:1;", cover);
         Assert.Contains("border-radius:8px;", cover);
         Assert.Contains("box-shadow:020px50pxvar(--tl-scrim-dark-4);", cover);
+    }
+
+    [Fact]
+    public void PageBody_IsCappedAtAbout1180Pixels_AndCurrentLyricLineIsBold()
+    {
+        Assert.Contains("max(48px,calc((100%-1180px)/2+48px))", Rule(Read(PageCss), ".np__body"));
+        Assert.Contains("font-weight:700;", Rule(Read("src/MediaEngine.Web/Components/Player/PlaybackLyrics.razor.css"), ".playback-lyrics__line.is-active, .playback-lyrics ::deep .playback-lyrics__line.is-active"));
+        Assert.Contains("font:600var(--playback-chip-large-size)/1.45var(--font-ui);", Rule(Read("src/MediaEngine.Web/Components/Player/PlaybackLyricsChip.razor.css"), ".playback-lyrics-chip--large"));
     }
 
     [Fact]
@@ -55,14 +65,13 @@ public sealed class NowPlayingMockupStyleTests
         var css = Read(PageCss);
 
         var title = Rule(css, ".np__title");
-        Assert.Contains("font-size:var(--tl-type-heading-size);", title);
-        // Sizes and weights come from the Look type jobs; the line height and spacing follow the mockup.
-        Assert.Contains("font-weight:var(--tl-type-heading-weight);", title);
-        Assert.Contains("line-height:1.45;", title);
+        // The mockup's 22 / 700 song and 15 px artist have no step on the type ladder, so they are page-scoped variables used through the font shorthand (#1259).
+        Assert.Contains("--np-title-size:22px;", Rule(css, ".np"));
+        Assert.Contains("--np-artist-size:15px;", Rule(css, ".np"));
+        Assert.Contains("font:var(--tl-font-weight-bold)var(--np-title-size)/1.45var(--font-ui);", title);
         Assert.Contains("margin:002px;", title);
         var artist = Rule(css, ".np__line");
-        Assert.Contains("font-size:var(--tl-type-body-size);", artist);
-        Assert.Contains("line-height:1.45;", artist);
+        Assert.Contains("font:var(--tl-type-body-weight)var(--np-artist-size)/1.45var(--font-ui);", artist);
         var album = Rule(css, ".np__sub");
         Assert.Contains("font-size:var(--tl-type-secondary-size);", album);
         Assert.Contains("line-height:1.45;", album);

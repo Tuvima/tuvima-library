@@ -230,7 +230,17 @@ public static class EditorQuickFactsBuilder
                 break;
 
             case QuickFactsKind.VideoSeries:
-                Add("videos", Folder, totals is { DirectTotal: > 0 } ? Count(totals.DirectOwned) : null, "Videos");
+                // A folder with sections says both numbers ("14 sections", "88 videos"); a flat folder's direct children are its videos.
+                if (totals is { DirectTotal: > 0, LeafTotal: > 0 } && totals.LeafTotal > totals.DirectTotal)
+                {
+                    Add("sections", Folder, Count(totals.DirectTotal), totals.DirectTotal == 1 ? "Section" : "Sections");
+                    Add("videos", Folder, Count(totals.LeafOwned), totals.LeafOwned == 1 ? "Video" : "Videos");
+                }
+                else
+                {
+                    Add("videos", Folder, totals is { DirectTotal: > 0 } ? Count(totals.DirectOwned) : null, "Videos");
+                }
+
                 Add("length", Clock, runtime, "Total length");
                 Add("size", Size, size, filesLabel);
                 break;

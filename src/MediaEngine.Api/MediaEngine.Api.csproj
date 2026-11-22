@@ -16,6 +16,7 @@
     <PackageReference Include="Serilog.Sinks.File" />
     <!-- Polly: standard resilience (retry, circuit-breaker, timeout) for all external HTTP calls. -->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" />
     <!-- Windows Service: integrates with SCM when running as installed service. No-op elsewhere. -->
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
     <!-- Tuvima.Wikidata.AspNetCore: DI registration extension for WikidataReconciler.
@@ -60,6 +61,8 @@
     <!-- The published schema files the Plugin file check measures a plugin's JSON against (Plugins and Integrations screens v5 D55). -->
     <EmbeddedResource Include="..\..\config\schemas\plugins\*.json" LogicalName="MediaEngine.Api.plugin-schemas.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\config\schemas\providers\provider.schema.json" LogicalName="MediaEngine.Api.plugin-schemas.provider.schema.json" />
+    <!-- The notification channel types people can add from Settings > Notifications: one small JSON file per type (notifications and delivery spec WP2, WP3). -->
+    <EmbeddedResource Include="Services\Notifications\ChannelTypes\*.json" LogicalName="MediaEngine.Api.notification-channel-types.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Release'">

@@ -1,0 +1,33 @@
+{
+  "id": "telegram",
+  "name": "Telegram",
+  "order": 40,
+  "cost": "Free",
+  "effort": "Make a bot, about five minutes",
+  "summary": "Free · a private chat with a bot you create",
+  "help": "In Telegram, message @BotFather to create a bot and copy its token. Send your bot a message, then enter the chat number it shows you.",
+  "what_leaves": "The alert text goes to Telegram's servers and appears in the chat with your bot.",
+  "fields": [
+    {
+      "key": "bot_token",
+      "label": "Bot token",
+      "kind": "token",
+      "secret": true,
+      "required": true,
+      "placeholder": "123456:ABC-DEF…"
+    },
+    {
+      "key": "chat_id",
+      "label": "Chat number",
+      "kind": "token",
+      "required": true,
+      "help": "The number of the chat the bot should write to."
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "https://api.telegram.org/bot{bot_token}/sendMessage",
+    "content_type": "application/json",
+    "body": "{\"chat_id\":\"{chat_id}\",\"text\":\"{title}\\n{body}\"}"
+  }
+}

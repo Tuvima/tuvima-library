@@ -34,7 +34,12 @@ public partial class ListenPage
         _albumDetail = null;
         _artistDetail = null;
         _activePlaylistSaved = false;
+        _activePlaylistOwnerName = null;
         _playlistItems.Clear();
+        _trackOrderBefore = null;
+        _playlistSort = null;
+        _playlistSearch = string.Empty;
+        _playlistViewSort = PlaylistOwnOrder;
         _selectedTrackIds.Clear();
         CloseTrackContextMenu();
         _draggingTrackIds.Clear();
@@ -184,13 +189,19 @@ public partial class ListenPage
 
             if (CollectionId.HasValue && IsPlaylistSurface)
             {
-                _playlistItems.AddRange(await ApiClient.GetCollectionItemsAsync(CollectionId.Value, 1000, _activeProfileId, ct));
+                _playlistItems.AddRange(await ApiClient.GetCollectionItemsAsync(CollectionId.Value, PlaylistItemReadLimit, _activeProfileId, ct));
                 if (CanSaveActivePlaylist)
                 {
                     _activePlaylistSaved = (await SavedItems.GetMembershipAsync(
                         ProfileEntityKind.Playlist,
                         CollectionId.Value,
                         ct)).IsSaved;
+                    // Someone else's playlist names its owner in the header.
+                    if (ActivePlaylistCollection?.ProfileId is { } ownerId)
+                    {
+                        _activePlaylistOwnerName = (await Orchestrator.GetProfilesAsync(ct))
+                            .FirstOrDefault(owner => owner.Id == ownerId)?.DisplayName;
+                    }
                 }
                 if (!IsCurrentLoad(loadVersion))
                 {

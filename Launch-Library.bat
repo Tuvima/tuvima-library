@@ -1,7 +1,8 @@
 @echo off
 :: Launches Tuvima Library (Engine + Dashboard) as it is: your data is left exactly as it was.
 :: Double-click to start. Close this window (or press Ctrl+C) to stop the app.
-:: The Dashboard opens in your browser at http://localhost:5016
+:: The Dashboard opens in your browser at http://localhost:5016 and, unless Settings > Network turns it off,
+:: phones, TVs and tablets on your home network can open it too. The Engine stays on this computer only.
 cd /d "%~dp0"
 where pwsh >nul 2>&1 && (set "PS=pwsh") || (set "PS=powershell")
 echo.

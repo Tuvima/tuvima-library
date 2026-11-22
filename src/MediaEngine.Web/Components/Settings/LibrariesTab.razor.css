@@ -1,7 +1,5 @@
 
 .libraries,.library-detail {display:flex;flex-direction:column;gap:16px;min-width:0}
-.libraries__actions:empty {display:none}
-.libraries__savebar {display:flex;align-items:center;justify-content:space-between;gap:20px}
 
 
 
@@ -10,14 +8,10 @@
 .libraries-example code{overflow-wrap:anywhere;display:block}
 .libraries-example span {color:var(--tl-text-muted)}
 .libraries-example details {margin-left:auto}
-.libraries__mobile-note {margin:4px 0 0;color:var(--tl-text-muted);font-size: var(--tl-type-secondary-size);line-height:1.5}
 summary {cursor:pointer;padding:8px 0}
 
 
 
-.libraries__savebar {position:sticky;bottom:0;padding:14px 18px;background:var(--tl-bg-surface-raised);border:1px solid var(--tl-accent-primary);border-radius:10px;z-index:5;font-size: var(--tl-type-body-size)}
 @media(max-width:700px) {
- .libraries__savebar {align-items:flex-start;flex-wrap:wrap}
- 
- .libraries__savebar {position:static}
-}
+  
+ }

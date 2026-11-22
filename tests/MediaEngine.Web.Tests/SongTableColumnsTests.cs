@@ -39,22 +39,22 @@ public sealed class SongTableColumnsTests
     }
 
     [Fact]
-    public void APlaylist_StartsWithArtistAlbumFavoriteAndTimeOnly()
+    public void APlaylist_StartsWithAlbumDateAddedAndTimeAndNamesTheArtistUnderTheTitle()
     {
         Assert.Equal(
-            [SongColumn.Number, SongColumn.Song, SongColumn.Artist, SongColumn.Album, SongColumn.Favorite, SongColumn.Time],
+            [SongColumn.Number, SongColumn.Song, SongColumn.Album, SongColumn.DateAdded, SongColumn.Time],
             Columns(SongTableColumns.Resolve(SongTablePlace.Playlist)));
     }
 
     [Fact]
-    public void APlaylist_CannotOfferGenrePlaysOrDateAdded()
+    public void APlaylist_CannotOfferGenrePlaysOrStatus_ButOffersDateAddedArtistAndFavorite()
     {
         var offered = SongTableColumns.Available(SongTablePlace.Playlist);
 
         Assert.DoesNotContain(SongColumn.Genre, offered);
         Assert.DoesNotContain(SongColumn.Plays, offered);
-        Assert.DoesNotContain(SongColumn.DateAdded, offered);
-        Assert.Equal([SongColumn.Number, SongColumn.Artist, SongColumn.Album, SongColumn.Favorite, SongColumn.Time], offered);
+        Assert.DoesNotContain(SongColumn.Status, offered);
+        Assert.Equal([SongColumn.Number, SongColumn.Artist, SongColumn.Album, SongColumn.DateAdded, SongColumn.Favorite, SongColumn.Time], offered);
     }
 
     [Fact]
@@ -80,7 +80,12 @@ public sealed class SongTableColumnsTests
         {
             var columns = Columns(SongTableColumns.Resolve(place, choice, albumHasMultipleArtists: true, showTick: true));
             Assert.Equal(SongColumn.Time, columns[^1]);
-            Assert.Equal(SongColumn.Favorite, columns[^2]);
+
+            // A playlist starts without the Favorite column (its song cell is a title over an artist); when it is shown it sits before Time.
+            if (place != SongTablePlace.Playlist || choice == everything)
+            {
+                Assert.Equal(SongColumn.Favorite, columns[^2]);
+            }
         }
     }
 

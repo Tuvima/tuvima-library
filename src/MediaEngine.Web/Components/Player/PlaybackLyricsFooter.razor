@@ -20,6 +20,11 @@
         @* Edit lyrics that is not available for this song: said here, in place, until the next try or the close button. *@
         <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _editNotice = null)" data-lyrics-edit-notice="true">@_editNotice</AppAlert>
     }
+    @if (Presenter.Offers("find_lyrics") && Presenter.Lines.Count > 0)
+    {
+        @* The obvious way to change wrong lyrics (issue 1187): a plain link under the lyrics that opens Find different lyrics, the same window as the menu's Find another. *@
+        <div class="playback-lyrics-footer__findrow"><AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => Presenter.OpenAlternativesAsync())" data-lyrics-find-different>@L["PlaybackLyrics_NotTheseLyrics"]</AppButton></div>
+    }
     <PlaybackLyricsFilePicker @ref="_picker" />
     <AppTooltip Text="@L["PlaybackLyrics_LyricsOptions"].Value" Suppressed="@_menuOpen">
         <AppNativeButton @ref="_more" Type="button" Class="playback-lyrics-footer__more" AriaLabel="@L["PlaybackLyrics_LyricsOptions"].Value"
@@ -74,7 +79,7 @@
             }
             if (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null)
             {
-                items.Add(new(PlaybackLyricsMenuActions.ThisOneIsWrong, L["PlaybackLyrics_ThisOneIsWrong"].Value, PlaybackUtilityGlyphKind.Dislike, DividerBefore: firstExtra));
+                items.Add(new(PlaybackLyricsMenuActions.ThisOneIsWrong, L["PlaybackLyrics_HideTheseLyrics"].Value, PlaybackUtilityGlyphKind.Dislike, DividerBefore: firstExtra));
             }
             return items;
         }
@@ -147,12 +152,17 @@
             || snapshot.CurrentIndex < 0 || snapshot.CurrentIndex >= snapshot.Queue.Count)
             return;
         var item = snapshot.Queue[snapshot.CurrentIndex];
-        var album = item.AlbumWorkId is { } albumId && albumId != Guid.Empty ? albumId : (Guid?)null;
-        var row = new BulkEditRow(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, album, "Music");
         _editNotice = null;
-        if (Services.GetService<ListEditLauncher>() is { } launcher
-            && !await launcher.OpenRowAsync(row, MediaEngine.Contracts.Details.DetailPresentationContext.Listen, "lyrics"))
-            _editNotice = launcher.LastNotice;
+        // The one song editor, on its Lyrics area (issue 1258): not a list of ticked rows.
+        var target = new ListEditTarget(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, "Music",
+            MediaEngine.Contracts.Details.DetailPresentationContext.Listen);
+        if (Services.GetService<ListEditLauncher>() is { } launcher)
+        {
+            if (await launcher.OpenAsync(target, EditTool.Details))
+                Services.GetService<EditorHost>()?.RequestFocus("lyrics");
+            else
+                _editNotice = launcher.LastNotice;
+        }
     }
 
     private string? _editNotice;

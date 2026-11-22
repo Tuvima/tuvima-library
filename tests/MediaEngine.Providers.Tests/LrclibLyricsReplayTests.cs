@@ -88,11 +88,94 @@ public sealed class LrclibLyricsReplayTests
     [Fact]
     public async Task ADifferentSongWithTheSameTitleButAnotherLength_IsRejected_AndLoggedAsLengthTooDifferent()
     {
-        var (provider, log) = Build(SearchAnswers(List(Entry("Song", "Someone Else", 165))));
+        var (provider, log) = Build(SearchAnswers(List(Entry("Song", "The Beatles", 165))));
 
         Assert.Empty(await provider.SearchAsync(Song("Song")));
 
         Assert.Contains("LengthTooDifferent", Assert.Single(log.Information), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ASongOfTheSameTitleByAnotherArtist_IsNeverPickedByItself()
+    {
+        var (provider, _) = Build(SearchAnswers(List(Entry("Silhouettes", "Another Band", 125))));
+
+        Assert.Empty(await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul")));
+    }
+
+    [Fact]
+    public async Task EverySongOfTheSameTitleAndArtist_IsOffered_BestFirst_AndAnotherArtistsIsLeftOut()
+    {
+        var otherAlbum = Entry("Silhouettes", "Smile Empty Soul", 124, id: 2).Replace("\"albumName\":\"Album\"", "\"albumName\":\"Compilation\"", StringComparison.Ordinal);
+        var list = List(
+            Entry("Silhouettes", "Another Band", 125, id: 1),
+            otherAlbum,
+            Entry("Silhouettes", "Smile Empty Soul", 125, id: 3),
+            Entry("Silhouettes", "Smile Empty Soul", 190, id: 4));
+        var (provider, _) = Build(SearchAnswers(list));
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul"));
+
+        // The one on the song's own album and length leads; the compilation follows; the other band's song and the far-off length are not offered.
+        Assert.Equal(["3", "2"], found.Select(candidate => candidate.SourceId).ToArray());
+        Assert.True(found[0].MatchScore > found[1].MatchScore);
+    }
+
+    [Fact]
+    public async Task EachOfferedSong_CarriesTheSourcesOwnTitleArtistAlbumAndLength_ForItsRow()
+    {
+        var list = List(Entry("Silhouettes", "Smile Empty Soul", 124, id: 2).Replace("\"albumName\":\"Album\"", "\"albumName\":\"Compilation\"", StringComparison.Ordinal));
+        var (provider, _) = Build(SearchAnswers(list));
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul") with { Interactive = true });
+
+        var candidate = Assert.Single(found);
+        Assert.Equal("Silhouettes", candidate.Title);
+        Assert.Equal("Smile Empty Soul", candidate.Artist);
+        Assert.Equal("Compilation", candidate.Album);
+        Assert.Equal(124d, candidate.SourceDurationSeconds);
+    }
+
+    [Fact]
+    public async Task WhenAPersonIsChoosingAnother_ASongOfTheRightTitleAndArtistButAnotherLength_IsStillOffered_AfterTheOnesThatFit()
+    {
+        var list = List(
+            Entry("Silhouettes", "Smile Empty Soul", 190, id: 4),
+            Entry("Silhouettes", "Smile Empty Soul", 125, id: 3),
+            Entry("Silhouettes", "Another Band", 125, id: 1));
+        var (provider, _) = Build(SearchAnswers(list));
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul") with { Interactive = true });
+
+        // Both of the artist's songs are listed, the one of the song's length first; the other band's is still left out.
+        Assert.Equal(["3", "4"], found.Select(candidate => candidate.SourceId).ToArray());
+        Assert.True(found[1].DurationMatchScore < 0);
+    }
+
+    [Fact]
+    public async Task ATitleWrittenAsArtistDashTitle_MatchesTheBareTitle_WhenTheArtistIsTheEntrysOwn()
+    {
+        var (provider, _) = Build(SearchAnswers(List(Entry("Smile Empty Soul - Silhouettes", "Smile Empty Soul", 125, id: 7))));
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul"));
+
+        Assert.Equal("7", Assert.Single(found).SourceId);
+    }
+
+    [Fact]
+    public async Task WhenAPersonIsChoosingAnother_EveryRequestIsAsked_SoAnEntryOnlyTheWordSearchFindsIsOffered()
+    {
+        var handler = new RecordingHandler(request =>
+            request.Uri.AbsolutePath == "/api/get"
+                ? RecordingHandler.Json(NotFound, HttpStatusCode.NotFound)
+                : RecordingHandler.Json(request.Uri.Query.Contains("track_name", StringComparison.Ordinal)
+                    ? List(Entry("Silhouettes", "Smile Empty Soul", 125, id: 1))
+                    : List(Entry("Smile Empty Soul - Silhouettes", "Smile Empty Soul", 125, id: 2))));
+        var (provider, _) = Build(handler);
+
+        var found = await provider.SearchAsync(Song("Silhouettes", "Smile Empty Soul") with { Interactive = true });
+
+        Assert.Equal(["1", "2"], found.Select(candidate => candidate.SourceId).Order().ToArray());
     }
 
     [Fact]
@@ -175,7 +258,7 @@ public sealed class LrclibLyricsReplayTests
     [Fact]
     public async Task AnExactAnswerThatIsInstrumental_IsLoggedAsInstrumental()
     {
-        var instrumental = """{"id":9,"trackName":"Song","artistName":"A","duration":125,"instrumental":true,"plainLyrics":null,"syncedLyrics":null}""";
+        var instrumental = """{"id":9,"trackName":"Song","artistName":"The Beatles","duration":125,"instrumental":true,"plainLyrics":null,"syncedLyrics":null}""";
         var (provider, log) = Build(new RecordingHandler(_ => RecordingHandler.Json(instrumental)));
 
         var found = Assert.Single(await provider.SearchAsync(Song("Song")));

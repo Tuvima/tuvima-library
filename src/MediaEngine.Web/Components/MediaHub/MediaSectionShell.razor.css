@@ -88,20 +88,6 @@
     background: var(--tl-menu-item-hover);
 }
 
-.media-section-shell__inline-create {
-    display: grid;
-    grid-template-columns: 20px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-    min-height: 40px;
-    margin: 0 4px 6px 18px;
-    padding: 5px 8px;
-    border: 1px solid var(--tl-border-strong);
-    border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-surface);
-}
-
-.media-section-shell__inline-create ::deep input,
 .media-section-shell__rename-row ::deep input {
     width: 100%;
     min-width: 0;
@@ -256,19 +242,36 @@
     position: relative;
     z-index: 1;
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) 30px;
+    /* The label takes all the room and the "..." menu sits at the end. The 28 px grip column exists only while the list is being reordered
+       (has-grip): without it the label used to fall into the grip's column, so a playlist or Gallery you made by hand was squeezed to an
+       icon with the menu drawn over its name, and a song or photo dropped on it landed on the menu instead of the row. */
+    grid-template-columns: minmax(0, 1fr) 30px;
     align-items: center;
     min-height: 44px;
     background: var(--tl-bg-shell);
     transition: transform 160ms ease;
 }
 
+.media-section-shell__managed-main.has-grip {
+    grid-template-columns: 28px minmax(0, 1fr) 30px;
+}
+
 .media-section-shell__managed-row.is-swiped .media-section-shell__managed-main {
     transform: translateX(-136px);
 }
 
-.media-section-shell__managed-row.is-reordering {
+.media-section-shell__managed-row.is-reordering,
+.media-section-shell__managed-row.is-touch-dragging {
     opacity: 0.58;
+}
+
+/* A finger's drag by the grip (touch-reorder.js adds these): a line on the row's top or bottom edge shows where it would land. */
+.media-section-shell__managed-row.is-touch-drop-before {
+    box-shadow: inset 0 2px 0 var(--tl-accent-primary);
+}
+
+.media-section-shell__managed-row.is-touch-drop-after {
+    box-shadow: inset 0 -2px 0 var(--tl-accent-primary);
 }
 
 ::deep .media-section-shell__drag-handle {
@@ -288,6 +291,8 @@
     color: var(--tl-text-primary);
     outline: 0;
 }
+
+/* The grip's touch look (no page scrolling from it, a 44 px target) is in app.css with the other grips a finger drags. */
 
 .media-section-shell__rail-item--managed {
     grid-template-columns: 20px minmax(0, 1fr) auto;
@@ -358,7 +363,7 @@
     padding: 0 6px;
     place-items: center;
     border: 1px solid color-mix(in srgb, var(--tl-accent-primary) 48%, transparent);
-    border-radius: var(--tl-radius-round, 999px);
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-text-primary);
     background: color-mix(in srgb, var(--tl-accent-primary) 28%, var(--tl-bg-surface-raised));
     font-size: var(--tl-type-overline-size);
@@ -485,7 +490,7 @@
     height: 22px;
     padding: 0 7px;
     border-color: transparent;
-    border-radius: 3px;
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-status-warning-soft);
     color: var(--tl-status-warning);
     font-variant-numeric: tabular-nums;

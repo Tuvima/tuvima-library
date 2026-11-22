@@ -1,0 +1,168 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* Own-domain wizard, screen 2: Point it here (mock-ups 6b B). Three ways for the internet to reach this server, the router door last
+   with a warning when the provider shares one public address. Choosing one shows its steps: a tunnel, the Caddy file with the person's
+   address filled in (a download and a copy, nothing installed or started by Library), or the router door (Library's automatic try, then
+   the manual steps). The last line ticks itself when the check sees the name pointing here. *@
+<div class="ra-point" data-remote-screen="domain-point" data-remote-route="@RouteName">
+    <RemoteAccessCard Key="routes" Title="@L["RemoteAccessOwnAddressStep_HowReach"].Value">
+        <RemoteAccessRow Key="route-tunnel" Title="@L["RemoteAccessOwnAddressStep_Tunnel"].Value" Detail="@L["RemoteAccessOwnAddressStep_TunnelText"].Value">
+            <Actions>@ShowSteps(OwnDomainRoute.Tunnel)</Actions>
+        </RemoteAccessRow>
+        <RemoteAccessRow Key="route-proxy" Title="@L["RemoteAccessOwnAddressStep_Proxy"].Value" Detail="@L["RemoteAccessDomainPoint_ProxyText"].Value">
+            <Actions>@ShowSteps(OwnDomainRoute.Caddy)</Actions>
+        </RemoteAccessRow>
+        <RemoteAccessRow Key="route-router" Title="@L["RemoteAccessOwnAddressStep_RouterDoor"].Value"
+                         Tone="@(SharedAddress ? AppStatusDotTone.Attention : null)" StatusText="@(SharedAddress ? L["RemoteAccessOwnAddressStep_MayNotWork"].Value : null)"
+                         Detail="@(SharedAddress ? L["RemoteAccessOwnAddressStep_RouterDoorShared"].Value : L["RemoteAccessOwnAddressStep_RouterDoorText"].Value)">
+            <Actions>@ShowSteps(OwnDomainRoute.RouterDoor)</Actions>
+        </RemoteAccessRow>
+    </RemoteAccessCard>
+
+    @switch (Route)
+    {
+        case OwnDomainRoute.Tunnel:
+            <RemoteAccessCard Key="steps" Title="@L["RemoteAccessDomainPoint_TellTheInternet"].Value">
+                <RemoteAccessRow Key="tunnel-account" Number="1" Title="@string.Format(L["RemoteAccessDomainPoint_TunnelAccount"].Value, Domain)"
+                                 Detail="@L["RemoteAccessDomainPoint_TunnelAccountText"].Value" />
+                <RemoteAccessRow Key="tunnel-connector" Number="2" Tag="@L["RemoteAccessTailscaleSteps_ServerTag"].Value"
+                                 Title="@L["RemoteAccessDomainPoint_TunnelConnector"].Value" Detail="@L["RemoteAccessDomainPoint_TunnelConnectorText"].Value">
+                    <RemoteAccessCommandLine Key="connector" Text="@OwnDomainCommands.TunnelConnector" What="@L["RemoteAccessDomainPoint_CommandWhat"].Value" />
+                </RemoteAccessRow>
+                <RemoteAccessRow Key="tunnel-hostname" Number="3" Title="@string.Format(L["RemoteAccessDomainPoint_TunnelHostname"].Value, Host)"
+                                 Detail="@L["RemoteAccessDomainPoint_TunnelHostnameText"].Value">
+                    <RemoteAccessCommandLine Key="target" Text="@($"http://localhost:{ProxyPort}")" What="@L["RemoteAccessDomainPoint_AddressWhat"].Value" />
+                </RemoteAccessRow>
+                @LiveRow(4)
+            </RemoteAccessCard>
+            <RemoteAccessCard Key="tunnel-warning" Tone="AppUiTone.Warning" Intro="@L["RemoteAccessDomainPoint_TunnelWarning"].Value" />
+            break;
+        case OwnDomainRoute.Caddy:
+            <RemoteAccessCard Key="steps" Title="@L["RemoteAccessDomainPoint_TellTheInternet"].Value">
+                <RemoteAccessRow Key="caddy-install" Number="1" Tag="@L["RemoteAccessTailscaleSteps_ServerTag"].Value"
+                                 Title="@L["RemoteAccessDomainPoint_CaddyInstall"].Value" Detail="@L["RemoteAccessDomainPoint_CaddyInstallText"].Value" />
+                <RemoteAccessRow Key="caddy-file" Number="2" Title="@L["RemoteAccessDomainPoint_CaddyFile"].Value" Detail="@L["RemoteAccessDomainPoint_CaddyFileText"].Value">
+                    <pre class="ra-point__file" data-remote-caddy-file>@CaddyText</pre>
+                    <div class="ra-point__file-actions">
+                        <a class="ra-point__download" href="@CaddyFile.DownloadAddress(CaddyText)" download="@CaddyFile.FileName" data-remote-action="download-caddy">@L["RemoteAccessDomainPoint_Download"]</a>
+                        <AppCopyButton Label="@L["RemoteAccessDomainPoint_CopyFile"].Value" Text="@CaddyText" What="@L["RemoteAccessDomainPoint_FileWhat"].Value"
+                                       CopyFailed="ShowCopyFailure" UserAttributes="@CopyFileAttributes" />
+                    </div>
+                </RemoteAccessRow>
+                <RemoteAccessRow Key="caddy-run" Number="3" Tag="@L["RemoteAccessTailscaleSteps_ServerTag"].Value"
+                                 Title="@L["RemoteAccessDomainPoint_CaddyRun"].Value" Detail="@string.Format(L["RemoteAccessDomainPoint_CaddyRunText"].Value, ProxyPort)">
+                    <RemoteAccessCommandLine Key="caddy-run" Text="@OwnDomainCommands.CaddyRun" What="@L["RemoteAccessDomainPoint_CommandWhat"].Value" />
+                </RemoteAccessRow>
+                <RemoteAccessRow Key="caddy-ports" Number="4" Title="@L["RemoteAccessDomainPoint_CaddyPorts"].Value" Detail="@L["RemoteAccessDomainPoint_CaddyPortsText"].Value" />
+                @LiveRow(5)
+            </RemoteAccessCard>
+            break;
+        case OwnDomainRoute.RouterDoor:
+            <RemoteAccessCard Key="steps" Title="@L["RemoteAccessDomainPoint_TellTheInternet"].Value">
+                <RemoteAccessRow Key="router-try" Number="1" Title="@L["RemoteAccessDomainPoint_RouterTry"].Value"
+                                 Tone="@RouterTone" StatusText="@RouterStatusText" Current="@(RouterTone is null)" Detail="@RouterDetail">
+                    <Actions>
+                        <AppButton Label="@L["RemoteAccessDomainPoint_RouterTryButton"].Value" Disabled="@Busy" OnClick="TryRouterDoorRequested" data-remote-action="try-router-door" />
+                    </Actions>
+                </RemoteAccessRow>
+                <RemoteAccessRow Key="router-manual" Number="2" Title="@L["RemoteAccessDomainPoint_RouterManual"].Value" Detail="@L["RemoteAccessDomainPoint_RouterManualText"].Value" />
+                <RemoteAccessRow Key="router-proxy" Number="3" Title="@L["RemoteAccessDomainPoint_RouterProxy"].Value" Detail="@L["RemoteAccessDomainPoint_RouterProxyText"].Value" />
+                @LiveRow(4)
+            </RemoteAccessCard>
+            break;
+    }
+
+    @if (_copyFailure is not null)
+    {
+        <p class="ra-point__failure" role="alert" data-copy-failure>@_copyFailure</p>
+    }
+
+    <div class="ra-point__actions">
+        <AppButton Label="@L["Common_Continue"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Route is null || Busy)"
+                   OnClick="ContinueRequested" data-remote-action="continue" />
+        <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+    </div>
+</div>
+
+@code {
+    private static readonly Dictionary<string, object> CopyFileAttributes = new() { ["data-remote-action"] = "copy-caddy" };
+
+    /// <summary>The full https address chosen on the Address screen.</summary>
+    [Parameter, EditorRequired] public string Address { get; set; } = string.Empty;
+
+    [Parameter] public OwnDomainRoute? Route { get; set; }
+    [Parameter] public EventCallback<OwnDomainRoute> RouteChosen { get; set; }
+
+    /// <summary>The port visitors are sent to on this computer (the Dashboard's proxy port).</summary>
+    [Parameter] public int ProxyPort { get; set; } = 5017;
+
+    [Parameter] public RemoteCheckResultDto? Result { get; set; }
+
+    /// <summary>True while the check is being read; the live line then shows its number instead of a tick.</summary>
+    [Parameter] public bool Checking { get; set; }
+
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback TryRouterDoorRequested { get; set; }
+    [Parameter] public EventCallback CheckAgainRequested { get; set; }
+    [Parameter] public EventCallback ContinueRequested { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+
+    private string? _copyFailure;
+
+    private string RouteName => Route?.ToString().ToLowerInvariant() ?? "none";
+
+    private string Host => Uri.TryCreate(Address, UriKind.Absolute, out var uri) ? uri.IdnHost : Address;
+
+    // The domain without its front name ("yourname.com" for "library.yourname.com").
+    private string Domain => OwnDomainAddress.Split(Address) is { Domain.Length: > 0 } parts ? parts.Domain : Host;
+
+    private string CaddyText => CaddyFile.Render(Address, ProxyPort);
+
+    private bool Has(string key) => Result?.Findings.Any(finding => finding.Key == key) == true;
+
+    private bool SharedAddress => Has(RemoteCheckFindingKeys.SharedAddress);
+
+    private AppStatusDotTone? RouterTone =>
+        Result is null ? null
+        : Has(RemoteCheckFindingKeys.RouterDoorReady) ? AppStatusDotTone.Working
+        : Has(RemoteCheckFindingKeys.RouterDoorUnavailable) || SharedAddress ? AppStatusDotTone.Attention
+        : null;
+
+    private string? RouterStatusText => RouterTone switch
+    {
+        AppStatusDotTone.Working => L["RemoteAccessTailscaleSteps_Done"].Value,
+        AppStatusDotTone.Attention => L["RemoteAccessOwnAddressStep_MayNotWork"].Value,
+        _ => null,
+    };
+
+    private string RouterDetail =>
+        Result?.Findings.FirstOrDefault(finding => finding.Key is RemoteCheckFindingKeys.RouterDoorReady or RemoteCheckFindingKeys.RouterDoorUnavailable) is { } finding
+            ? (string.IsNullOrWhiteSpace(finding.Detail) ? finding.Title : finding.Detail)
+            : L["RemoteAccessDomainPoint_RouterTryText"].Value;
+
+    // The last line of every route: it ticks once the check sees the name pointing here.
+    private AppStatusDotTone? LiveTone =>
+        Checking || Result is null ? null
+        : Has(RemoteCheckFindingKeys.NameNotPointingHere) ? AppStatusDotTone.Attention
+        : AppStatusDotTone.Working;
+
+    private RenderFragment ShowSteps(OwnDomainRoute route) => @<AppButton Label="@L["RemoteAccessDomainPoint_ShowSteps"].Value"
+                                                                          ButtonStyle="@(Route == route ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
+                                                                          Tone="@(Route == route ? AppUiTone.Primary : AppUiTone.Neutral)"
+                                                                          OnClick="@(() => RouteChosen.InvokeAsync(route))"
+                                                                          data-remote-action="@($"route-{route.ToString().ToLowerInvariant()}")" />;
+
+    private RenderFragment LiveRow(int number) => @<RemoteAccessRow Key="route-live" Number="@number" Tone="@LiveTone"
+                                                                    StatusText="@(LiveTone == AppStatusDotTone.Working ? L["RemoteAccessTailscaleSteps_Done"].Value : L["RemoteAccessDomain_StatusAttention"].Value)"
+                                                                    Title="@L["RemoteAccessDomainPoint_Live"].Value"
+                                                                    Detail="@(LiveTone == AppStatusDotTone.Attention ? Result?.Findings.FirstOrDefault(finding => finding.Key == RemoteCheckFindingKeys.NameNotPointingHere)?.Detail : L["RemoteAccessDomainPoint_LiveText"].Value)">
+        <Actions>
+            <AppButton Label="@L["RemoteAccessCheckStep_CheckAgain"].Value" Disabled="@Busy" OnClick="CheckAgainRequested" data-remote-action="check-again" />
+        </Actions>
+    </RemoteAccessRow>;
+
+    private void ShowCopyFailure(string message) => _copyFailure = message;
+}

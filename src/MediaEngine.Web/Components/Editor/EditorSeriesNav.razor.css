@@ -1,5 +1,5 @@
 /* The Series' two header dropdowns (universal editor v8 D6): the kind of title, then the title. Own class names so no rule is shared with the
-   family or Universe dropdowns. The buttons are the shared Large AppButton (44 px); this file only places them and draws their text. */
+   family or Universe dropdowns. The triggers are the same AppRowButtons as the header dropdowns (look in app.css); this file only places them and draws their text. */
 .tl-snav {
     position: relative;
     display: flex;
@@ -17,14 +17,12 @@
 
 .tl-snav__level {
     position: relative;
-    flex: 1 1 10rem;
-    max-width: 16rem;
+    flex: 0 1 auto;
     min-width: 0;
 }
 
 .tl-snav--stacked .tl-snav__level {
     flex: 0 0 auto;
-    max-width: none;
 }
 
 .tl-snav__text {

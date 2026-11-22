@@ -50,18 +50,18 @@
         color: var(--tl-text-secondary);
     }
 
+    /* One "View all" link on every shelf (Look v3.2 D8): accent color, 13 px, semibold, a 44 px touch area (app.css). */
     .media-tile-shelf-link {
-        color: var(--tl-text-primary);
+        color: var(--tl-accent-primary);
         text-decoration: none;
         font-family: var(--font-ui);
-        font-size: var(--tl-type-overline-size);
+        font-size: var(--tl-font-size-secondary);
         font-weight: var(--tl-type-overline-weight);
-        letter-spacing: 0.14em;
         white-space: nowrap;
     }
 
     .media-tile-shelf-link:hover {
-        color: var(--tl-text-primary);
+        color: var(--tl-accent-primary-hover);
     }
 
     /* Home and non-Listen discovery shelves use smaller cards while keeping

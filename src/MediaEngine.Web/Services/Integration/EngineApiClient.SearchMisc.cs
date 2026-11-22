@@ -12,6 +12,7 @@ using MediaEngine.Domain.Models;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Branding;
 using MediaEngine.Web.Services.Integration.Clients;
+using MediaEngine.Web.Services.Ui;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -456,7 +457,7 @@ public sealed partial class EngineApiClient
             if (!resp.IsSuccessStatusCode)
             {
                 // Keep the Engine's reason (a curated collection cannot lose its last item) for the caller to show.
-                LastError = await ReadCollectionFailureAsync(resp, ct);
+                await RecordCollectionFailureAsync(resp, ct);
                 return false;
             }
 
@@ -470,24 +471,58 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> ReorderCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> itemIds, Guid? profileId = null, CancellationToken ct = default)
+    public Task<CollectionItemsAddedResponse?> AddCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> workIds, Guid? profileId = null, CancellationToken ct = default) =>
+        PostAsync<CollectionItemAddRequest, CollectionItemsAddedResponse>(
+            "POST /collections/{id}/items (batch)",
+            AppendCollectionProfileQuery($"/collections/{collectionId}/items", profileId),
+            new CollectionItemAddRequest { WorkIds = workIds.Where(id => id != Guid.Empty).Distinct().ToList() },
+            ct: ct);
+
+    public Task<bool> MoveCollectionItemAsync(Guid collectionId, Guid itemId, CollectionItemMoveRequest move, Guid? profileId = null, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /collections/{id}/items/{itemId}/move",
+            AppendCollectionProfileQuery($"/collections/{collectionId}/items/{itemId}/move", profileId),
+            move,
+            ct: ct);
+
+    public async Task<bool> ApplyCollectionItemOrderAsync(
+        Guid collectionId,
+        IReadOnlyList<Guid> currentOrder,
+        IReadOnlyList<Guid> newOrder,
+        Guid? profileId = null,
+        CancellationToken ct = default)
     {
-        try
+        var moves = CollectionItemMovePlanner.Plan(currentOrder, newOrder);
+        if (moves is null)
         {
-            var url = AppendCollectionProfileQuery($"/collections/{collectionId}/items/reorder", profileId);
-            var resp = await _http.PutAsJsonAsync(
-                url,
-                new CollectionItemReorderRequest { ItemIds = itemIds.ToList() },
-                ct);
-            return resp.IsSuccessStatusCode;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "PUT /collections/{CollectionId}/items/reorder failed", collectionId);
-            LastError = ex.Message;
+            LastError = "The saved order and the new order do not hold the same items.";
             return false;
         }
+
+        foreach (var move in moves)
+        {
+            if (!await MoveCollectionItemAsync(collectionId, move.ItemId, new CollectionItemMoveRequest { Position = move.Position }, profileId, ct))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
+
+    public Task<ManagedCollectionDto?> DuplicateCollectionAsync(Guid collectionId, string? name = null, Guid? profileId = null, CancellationToken ct = default) =>
+        PostAsync<CollectionDuplicateRequest, ManagedCollectionDto>(
+            "POST /collections/{id}/duplicate",
+            AppendCollectionProfileQuery($"/collections/{collectionId}/duplicate", profileId),
+            new CollectionDuplicateRequest { Name = name },
+            ct: ct);
+
+    public Task<bool> SetCollectionPinnedAsync(Guid collectionId, bool pinned, Guid? profileId = null, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /collections/{id}/pinned",
+            AppendCollectionProfileQuery($"/collections/{collectionId}/pinned", profileId),
+            new CollectionPinRequest(pinned),
+            ct: ct);
 
     public async Task<bool> UpdateCollectionEnabledAsync(Guid collectionId, bool enabled, CancellationToken ct = default)
     {
@@ -671,7 +706,7 @@ public sealed partial class EngineApiClient
             var response = await _http.PostAsJsonAsync(AppendCollectionProfileQuery("/collections", profileId), body, ct);
             if (!response.IsSuccessStatusCode)
             {
-                LastError = await ReadCollectionFailureAsync(response, ct);
+                await RecordCollectionFailureAsync(response, ct);
                 return null;
             }
 
@@ -722,7 +757,7 @@ public sealed partial class EngineApiClient
             var response = await _http.PostAsJsonAsync(url, body, ct);
             if (!response.IsSuccessStatusCode)
             {
-                LastError = await ReadCollectionFailureAsync(response, ct);
+                await RecordCollectionFailureAsync(response, ct);
                 _logger.LogWarning(
                     "POST /collections failed with HTTP {StatusCode}: {Error}",
                     (int)response.StatusCode,
@@ -740,6 +775,16 @@ public sealed partial class EngineApiClient
             LastError = ex.Message;
             return null;
         }
+    }
+
+    /// <summary>
+    /// Keeps the Engine's explanation and the HTTP status of a refused collection call, so the screen can say why ("could not be created because
+    /// ...") instead of a bare failure: the status is what tells the failure text that the Engine answered.
+    /// </summary>
+    private async Task RecordCollectionFailureAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        var detail = await ReadCollectionFailureAsync(response, ct);
+        _failureState.RecordRawFailure($"{response.RequestMessage?.Method} {response.RequestMessage?.RequestUri?.AbsolutePath}", (int)response.StatusCode, detail);
     }
 
     private static async Task<string> ReadCollectionFailureAsync(HttpResponseMessage response, CancellationToken ct)
@@ -825,7 +870,7 @@ public sealed partial class EngineApiClient
             var response = await _http.PutAsJsonAsync(url, body, ct);
             if (!response.IsSuccessStatusCode)
             {
-                LastError = await ReadCollectionFailureAsync(response, ct);
+                await RecordCollectionFailureAsync(response, ct);
                 _logger.LogWarning(
                     "PUT /collections/{CollectionId} failed with HTTP {StatusCode}: {Error}",
                     collectionId,
@@ -904,7 +949,7 @@ public sealed partial class EngineApiClient
             var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode)
             {
-                LastError = await ReadCollectionFailureAsync(response, ct);
+                await RecordCollectionFailureAsync(response, ct);
                 return [];
             }
 
@@ -930,7 +975,7 @@ public sealed partial class EngineApiClient
             var response = await _http.PostAsJsonAsync(AppendCollectionProfileQuery("/collections/packs", profileId), request, ct);
             if (!response.IsSuccessStatusCode)
             {
-                LastError = await ReadCollectionFailureAsync(response, ct);
+                await RecordCollectionFailureAsync(response, ct);
                 return null;
             }
 
@@ -952,7 +997,7 @@ public sealed partial class EngineApiClient
             var response = await _http.PostAsJsonAsync("/collections/packs/preview-file", new CollectionPackFilePreviewRequest { Content = content }, ct);
             if (!response.IsSuccessStatusCode)
             {
-                LastError = await ReadCollectionFailureAsync(response, ct);
+                await RecordCollectionFailureAsync(response, ct);
                 return null;
             }
 
@@ -974,7 +1019,7 @@ public sealed partial class EngineApiClient
             var response = await _http.GetAsync(AppendCollectionProfileQuery($"/collections/{setId}/pack-file", profileId), ct);
             if (!response.IsSuccessStatusCode)
             {
-                LastError = await ReadCollectionFailureAsync(response, ct);
+                await RecordCollectionFailureAsync(response, ct);
                 return null;
             }
 
@@ -996,7 +1041,7 @@ public sealed partial class EngineApiClient
             var response = await _http.DeleteAsync(AppendCollectionProfileQuery($"/collections/{setId}/set", profileId), ct);
             if (!response.IsSuccessStatusCode)
             {
-                LastError = await ReadCollectionFailureAsync(response, ct);
+                await RecordCollectionFailureAsync(response, ct);
                 return null;
             }
 

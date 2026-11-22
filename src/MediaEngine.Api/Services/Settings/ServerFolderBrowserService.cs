@@ -178,6 +178,8 @@ public sealed class ServerFolderBrowserService(
         {
             // Names first: the enumeration already carries each folder's attributes, so a plain folder (not a link) costs no further disk
             // reads here. Only a link is followed to find where it really points, which is what keeps a slow or network drive quick to list.
+            // Item counts are a nicety: they share one time budget, so a slow or network drive with thousands of folders still lists at once and the rest show no count.
+            var countClock = System.Diagnostics.Stopwatch.StartNew();
             directories = new DirectoryInfo(resolved.Path).EnumerateDirectories()
                 .Select(directory => (Directory: directory, Physical: PhysicalPathOf(resolved.Path, directory)))
                 .Where(item => !item.Directory.Name.StartsWith('.')
@@ -186,7 +188,7 @@ public sealed class ServerFolderBrowserService(
                     && !IsHidden(hidden, item.Physical))
                 .Where(item => string.IsNullOrWhiteSpace(search)
                     || item.Directory.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
-                .Select(item => CreateEntry(resolved, item.Directory, item.Physical))
+                .Select(item => CreateEntry(resolved, item.Directory, item.Physical, countClock))
                 .Where(entry => entry is not null)
                 .Cast<ServerFolderEntryDto>()
                 .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
@@ -602,7 +604,27 @@ public sealed class ServerFolderBrowserService(
             ? Path.Combine(parentPhysical, directory.Name)
             : PhysicalOrFull(directory.FullName);
 
-    private ServerFolderEntryDto? CreateEntry(ResolvedSelection parent, DirectoryInfo directory, string physical)
+    /// <summary>The number of things directly inside a folder, read only up to <see cref="ItemCountCap"/> so a huge or slow folder never holds the list up; null when it cannot be read.</summary>
+    private static int? CountItems(DirectoryInfo directory)
+    {
+        try
+        {
+            return directory.EnumerateFileSystemInfos()
+                .Where(entry => !entry.Name.StartsWith('.') && (entry.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0)
+                .Take(ItemCountCap)
+                .Count();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // A folder Library cannot read still lists; its count is simply not shown.
+            return null;
+        }
+    }
+
+    private const int ItemCountCap = 1000;
+    private const int ItemCountBudgetMilliseconds = 1500;
+
+    private ServerFolderEntryDto? CreateEntry(ResolvedSelection parent, DirectoryInfo directory, string physical, System.Diagnostics.Stopwatch countClock)
     {
         try
         {
@@ -625,6 +647,7 @@ public sealed class ServerFolderBrowserService(
                 Name = directory.Name,
                 RelativePath = Path.GetRelativePath(parent.RootPath, physical) is "." ? string.Empty : Path.GetRelativePath(parent.RootPath, physical),
                 ModifiedAt = directory.LastWriteTimeUtc,
+                ItemCount = countClock.ElapsedMilliseconds < ItemCountBudgetMilliseconds ? CountItems(directory) : null,
             };
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)

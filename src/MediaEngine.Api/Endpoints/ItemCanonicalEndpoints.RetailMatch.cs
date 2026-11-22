@@ -444,6 +444,21 @@ public static partial class ItemCanonicalEndpoints
                     .Where(pair => group.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
                     .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase)))
             .ToList();
+        // A song matched to a record of another album (the editor moves the song first, then saves its match) puts the song on an album
+        // whose identity differs from the record's. Remember the album's identity now, before the match writes the new one, so the
+        // album's artwork can follow the match at once below (#1185).
+        var albumIdentityChanged = false;
+        if (string.Equals(policy.MediaType, MediaType.Music.ToString(), StringComparison.OrdinalIgnoreCase)
+            && string.Equals(policy.TargetFieldGroup, "track", StringComparison.OrdinalIgnoreCase))
+        {
+            string[] albumKeys = [BridgeIdKeys.AppleMusicCollectionId, BridgeIdKeys.MusicBrainzReleaseGroupId, BridgeIdKeys.MusicBrainzReleaseId];
+            var priorAlbumIds = await bridgeIdRepo.GetByEntityAsync(lineage.TargetForParentScope, ct);
+            albumIdentityChanged = albumKeys.Any(key =>
+                selectedBridgeIds.TryGetValue(key, out var incoming)
+                && !priorAlbumIds.Any(prior => string.Equals(prior.IdType, key, StringComparison.OrdinalIgnoreCase)
+                                               && string.Equals(prior.IdValue, incoming, StringComparison.OrdinalIgnoreCase)));
+        }
+
         // A sibling track's retail job compares with the album's stored reports under this lock; taking it here
         // keeps the user's choice from landing between that job's read and its write (SharedParentIdentity).
         using (await SharedParentIdentity.AcquireForLineageAsync(lineage, ct))
@@ -529,7 +544,7 @@ public static partial class ItemCanonicalEndpoints
 
         RetailArtworkReplacementResult? artworkResult = null;
         var coverUrl = string.IsNullOrWhiteSpace(request.CoverUrl) && isTvShowMatch ? verifiedShowPosterUrl : request.CoverUrl;
-        if (SupportsImmediateRetailArtworkReplacement(policy) || (isTvShowMatch && !string.IsNullOrWhiteSpace(coverUrl)))
+        if (SupportsImmediateRetailArtworkReplacement(policy) || (albumIdentityChanged && !string.IsNullOrWhiteSpace(coverUrl)) || (isTvShowMatch && !string.IsNullOrWhiteSpace(coverUrl)))
         {
             if (!string.IsNullOrWhiteSpace(coverUrl))
             {

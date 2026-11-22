@@ -64,4 +64,23 @@ public sealed class EditorSeriesContractTests
         Assert.Null(back.Items[1].Id);
         Assert.False(back.Items[1].Owned);
     }
+
+    [Fact]
+    public void ASeriesMember_NamesTheRuleThatPlacedIt_WithExactSnakeCaseNames_AndLeavesItOutWhenTheEngineSaidNothing()
+    {
+        var said = JsonSerializer.Serialize(new EditorSubjectMemberDto
+        {
+            Id = Guid.Empty,
+            Title = "Dune",
+            Number = 1,
+            MediaType = "Books",
+            Year = "1965",
+            PlacedBy = EditorSeriesOrderRuleKeys.Number,
+        });
+        var silent = JsonSerializer.Serialize(new EditorSubjectMemberDto { Id = Guid.Empty, Title = "Dune" });
+
+        Assert.Contains("\"media_type\":\"Books\",\"year\":\"1965\",\"placed_by\":\"number\"", said, StringComparison.Ordinal);
+        Assert.DoesNotContain("placed_by", silent, StringComparison.Ordinal);
+        Assert.Equal(["number", "date", "title"], EditorSeriesOrderRuleKeys.InOrder);
+    }
 }

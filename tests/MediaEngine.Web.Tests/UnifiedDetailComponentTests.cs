@@ -142,9 +142,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("case DetailEntityType.MusicAlbum", hero);
         Assert.Contains("IsWatchHero=\"Presentation.IsWatchHero\"", hero);
         Assert.Contains("UsePrimaryHeroChrome=\"Presentation.UsePrimaryHeroChrome\"", hero);
-        Assert.Contains("<MediaArtworkGroupPreview", hero);
+        // A group's page keeps the standard hero and draws its covers in the artwork slot, not a tile (group-pages-and-tiles D2).
+        Assert.Contains("<GroupHeroCovers", hero);
+        Assert.DoesNotContain("<MediaArtworkGroupPreview", hero);
         Assert.Contains("CollectionHeroArtwork", hero);
-        Assert.Contains(".Take(4)", hero);
+        Assert.Contains(".Take(GroupCollageLayout.MaxCovers)", hero);
         Assert.Contains("tl-detail-collection-artwork", hero);
         Assert.Contains("usePrimaryHeroChrome ? string.Empty : FormatEntityType", presentation);
         Assert.Contains("UsesPrimaryHeroChrome", presentation);
@@ -562,7 +564,6 @@ public sealed class UnifiedDetailComponentTests
     {
         var source = ReadSequenceMarkup();
         var styles = ReadDetailStyles();
-        var panelStyles = ReadSequenceStyles();
 
         Assert.Contains("tl-series-heading", source);
         Assert.Contains("<span>@HeadingLabel:</span>", source);
@@ -581,7 +582,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("IsNextSequenceItem", source);
         Assert.DoesNotContain("Part of", source);
         Assert.Contains("StringHelpers.FirstNonBlank(Placement.ContainerTitle, Placement.ContainerLabel, \"Series\")!", source);
-        Assert.Contains("tl-series-detail__identity", source);
+        // No heading line on any detail page (issue 1172): the dropdowns and the count under the list say it.
+        Assert.DoesNotContain("tl-series-detail__identity", source);
         Assert.Contains("@if (HasTopControls)", source);
         Assert.Contains("Sizing=\"intrinsic\"", source);
         Assert.Contains("VisibleItems", source);
@@ -597,7 +599,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("tl-series-position-summary__donut", source);
         Assert.Contains("tl-series-position-summary__center", source);
         Assert.Contains("ValueChanged=\"SelectContainerValueAsync\"", source);
-        Assert.Contains("ShowJumpSelector => ActiveItems.Count > 10", source);
+        Assert.Contains("ShowJumpSelector => !MemberGrid && ActiveItems.Count > 10", source);
         Assert.Contains("ValueChanged=\"SelectJump\"", source);
         Assert.Contains("tl-series-content", source);
         Assert.Contains("ResetWindowToCurrentItem()", source);
@@ -668,11 +670,10 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("HasExpandableEpisodeDescription", source);
         Assert.DoesNotContain("ToggleEpisodeDescription", source);
         Assert.DoesNotContain("_expandedEpisodeDescriptions", source);
-        Assert.Contains("tl-series-detail__ownership", source);
-        Assert.Contains("ShowCoverageBar", source);
-        Assert.Contains("role=\"progressbar\"", source);
-        Assert.Contains("Class=\"tl-series-detail__ownership-progress-fill\"", source);
-        Assert.Contains(".tl-series-detail__ownership-progress ::deep .tl-series-detail__ownership-progress-fill", panelStyles);
+        // The owned count is one line under the list, never a bar at the top right (issues 1165, 1172).
+        Assert.DoesNotContain("tl-series-detail__ownership", source);
+        Assert.DoesNotContain("role=\"progressbar\"", source);
+        Assert.Contains("<DetailOwnedLine", source);
         Assert.Contains("tl-series-item__connector", source);
         Assert.DoesNotContain(".tl-series-strip::before", styles);
         Assert.Contains("min-width: clamp(5.8rem, 7.2vw, 7.3rem)", styles);
@@ -1090,8 +1091,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("\"item_count\" or \"read_count\" or \"watch_count\" or \"listen_count\"", heroMetadata);
         Assert.Contains("tl-detail-watch-metadata-item--lane-count", heroMetadata);
         Assert.Contains(".tl-detail-watch-metadata-item--lane-count", detailStyles);
-        Assert.Contains("width: clamp(44rem, 56vw, 64rem)", detailHeroStyles);
-        Assert.Contains("height: clamp(30rem, 60svh, 42rem)", detailHeroStyles);
+        Assert.Contains("max-width: 44vw", detailHeroStyles);
+        Assert.Contains("right: clamp(1rem, 4.25vw, 5.5rem)", detailHeroStyles);
         Assert.Contains("Model?.EntityType != DetailEntityType.Person", detailPage);
         Assert.DoesNotContain("<EditionsTab", detailPage);
         Assert.Contains("<DetailHero Model=\"Model\"", detailPage);

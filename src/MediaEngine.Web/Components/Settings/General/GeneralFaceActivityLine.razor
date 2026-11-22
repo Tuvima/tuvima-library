@@ -1,0 +1,53 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Components.View
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+
+@* One quiet line above Library activity while the signed-in person's photos are being scanned for faces (spec view-people-search WP11).
+   It disappears when the scan is done or switched off, and it links to People. *@
+@if (_progress is { State: ViewFaceStates.Looking or ViewFaceStates.GettingTools })
+{
+    <p class="general-page__face-line" role="status" data-testid="general-face-line">
+        @(_progress.State == ViewFaceStates.Looking ? ViewPeopleText.Looking(_progress.PhotosLooked, _progress.PhotosTotal) : ViewPeopleText.GettingTools)
+        <a href="/view/people">@ViewPeopleText.OpenPeople</a>
+    </p>
+}
+@code {
+    private ViewFaceProgressDto? _progress;
+    private CancellationTokenSource? _cts = new();
+    private PeriodicTimer? _timer;
+    private bool _stopped;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        _ = PollAsync(_cts!.Token);
+    }
+
+    private async Task PollAsync(CancellationToken token)
+    {
+        try
+        {
+            while (await _timer!.WaitForNextTickAsync(token))
+            {
+                if (!_stopped) { await InvokeAsync(async () => { await RefreshAsync(); StateHasChanged(); }); }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _stopped = true; // The page closed; nothing more to refresh.
+        }
+    }
+
+    private async Task RefreshAsync() => _progress = await ApiClient.GetViewFaceProgressAsync(_cts?.Token ?? default);
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
+        _timer?.Dispose();
+    }
+}

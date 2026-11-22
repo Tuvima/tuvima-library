@@ -32,7 +32,8 @@ public sealed class CollectionCatalogReadService(
     IDatabaseConnection db,
     ILogger<CollectionCatalogReadService> logger,
     TimeProvider? timeProvider = null,
-    ICollectionListRepository? listRepo = null)
+    ICollectionListRepository? listRepo = null,
+    IPlaylistRepository? playlistRepo = null)
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -59,6 +60,19 @@ public sealed class CollectionCatalogReadService(
                 .Where(collection => collection.Resolution != CollectionResolution.Query)
                 .Select(collection => collection.Id),
             ct).ConfigureAwait(false);
+
+        // The profile's own pins and the summed song lengths of the hand-picked lists, each read once for the whole list.
+        IReadOnlySet<Guid> pinnedIds = playlistRepo is null || activeProfile is null
+            ? new HashSet<Guid>()
+            : await playlistRepo.GetPinnedCollectionIdsAsync(activeProfile.Id, ct).ConfigureAwait(false);
+        IReadOnlyDictionary<Guid, double> totalDurations = playlistRepo is null
+            ? new Dictionary<Guid, double>()
+            : await playlistRepo.GetTotalDurationSecondsAsync(
+                collections
+                    .Where(collection => collection.Resolution != CollectionResolution.Query)
+                    .Select(collection => collection.Id)
+                    .ToList(),
+                ct).ConfigureAwait(false);
 
         var results = new List<ManagedCollectionDto>(collections.Count);
         foreach (var collection in collections)
@@ -88,7 +102,9 @@ public sealed class CollectionCatalogReadService(
                 CollectionOptionsPolicy.CapCount(collection, count),
                 activeProfile,
                 isAdministrator,
-                today: Today));
+                today: Today,
+                isPinned: playlistRepo is null || activeProfile is null ? null : pinnedIds.Contains(collection.Id),
+                totalDurationSeconds: totalDurations.TryGetValue(collection.Id, out var seconds) ? seconds : null));
         }
 
         return results;
@@ -101,6 +117,20 @@ public sealed class CollectionCatalogReadService(
 
     public async Task<Guid> ResolveMembershipWorkIdAsync(Guid sourceWorkId, CancellationToken ct = default)
     {
+        // A song is a playlist member as itself. Collapsing it to its album would put an album (which no profile "sees" as a work of
+        // its own) into the playlist and the Engine would refuse the song as outside the caller's libraries.
+        using (var conn = db.CreateConnection())
+        {
+            var isSong = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+                "-- readiness: an id lookup of one work the caller already named\nSELECT COUNT(*) FROM works WHERE id = @sourceWorkId AND media_type = 'Music' AND work_kind <> 'parent';",
+                new { sourceWorkId },
+                cancellationToken: ct)).ConfigureAwait(false);
+            if (isSong > 0)
+            {
+                return sourceWorkId;
+            }
+        }
+
         var displayIds = await GetCollectionCatalogDisplayWorkIdsAsync([sourceWorkId], ct).ConfigureAwait(false);
         return displayIds.Count == 0 ? sourceWorkId : displayIds[0];
     }
@@ -329,7 +359,7 @@ public sealed class CollectionCatalogReadService(
         {
             // Hand-picked: the members are already owned, allowed and unique per root, so only the page is looked up.
             var page = await mediaLookupReadService.ResolveItemsAsync(
-                collection.Id, rootMembers.Items.Skip(offset).Take(take).ToList(), ct, allowedMemberIds).ConfigureAwait(false);
+                collection.Id, rootMembers.Items.Skip(offset).Take(take).ToList(), ct, allowedMemberIds, IsPlaylistCatalogCollection(collection)).ConfigureAwait(false);
             return new CollectionItemPageResult(true, false, rootMembers.Items.Count, page);
         }
 
@@ -378,7 +408,7 @@ public sealed class CollectionCatalogReadService(
                 allowedMemberIds,
                 ct).ConfigureAwait(false)
             : await mediaLookupReadService.ResolveItemsAsync(
-                collection.Id, rootMembers.Items.Take(take).ToList(), ct, allowedMemberIds).ConfigureAwait(false);
+                collection.Id, rootMembers.Items.Take(take).ToList(), ct, allowedMemberIds, IsPlaylistCatalogCollection(collection)).ConfigureAwait(false);
     }
 
     private sealed record CollectionRootMembers(
@@ -417,7 +447,7 @@ public sealed class CollectionCatalogReadService(
                 .ToList();
             var ownedIds = await GetOwnedSourceWorkIdsAsync(members.Select(item => item.WorkId), ct).ConfigureAwait(false);
             members = members.Where(item => ownedIds.Contains(item.WorkId)).ToList();
-            var foldedRoots = await GetFoldedItemRootsAsync(members.Select(item => item.WorkId), ct).ConfigureAwait(false);
+            var foldedRoots = await GetFoldedItemRootsAsync(members.Select(item => item.WorkId), IsPlaylistCatalogCollection(collection), ct).ConfigureAwait(false);
             var seenRoots = new HashSet<Guid>();
             var onePerRoot = members
                 .Where(item => seenRoots.Add(foldedRoots.GetValueOrDefault(item.WorkId, item.WorkId)))
@@ -506,6 +536,7 @@ public sealed class CollectionCatalogReadService(
     /// </summary>
     private async Task<Dictionary<Guid, Guid>> GetFoldedItemRootsAsync(
         IEnumerable<Guid> workIds,
+        bool songsAreMembers,
         CancellationToken ct)
     {
         var ids = workIds.Distinct().ToList();
@@ -523,6 +554,7 @@ public sealed class CollectionCatalogReadService(
                 -- readiness: turns work ids into their display roots; the ids come from Ready-gated reads
                 SELECT w.id AS SourceWorkId,
                        CASE
+                           WHEN @SongsAreMembers = 1 AND w.media_type = 'Music' AND w.work_kind <> 'parent' THEN w.id
                            WHEN w.work_kind = 'child' THEN COALESCE(gp.id, p.id, w.id)
                            WHEN w.work_kind = 'parent' AND p.id IS NOT NULL THEN COALESCE(gp.id, p.id, w.id)
                            ELSE w.id
@@ -532,7 +564,7 @@ public sealed class CollectionCatalogReadService(
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
                 WHERE w.id IN @WorkIds;
                 """,
-                new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
+                new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray(), SongsAreMembers = songsAreMembers ? 1 : 0 },
                 cancellationToken: ct)).ConfigureAwait(false);
             foreach (var row in rows)
             {
@@ -1958,7 +1990,7 @@ public sealed class CollectionCatalogReadService(
             })
             .ToList();
 
-        return SelectCollectionArtworkItems(artworkItems, maximum: 4);
+        return SelectCollectionArtworkItems(artworkItems, maximum: DisplayCardBuilder.GroupPreviewItemLimit);
     }
 
     private static bool IsWatchMediaType(string? mediaType) =>

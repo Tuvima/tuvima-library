@@ -187,6 +187,23 @@ internal static partial class ExtraPlacementInference
     private static ExtraScope? FindAlongside(
         ExtrasLibraryContext context, ExtrasRuleBook book, MainFileIndex index, ExtraScope owner, string ownerDirectory, string stem)
     {
+        var named = FindAlongsideByName(context, book, index, owner, ownerDirectory, stem);
+        if (named is not null || owner.Level != ExtraScopeLevel.Root
+            || !(context.Types.Contains(MediaType.TV) || context.Types.Contains(MediaType.Videos)))
+        {
+            return named;
+        }
+
+        // A title that holds one episode or video (a lone personal video with its handbook) shows its top-level files with that one: there is
+        // nothing else for them to sit beside, and its own page would otherwise show none of them (issue 1242).
+        var all = index.Under(ownerDirectory).ToList();
+        var direct = index.InDirectory(ownerDirectory).ToList();
+        return all.Count == 1 && direct.Count == 1 ? direct[0].Scope : null;
+    }
+
+    private static ExtraScope? FindAlongsideByName(
+        ExtrasLibraryContext context, ExtrasRuleBook book, MainFileIndex index, ExtraScope owner, string ownerDirectory, string stem)
+    {
         if (owner.Level is ExtraScopeLevel.Episode or ExtraScopeLevel.File or ExtraScopeLevel.Track)
         {
             return null;

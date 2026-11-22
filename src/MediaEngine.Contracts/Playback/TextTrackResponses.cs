@@ -83,6 +83,47 @@ public sealed record TextTrackAlternativeDto
     public string? release_name { get; init; }
     public string? preview { get; init; }
     public bool is_current { get; init; }
+
+    /// <summary>The source's own name for the song (lyrics), its artist and album.</summary>
+    public string? title { get; init; }
+    public string? artist { get; init; }
+    public string? album { get; init; }
+
+    /// <summary>The length the source gives the result (lyrics), and the length of the item it is for (the song, or the film).</summary>
+    public double? length_seconds { get; init; }
+    public double? item_length_seconds { get; init; }
+
+    /// <summary>
+    /// The real words: up to six lyric lines, or the first three spoken lines of a subtitle file with when each appears.
+    /// Empty for a subtitle row that has not been read yet (read it with the preview action).
+    /// </summary>
+    public IReadOnlyList<TextTrackPreviewLineDto> preview_lines { get; init; } = [];
+
+    /// <summary>Where a subtitle file's last line comes, once it has been read.</summary>
+    public double? ends_at_seconds { get; init; }
+
+    /// <summary><c>Fits</c> or <c>Off</c>; null when either length is unknown (a subtitle file that has not been read yet has none).</summary>
+    public string? length_check { get; init; }
+
+    /// <summary>Seconds the result is longer (positive) or shorter (negative) than the song, or the file's end against the film's length.</summary>
+    public double? length_difference_seconds { get; init; }
+}
+
+/// <summary>One line of a result's preview. <c>at_seconds</c> is set for subtitles only.</summary>
+public sealed record TextTrackPreviewLineDto
+{
+    public double? at_seconds { get; init; }
+    public string text { get; init; } = string.Empty;
+}
+
+/// <summary>Response for <c>GET /stream/{assetId}/text-tracks/alternatives/preview</c>: one result read on request.</summary>
+public sealed record TextTrackAlternativePreviewResponse
+{
+    public Guid asset_id { get; init; }
+
+    /// <summary><c>Found</c>, <c>NotFound</c>, <c>Unavailable</c> or a source status such as <c>LimitReached</c>.</summary>
+    public string status { get; init; } = string.Empty;
+    public TextTrackAlternativeDto? item { get; init; }
 }
 
 /// <summary>Response for <c>GET /stream/{assetId}/text-tracks/alternatives</c>. The list is asked of the sources live and is never stored.</summary>
@@ -95,7 +136,8 @@ public sealed record TextTrackAlternativesResponse
     /// <c>Found</c>, <c>NoneFound</c>, <c>NoSourceOn</c>, <c>NotAllowed</c>, <c>Blocked</c>, <c>Unavailable</c>, <c>AssetMissing</c> or <c>Unsupported</c>.
     /// For subtitles also <c>IdentityUnverified</c> (the movie or episode cannot be identified for an online search), <c>SourceKeyRequired</c>
     /// (a source is switched on but its key is missing or was refused), <c>LimitReached</c> (a source's allowance or rate limit is used up)
-    /// and <c>LanguageUnknown</c> (the language asked for cannot be searched).
+    /// and <c>LanguageUnknown</c> (the language asked for cannot be searched). For a search by typed words also
+    /// <c>TextSearchUnsupported</c> (no source that is switched on can be searched by words; <c>message</c> says so).
     /// </summary>
     public string status { get; init; } = string.Empty;
     public string message { get; init; } = string.Empty;
@@ -130,6 +172,9 @@ public sealed record ChooseTextTrackAlternativeRequest
 
     /// <summary>For subtitles, the language name or code the list was searched in, so the same result is found again.</summary>
     public string? language { get; init; }
+
+    /// <summary>The words the list was searched with (the <c>query</c> of the search), so the same result is found again. Omitted for the item's own search.</summary>
+    public string? query { get; init; }
 }
 
 /// <summary>Response for choosing a result or marking one wrong.</summary>

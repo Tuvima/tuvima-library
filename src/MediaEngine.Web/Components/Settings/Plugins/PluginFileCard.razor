@@ -9,9 +9,9 @@
 
 @* The Plugin file tab (Plugins and Integrations screens v6 D65, D66). It shows the file's name, whether it is valid or how many problems it
    has, whether it differs from Tuvima's version, and the file itself, full width, read only and coloured, with line numbers. Edit file (an
-   administrator on a computer, for a file the Engine says is editable) opens the editor in a pop-over window like Edit on an item; after a
-   save or a reset the card says what happened and, if the plugin did not load or its check failed, offers Reset. Reading and editing are for
-   a computer: the tab is absent elsewhere. The card draws whatever file the Engine names; it never knows which plugin it belongs to. *@
+   administrator, for a file the Engine says is editable) opens the editor in a pop-over window like Edit on an item (a sheet on a phone); after a
+   save or a reset the card says what happened and, if the plugin did not load or its check failed, offers Reset. Reading and editing work on
+   every screen. The card draws whatever file the Engine names; it never knows which plugin it belongs to. *@
 @{
     var file = _latest ?? Card.File;
 }
@@ -71,7 +71,7 @@
             }
             else if (_response is null)
             {
-                <AppAlert Tone="AppUiTone.Error" data-testid="plugin-file-unavailable">The Engine did not return the file. Try again.</AppAlert>
+                <AppAlert Tone="AppUiTone.Error" data-testid="plugin-file-unavailable">The server did not return the file. Try again.</AppAlert>
             }
             else
             {
@@ -97,12 +97,11 @@
     /// <summary>The file card of the plugin's page model.</summary>
     [Parameter, EditorRequired] public PluginSetupCardDto Card { get; set; } = default!;
 
-    /// <summary>True on a computer (the same rule as editing items); false on a phone or tablet, where only the name and state show.</summary>
+    /// <summary>True when the file itself may be read; false shows only the name and state.</summary>
     [Parameter] public bool CanView { get; set; }
 
     /// <summary>
-    /// True when the Edit file button may be offered: the same device rule as editing an item (a computer with a fine, hovering pointer).
-    /// The Engine still decides who may save. Defaults to false so a card that is not told never offers editing.
+    /// True when the Edit file button may be offered. The Engine still decides who may save. Defaults to false so a card that is not told never offers editing.
     /// </summary>
     [Parameter] public bool CanEdit { get; set; }
 

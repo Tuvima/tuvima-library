@@ -97,6 +97,44 @@ internal sealed class LyricsTitleMatcher
         return string.Equals(left, right, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// <see cref="Matches"/> for a source's entry title, which some uploaders write as "Artist - Title" ("Smile Empty Soul - Silhouettes" by
+    /// Smile Empty Soul). The artist's own name in front of the title is not part of it.
+    /// </summary>
+    public bool MatchesTitle(string? foundTitle, string? foundArtist, string? wantedTitle)
+    {
+        if (Matches(foundTitle, wantedTitle))
+        {
+            return true;
+        }
+
+        var title = Normalize(foundTitle);
+        var artist = Normalize(foundArtist);
+        var wanted = Normalize(wantedTitle);
+        return artist.Length > 0 && wanted.Length > 0
+            && title.StartsWith(artist + " ", StringComparison.Ordinal)
+            && string.Equals(title[(artist.Length + 1)..].Trim(), wanted, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// True when every word of what a person typed is found in the entry's title or artist, after both are reduced to the same plain form.
+    /// Order and extra words in the entry do not matter, so "bohemian queen" finds "Bohemian Rhapsody" by Queen. Nothing typed, or
+    /// nothing left of it once reduced (all brackets, say), matches only an entry that carries the text as written.
+    /// </summary>
+    public bool MatchesSearchText(string? typed, params string?[] fields)
+    {
+        var words = Normalize(typed).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        var haystack = string.Join(' ', fields.Select(Normalize));
+        if (words.Length == 0)
+        {
+            var plain = (typed ?? string.Empty).Trim();
+            return plain.Length > 0 && fields.Any(field => (field ?? string.Empty).Contains(plain, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var present = haystack.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+        return words.All(present.Contains);
+    }
+
     private static string FoldDiacritics(string value)
     {
         var builder = new StringBuilder(value.Length);

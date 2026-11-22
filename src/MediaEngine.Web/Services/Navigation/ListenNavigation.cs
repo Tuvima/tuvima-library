@@ -6,7 +6,8 @@ public static class ListenNavigation
     public const string AlbumsRoute = MusicHomeRoute;
     public const string ArtistsRoute = "/listen/music?browse=artists";
     public const string SongsRoute = "/listen/music?browse=songs";
-    public const string PlaylistsRoute = "/listen/music?browse=playlists";
+    /// <summary>The Playlists page (tiles of every playlist), the Playlists tab of the Listen lane.</summary>
+    public const string PlaylistsRoute = "/listen/playlists";
     public const string TimelineRoute = "/listen/music?browse=timeline";
     public const string AudiobooksRoute = "/listen/audiobooks";
 
@@ -19,6 +20,11 @@ public static class ListenNavigation
     {
         var normalizedRoute = NormalizeRoute(route);
         var path = normalizedRoute?.Split('?', 2)[0];
+        if (string.Equals(path, PlaylistsRoute, StringComparison.OrdinalIgnoreCase))
+        {
+            return PlaylistsRoute;
+        }
+
         if (string.IsNullOrWhiteSpace(path) || !path.StartsWith("/listen/music", StringComparison.OrdinalIgnoreCase))
         {
             return MusicHomeRoute;
@@ -60,7 +66,8 @@ public static class ListenNavigation
     {
         var path = NormalizeRoute(route);
         return !string.IsNullOrWhiteSpace(path)
-               && path.StartsWith("/listen/music", StringComparison.OrdinalIgnoreCase);
+               && (path.StartsWith("/listen/music", StringComparison.OrdinalIgnoreCase)
+                   || path.StartsWith(PlaylistsRoute, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string? NormalizeRoute(string? route)

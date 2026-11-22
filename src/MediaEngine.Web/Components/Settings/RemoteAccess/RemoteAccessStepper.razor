@@ -1,0 +1,35 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* The five steps in order (mock-ups: .stepper): square 3 px pills, the finished ones green, the current one purple. They show where
+   the person is and are not buttons, so the order cannot be skipped. On a phone only the current step keeps its word. *@
+<ol class="ra-stepper" aria-label="@L["RemoteAccessStepper_Steps"].Value" data-remote-stepper>
+    @for (var index = 0; index < RemoteAccessFlowState.Steps.Count; index++)
+    {
+        var step = RemoteAccessFlowState.Steps[index];
+        var position = index + 1;
+        <li class="@PillClass(step)" aria-current="@(step == Current ? "step" : null)" data-remote-step="@step.ToString().ToLowerInvariant()">
+            <span class="ra-stepper__number">@position</span>
+            <span class="ra-stepper__label">@LabelFor(step)</span>
+        </li>
+    }
+</ol>
+
+@code {
+    [Parameter, EditorRequired] public RemoteAccessScreen Current { get; set; }
+
+    private string PillClass(RemoteAccessScreen step) =>
+        step == Current ? "ra-stepper__pill is-current"
+        : (int)step < (int)Current ? "ra-stepper__pill is-done"
+        : "ra-stepper__pill";
+
+    private string LabelFor(RemoteAccessScreen step) => step switch
+    {
+        RemoteAccessScreen.Check => L["RemoteAccessStepper_Check"].Value,
+        RemoteAccessScreen.Choose => L["RemoteAccessStepper_Choose"].Value,
+        RemoteAccessScreen.Passwords => L["RemoteAccessStepper_Passwords"].Value,
+        RemoteAccessScreen.Connect => L["RemoteAccessStepper_Connect"].Value,
+        _ => L["RemoteAccessStepper_Test"].Value,
+    };
+}

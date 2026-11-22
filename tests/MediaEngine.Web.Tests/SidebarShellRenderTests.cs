@@ -255,13 +255,13 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
 
         cut.Find(".media-section-shell__create-menu .app-overflow-menu__trigger").Click();
         await cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains("New Playlist", StringComparison.Ordinal)).ClickAsync(new());
-        var input = cut.Find(".media-section-shell__inline-create input");
+        var input = cut.Find(".playlist-name-box input");
         input.Input("Road Trip");
         input.KeyDown(new KeyboardEventArgs { Key = "Enter" });
 
         Assert.IsType<ManualPlaylistCreateTarget>(received?.Target);
         Assert.Equal("Road Trip", received?.Name);
-        Assert.Empty(cut.FindAll(".media-section-shell__inline-create"));
+        Assert.Empty(cut.FindAll(".playlist-name-box"));
     }
 
     private (IRenderedComponent<AppDialogHost> Host, IRenderedComponent<MediaSectionShell> Shell, Func<MediaSectionNavigationManageEvent?> Received) RenderManagedPlaylist(Guid playlistId)

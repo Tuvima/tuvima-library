@@ -1,0 +1,88 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Security.Cryptography
+@using MediaEngine.Contracts.Notifications
+@inject IStringLocalizer<SharedStrings> L
+@* Setup form for one channel type: a name and the type's own fields (a link, a token, a topic), then what leaves the computer.
+   The same form adds and edits; a stored secret reads "Saved" and typing replaces it (notifications and delivery spec WP2, mock D). *@
+<div class="notification-form" data-testid="notification-channel-form" data-channel-type="@Type.Id">
+    <div class="notification-form__head">
+        <strong>@(Existing is null ? Type.Name : Existing.Name)</strong>
+        <span>@Type.Help</span>
+    </div>
+    <AppTextField Label="@L["NotificationChannelForm_Name"].Value" Value="@_name" Placeholder="@Type.Name" ValueChanged="@(v => { _name = v ?? string.Empty; })" data-testid="notification-form-name" />
+    @foreach (var field in Type.Fields)
+    {
+        var saved = field.Secret && Existing?.SecretsSet.Contains(field.Key) == true;
+        <div class="notification-form__field">
+            <AppTextField Label="@(field.Required ? field.Label : $"{field.Label} ({L["NotificationChannelForm_Optional"].Value})")"
+                          InputType="@(field.Secret ? AppInputType.Password : AppInputType.Text)"
+                          Value="@_values.GetValueOrDefault(field.Key)"
+                          Placeholder="@(saved ? L["NotificationChannelForm_SavedLeaveBlankToKeep"].Value : field.Placeholder)"
+                          HelpText="@field.Help"
+                          ValueChanged="@(v => { _values[field.Key] = v ?? string.Empty; })"
+                          data-testid="@($"notification-form-{field.Key}")" />
+            @if (field.SuggestRandom)
+            {
+                <AppButton Label="@L["NotificationChannelForm_SuggestANewOne"].Value" Size="AppControlSize.Compact" OnClick="@(() => { _values[field.Key] = RandomTopic(); })" />
+            }
+        </div>
+    }
+    <AppQuietNote data-testid="notification-form-what-leaves"><strong>@L["NotificationChannelForm_WhatLeavesYourComputer"]</strong> @Type.WhatLeaves</AppQuietNote>
+    @if (Problem is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error" Dense="true" data-testid="notification-form-problem">@Problem</AppAlert>
+    }
+    <div class="notification-form__actions">
+        <AppButton Label="@L["Common_Save"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@Busy" OnClick="SaveAsync" data-testid="notification-form-save" />
+        <AppButton Label="@L["Search_Cancel"].Value" Disabled="@Busy" OnClick="OnCancel" />
+        @if (Existing is not null)
+        {
+            <AppButton Label="@L["NotificationChannelForm_Remove"].Value" Tone="AppUiTone.Error" Disabled="@Busy" OnClick="OnRemove" data-testid="notification-form-remove" />
+        }
+    </div>
+</div>
+
+@code {
+    private string _name = string.Empty;
+    private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
+
+    [Parameter, EditorRequired] public NotificationChannelTypeDto Type { get; set; } = new();
+    [Parameter] public NotificationChannelDetailDto? Existing { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string? Problem { get; set; }
+    [Parameter] public EventCallback<SaveNotificationChannelRequest> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback OnRemove { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _name = Existing?.Name ?? string.Empty;
+        foreach (var field in Type.Fields)
+        {
+            if (Existing is not null)
+            {
+                _values[field.Key] = Existing.Values.GetValueOrDefault(field.Key, string.Empty);
+            }
+            else
+            {
+                _values[field.Key] = field.SuggestRandom ? RandomTopic() : field.Default;
+            }
+        }
+    }
+
+    private Task SaveAsync()
+    {
+        var request = new SaveNotificationChannelRequest { Type = Type.Id, Name = _name.Trim() };
+        foreach (var field in Type.Fields)
+        {
+            var value = _values.GetValueOrDefault(field.Key)?.Trim() ?? string.Empty;
+            // A secret left blank on an existing channel keeps the saved one; everything else is sent as typed.
+            request.Values[field.Key] = field.Secret && Existing is not null && value.Length == 0 ? null : value;
+        }
+
+        return OnSave.InvokeAsync(request);
+    }
+
+    // A long random topic is the only privacy a public push server offers, so the form suggests one.
+    private static string RandomTopic() => "library-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant();
+}

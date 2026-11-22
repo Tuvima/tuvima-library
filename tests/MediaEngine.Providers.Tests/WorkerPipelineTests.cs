@@ -4437,7 +4437,6 @@ public sealed class WorkerPipelineTests
         public Task<bool> RemoveCollectionItemUnlessLastMemberAsync(Guid collectionId, Guid itemId, CancellationToken ct = default) => Task.FromResult(true);
         public Task<bool> UpdateManagedCollectionAsync(Collection collection, IReadOnlyList<CollectionItem> newItems, bool requireMember, CancellationToken ct = default) => Task.FromResult(true);
         public Task<IReadOnlyList<RemovedCollection>> DeleteEmptyCuratedCollectionsAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<RemovedCollection>>([]);
-        public Task ReorderCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<Collection>> GetContentGroupsAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
         public Task<Collection?> GetCollectionWithWorksAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
         public Task<IReadOnlyList<Collection>> GetCollectionsWithWorksAsync(IEnumerable<Guid> collectionIds, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);

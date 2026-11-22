@@ -219,7 +219,6 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     // The folder window's friendly name field (Libraries v3 D18); the library itself is never named by the person.
-    private AngleSharp.Dom.IElement FolderNameInput => _dialogs.Find("[data-folder-name] input");
 
     [Fact]
     public void PlainVideosOffersManagedAndAKindWithoutItsOwnColorFollowsItsAreaColor()
@@ -588,13 +587,13 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
         // The grey footer line is dropped while the handling choice is shown: the Read-only choice says it, and nothing else does.
         Assert.Empty(_dialogs.FindAll("[data-picker-safety]"));
-        Assert.Contains("Read-only never changes your files.", Text(_dialogs.Find("[data-folder-handling]")), StringComparison.Ordinal);
-        var outsideTheChoice = Text(_dialogs.Find(".create-library")).Replace(Text(_dialogs.Find("[data-folder-handling]")), string.Empty, StringComparison.Ordinal);
-        Assert.DoesNotContain("Read-only never changes your files", outsideTheChoice, StringComparison.Ordinal);
+        // The help is a tooltip beside "Folder access", never a line under the choice, so the window keeps one size (issue 1155).
+        Assert.Equal("Files stay exactly as they are. Library only reads them. Uploads need a Managed folder.", _dialogs.Find("[data-folder-handling] [data-playback-tooltip]").GetAttribute("data-playback-tooltip"));
+        Assert.DoesNotContain("never changes your files", Text(_dialogs.Find(".create-library")).Replace(Text(_dialogs.Find("[data-folder-handling]")), string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.DoesNotContain("never changed", Text(_dialogs.Find("[data-scan-line]")), StringComparison.Ordinal);
         // The scan line is the one message line, directly under the handling choice.
         Assert.True(_dialogs.Find("[data-folder-handling]").NextElementSibling!.HasAttribute("data-picker-message"));
-        Assert.Equal("Names this folder, not the library.", Text(_dialogs.Find(".server-folder-picker__name-hint")));
+        Assert.Empty(_dialogs.FindAll("[data-folder-name], .server-folder-picker__name-hint"));
         Assert.Equal("Where is it? · TV Shows", Text(_dialogs.Find(".app-dialog-shell__title")));
         Assert.Equal(["Watch", "TV Shows"], _dialogs.Find("[data-picker-chips]").QuerySelectorAll("span").Select(Text).ToArray());
     }
@@ -954,18 +953,17 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheFolderGetsItsFriendlyNameFromTheFolderUntilTheyTypeOne()
+    public async Task TheFolderTakesItsNameFromTheFolderYouPick()
     {
         await OpenAsync(area: "listen", kind: "music");
-        _dialogs.WaitForAssertion(() => Assert.Equal("Films", FolderNameInput.GetAttribute("value")));
-        FolderNameInput.Input("Mum's music");
+        _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll("[data-folder-name]")));
         _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
 
         CreateButton.Click();
 
         _dialogs.WaitForAssertion(() => Assert.Single(_mutations));
         Assert.Equal("Music", _mutations[0].Library!.Name);
-        Assert.Equal("Mum's music", Assert.Single(_mutations[0].Library!.Sources).Label);
+        Assert.Equal("Films", Assert.Single(_mutations[0].Library!.Sources).Label);
     }
 
     [Fact]

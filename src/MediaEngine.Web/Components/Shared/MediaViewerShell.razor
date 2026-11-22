@@ -79,7 +79,14 @@
                 }
                 else if (Item.Kind == MediaViewerKind.Audio) { <div class="media-viewer__fallback"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AudioFile" /><audio @key="Item.PreviewUrl" @ref="_audio" autoplay src="@Item.PreviewUrl" controls preload="metadata" @onloadedmetadata="UpdateAudioStateAsync" @ontimeupdate="UpdateAudioStateAsync" @onplay="UpdateAudioStateAsync" @onpause="UpdateAudioStateAsync" @onended="UpdateAudioStateAsync" @onvolumechange="UpdateAudioStateAsync" @onratechange="UpdateAudioStateAsync"></audio></div> }
                 else if (Item.Kind == MediaViewerKind.Document) { <div class="media-viewer__fallback"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><p>@L["MediaViewerShell_DownloadTheOriginalDocumentTo"]</p></div> }
-                else { <img src="@Item.PreviewUrl" alt="@(Item.AltText ?? Item.Title)" draggable="false" /> }
+                else
+                {
+                    <img src="@Item.PreviewUrl" alt="@(Item.AltText ?? Item.Title)" draggable="false" />
+                    @if (ImageOverlay is not null && ImageAspect is > 0 && _zoom <= 1)
+                    {
+                        <div class="media-viewer__overlay" style="@($"--media-ratio:{ImageAspect.Value.ToString("0.#####", System.Globalization.CultureInfo.InvariantCulture)}")">@ImageOverlay</div>
+                    }
+                }
             </div>
             @if (HasNext) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--next" Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="@L["Home_CarouselNext"].Value" AriaLabel="@L["MediaViewerShell_NextItem"].Value" OnClick="NextAsync" /> }
             @if (Item.Kind == MediaViewerKind.Image && Capabilities.CanZoom)
@@ -141,6 +148,9 @@
     [Parameter] public EventCallback<bool> InfoOpenChanged { get; set; }
     [Parameter] public IReadOnlyList<ViewGalleryDto> Galleries { get; set; } = [];
     [Parameter] public RenderFragment? InfoContent { get; set; }
+    /// <summary>Drawn exactly over the picture while it is shown at Fit (for example the face boxes). Needs ImageAspect, the picture's width divided by its height.</summary>
+    [Parameter] public RenderFragment? ImageOverlay { get; set; }
+    [Parameter] public double? ImageAspect { get; set; }
     [Parameter] public RenderFragment? ContextActions { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback OnPrevious { get; set; }

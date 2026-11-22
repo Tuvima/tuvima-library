@@ -48,6 +48,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddLocalization();
         Services.AddLogging();
         Services.AddNativeUiServices();
+        Services.AddSingleton<MediaEngine.Web.Services.Configuration.IFirewallCommandRunner, MediaEngine.Web.Services.Configuration.NoFirewallCommandRunner>();
+        Services.AddSingleton<MediaEngine.Web.Services.Configuration.IHomeNetworkFirewall, MediaEngine.Web.Services.Configuration.HomeNetworkFirewall>();
         Services.AddSingleton<IConfiguration>(configuration);
         Services.AddSingleton<IEngineApiClient>(apiClient);
         Services.AddSingleton<IWebHostEnvironment>(new TestWebHostEnvironment());
@@ -60,6 +62,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<MediaTileComposerService>();
         Services.AddScoped<MediaEngine.Web.Services.MediaTiles.BrowseLibrariesState>();
         Services.AddSingleton(new ListenPlaybackClientSettings());
+        Services.AddScoped<MediaEngine.Web.Services.Playback.BrowserPlaybackCapabilityReporter>();
         Services.AddScoped<PlaybackSessionController>();
         Services.AddScoped<PlaybackTransientToolCoordinator>();
         Services.AddScoped<VideoPresentationResolver>();
@@ -269,19 +272,17 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TopNavAccountMenu_ThisComputerOnlyShowsTheSecureCardAndNoAvatarDotOrMenuItem()
+    public void TopNavAccountMenu_NeverShowsAPasswordRowAvatarDotOrSecurityMenuItem()
     {
         var cut = Render<MediaEngine.Web.Components.Navigation.TopNavAccountMenu>(parameters => parameters
-            .Add(menu => menu.DisplayName, "Shy")
-            .Add(menu => menu.ShowSecureAccount, true));
+            .Add(menu => menu.DisplayName, "Shy"));
 
         Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
         cut.Find(".top-nav-account-menu__trigger").Click();
 
         Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
         Assert.DoesNotContain(cut.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == "/settings/security");
-        Assert.Contains(cut.FindAll(".top-nav-account-menu__secure-card a"), link =>
-            link.GetAttribute("href") == "/settings/security" && link.TextContent.Contains("Add a password"));
+        Assert.Empty(cut.FindAll(".top-nav-account-menu__secure-card"));
     }
 
     [Fact]
@@ -522,7 +523,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     // running on the machine), against 0.1 second for the next one. So these waits use the context's ceiling, not a guess of their own.
 
     [Fact]
-    public void SettingsPage_ForAServerAdministrator_ShowsTheNeedsReviewLineAboveTheBreadcrumb_InTheFramesNoticeSlot()
+    public void SettingsPage_ForAServerAdministrator_ShowsTheNeedsReviewLineAboveTheTitle_InTheFramesNoticeSlot()
     {
         var cut = Render(builder =>
         {
@@ -541,7 +542,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains("3 items need review", notices.TextContent, StringComparison.Ordinal);
             var markup = cut.Markup;
             Assert.True(markup.IndexOf("data-settings-frame-slot=\"notices\"", StringComparison.Ordinal)
-                < markup.IndexOf("aria-label=\"Breadcrumb\"", StringComparison.Ordinal));
+                < markup.IndexOf("app-page-header__title", StringComparison.Ordinal));
         });
     }
 
@@ -771,29 +772,31 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(expectedTitle, (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!));
     }
 
-    // The Settings frame carries each Libraries level: one breadcrumb, one title, and no second heading or breadcrumb in the page.
+    // The Settings frame carries each Libraries level: no breadcrumb, one title, one back link above a library, and no second heading in the page.
     [Theory]
-    [InlineData(null, null, "Libraries", "Libraries", true)]
-    [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies", "Libraries|Watch|Movies", false)]
-    [InlineData("view", "photos", "Photos and videos", "Libraries|View|Photos and videos", false)]
-    public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)
+    [InlineData(null, null, "Libraries", null, true)]
+    [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies", "Watch", false)]
+    [InlineData("view", "photos", "Photos and videos", "View", false)]
+    public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameTitleWithOneBackLink(string? subsection, string? detail, string title, string? backLabel, bool hasSubtitle)
     {
         var cut = RenderLibraries(subsection, detail);
 
-        var expected = trail.Split('|');
-        // The frame redraws once the kinds have arrived, so wait for the trail rather than reading it once.
+        // The frame redraws once the kinds have arrived, so wait for the back link rather than reading it once.
         cut.WaitForAssertion(() =>
         {
-            var steps = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span[aria-current]").Select(step => step.TextContent.Trim()).ToArray();
-            Assert.Equal(expected, steps[^expected.Length..]);
+            Assert.Empty(cut.FindAll("nav.settings-breadcrumbs"));
+            var back = cut.FindAll("[data-testid='settings-back-link']");
+            if (backLabel is null)
+            {
+                Assert.Empty(back);
+            }
+            else
+            {
+                Assert.Equal(backLabel, back.Single().TextContent.Trim());
+            }
         });
         Assert.Equal(title, cut.Find(".app-page-header__title").TextContent.Trim());
         Assert.Equal(hasSubtitle, cut.FindAll(".app-page-header p").Count > 0);
-        if (subsection is not null)
-        {
-            Assert.Equal("/settings/libraries", cut.FindAll(".settings-breadcrumbs a").Last(link => link.TextContent.Trim() == "Libraries").GetAttribute("href"));
-        }
-
         Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb]"));
         // The Import folder panel and View's settings are unchanged panels with headings of their own; every other level has no page title of its own
         // (the area headings and the rules card title are section headings, level three).
@@ -885,8 +888,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            // Unified player v2 D14, D19: Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11) and Video quality and devices (playback-path D15); skips and subtitle look moved to the player.
-            Assert.Equal(5, cut.FindAll(".app-settings-group").Count);
+            // Unified player v2 D14, D19: Resume, the progress-bar card, Subtitles & audio and the Spoilers card (U-WP11), Video quality and devices (playback-path D15) and On this device (settings-alignment D5); skips and subtitle look moved to the player.
+            Assert.Equal(6, cut.FindAll(".app-settings-group").Count);
             Assert.Contains("Spoilers", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".app-settings-group__heading"));
             Assert.NotEmpty(cut.FindAll(".app-setting-row"));
@@ -1158,7 +1161,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Single(cut.FindAll(".people-catalog-list"));
-            Assert.Single(cut.FindAll("a.person-tile"));
+            Assert.Single(cut.FindAll("a.people-row"));
             Assert.Contains("Octavia Butler", cut.Markup);
             Assert.Contains("3 titles to read", cut.Markup);
             Assert.Contains("Search people or roles", cut.Markup);
@@ -1356,10 +1359,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains(">Albums<", markup);
             Assert.Contains(">Artists<", markup);
             Assert.Contains(">Songs<", markup);
-            Assert.Contains(">All Playlists<", markup);
+            Assert.Contains(">See all<", markup);
             Assert.Contains(">Recently Played<", markup);
             Assert.Contains(">Recently Added<", markup);
-            Assert.Contains("aria-label=\"Manage ", markup);
+            Assert.Contains(" options\"", markup);
             Assert.Empty(cut.FindAll(".listen-now-panel"));
         });
     }
@@ -1529,7 +1532,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         public override Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(State);
     }
 
-    private IRenderedComponent<IComponent> RenderSettingsForAThisComputerOnlyAccount(string[] dismissedNotices)
+    private IRenderedComponent<IComponent> RenderSettingsForAThisComputerOnlyAccount(string[] dismissedNotices, string connectionMode = "local-only")
     {
         var profileId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
@@ -1540,6 +1543,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddSingleton<Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider>(new ThisComputerOnlyStateProvider());
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(
             new DelayedLockHandler(authority, session) { DismissedNotices = dismissedNotices }));
+        var stub = (EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>();
+        stub.SetHandler(nameof(IEngineApiClient.GetNetworkSettingsAsync), _ => Task.FromResult<MediaEngine.Contracts.Settings.NetworkSettingsDto?>(
+            new MediaEngine.Contracts.Settings.NetworkSettingsDto { Remote = new MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto { ConnectionMode = connectionMode } }));
         return Render(builder =>
         {
             builder.OpenComponent<AppPopoverHost>(0);
@@ -1550,9 +1556,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsMenu_ShowsASmallRedDotOnSecurityForAThisComputerOnlyAccountUntilNotNow()
+    public void SettingsMenu_ShowsASmallRedDotOnSecurityWhenOutsideAccessIsOnAndTheAccountHasNoPassword()
     {
-        var cut = RenderSettingsForAThisComputerOnlyAccount([]);
+        var cut = RenderSettingsForAThisComputerOnlyAccount([], connectionMode: "tailscale");
 
         cut.WaitForAssertion(() =>
         {
@@ -1564,9 +1570,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsMenu_HasNoSecurityDotOnceTheAccountSaidNotNow()
+    public void SettingsMenu_HasNoSecurityDotForADeliberateNoPasswordHomeSetup()
     {
-        var cut = RenderSettingsForAThisComputerOnlyAccount([MediaEngine.Contracts.Authentication.AccountNoticeKeys.SecureAccount]);
+        var cut = RenderSettingsForAThisComputerOnlyAccount([], connectionMode: "local-only");
 
         cut.WaitForAssertion(() => Assert.NotNull(cut.Find("a.media-section-shell__tree-link[href='/settings/security']")));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".media-section-shell__attention-dot")));
@@ -1583,7 +1589,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{createdId:D}\")", legacySource, StringComparison.Ordinal);
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{playlistId:D}\")", browseSource, StringComparison.Ordinal);
-        Assert.True(legacyMarkup.Split("<AppOverflowMenu", StringSplitOptions.None).Length - 1 >= 2);
+        // The playlist page's Sort menu now sits in its own toolbar component (group pages WP1b), so the menus are counted across both.
+        var toolbarMarkup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Listen", "PlaylistSongToolbar.razor"));
+        Assert.True((legacyMarkup + toolbarMarkup).Split("<AppOverflowMenu", StringSplitOptions.None).Length - 1 >= 2);
         Assert.DoesNotContain("_playlistActionsMenuOpen", legacySource, StringComparison.Ordinal);
         Assert.DoesNotContain("_playlistActionsCollectionId", legacySource, StringComparison.Ordinal);
         Assert.Contains("@onclick:stopPropagation=\"true\"", menuSource, StringComparison.Ordinal);

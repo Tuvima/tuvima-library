@@ -7,9 +7,6 @@ public sealed class AuthSettingsDto
     [JsonPropertyName("mode")]
     public string Mode { get; init; } = "Local";
 
-    [JsonPropertyName("localhost_bypass")]
-    public bool LocalhostBypass { get; init; }
-
     [JsonPropertyName("password_sign_in_enabled")] public bool PasswordSignInEnabled { get; init; }
     [JsonPropertyName("passkey_sign_in_enabled")] public bool PasskeySignInEnabled { get; init; }
     [JsonPropertyName("external_sign_in_enabled")] public bool ExternalSignInEnabled { get; init; }
@@ -85,7 +82,6 @@ public sealed class ExternalAuthProviderDto
 public sealed class UpdateAuthSettingsRequest
 {
     [JsonPropertyName("mode")] public string Mode { get; init; } = "Local";
-    [JsonPropertyName("localhost_bypass")] public bool LocalhostBypass { get; init; }
     [JsonPropertyName("password_sign_in_enabled")] public bool PasswordSignInEnabled { get; init; }
     [JsonPropertyName("passkey_sign_in_enabled")] public bool PasskeySignInEnabled { get; init; }
     [JsonPropertyName("external_sign_in_enabled")] public bool ExternalSignInEnabled { get; init; }
@@ -549,6 +545,10 @@ public sealed class ServerFolderEntryDto
 
     [JsonPropertyName("modified_at")]
     public DateTimeOffset? ModifiedAt { get; init; }
+
+    /// <summary>How many things (folders and files) sit directly inside, counted up to a cap of 1000 (so 1000 means "1000 or more"); null when the folder could not be counted.</summary>
+    [JsonPropertyName("item_count")]
+    public int? ItemCount { get; init; }
 }
 
 public sealed class BrowseServerFoldersResultDto

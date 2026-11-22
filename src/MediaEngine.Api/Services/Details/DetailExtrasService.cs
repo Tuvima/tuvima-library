@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.Details;
 
@@ -19,7 +20,9 @@ public sealed class DetailExtrasService(
     IItemExtraRepository extras,
     ILibraryFolderResolver libraries,
     IExtrasConfigurationSource? rules = null,
-    IEditorConfigurationSource? editorConfig = null)
+    IEditorConfigurationSource? editorConfig = null,
+    ISupportingFileTitleResolver? titleFolders = null,
+    ILogger<DetailExtrasService>? logger = null)
 {
     // How many of the page's files are looked up to find the folders Extras sit in. One batched lookup, so the cost is the folder walk, not a
     // query per file; 500 covers a long course (every lesson then gets its chip) and still bounds a page that lists thousands of files.
@@ -49,6 +52,8 @@ public sealed class DetailExtrasService(
         var isEpisode = EpisodeTypes.Contains(detail.EntityType);
         if (!TitleTypes.Contains(detail.EntityType) && !isEpisode)
         {
+            // Pages of other kinds never get Extras; the log says so when one of them was expected to (issue 1242).
+            logger?.LogDebug("Extras for {Type} {Id}: this kind of page has no Extras row.", detail.EntityType, detail.Id);
             return;
         }
 
@@ -80,14 +85,38 @@ public sealed class DetailExtrasService(
             }
         }
 
-        var distinct = assetIds.Distinct().Take(MaxAssetsToLocate).ToList();
-        if (distinct.Count == 0)
+        // A Videos series (a folder of personal videos or lessons) lists its videos without episode details, so nothing above names a file.
+        // Each listed video is a Work of its own, so one file of each (a single batched lookup) says which folders to look in.
+        IReadOnlyDictionary<Guid, string> videoPaths = new Dictionary<Guid, string>();
+        if (assetIds.Count == 0
+            && detail.EntityType == DetailEntityType.TvShow
+            && detail.SequencePlacement is { } videos)
         {
-            return;
+            var listedWorks = videos.OrderedItems.Concat(videos.Groups.SelectMany(group => group.Items))
+                .Where(item => item.EpisodeContext is null && Guid.TryParse(item.Id, out var workId) && workId != Guid.Empty)
+                .Select(item => Guid.Parse(item.Id))
+                .Distinct()
+                .Take(MaxAssetsToLocate)
+                .ToList();
+            videoPaths = await assets.GetFirstFilePathsByWorkIdsAsync(listedWorks, ct).ConfigureAwait(false);
         }
 
-        var paths = await assets.GetFilePathsAsync(distinct, ct).ConfigureAwait(false);
+        var distinct = assetIds.Distinct().Take(MaxAssetsToLocate).ToList();
+        IReadOnlyDictionary<Guid, string> paths = distinct.Count == 0
+            ? videoPaths
+            : await assets.GetFilePathsAsync(distinct, ct).ConfigureAwait(false);
         var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // A title's own page also asks the folder finder the editor's supporting-files browser uses, so a page that lists its files
+        // in a way the lookups above cannot read (a show of lessons, a folder of videos) still finds the folders its Extras sit in.
+        if (!isEpisode && titleFolders is not null && Guid.TryParse(detail.Id, out var titleId))
+        {
+            foreach (var folder in await titleFolders.ResolveItemFoldersAsync(titleId, ct).ConfigureAwait(false))
+            {
+                folders.Add(folder);
+            }
+        }
+
         foreach (var path in paths.Values)
         {
             foreach (var folder in CandidateFolders(path))
@@ -98,6 +127,10 @@ public sealed class DetailExtrasService(
 
         if (folders.Count == 0)
         {
+            // Says why a page has no Extras row, so a missing row can be traced from the Engine log (issue 1242): no folder was worked out for the page.
+            logger?.LogInformation(
+                "Extras for {Type} {Id}: no title folder could be worked out ({Assets} files looked at, {Paths} paths found).",
+                detail.EntityType, detail.Id, distinct.Count, paths.Count);
             return;
         }
 
@@ -109,6 +142,8 @@ public sealed class DetailExtrasService(
 
         if (found.Count == 0)
         {
+            logger?.LogInformation(
+                "Extras for {Type} {Id}: {Folders} folders looked in, no Extras stored for them.", detail.EntityType, detail.Id, folders.Count);
             return;
         }
 
@@ -120,6 +155,8 @@ public sealed class DetailExtrasService(
             extra => extra.EffectiveAlongside is { } alongside ? lessons(extra, alongside) : null,
             cardsPerGroup,
             extra => lessons(extra, extra.EffectiveScope));
+
+        logger?.LogInformation("Extras for {Type} {Id}: {Cards} cards on the page.", detail.EntityType, detail.Id, detail.Extras?.Count ?? 0);
 
         // An episode's or lesson's own page lists every file it has, so it has no "See all" and no cap (0); a title's page caps each group.
         detail.ExtrasCardsPerGroup = isEpisode ? 0 : cardsPerGroup;

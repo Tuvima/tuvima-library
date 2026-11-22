@@ -732,6 +732,7 @@ public static partial class MetadataEndpoints
         MapFileCoverageEndpoints(group);
         MapAssetRenditionEndpoints(group);
         MapProviderArtworkPickerEndpoints(group);
+        MapVideoFrameEndpoints(group);
 
         // -- GET /metadata/{entityId}/artwork/{scopeId} ---------------------
         group.MapGet("/{entityId:guid}/artwork/{scopeId}", async (
@@ -2288,7 +2289,7 @@ public static partial class MetadataEndpoints
             _ => false,
         };
 
-    private static IReadOnlyList<string> BuildEditorAvailableTabs(
+    internal static IReadOnlyList<string> BuildEditorAvailableTabs(
         string editorMode,
         string mediaType,
         string scopeId,

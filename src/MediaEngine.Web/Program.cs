@@ -42,6 +42,13 @@ if (!processInstanceLease.IsAcquired)
 }
 
 var builder = WebApplication.CreateBuilder(args);
+// Started from a build folder without the Development setting, the style and script files of the app and its
+// shared libraries are not found and the browser gets a page instead of a file (a white screen). Load them
+// the same way Development does; a published copy has them beside the app and needs nothing.
+if (!builder.Environment.IsDevelopment())
+{
+    builder.WebHost.UseStaticWebAssets();
+}
 builder.Services.AddHttpContextAccessor();
 SettingsNav.ConfigureEnvironment(builder.Environment.IsProduction());
 
@@ -121,16 +128,11 @@ var proxyPort = ProxyPortConfiguration.Resolve(
     Environment.GetEnvironmentVariable("TUVIMA_PROXY_PORT"),
     tailscaleUrl);
 var proxyUrl = proxyPort is int proxyPortValue ? ProxyPortConfiguration.BindUrl(networkSettings.Remote, proxyPortValue) : null;
-if (string.IsNullOrWhiteSpace(explicitUrls))
+// The Dashboard listens on the home network by default; Settings > Network "Reach from other devices" off keeps it on
+// this computer (takes effect on restart). The Engine itself always stays local.
+if (DashboardBinding.Resolve(networkSettings, explicitUrls, proxyUrl, proxyPort, ContainerGateway.IsContainer()) is { } dashboardUrls)
 {
-    builder.WebHost.UseUrls(proxyUrl is null
-        ? $"http://0.0.0.0:{networkSettings.Local.Port}"
-        : $"http://0.0.0.0:{networkSettings.Local.Port};{proxyUrl}");
-}
-else if (proxyUrl is not null && !ProxyPortConfiguration.UrlsContainPort(explicitUrls, proxyPort!.Value))
-{
-    // Explicit hosting settings stay authoritative; the optional proxy port is only added on top.
-    builder.WebHost.UseUrls($"{explicitUrls};{proxyUrl}");
+    builder.WebHost.UseUrls(dashboardUrls);
 }
 
 // One answer to "is this request local?" and one list of Host names the Dashboard answers to.
@@ -140,6 +142,16 @@ builder.Services.AddSingleton(new IngressClassifier(
     networkSettings.Remote.TrustedProxies,
     networkSettings.Remote.TrustedProxyNetworks,
     ContainerGateway.Detect()));
+// Windows only: the one question that opens the Dashboard port to home (Private) networks. A no-op on every other system.
+if (OperatingSystem.IsWindows())
+{
+    builder.Services.AddSingleton<IFirewallCommandRunner, WindowsFirewallCommandRunner>();
+}
+else
+{
+    builder.Services.AddSingleton<IFirewallCommandRunner, NoFirewallCommandRunner>();
+}
+builder.Services.AddSingleton<IHomeNetworkFirewall, HomeNetworkFirewall>();
 builder.Services.AddSingleton(new HostAllowList(
     networkSettings,
     tailscaleUrl,
@@ -154,7 +166,6 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 var authSettings = dashboardConfig.LoadCore().Auth;
-builder.Services.AddSingleton(authSettings.PasswordReset);
 builder.Services.AddSingleton<PasswordResetEmailSender>();
 var externalSignInAllowed =
     !string.Equals(authSettings.Mode, "Local", StringComparison.OrdinalIgnoreCase);
@@ -284,6 +295,8 @@ builder.Services.AddScoped<DevelopmentToolsState>();
 builder.Services.AddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
 builder.Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
 builder.Services.AddScoped<MediaEngine.Web.Services.Settings.ImportUploadState>();
+builder.Services.AddScoped<MediaEngine.Web.Services.Settings.RemoteAccessFlowState>();
+builder.Services.AddScoped<MediaEngine.Web.Services.Settings.IFriendInviteService, MediaEngine.Web.Services.Settings.FriendInviteService>();
 builder.Services.AddScoped<MediaEngine.Web.Services.MediaTiles.BrowseLibrariesState>();
 builder.Services.AddScoped<IItsYouConfirmer, DialogItsYouConfirmer>();
 builder.Services.AddScoped<ConfirmedActionRunner>();

@@ -1868,33 +1868,6 @@ public sealed class CollectionRepository : ICollectionRepository
         }, ct);
     }
 
-    /// <inheritdoc/>
-    public Task ReorderCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
-        {
-            for (var index = 0; index < itemIds.Count; index++)
-            {
-                innerCt.ThrowIfCancellationRequested();
-                conn.Execute(
-                    """
-                    UPDATE collection_items
-                    SET sort_order = @SortOrder
-                    WHERE id = @Id AND collection_id = @CollectionId
-                    """,
-                    new
-                    {
-                        Id = itemIds[index],
-                        CollectionId = collectionId,
-                        SortOrder = index + 1,
-                    },
-                    tx);
-            }
-        }, ct);
-    }
-
     // -------------------------------------------------------------------------
     // Content Groups — structural collections that contain works (albums, series, etc.)
     // -------------------------------------------------------------------------

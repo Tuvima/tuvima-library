@@ -16,6 +16,7 @@ namespace MediaEngine.Web.Services.Navigation;
 /// <param name="ToolsMissingReason">A required tool is missing or broken (not merely downloading): the Tools row shows red with this short reason, for example "FFmpeg missing".</param>
 /// <param name="PluginsBroken">A plugin that is switched on cannot do its job; the Plugins row shows red with "Broken". Nothing switched off counts.</param>
 /// <param name="RestrictedProfile">A Kids profile: the menu lists Profile and nothing else.</param>
+/// <param name="AccountsOffered">An installed plugin asks this profile to link an account; Profile's Linked accounts tab is listed only then.</param>
 public sealed record SettingsMenuContext(
     bool AdministrationAllowed,
     bool IsMobile,
@@ -27,7 +28,8 @@ public sealed record SettingsMenuContext(
     bool AiFeaturesOn = true,
     bool IntegrationsBroken = false,
     string? ToolsMissingReason = null,
-    bool RestrictedProfile = false);
+    bool RestrictedProfile = false,
+    bool AccountsOffered = false);
 
 /// <summary>One line of the phone page selector: a page.</summary>
 public sealed record SettingsPhoneMenuOption(string Route, string Label);
@@ -96,7 +98,7 @@ public static class SettingsMenuBuilder
             .FirstOrDefault(item => item.ActiveRoutes?.Contains(SettingsNav.BaseRouteFor(current), StringComparer.OrdinalIgnoreCase) == true)?.Route
         ?? SettingsNav.RouteFor(current);
 
-    /// <summary>The phone selector's line: the name, and the amber review count in brackets beside Libraries for administrators, as on a computer (issue 930).</summary>
+    /// <summary>The phone selector's line: the name, and the amber review count in brackets beside Libraries for administrators, as on a larger screen (issue 930).</summary>
     private static string PhoneLabel(MediaSectionNavigationItem item) =>
         item.MetaIsNotification && !string.IsNullOrWhiteSpace(item.Meta) ? $"{item.Label} ({item.Meta})" : item.Label;
 
@@ -107,9 +109,9 @@ public static class SettingsMenuBuilder
             return false;
         }
 
-        // Phones and tablets are for consuming media: Local AI, Plugins, Integrations and Developer Tools are not listed there at
-        // all. Their pages stay reachable by address from a mobile browser.
-        if (context.IsMobile && IsDeveloperArea(node))
+        // Phones and tablets are for consuming media: Local AI, Plugins and Integrations are not listed there at
+        // all (their pages stay reachable by address from a mobile browser). Developer Tools are listed for administrators (Settings alignment D13).
+        if (context.IsMobile && IsHiddenOnMobileServerPage(node))
         {
             return false;
         }
@@ -118,15 +120,18 @@ public static class SettingsMenuBuilder
     }
 
     private static bool IsTabOffered(SettingsPageTab tab, SettingsMenuContext context) =>
-        (context.IsSectionEnabled is null || context.IsSectionEnabled(tab.Section))
+        (context.AccountsOffered || !IsLinkedAccountsTab(tab))
+        && (context.IsSectionEnabled is null || context.IsSectionEnabled(tab.Section))
         && (!context.IsMobile || IsOfferedOnMobile(tab.Section, tab.Subsection));
+
+    private static bool IsLinkedAccountsTab(SettingsPageTab tab) =>
+        tab.Section == SettingsSection.Overview && string.Equals(tab.Subsection, SettingsNav.AccountsSubsection, StringComparison.Ordinal);
 
     private static bool IsOfferedOnMobile(SettingsSection section, string? subsection) =>
         SettingsNav.IsVisibleOnMobile(section) && SettingsNav.IsMobileRouteAvailable(section, subsection);
 
-    private static bool IsDeveloperArea(SettingsMenuNode node) =>
-        node.Section is SettingsSection.LocalAi or SettingsSection.Plugins or SettingsSection.Integrations
-        || SettingsNav.GetGroup(node.Section).Key is "developer";
+    private static bool IsHiddenOnMobileServerPage(SettingsMenuNode node) =>
+        node.Section is SettingsSection.LocalAi or SettingsSection.Plugins or SettingsSection.Integrations;
 
     /// <summary>The count drawn in the pill: the number, or "99+" above 99.</summary>
     public static string ReviewPillText(int reviewCount) =>

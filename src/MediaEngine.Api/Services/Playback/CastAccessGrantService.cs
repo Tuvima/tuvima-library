@@ -37,7 +37,12 @@ public sealed class CastAccessGrantService
     public static readonly TimeSpan MinimumLifetime = TimeSpan.FromHours(2);
     public static readonly TimeSpan MaximumLifetime = TimeSpan.FromHours(6);
 
+    /// <summary>Starts a link that works on the home network only (the relay refuses it from anywhere else).</summary>
+    public const string HomeOnlyPrefix = "lan-";
+
     private const int MaximumGrantLength = 2048;
+
+    private static string Mark(string protectedGrant, bool homeOnly) => homeOnly ? HomeOnlyPrefix + protectedGrant : protectedGrant;
     private const string DeviceKind = "device";
     private const string SessionKind = "session";
 
@@ -121,6 +126,8 @@ public sealed class CastAccessGrantService
             throw new UnauthorizedAccessException("The paired device's token is not live.");
         }
 
+        // Every cast link works on the home network only: a receiver outside it has no reason to play your library (issue 1211).
+        const bool homeOnly = true;
         var expiresAt = now.Add(LifetimeFor(durationSeconds));
         var payload = JsonSerializer.Serialize(new CastGrantPayload(
             assetId,
@@ -137,8 +144,9 @@ public sealed class CastAccessGrantService
                 authority.ProfileAuthorizationVersion,
                 authority.ApplicationAuthorizationVersion,
                 granted,
-                null)));
-        return new CastAccessGrant(_protector.Protect(payload), expiresAt);
+                null,
+                homeOnly)));
+        return new CastAccessGrant(Mark(_protector.Protect(payload), homeOnly), expiresAt);
     }
 
     /// <summary>
@@ -191,8 +199,9 @@ public sealed class CastAccessGrantService
                 authority.ProfileAuthorizationVersion,
                 0,
                 [],
-                sessionId)));
-        return new CastAccessGrant(_protector.Protect(payload), expiresAt);
+                sessionId,
+                true)));
+        return new CastAccessGrant(Mark(_protector.Protect(payload), true), expiresAt);
     }
 
     /// <summary>
@@ -324,10 +333,16 @@ public sealed class CastAccessGrantService
             return null;
         }
 
+        // The prefix tells the Dashboard's public relay the link works on the home network only. The payload says the
+        // same, and the two must agree, so removing the prefix does not turn a home-only link into an open one.
+        var homeOnlyMarked = grant.StartsWith(HomeOnlyPrefix, StringComparison.Ordinal);
         try
         {
-            var payload = JsonSerializer.Deserialize<CastGrantPayload>(_protector.Unprotect(grant));
+            var payload = JsonSerializer.Deserialize<CastGrantPayload>(
+                _protector.Unprotect(homeOnlyMarked ? grant[HomeOnlyPrefix.Length..] : grant));
             return payload is not null &&
+                   payload.Binding is not null &&
+                   payload.Binding.HomeOnly == homeOnlyMarked &&
                    payload.AssetId != Guid.Empty &&
                    payload.Binding is not null &&
                    DateTimeOffset.FromUnixTimeSeconds(payload.ExpiresAtUnixSeconds) > _timeProvider.GetUtcNow()
@@ -383,7 +398,8 @@ public sealed class CastAccessGrantService
         long ProfileAuthorizationVersion,
         long ApplicationAuthorizationVersion,
         IReadOnlyList<string> Scopes,
-        Guid? SessionId);
+        Guid? SessionId,
+        bool HomeOnly = false);
 }
 
 public sealed record CastAccessGrant(string Value, DateTimeOffset ExpiresAt);

@@ -113,7 +113,8 @@ public sealed class TailscaleRemoteConnectivityProvider : IRemoteConnectivityPro
         {
             return new RemoteProviderSnapshot(
                 Key, DisplayName, RemoteProviderState.Unconfigured, null,
-                "Tailscale is not installed. Use the supported deployment preset or install it on this host.");
+                "Tailscale is not installed. Use the supported deployment preset or install it on this host.",
+                NotInstalled: true);
         }
         catch (Exception ex) when (ex is JsonException or TimeoutException or InvalidOperationException)
         {

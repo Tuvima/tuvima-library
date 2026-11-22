@@ -6,29 +6,21 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class SettingsPageFrameTests : AsyncBunitContext
 {
-    private static readonly IReadOnlyList<SettingsBreadcrumb> Trail =
-    [
-        new("Settings", "/settings/profiles"),
-        new("Personal", "/settings/profiles"),
-        new("Security", null),
-    ];
-
     public SettingsPageFrameTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
     [Fact]
-    public void Frame_RendersBreadcrumbTitleDescriptionAndContent()
+    public void Frame_RendersTitleDescriptionAndContent_WithNoBreadcrumb()
     {
         var cut = Render<SettingsPageFrame>(parameters => parameters
-            .Add(frame => frame.Breadcrumbs, Trail)
             .Add(frame => frame.Title, "Security")
             .Add(frame => frame.Description, "Password, email and extra protection.")
             .AddChildContent("<p id=\"page-body\">Body</p>"));
 
-        Assert.Equal("Settings", cut.Find("nav.settings-breadcrumbs a").TextContent);
-        Assert.Equal("Security", cut.Find("nav.settings-breadcrumbs span[aria-current='page']").TextContent);
+        Assert.Empty(cut.FindAll("nav[aria-label='Breadcrumb']"));
+        Assert.Empty(cut.FindAll("[data-testid='settings-back-link']"));
         Assert.Equal("Security", cut.Find("h1").TextContent);
         Assert.Contains("Password, email and extra protection.", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll(".app-page-header__eyebrow"));
@@ -39,7 +31,6 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
     public void Frame_WithoutOptionalSlots_DrawsNoNoticeOrTabWrappers()
     {
         var cut = Render<SettingsPageFrame>(parameters => parameters
-            .Add(frame => frame.Breadcrumbs, Trail)
             .Add(frame => frame.Title, "Security")
             .AddChildContent("<p>Body</p>"));
 
@@ -99,10 +90,9 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Frame_WithEverySlot_DrawsNoticesThenBreadcrumbThenHeaderThenPageNoticeThenTabsThenContent()
+    public void Frame_WithEverySlot_DrawsNoticesThenHeaderThenPageNoticeThenTabsThenContent()
     {
         var cut = Render<SettingsPageFrame>(parameters => parameters
-            .Add(frame => frame.Breadcrumbs, Trail)
             .Add(frame => frame.Title, "Security")
             .Add(frame => frame.Notices, (RenderFragment)(builder => builder.AddMarkupContent(0, "<span id=\"n\">notice</span>")))
             .Add(frame => frame.PageNotice, (RenderFragment)(builder => builder.AddMarkupContent(0, "<span id=\"pn\">page notice</span>")))
@@ -113,7 +103,6 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
         var order = new[]
         {
             markup.IndexOf("id=\"n\"", StringComparison.Ordinal),
-            markup.IndexOf("aria-label=\"Breadcrumb\"", StringComparison.Ordinal),
             markup.IndexOf("<h1", StringComparison.Ordinal),
             markup.IndexOf("id=\"pn\"", StringComparison.Ordinal),
             markup.IndexOf("id=\"t\"", StringComparison.Ordinal),
@@ -122,5 +111,20 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
 
         Assert.All(order, position => Assert.True(position >= 0));
         Assert.Equal(order.OrderBy(position => position), order);
+    }
+
+    [Fact]
+    public void Frame_ForAPageBelowAPage_DrawsOneBackLinkAndNoBreadcrumb()
+    {
+        var cut = Render<SettingsPageFrame>(parameters => parameters
+            .Add(frame => frame.Title, "Plugin")
+            .Add(frame => frame.BackHref, "/settings/plugins")
+            .Add(frame => frame.BackLabel, "Plugins")
+            .AddChildContent("<p>Body</p>"));
+
+        var back = cut.Find("[data-testid='settings-back-link']");
+        Assert.Equal("/settings/plugins", back.GetAttribute("href"));
+        Assert.Equal("Plugins", back.TextContent.Trim());
+        Assert.Empty(cut.FindAll("nav[aria-label='Breadcrumb']"));
     }
 }

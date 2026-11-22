@@ -1,0 +1,200 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Remote access guide - mock-ups</title>
+<style>
+:root{--page:#101115;--nav:#14151A;--card:#1A1B21;--hover:#272830;--menu:#2F3039;--line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.18);--tx:#F2F2F5;--tx2:#B4B6C2;--tx3:#8A8D9B;--pu:#8852FC;--put:#A46FFF;--pus:rgba(136,82,252,.16);--amber:#E0A23A;--green:#3FB27F;--red:#E5484D}
+*{box-sizing:border-box}html{color-scheme:dark}
+body{margin:0;background:var(--page);color:var(--tx);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px 16px 80px}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:56px 0 4px}
+.sub{color:var(--tx2);margin:0 0 16px;max-width:780px}
+.stage{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.notes{margin:14px 0 0;padding:0;list-style:none;counter-reset:n;max-width:860px}
+.notes li{counter-increment:n;position:relative;padding:0 0 8px 30px;color:var(--tx2)}
+.notes li:before{content:counter(n);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;background:var(--amber);color:#111;font-weight:700;font-size:11px;display:grid;place-items:center}
+.mk{position:absolute;right:-10px;top:-10px;width:20px;height:20px;border-radius:50%;background:var(--amber);color:#111;font-weight:700;font-size:11px;display:grid;place-items:center;z-index:9;box-shadow:0 0 0 2px #0008}
+.rel{position:relative}
+.page{width:1000px;max-width:100%;background:var(--page);border:1px solid var(--line2);border-radius:14px;padding:22px 26px 26px}
+.phone{width:360px;background:var(--page);border:1px solid var(--line2);border-radius:26px;padding:14px 14px 18px}
+.ph-top{display:flex;align-items:center;gap:8px;height:44px;color:var(--tx2)}
+.ph-top b{color:var(--tx);font-size:15px}
+.crumb{color:var(--tx3);font-size:12px}
+.pt{font-size:20px;font-weight:600;margin:0}.pl{color:var(--tx2);margin:2px 0 12px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tab{padding:10px 14px;color:var(--tx2);border-bottom:2px solid transparent}.tab.on{color:var(--tx);border-color:var(--pu)}.tab.adv{margin-left:auto;color:var(--amber)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.card h4{margin:0 0 2px;font-size:15px}.card p{margin:0 0 10px;color:var(--tx2)}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:10px;border:1px solid var(--line2);background:transparent;color:var(--tx);font:inherit}
+.btn.p{background:var(--pu);border-color:var(--pu);font-weight:600}.btn.r{border-color:var(--red);color:var(--red)}
+.row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}.row:first-of-type{border-top:0}
+.row .g{flex:1;min-width:0}.row small{display:block;color:var(--tx3)}
+.ok{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}
+.dot{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none;border:1px solid var(--line2);color:var(--tx3)}
+.dot.ok{background:rgba(63,178,127,.18);border-color:var(--green)}.dot.warn{background:rgba(224,162,58,.16);border-color:var(--amber)}.dot.bad{background:rgba(229,72,77,.16);border-color:var(--red)}
+.stepper{display:flex;gap:6px;margin:0 0 16px;flex-wrap:wrap}.stepper span{padding:6px 12px;border-radius:3px;border:1px solid var(--line);color:var(--tx3);font-size:12px}.stepper .on{background:var(--pus);border-color:var(--pu);color:var(--tx)}.stepper .done{color:var(--green);border-color:var(--green)}
+.cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.opt{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.opt.rec{border-color:var(--pu);box-shadow:inset 0 0 0 1px var(--pu)}
+.badge{align-self:flex-start;font-size:11px;padding:2px 8px;border-radius:3px;background:var(--pus);color:var(--put)}
+.opt h4{margin:0;font-size:16px}.opt .tag{color:var(--tx2)}
+.facts{margin:4px 0;padding:0;list-style:none;color:var(--tx2);font-size:13px}.facts li{padding:3px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px}.facts b{color:var(--tx);font-weight:500;text-align:right}
+.note{background:rgba(224,162,58,.10);border:1px solid rgba(224,162,58,.45);border-radius:10px;padding:10px 12px;color:var(--tx2);margin:0 0 12px}
+.info{background:var(--pus);border:1px solid rgba(136,82,252,.5);border-radius:10px;padding:10px 12px;color:var(--tx2);margin:0 0 12px}
+code,.mono{font-family:ui-monospace,Consolas,monospace;background:var(--nav);border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12.5px}
+.qr{width:96px;height:96px;background:repeating-conic-gradient(#F2F2F5 0 25%,#101115 0 50%) 0 0/16px 16px;border-radius:8px;border:6px solid #F2F2F5;flex:none}
+.sw{width:40px;height:22px;border-radius:999px;background:var(--pu);position:relative;flex:none}.sw:after{content:"";position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff}.sw.off{background:var(--hover)}.sw.off:after{right:auto;left:3px}
+.stack{display:flex;flex-direction:column;gap:10px}
+@media(max-width:900px){.cards3{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+<h1>Away from home: a guided Remote access flow</h1>
+<p class="sub">Dark only, real Library look. Amber numbers match the notes under each picture. At home, with no router changes and no Tailscale, nothing here is needed and no password is required. This flow only appears when someone chooses to reach the Library from outside.</p>
+
+<h2>1. Remote access, not set up (the start page)</h2>
+<p class="sub">Replaces today's plain list of three radio buttons.</p>
+<div class="stage"><div class="page rel">
+<div class="crumb">Settings &gt; Network</div><p class="pt">Network</p><p class="pl">How devices reach your Library at home and away.</p>
+<div class="tabs"><span class="tab">Home network</span><span class="tab on">Remote access</span><span class="tab adv">Advanced</span></div>
+<div class="card rel"><span class="mk">1</span><h4>At home: working, no password needed</h4><p>Phones, TVs and computers on your home network can open your Library right now. Nothing more to do.</p></div>
+<div class="card rel"><span class="mk">2</span><h4>Away from home: not set up</h4><p>Want to watch or listen when you are not on your home network? We will check your network, suggest the easiest way, and walk you through it. It takes about 5 minutes.</p>
+<span class="btn p">Set up away-from-home access</span> <span class="btn">I already have a proxy or tunnel</span></div>
+<div class="card rel"><span class="mk">3</span><h4>Safety, before anything is switched on</h4><p>Outside access always needs a password. People without one can still use your Library at home. You will be asked about this in step 3.</p></div>
+</div></div>
+<ol class="notes"><li>A short, reassuring line that home already works. This answers "do I need to do anything?" and replaces the permanent "Remote access is off" bubble, which goes away.</li><li>One main button. The second button is for people who already run Caddy, nginx or a tunnel; it opens the existing address and proxy fields.</li><li>The password rule is said up front so nobody is surprised later.</li></ol>
+
+<h2>2. Step 1: Check my network</h2>
+<p class="sub">Library looks first, so the person never has to know words like CGNAT.</p>
+<div class="stage"><div class="page rel">
+<div class="stepper"><span class="done">1 Check</span><span class="on">2 Choose</span><span>3 Passwords</span><span>4 Connect</span><span>5 Test</span></div>
+<div class="card rel"><span class="mk">1</span><h4>What we found</h4>
+<div class="row"><span class="dot ok">&#10003;</span><div class="g">This server is on your home network<small>Address 192.168.1.20 &middot; Windows</small></div></div>
+<div class="row"><span class="dot ok">&#10003;</span><div class="g">Tailscale is installed and signed in<small>Your private address would be tuvima.tail1234.ts.net</small></div></div>
+<div class="row"><span class="dot warn">!</span><div class="g">Your router can open a door automatically, but your internet provider shares one public address between homes<small>This means opening a door in the router will probably not work. Tailscale and tunnels do not have this problem.</small></div></div>
+<div class="row"><span class="dot ok">&#10003;</span><div class="g">No other device needs to be on the internet-facing side<small>Library stays closed to the open internet unless you choose otherwise</small></div></div>
+</div>
+<div class="card rel"><span class="mk">2</span><h4>Our suggestion: Tailscale</h4><p>It is already installed, needs no router changes, and works even though your provider shares your address.</p><span class="btn p">See my options</span></div>
+</div></div>
+<ol class="notes"><li>Plain sentences with a green tick, amber warning or red cross. Each says what it means for the person, never a protocol name. Detection uses what the Engine already reads: Tailscale status, router discovery, the shared-address (CGNAT) check and the public address.</li><li>The suggestion is picked from the findings. If nothing is installed the suggestion is still Tailscale, with an "install it for me" step.</li></ol>
+
+<h2>3. Step 2: Choose a way</h2>
+<div class="stage"><div class="page rel">
+<div class="stepper"><span class="done">1 Check</span><span class="on">2 Choose</span><span>3 Passwords</span><span>4 Connect</span><span>5 Test</span></div>
+<div class="cards3 rel"><span class="mk">1</span>
+<div class="opt rec"><span class="badge">Suggested for you</span><h4>Tailscale</h4><div class="tag">A private link between your devices. Nobody else can see your Library.</div>
+<ul class="facts"><li>Effort<b>Easy, about 5 min</b></li><li>Router changes<b>None</b></li><li>Who needs an app<b>Everyone who connects</b></li><li>Works on smart TVs<b>Some (needs app)</b></li><li>Privacy<b>Private, end to end</b></li><li>Cost<b>Free for home use</b></li></ul><span class="btn p">Choose Tailscale</span></div>
+<div class="opt"><h4>My own address</h4><div class="tag">A web address anyone you share it with can open, like Plex.</div>
+<ul class="facts"><li>Effort<b>Harder, 20+ min</b></li><li>Router changes<b>Yes, or a tunnel</b></li><li>Who needs an app<b>Nobody</b></li><li>Works on smart TVs<b>Yes</b></li><li>Privacy<b>Public, password protected</b></li><li>Cost<b>Free, a name costs about $10 a year</b></li></ul><span class="btn">Choose own address</span></div>
+<div class="opt"><h4>Not now</h4><div class="tag">Keep Library at home only. You can come back any time.</div>
+<ul class="facts"><li>Effort<b>None</b></li><li>Router changes<b>None</b></li><li>Away from home<b>Not available</b></li><li>Privacy<b>Best</b></li></ul><span class="btn">Stay at home only</span></div>
+</div></div></div>
+<ol class="notes"><li>Three cards with the same plain rows so they compare at a glance. Trade-offs named in product terms: effort, router changes, who needs an app, TVs, privacy, cost. The suggested card gets the purple outline.</li></ol>
+
+<h2>4. Step 3: Passwords, before anyone connects from outside</h2>
+<div class="stage"><div class="page rel">
+<div class="stepper"><span class="done">1 Check</span><span class="done">2 Choose</span><span class="on">3 Passwords</span><span>4 Connect</span><span>5 Test</span></div>
+<div class="note rel"><span class="mk">1</span>Away from home, every sign-in needs a password or passkey. Profiles without one will keep working at home but cannot sign in from outside.</div>
+<div class="card rel"><span class="mk">2</span>
+<div class="row"><span class="dot ok">&#10003;</span><div class="g">Shy (administrator)<small>Password set &middot; reachable away from home</small></div></div>
+<div class="row"><span class="dot warn">!</span><div class="g">Alex<small>No password &middot; home only</small></div><span class="btn">Set a password</span></div>
+<div class="row"><span class="dot warn">!</span><div class="g">Living room TV (kids)<small>No password &middot; home only</small></div><span class="btn">Keep home only</span></div>
+</div>
+<span class="btn p rel">Continue<span class="mk">3</span></span> <span class="btn">Back</span>
+</div></div>
+<ol class="notes"><li>The standing rule, stated once, in plain words.</li><li>Every profile, with its state. Setting a password opens the existing password dialog. Nothing is forced: profiles left alone simply stay home only.</li><li>Continue is blocked only until the administrator who is setting this up has a password, since they could otherwise be locked out away from home.</li></ol>
+
+<h2>5. Step 4: Connect (Tailscale), with live ticks</h2>
+<div class="stage"><div class="page rel">
+<div class="stepper"><span class="done">1 Check</span><span class="done">2 Choose</span><span class="done">3 Passwords</span><span class="on">4 Connect</span><span>5 Test</span></div>
+<div class="card rel"><span class="mk">1</span>
+<div class="row"><span class="dot ok">&#10003;</span><div class="g">Install Tailscale on this server<small>Detected, version 1.78</small></div></div>
+<div class="row"><span class="dot ok">&#10003;</span><div class="g">Sign in to Tailscale<small>Signed in as your account</small></div></div>
+<div class="row"><span class="dot warn">2</span><div class="g">Turn on a private secure address<small>One command, run once on this computer.<br><code>tailscale serve --bg 5017</code> <span class="btn" style="min-height:32px;padding:0 10px">Copy</span></small></div><span class="btn">Check again</span></div>
+<div class="row"><span class="dot">3</span><div class="g">Install Tailscale on your phone or tablet<small>Sign in with the same account. Scan this on your phone to get the app.</small></div><div class="qr rel"><span class="mk">3</span></div></div>
+</div>
+</div></div>
+<ol class="notes"><li>Each step ticks itself when Library sees it is done (the Tailscale status check already exists), so the person never wonders if it worked. A step that is not done shows a button, "Check again".</li><li>Commands come with a Copy button and say which computer to run them on.</li><li>A QR sends the person to the right app store page for their phone.</li><li>Steps that need this computer carry a small "On the server computer" tag (marker on the second step in a later revision). On a phone the flow still opens, so an administrator can follow phone-side steps, test and turn it off.</li></ol>
+
+<h2>6. Step 4 alternative: My own address</h2>
+<p class="sub">Three routes, one question: "How will the internet reach this server?" The common one, a tunnel or reverse proxy, is the default; the router route is last because shared-address providers often block it.</p>
+<div class="stage"><div class="page rel">
+<div class="stepper"><span class="done">1 Check</span><span class="done">2 Choose</span><span class="done">3 Passwords</span><span class="on">4 Connect</span><span>5 Test</span></div>
+<div class="card rel"><span class="mk">1</span><h4>How will the internet reach this server?</h4>
+<div class="row"><div class="g"><b>A tunnel (Cloudflare Tunnel)</b><small>No router changes, hides your home address. Cloudflare sees the traffic, and its free plan limits video: read their terms first.</small></div><span class="btn">Show steps</span></div>
+<div class="row"><div class="g"><b>A proxy I run (Caddy, nginx, Traefik)</b><small>You keep full control. We give you a ready-made Caddy file with your address filled in.</small></div><span class="btn">Show steps</span></div>
+<div class="row"><div class="g"><b>Open a door in my router</b><small>Library tries the automatic way first, then shows manual steps. Does not work if your provider shares your address.</small></div><span class="btn">Show steps</span></div></div>
+<div class="card rel"><span class="mk">2</span><h4>Your public web address</h4><p>Passkeys and reset links need it. It must start with https.</p><div class="row"><div class="g"><span class="mono">https://library.example.com</span></div><span class="btn p">Save and check</span></div></div>
+</div></div>
+<ol class="notes"><li>Plain names first, product names in brackets. Each says what you give up. The Cloudflare line is a deliberate honest warning; its terms need rechecking when it is built.</li><li>One shared address field. It is checked for https and for reaching this server, with plain error text if it fails.</li></ol>
+
+
+<h2>6b. My own address: the domain wizard</h2>
+<p class="sub">Used when the person picks "A tunnel", "A proxy I run" or "Open a door in my router". Same stepper; Connect becomes four short screens. Every screen re-checks itself and ticks.</p>
+
+<h3 style="color:var(--tx2);font-size:14px">A. Your web address</h3>
+<div class="stage"><div class="page rel">
+<div class="stepper"><span class="done">1 Check</span><span class="done">2 Choose</span><span class="done">3 Passwords</span><span class="on">4 Connect</span><span>5 Test</span></div>
+<div class="stepper"><span class="on">Address</span><span>Point it here</span><span>Secure it</span><span>Check</span></div>
+<div class="card rel"><span class="mk">1</span><h4>Do you have a web address (domain) for your Library?</h4>
+<div class="row"><div class="g"><b>Yes, I own one</b><small>For example yourname.com. We will use a name like library.yourname.com.</small></div><span class="btn p">Use my domain</span></div>
+<div class="row"><div class="g"><b>No, I need one</b><small>Domains cost about $10 a year. Buy from any registrar, then come back. Cloudflare, Namecheap and Porkbun all work.</small></div><span class="btn">How to get one</span></div></div>
+<div class="card rel"><span class="mk">2</span><h4>Pick the name for your Library</h4>
+<div class="row"><div class="g"><span class="mono">library</span><span class="mono">.yourname.com</span></div><span class="btn p">Continue</span></div></div>
+</div></div>
+<ol class="notes"><li>One plain question first. "How to get one" opens a short help page, not a purchase.</li><li>People type only the front part; the full https address is built and shown.</li></ol>
+
+<h3 style="color:var(--tx2);font-size:14px">B. Point it at your server (tunnel route shown)</h3>
+<div class="stage"><div class="page rel">
+<div class="stepper"><span class="done">1 Check</span><span class="done">2 Choose</span><span class="done">3 Passwords</span><span class="on">4 Connect</span><span>5 Test</span></div>
+<div class="stepper"><span class="done">Address</span><span class="on">Point it here</span><span>Secure it</span><span>Check</span></div>
+<div class="card rel"><span class="mk">1</span><h4>Tell the internet where your Library is</h4>
+<div class="row"><span class="dot ok">&#10003;</span><div class="g">Create a free Cloudflare account and add yourname.com<small>Detected: yourname.com is on Cloudflare</small></div></div>
+<div class="row"><span class="dot warn">2</span><div class="g">Install the Cloudflare connector on this server<small>On the server computer. Run once:<br><code>cloudflared service install YOUR-TOKEN</code> <span class="btn" style="min-height:32px;padding:0 10px">Copy</span></small></div><span class="btn">Check again</span></div>
+<div class="row"><span class="dot">3</span><div class="g">Send library.yourname.com to this server<small>In Cloudflare, add a public hostname pointing to <code>http://localhost:5017</code></small></div><span class="btn">Show me where</span></div></div>
+<div class="note rel"><span class="mk">2</span>Cloudflare can see this traffic, and its free plan limits video. Many people prefer Tailscale for family.</div>
+</div></div>
+<ol class="notes"><li>Three steps, each with its own tick. Which provider's steps show depends on the route chosen: tunnel, Caddy file (with a Download button) or router door (the existing automatic try, then manual steps).</li><li>The honest trade-off stays visible on the tunnel route.</li></ol>
+
+<h3 style="color:var(--tx2);font-size:14px">C. Secure it and check it</h3>
+<div class="stage"><div class="page rel">
+<div class="stepper"><span class="done">1 Check</span><span class="done">2 Choose</span><span class="done">3 Passwords</span><span class="on">4 Connect</span><span>5 Test</span></div>
+<div class="stepper"><span class="done">Address</span><span class="done">Point it here</span><span class="done">Secure it</span><span class="on">Check</span></div>
+<div class="card rel"><span class="mk">1</span><h4>Checking https://library.yourname.com</h4>
+<div class="row"><span class="dot ok">&#10003;</span><div class="g">The name points to your home or your tunnel</div></div>
+<div class="row"><span class="dot ok">&#10003;</span><div class="g">The secure certificate is valid<small>Expires in 82 days, renews by itself</small></div></div>
+<div class="row"><span class="dot bad">&#10005;</span><div class="g">Library answered, but only as a visitor from the proxy<small>Add this server's proxy address to the trusted list so sign-ins from outside are recognised.</small></div><span class="btn p">Fix it for me</span></div></div>
+<span class="btn p rel">Save and continue<span class="mk">2</span></span>
+</div></div>
+<ol class="notes"><li>Every check says what is wrong in plain words and offers one button that applies the fix where it is safe (here the existing trusted-proxy setting).</li><li>Continue goes to step 5, the test.</li></ol>
+
+<h3 style="color:var(--tx2);font-size:14px">D. Invite a friend (QR)</h3>
+<div class="stage"><div class="page rel">
+<div class="card rel"><span class="mk">1</span><h4>Invite someone to your Library</h4><p>They scan this on their phone. It opens the Library app, or takes them to get it, and they choose a password. It works once and expires in 7 days.</p>
+<div style="display:flex;gap:16px;align-items:center"><div class="qr"></div><div><span class="mono">https://library.yourname.com/invite/k3x9</span><br><span class="btn" style="margin-top:8px">Copy link</span> <span class="btn">Send by email</span></div></div></div>
+<div class="card rel"><span class="mk">2</span><h4>What they can see</h4><div class="row"><div class="g">Household<small>Friends</small></div><span class="btn">Change</span></div><div class="row"><div class="g">Libraries<small>Movies, TV</small></div><span class="btn">Change</span></div></div>
+</div></div>
+<ol class="notes"><li>One-time invitation as link and QR, using the existing invitation system, lifetime 7 days by default. The QR opens the native app with the address and invite filled in (store page first if the app is missing); the browser is only a fallback.</li><li>The same household and library access pickers as adding a person, so a friend never sees more than chosen.</li></ol>
+
+<h2>7. Step 5: Test, then done</h2>
+<div class="stage"><div class="page rel">
+<div class="stepper"><span class="done">1 Check</span><span class="done">2 Choose</span><span class="done">3 Passwords</span><span class="done">4 Connect</span><span class="on">5 Test</span></div>
+<div class="card rel"><span class="mk">1</span><h4 class="ok">Away-from-home access works</h4><p>Library was reached from the internet at https://tuvima.tail1234.ts.net just now. Passwords are required.</p>
+<div style="display:flex;gap:16px;align-items:center"><div class="qr"></div><div>Scan on your phone to open your Library away from home.<br><span class="btn" style="margin-top:8px">Copy address</span></div></div></div>
+<div class="card rel"><span class="mk">2</span><h4>Recent sign-ins from outside</h4>
+<div class="row"><div class="g">Shy &middot; Phone<small>Today 18:42 &middot; Chicago</small></div></div>
+<div class="row"><div class="g">Alex &middot; Browser<small>Yesterday 21:10 &middot; blocked, no password</small></div></div></div>
+<div class="card rel"><span class="mk">3</span><div class="row"><div class="g"><b>Allow connections from outside</b><small>Turn off any time. Home keeps working.</small></div><span class="sw"></span></div>
+<div class="row"><div class="g"><b>Streaming quality away from home</b><small>Automatic</small></div><span class="btn">Change</span></div></div>
+</div></div>
+<ol class="notes"><li>A real test from outside, with plain result and a QR for the phone. If it fails, the text says the most likely reason and the one next step (for example "your provider shares your address").</li><li>Recent outside sign-ins, so a person can see it is being used and what was refused. Kept short.</li><li>One switch to stop outside access instantly. This is the panic button; turning it off never touches home access.</li></ol>
+
+<h2>8. On a phone</h2>
+<div class="stage">
+<div class="phone"><div class="ph-top"><span>&larr;</span><b>Remote access</b></div>
+<div class="card" style="padding:14px"><h4>At home: working</h4><p style="margin:0">No password needed on your home network.</p></div>
+<div class="card" style="padding:14px"><h4>Away from home: not set up</h4><p>We check your network and walk you through it.</p><span class="btn p" style="width:100%;justify-content:center">Set up</span></div></div>
+<div class="phone"><div class="ph-top"><span>&larr;</span><b>Connect: Tailscale</b></div>
+<div class="stepper"><span class="done">1</span><span class="done">2</span><span class="done">3</span><span class="on">4 Connect</span><span>5</span></div>
+<div class="card" style="padding:14px"><div class="row"><span class="dot ok">&#10003;</span><div class="g">Tailscale on this server<small>Detected</small></div></div>
+<div class="row"><span class="dot warn">2</span><div class="g">Turn on a private secure address<small>On the server computer</small></div></div>
+<span class="btn" style="width:100%;justify-content:center">Send me these steps</span></div></div>
+</div>
+<ol class="notes"><li>Same flow, one step per screen, 44 px controls. Steps that must be done at the server computer are tagged, and "Send me these steps" copies a link to open there. Testing, QR and the off switch all work from the phone.</li></ol>
+</div></body></html>

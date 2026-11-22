@@ -306,7 +306,7 @@
 :where(.tl-detail-page) .tl-detail-stage :where(.cinematic-hero-surface-scope) ::deep .cinematic-hero-surface,
 :where(.tl-detail-page) .tl-detail-stage :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero {
         height: auto !important;
-        min-height: clamp(30rem, 68svh, 36rem) !important;
+        min-height: var(--cinematic-hero-phone-min-height, clamp(30rem, 68svh, 36rem)) !important;
         max-height: none !important;
     }
 }

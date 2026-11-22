@@ -9,7 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// A show's episode row (spec details-and-tile-fixes D9): no row heading line, "N seasons · M episodes" at the top of the
+/// A show's episode row (spec details-and-tile-fixes D9, issues 1165 and 1172, one layout for every page with a Season or folder
+/// dropdown): no row heading line, "N seasons · M episodes" at the top of the
 /// page, "N episodes owned" on its own line under the tiles with the collection tile icon, and Jump to at the right edge.
 /// </summary>
 public sealed class EpisodeRowLayoutTests : AsyncBunitContext
@@ -40,14 +41,18 @@ public sealed class EpisodeRowLayoutTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AFolderOfVideos_KeepsItsHeading()
+    public void AFolderOfVideos_HasNoHeadingLineEither_AndTheSameOwnedLineUnderTheList()
     {
         var model = Model(episodes: 12, videoFolder: true);
 
         var cut = Render<DetailPrimaryModule>(p => p.Add(c => c.Model, model));
 
-        Assert.Equal("Videos", cut.Find(".app-collapsible-row__title").TextContent);
-        Assert.Empty(cut.FindAll(".tl-series-detail__owned-line"));
+        Assert.Empty(cut.FindAll(".app-collapsible-row__title"));
+        Assert.Empty(cut.FindAll(".app-collapsible-row__summary"));
+        Assert.Equal("Videos", cut.Find("section.app-collapsible-row").GetAttribute("aria-label"));
+        Assert.Equal("12 videos owned", cut.Find(".tl-detail-owned-line").TextContent.Trim());
+        // Nothing at the top right of the dropdown row (issue 1165).
+        Assert.Empty(cut.FindAll(".tl-series-detail__ownership"));
     }
 
     [Fact]
@@ -55,30 +60,25 @@ public sealed class EpisodeRowLayoutTests : AsyncBunitContext
     {
         var cut = Render<SequencePlacementPanel>(p => p
             .Add(c => c.Placement, Placement(episodes: 12))
-            .Add(c => c.DetailSurface, true)
-            .Add(c => c.ShowIdentity, false)
-            .Add(c => c.OwnedLineBelow, true));
+            .Add(c => c.DetailSurface, true));
 
-        var line = cut.Find(".tl-series-detail__owned-line");
+        var line = cut.Find(".tl-detail-owned-line");
         Assert.Equal("12 episodes owned", line.TextContent.Trim());
         Assert.NotNull(line.QuerySelector("svg"));
         Assert.Equal(cut.Find(".tl-series-detail__carousel"), line.PreviousElementSibling);
-        // The count is no longer in the controls row at the right.
+        // The count is not in the controls row at the right.
         Assert.Empty(cut.FindAll(".tl-series-detail__ownership"));
         Assert.Empty(cut.FindAll(".tl-series-detail__controls .tl-series-detail__utilities"));
     }
 
     [Fact]
-    public void WithoutTheEpisodeRowRule_TheOwnedCountStaysInTheControlsRow()
+    public void AOneEpisodeSeason_ReadsInTheSingular()
     {
         var cut = Render<SequencePlacementPanel>(p => p
-            .Add(c => c.Placement, Placement(episodes: 12))
-            .Add(c => c.DetailSurface, true)
-            .Add(c => c.ShowIdentity, false));
+            .Add(c => c.Placement, Placement(episodes: 1))
+            .Add(c => c.DetailSurface, true));
 
-        Assert.Empty(cut.FindAll(".tl-series-detail__owned-line"));
-        Assert.Single(cut.FindAll(".tl-series-detail__controls .tl-series-detail__ownership"));
-        Assert.Empty(cut.FindAll(".tl-series-detail__jump--end"));
+        Assert.Equal("1 episode owned", cut.Find(".tl-detail-owned-line").TextContent.Trim());
     }
 
     [Fact]
@@ -86,9 +86,7 @@ public sealed class EpisodeRowLayoutTests : AsyncBunitContext
     {
         var cut = Render<SequencePlacementPanel>(p => p
             .Add(c => c.Placement, Placement(episodes: 12))
-            .Add(c => c.DetailSurface, true)
-            .Add(c => c.ShowIdentity, false)
-            .Add(c => c.OwnedLineBelow, true));
+            .Add(c => c.DetailSurface, true));
 
         var controls = cut.Find(".tl-series-detail__controls");
         var children = controls.Children.ToList();

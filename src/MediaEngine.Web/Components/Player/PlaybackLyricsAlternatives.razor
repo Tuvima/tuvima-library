@@ -1,88 +1,69 @@
 @namespace MediaEngine.Web.Components.Player
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Playback
-@using Microsoft.JSInterop
-@implements IAsyncDisposable
+@implements IDisposable
 @inject PlaybackLyricsPresenter Presenter
-@inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
 
-@* "Find another" (unified player v2 D17): what the lyrics sources offer for this song, shown in place of the lyrics until the person chooses one or goes
-   back. It is a choice list, so one Tab stop and the arrow keys move between the offers (roving-focus.js). *@
-<div class="playback-lyrics-alternatives" data-lyrics-state="alternatives">
-    <div class="playback-lyrics-alternatives__list" @ref="_list">
-        @if (Presenter.AlternativesLoading)
-        {
-            <p class="playback-lyrics-alternatives__message" role="status">@L["PlaybackLyrics_LookingForOtherLyrics"]</p>
-        }
-        else if (Presenter.Alternatives is { items.Count: > 0 } found)
-        {
-            @foreach (var alternative in found.items)
-            {
-                var offer = alternative;
-                <AppNativeButton Type="button" Class="playback-lyrics-alternatives__offer" data-lyrics-offer Disabled="@(offer.is_current || Presenter.Choosing)"
-                                 tabindex="@(ReferenceEquals(offer, TabStop(found.items)) ? 0 : -1)" OnClick="@(() => Presenter.ChooseAsync(offer))">
-                    <strong>@offer.provider_name</strong>
-                    <span>@(offer.is_timed ? L["PlaybackLyrics_TimedToTheSong"] : L["PlaybackLyrics_WordsOnly"])@(offer.is_current ? $" · {L["PlaybackLyrics_InUse"]}" : null)</span>
-                    @if (!string.IsNullOrWhiteSpace(offer.preview)) { <small>@offer.preview</small> }
-                </AppNativeButton>
-            }
-        }
-        else
-        {
-            <p class="playback-lyrics-alternatives__message">@(Presenter.Alternatives?.message is { Length: > 0 } message ? message : L["PlaybackLyrics_NoOtherLyrics"].Value)</p>
-        }
-    </div>
-    <AppNativeButton Type="button" Class="playback-lyrics-alternatives__back" OnClick="Presenter.CloseAlternatives">@L["Common_GoBack"]</AppNativeButton>
-</div>
+@* "Find another" for lyrics (unified player v2 D17, review mock-ups 2026-11-18 D7): the shared pick-a-result window, with the song's art, a search box that
+   starts as "Artist Title" (the album artist when the song has none), what the lyrics sources offer with the best match selected, and Use this.
+   Searching again with other words asks the sources again; the Library's own pick (the normal case) never opens this. *@
+<AppPickResultDialog Title="@L["PlaybackLyrics_FindLyrics"].Value" Visible="true" CoverShape="AppPickCoverShape.Square"
+                     SearchText="@SearchText" Results="@Results" Loading="@Presenter.AlternativesLoading"
+                     LoadingText="@L["PlaybackLyrics_LookingForOtherLyrics"].Value" Busy="@Presenter.Choosing"
+                     Message="@EmptyMessage" OnSearch="SearchAsync" OnUse="UseAsync" OnCancel="Presenter.CloseAlternatives" />
 
 @code {
-    private ElementReference _list;
-    private IJSObjectReference? _roving;
+    /// <summary>The song being played, for the box's starting text and the small art on each result.</summary>
+    [Parameter] public ListenQueueItem? Item { get; set; }
+
     private bool _disposed;
+    private string _searchText = string.Empty;
+    private IReadOnlyList<AppPickResult> _results = [];
+    private TextTrackAlternativesResponse? _mapped;
 
-    // The first offer that can be chosen holds the one Tab stop; the arrow keys reach the rest.
-    private static MediaEngine.Contracts.Playback.TextTrackAlternativeDto? TabStop(IReadOnlyList<MediaEngine.Contracts.Playback.TextTrackAlternativeDto> offers) =>
-        offers.FirstOrDefault(offer => !offer.is_current);
+    // The starting text is worked out once as the window opens, so typing is never overwritten by a later draw.
+    private string SearchText => _searchText;
 
-    protected override void OnInitialized() => Presenter.Changed += Changed;
-
-    private void Changed() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private IReadOnlyList<AppPickResult> Results
     {
-        if (_disposed || !firstRender) return;
-        try
+        get
         {
-            _roving = await JS.InvokeAsync<IJSObjectReference>("import", "./js/roving-focus.js");
-            await _roving.InvokeVoidAsync("attach", _list, "[data-lyrics-offer]:not(:disabled)", new { vertical = true });
-        }
-        catch (InvalidOperationException)
-        {
-            // Prerendering has no browser yet; the offers are ordinary buttons until the arrow keys attach.
-        }
-        catch (JSDisconnectedException)
-        {
-            // The circuit closed while the list was drawing; there is nothing left to attach to.
-        }
-        catch (JSException)
-        {
-            // The arrow keys are a nicety (for example a stale cached module); Tab and Enter still reach every offer.
+            if (!ReferenceEquals(_mapped, Presenter.Alternatives))
+            {
+                _mapped = Presenter.Alternatives;
+                // No album art: a lyrics result does not say which album it belongs to.
+                _results = Presenter.Alternatives?.items.Select(offer => ToResult(offer, null)).ToList() ?? [];
+            }
+            return _results;
         }
     }
 
-    public async ValueTask DisposeAsync()
+    private string EmptyMessage => Presenter.Alternatives?.message is { Length: > 0 } message ? message : L["PlaybackLyrics_NoOtherLyrics"].Value;
+
+    protected override void OnInitialized()
+    {
+        // The box starts with the song's artist and title; with no artist on the song, the other name it carries (the album's artist).
+        _searchText = Item is null ? string.Empty : FindDialogSearchText.ForSong(Item.Title, Item.Subtitle, Item.AuthorName);
+        Presenter.Changed += Changed;
+    }
+
+    private void Changed() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
+
+    private AppPickResult ToResult(TextTrackAlternativeDto offer, string? cover) => FindAnotherResultMapper.ForLyrics(offer, L);
+
+    // Search again with the box's text; only text the person changed is sent, so an untouched box is the Engine's own lookup.
+    private Task SearchAsync(string text) => Presenter.OpenAlternativesAsync(FindDialogSearchText.EditedOrNull(_searchText, text));
+
+    private Task UseAsync(AppPickResult pick) =>
+        Presenter.Alternatives?.items.FirstOrDefault(offer => $"{offer.provider}:{offer.source_id}" == pick.Key) is { } offer
+            ? Presenter.ChooseAsync(offer)
+            : Task.CompletedTask;
+
+    public void Dispose()
     {
         _disposed = true;
         Presenter.Changed -= Changed;
-        if (_roving is null) return;
-        try
-        {
-            await _roving.InvokeVoidAsync("detach", _list);
-            await _roving.DisposeAsync();
-        }
-        catch (JSDisconnectedException)
-        {
-            // The circuit is already gone, so the browser has dropped the listeners with the page.
-        }
     }
 }

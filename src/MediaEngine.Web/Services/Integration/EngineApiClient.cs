@@ -1848,6 +1848,17 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 }).ToList(),
             }).ToList(),
             LibraryStatus = detail.LibraryStatus,
+            // The parts the Engine adds after composing the page. This copy is built field by field, so each of these has to be named here or the
+            // page never receives it (the Extras row, the Your copy row and the Unmatched actions were lost this way: issue 1242).
+            UsesEpisodeArtwork = detail.UsesEpisodeArtwork,
+            FullContributorGroups = detail.FullContributorGroups,
+            PersonalStatus = detail.PersonalStatus,
+            IsUnmatched = detail.IsUnmatched,
+            UnmatchedAssets = detail.UnmatchedAssets,
+            Extras = detail.Extras,
+            ExtrasCardsPerGroup = detail.ExtrasCardsPerGroup,
+            YourCopy = detail.YourCopy,
+            CollectionInfo = detail.CollectionInfo,
         };
     }
 
@@ -2074,6 +2085,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 RemainingSeconds = item.RemainingSeconds,
                 ProgressLabel = item.ProgressLabel,
                 CoveredWith = item.CoveredWith,
+                EpisodeCount = item.EpisodeCount,
             };
 
     private string? NormalizeOptionalUrl(string? value)

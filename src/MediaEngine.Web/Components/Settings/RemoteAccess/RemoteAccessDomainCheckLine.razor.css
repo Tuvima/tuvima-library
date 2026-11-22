@@ -1,0 +1,24 @@
+.ra-line__next {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+    overflow-wrap: anywhere;
+}
+
+.ra-line__help {
+    color: var(--tl-accent-primary-hover);
+    font-size: var(--tl-type-secondary-size);
+}
+
+.ra-line__note {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-secondary-size);
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+    /* A link that is a step of its own is a tap target, so it keeps the 44 px contract. */
+    .ra-line__help {
+        display: inline-flex;
+        min-height: var(--tl-tap-target-min, 44px);
+        align-items: center;
+    }
+}

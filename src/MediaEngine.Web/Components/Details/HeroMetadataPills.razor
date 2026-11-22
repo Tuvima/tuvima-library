@@ -280,9 +280,8 @@
         "duration" => AppMaterialIcons.Outlined.Schedule,
         "item_count" => AppMaterialIcons.Outlined.CollectionsBookmark,
         "list_owned" => AppMaterialIcons.Outlined.TaskAlt,
-        "read_count" => AppMaterialIcons.Outlined.MenuBook,
-        "watch_count" => AppMaterialIcons.Outlined.Tv,
-        "listen_count" => AppMaterialIcons.Outlined.Headphones,
+        // read_count, watch_count and listen_count say their lane in words ("11 titles Read"), never an icon (issue 1193).
+        "read_count" or "watch_count" or "listen_count" => null,
         "quality" => AppMaterialIcons.Outlined.Tv,
         "subtitles" => AppMaterialIcons.Outlined.ClosedCaption,
         _ => null,

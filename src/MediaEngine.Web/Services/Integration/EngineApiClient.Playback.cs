@@ -65,7 +65,9 @@ public sealed partial class EngineApiClient
         CancellationToken ct = default,
         PlaybackConnectionContextDto? connection = null,
         bool adaptive = false,
-        int? burnSubtitleStream = null)
+        int? burnSubtitleStream = null,
+        double? startSeconds = null,
+        bool subtitlesOnly = false)
     {
         var endpoint = $"GET /playback/{assetId}/manifest";
         try
@@ -85,9 +87,19 @@ public sealed partial class EngineApiClient
                 query.Add("delivery=hls");
             }
 
+            if (subtitlesOnly)
+            {
+                query.Add("subtitlesOnly=true");
+            }
+
             if (burnSubtitleStream is >= 0)
             {
                 query.Add($"burnSubtitle={burnSubtitleStream.Value}");
+            }
+
+            if (startSeconds is { } start && double.IsFinite(start) && start >= 0)
+            {
+                query.Add($"start={start.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
             }
 
             if (connection is not null)
@@ -559,14 +571,15 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null)
+    public async Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null, string? query = null)
     {
         try
         {
-            var query = $"kind={Uri.EscapeDataString(kind)}"
-                + (string.IsNullOrWhiteSpace(language) ? string.Empty : $"&language={Uri.EscapeDataString(language)}");
+            var queryString = $"kind={Uri.EscapeDataString(kind)}"
+                + (string.IsNullOrWhiteSpace(language) ? string.Empty : $"&language={Uri.EscapeDataString(language)}")
+                + (string.IsNullOrWhiteSpace(query) ? string.Empty : $"&query={Uri.EscapeDataString(query.Trim())}");
             return await _http.GetFromJsonAsync<TextTrackAlternativesResponse>(
-                $"/stream/{assetId:D}/text-tracks/alternatives?{query}", ct);
+                $"/stream/{assetId:D}/text-tracks/alternatives?{queryString}", ct);
         }
         catch (OperationCanceledException) { return null; }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
@@ -577,6 +590,25 @@ public sealed partial class EngineApiClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET text track alternatives failed for {AssetId}", assetId);
+            return null;
+        }
+    }
+
+    public async Task<TextTrackAlternativePreviewResponse?> GetTextTrackAlternativePreviewAsync(
+        Guid assetId, string kind, string provider, string sourceId, CancellationToken ct = default, string? language = null, string? query = null)
+    {
+        try
+        {
+            var queryString = $"kind={Uri.EscapeDataString(kind)}&provider={Uri.EscapeDataString(provider)}&sourceId={Uri.EscapeDataString(sourceId)}"
+                + (string.IsNullOrWhiteSpace(language) ? string.Empty : $"&language={Uri.EscapeDataString(language)}")
+                + (string.IsNullOrWhiteSpace(query) ? string.Empty : $"&query={Uri.EscapeDataString(query.Trim())}");
+            return await _http.GetFromJsonAsync<TextTrackAlternativePreviewResponse>(
+                $"/stream/{assetId:D}/text-tracks/alternatives/preview?{queryString}", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET text track alternative preview failed for {AssetId}", assetId);
             return null;
         }
     }
@@ -746,6 +778,37 @@ public sealed partial class EngineApiClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "POST /settings/playback/test-hardware failed");
+            return null;
+        }
+    }
+
+    public async Task<PlaybackCapacityDto?> GetPlaybackCapacityAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<PlaybackCapacityDto>("/settings/playback/capacity", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /settings/playback/capacity failed");
+            return null;
+        }
+    }
+
+    public async Task<PlaybackCapacityDto?> TestPlaybackCapacityAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.PostAsync("/settings/playback/test-capacity", null, ct);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<PlaybackCapacityDto>(cancellationToken: ct)
+                : null;
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /settings/playback/test-capacity failed");
             return null;
         }
     }

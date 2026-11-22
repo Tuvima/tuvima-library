@@ -190,6 +190,12 @@ public static class ClientApiEdgeEndpoints
             return;
         }
 
+        if (!BearerAllowedHere(context, bearer))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
         if (!NativeApiForwardPolicy.IsSafeSubPath(hubPath))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -209,6 +215,8 @@ public static class ClientApiEdgeEndpoints
             using var upstream = new ClientWebSocket();
             upstream.Options.CollectHttpResponseDetails = true;
             upstream.Options.SetRequestHeader("Authorization", "Bearer " + bearer);
+            // Where the visitor really is (the Engine only sees this computer): the Engine turns a clearly-outside app away while away-from-home access is off.
+            upstream.Options.SetRequestHeader(ClientIngressValues.ValidateHeader, context.ClientIngress());
             foreach (var protocol in context.WebSockets.WebSocketRequestedProtocols)
             {
                 upstream.Options.AddSubProtocol(protocol);
@@ -262,6 +270,7 @@ public static class ClientApiEdgeEndpoints
             }
         }
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, context.ClientIngress());
         using var response = await clients.CreateClient("ClientApiProxy")
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
         context.Response.StatusCode = (int)response.StatusCode;
@@ -290,6 +299,26 @@ public static class ClientApiEdgeEndpoints
         }
     }
 
+    // A token from a no-password account's approval works only on this computer or the home network (fails closed).
+    private static bool BearerAllowedHere(HttpContext context, string bearer) =>
+        !MediaEngine.Domain.Authorization.ClientIngress.IsLanOnlyToken(bearer)
+        || MediaEngine.Domain.Authorization.ClientIngress.TokenMayBeUsedFrom(bearer, context.ClientIngress());
+
+    // The refresh token travels in the form body, so the same rule is applied to it before the request is forwarded.
+    private static async Task<bool> RefreshTokenAllowedHereAsync(HttpContext context, string? clientPath, CancellationToken ct)
+    {
+        if (!string.Equals(clientPath?.Trim('/'), "oauth/token", StringComparison.OrdinalIgnoreCase)
+            || !context.Request.HasFormContentType)
+        {
+            return true;
+        }
+
+        context.Request.EnableBuffering();
+        var form = await context.Request.ReadFormAsync(ct).ConfigureAwait(false);
+        context.Request.Body.Position = 0;
+        return BearerAllowedHere(context, form["refresh_token"].ToString());
+    }
+
     private static bool TryReadBearer(HttpRequest request, out string token)
     {
         token = string.Empty;
@@ -311,6 +340,13 @@ public static class ClientApiEdgeEndpoints
     {
         var decision = NativeApiForwardPolicy.Evaluate(
             context.Request.Method, clientPath, TryReadBearer(context.Request, out _));
+        if ((TryReadBearer(context.Request, out var presented) && !BearerAllowedHere(context, presented))
+            || !await RefreshTokenAllowedHereAsync(context, clientPath, ct).ConfigureAwait(false))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
         if (decision != NativeApiForwardDecision.Forward)
         {
             context.Response.StatusCode = decision == NativeApiForwardDecision.Unauthorized
@@ -354,6 +390,8 @@ public static class ClientApiEdgeEndpoints
         }
 
         CopyRequestHeader(context.Request, request, "Authorization");
+        // Where the visitor really is (the Engine only sees this computer). Only the Dashboard sets it; it is never copied from the app.
+        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, context.ClientIngress());
         CopyRequestHeader(context.Request, request, "Accept");
         CopyRequestHeader(context.Request, request, "Range");
         CopyRequestHeader(context.Request, request, "If-Range");

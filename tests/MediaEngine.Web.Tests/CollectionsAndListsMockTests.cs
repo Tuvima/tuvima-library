@@ -278,9 +278,9 @@ public sealed class CollectionsAndListsMockTests : AsyncBunitContext
             Path.Combine("Settings", "Overview", "OverviewImportPage.razor"),
         })
         {
-            // ListenPage keeps its code in partial files beside the markup, read here as one text.
-            var text = file.EndsWith(".razor.cs", StringComparison.Ordinal)
-                ? LocalizedSource.ReadComponent(Path.Combine(root, file[..^3]))
+            // ListenPage and ListenBrowsePage keep code in partial files beside the markup, read here as one text.
+            var text = file.EndsWith(".razor.cs", StringComparison.Ordinal) || file == Path.Combine("Pages", "ListenBrowsePage.razor")
+                ? LocalizedSource.ReadComponent(Path.Combine(root, file.EndsWith(".razor.cs", StringComparison.Ordinal) ? file[..^3] : file))
                 : File.ReadAllText(Path.Combine(root, file));
             Assert.Contains("SavedCollectionIds", text, StringComparison.Ordinal);
         }

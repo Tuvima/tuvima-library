@@ -5,6 +5,7 @@ using System.Text.Json;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Web.Services.Configuration;
+using MediaEngine.Web.Services.Settings;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -38,7 +39,7 @@ public static class DashboardAuthenticationEndpoints
             }
 
             var deviceId = EnsureDeviceCookie(context);
-            // Only asked on this computer or the home network; anywhere else the Engine never says the account exists.
+            // Only asked on the computer that runs Library; anywhere else the Engine never says the account exists.
             // After an explicit sign-out the person chooses to go back in, so they are not signed straight back in.
             // A prerendered or background copy of this page starts no session but still offers the Go back in button.
             string? thisComputerName = null;
@@ -321,8 +322,10 @@ public static class DashboardAuthenticationEndpoints
             return Results.Content(ok ? Shell("<h1>Password changed</h1><p><a class=\"button\" href=\"/auth/login\">Sign in</a></p>") : LoginFailurePage("That reset link is invalid or expired."), "text/html", Encoding.UTF8, ok ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest);
         }).AllowAnonymous();
 
-        app.MapGet("/auth/invite", async (HttpContext context, IAntiforgery antiforgery, DashboardIdentityClient identity, string? code) =>
+        app.MapGet("/auth/invite", async (HttpContext context, IAntiforgery antiforgery, DashboardIdentityClient identity, DashboardConfigurationReader configuration, string? code) =>
         {
+            // The invitation code is in this address, so no link on the page may carry it to another site as a referrer.
+            context.Response.Headers["Referrer-Policy"] = "no-referrer";
             if (string.IsNullOrWhiteSpace(code))
             {
                 // Someone who was handed a code rather than a link: ask for it, then continue with the same page.
@@ -343,7 +346,9 @@ public static class DashboardAuthenticationEndpoints
             }
 
             var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
-            return Results.Content(Shell(InvitePasswordBody(anti, EnsureDeviceCookie(context), code.Trim(), preview.Email, null)), "text/html", Encoding.UTF8);
+            // The page is served from the address the friend was given, so that address is the one the app is told to use.
+            var handoff = InviteAppHandoff.Render($"{context.Request.Scheme}://{context.Request.Host}", code.Trim(), context.Request.Headers.UserAgent.ToString(), configuration.LoadAppStoreLinks());
+            return Results.Content(Shell(handoff + InvitePasswordBody(anti, EnsureDeviceCookie(context), code.Trim(), preview.Email, null)), "text/html", Encoding.UTF8);
         }).AllowAnonymous();
         app.MapPost("/auth/invite", async (HttpContext context, DashboardConfigurationReader configuration,
             DashboardIdentityClient identity, IAntiforgery antiforgery) =>
@@ -674,7 +679,7 @@ public static class DashboardAuthenticationEndpoints
             : $"""
               <form id="continue-form" method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="this-computer"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
               <button id="continue-on-this-computer">Go back in as {H(thisComputerName)}</button></form>
-              <p class="supporting">This computer only. Add a password later to use Library on other devices.</p>
+              <p class="supporting">On your home network. Add a password to use Library away from home.</p>
               {(continueAutomatically ? ContinueAutomaticallyScript : string.Empty)}
               """;
         // Nothing to type when the only account has no password: the email and password form (and the note that it is

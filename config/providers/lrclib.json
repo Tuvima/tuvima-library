@@ -44,11 +44,28 @@
       "requests": [
         {
           "when_media_type": "Music",
+          "needs": ["search_text"],
+          "path": "/api/search",
+          "query": [
+            ["q", "{search_text}"]
+          ]
+        },
+        {
+          "when_media_type": "Music",
           "needs": ["title", "artist"],
           "path": "/api/search",
           "query": [
             ["track_name", "{title}"],
             ["artist_name", "{artist}"]
+          ]
+        },
+        {
+          "when_media_type": "Music",
+          "needs": ["title", "artist"],
+          "interactive_only": true,
+          "path": "/api/search",
+          "query": [
+            ["q", "{artist} {title}"]
           ]
         },
         {

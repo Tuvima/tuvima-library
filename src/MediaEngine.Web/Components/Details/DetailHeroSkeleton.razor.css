@@ -182,3 +182,58 @@
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+/* A Series or collection page (spec group-pages-and-tiles): grey covers where GroupHeroCovers draws the real ones (three portrait covers at
+   the cover height, 8.25rem on a phone) and a grey grid where the members' grid lands, same cell width and shape. */
+.tl-detail-skeleton__group-covers {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.tl-detail-skeleton__group-cover {
+    flex: none;
+    height: 8.25rem;
+    min-height: 0;
+    aspect-ratio: 2 / 3;
+    border-radius: var(--tl-radius-xs);
+    overflow: hidden;
+    animation: tl-detail-skeleton-reveal 0.01s linear 250ms backwards;
+}
+
+.tl-detail-skeleton__members {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.875rem 0.625rem;
+    margin-top: 1rem;
+}
+
+.tl-detail-skeleton__member {
+    min-height: 0;
+    aspect-ratio: 2 / 3;
+    border-radius: var(--tl-radius-xs);
+    overflow: hidden;
+    animation: tl-detail-skeleton-reveal 0.01s linear 250ms backwards;
+}
+
+@media (min-width: 840px) {
+    /* Like the real page, the covers are on the right of the copy. */
+    .tl-detail-skeleton__group-covers {
+        order: 2;
+        margin-left: auto;
+        gap: 0.75rem;
+    }
+
+    .tl-detail-skeleton__group-cover {
+        height: clamp(13.75rem, 20vw, 17.5rem);
+    }
+
+    .tl-detail-skeleton__members {
+        grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
+        gap: 0.875rem;
+    }
+}
+
+

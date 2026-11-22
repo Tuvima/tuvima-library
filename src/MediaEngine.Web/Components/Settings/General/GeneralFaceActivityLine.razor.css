@@ -1,0 +1,2 @@
+.general-page__face-line { margin: 0 0 var(--tl-space-4, 16px); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.general-page__face-line a { margin-left: .5rem; }

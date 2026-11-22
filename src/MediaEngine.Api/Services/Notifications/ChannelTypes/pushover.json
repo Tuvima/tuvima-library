@@ -1,0 +1,32 @@
+{
+  "id": "pushover",
+  "name": "Pushover",
+  "order": 50,
+  "cost": "One-time fee per phone",
+  "effort": "Make an application, about five minutes",
+  "summary": "One-time fee per phone · very reliable",
+  "help": "Create an application at pushover.net to get its token, and copy your user key from the same page.",
+  "what_leaves": "The alert text goes to Pushover's servers and on to your phone through Apple or Google.",
+  "fields": [
+    {
+      "key": "app_token",
+      "label": "Application token",
+      "kind": "token",
+      "secret": true,
+      "required": true
+    },
+    {
+      "key": "user_key",
+      "label": "User key",
+      "kind": "token",
+      "secret": true,
+      "required": true
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "https://api.pushover.net/1/messages.json",
+    "content_type": "application/x-www-form-urlencoded",
+    "body": "token={app_token}&user={user_key}&title={title}&message={body}"
+  }
+}

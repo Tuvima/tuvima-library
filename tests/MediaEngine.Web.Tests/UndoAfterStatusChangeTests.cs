@@ -140,7 +140,7 @@ public sealed class UndoAfterStatusChangeTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(offers));
         Assert.Equal("Listening status updated.", offers[0].Message);
-        await cut.InvokeAsync(offers[0].UndoAsync);
+        await cut.InvokeAsync(offers[0].UndoAsync!);
         Assert.Equal([_commandId], _undone);
     }
 
@@ -162,7 +162,7 @@ public sealed class UndoAfterStatusChangeTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(offers));
         Assert.Equal("Status updated.", offers[0].Message);
-        await cut.InvokeAsync(offers[0].UndoAsync);
+        await cut.InvokeAsync(offers[0].UndoAsync!);
         Assert.Equal([_commandId], _undone);
     }
 

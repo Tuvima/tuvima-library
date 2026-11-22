@@ -176,8 +176,11 @@ public sealed class MediaTileViewModel
     /// <summary>The small corner word on a group tile: Collection, Series, Universe, List or Set.</summary>
     public MediaTileGroupKind GroupKind { get; init; }
 
-    /// <summary>True for a playlist, which draws as the square tile beside albums.</summary>
+    /// <summary>True for a playlist, which draws as the square album quadrant (the artist tile's 2 by 2) beside albums.</summary>
     public bool IsPlaylist { get; init; }
+
+    /// <summary>The line a playlist's tile says in the bottom label ("Playlist · 48 songs · 3 h 12 min"); null falls back to the plain count.</summary>
+    public string? TypeLine { get; init; }
     /// <summary>True on a hand-made playlist the person may add to: dragged songs can be dropped on its tile (Listen music spec D10). A rule-based or system playlist is false.</summary>
     public bool AcceptsSongDrops { get; init; }
 
@@ -201,11 +204,32 @@ public sealed class MediaTileViewModel
                     or MediaTilePresentation.Artist)));
 
     /// <summary>The first four member covers of a group, in order: the pictures of the quadrant tile. Blank addresses are skipped.</summary>
-    public IReadOnlyList<string> GroupCovers => ArtworkStackItems
+    public IReadOnlyList<string> GroupCovers => GroupCoverItems
         .Select(item => item.ImageUrl)
-        .Where(url => !string.IsNullOrWhiteSpace(url))
+        .ToList();
+
+    /// <summary>The same first four member covers with their shapes and media kinds, so the tile keeps each cover's natural shape (review mock-ups D4, D5).</summary>
+    public IReadOnlyList<ArtworkStackItem> GroupCoverItems => ArtworkStackItems
+        .Where(item => !string.IsNullOrWhiteSpace(item.ImageUrl))
         .Take(4)
         .ToList();
+
+    /// <summary>
+    /// True when the covers shown are of more than one media kind (a book beside an audiobook, a movie beside a book): the group is a
+    /// Collection, not a Series (review mock-ups D5). Blank kinds are ignored; "Book" and "Books" are one kind.
+    /// </summary>
+    public bool HoldsMixedMedia => GroupCoverItems
+        .Select(item => NormaliseMediaKind(item.MediaType))
+        .Where(kind => kind.Length > 0)
+        .Distinct(StringComparer.Ordinal)
+        .Skip(1)
+        .Any();
+
+    private static string NormaliseMediaKind(string? mediaType)
+    {
+        var kind = (mediaType ?? string.Empty).Trim().ToLowerInvariant();
+        return kind.Length > 3 && kind.EndsWith('s') ? kind[..^1] : kind;
+    }
 
     /// <summary>A person with works (artist, director, author) draws as the quadrant tile with the person's square photo at the bottom left.</summary>
     public bool RenderAsPersonQuadrants =>
@@ -268,6 +292,9 @@ public static class MediaTileShelfKeys
     public const string ReadSeries = "series-and-reading-lists";
     public const string Collections = "collections";
     public const string HomeCollections = "home-collections";
+
+    /// <summary>Home's row of group tiles (Series, collections, folders of videos); it sits right after Recently added.</summary>
+    public const string CollectionsAndSeries = "collections-and-series";
     public const string ListenCollections = "listen-collections";
 
     /// <summary>Prefix of a collection lane's shelf key: "lane-" and the collection id without dashes.</summary>
@@ -299,6 +326,7 @@ public static class MediaTileShelfKeys
 
         if (string.Equals(key, Collections, StringComparison.OrdinalIgnoreCase)
             || string.Equals(key, HomeCollections, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(key, CollectionsAndSeries, StringComparison.OrdinalIgnoreCase)
             || string.Equals(key, ListenCollections, StringComparison.OrdinalIgnoreCase))
         {
             return MediaTileShelfKind.Collections;

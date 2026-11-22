@@ -12,6 +12,9 @@ public static class ClientIngressValues
     public const string HomeNetwork = ClientIngress.HomeNetwork;
     public const string Remote = ClientIngress.Remote;
 
+    /// <summary>Remote with clear evidence (forwarded, via the proxy port, or a public address); only these are turned away when outside access is off.</summary>
+    public const string Outside = ClientIngress.Outside;
+
     /// <summary>Sent by the Dashboard on <c>POST /auth/session/validate</c>; only honoured with the service credential.</summary>
     public const string ValidateHeader = "X-Tuvima-Client-Ingress";
 

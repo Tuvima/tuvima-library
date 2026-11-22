@@ -61,12 +61,26 @@
 <a class="skip-to-content" href="#main-content" tabindex="@(DetailsWindowOpen ? "-1" : null)" aria-hidden="@(DetailsWindowOpen ? "true" : null)">@L["Layout_SkipToContent"]</a>
 
 <AppCssElement Tag="div" Class="@AccentScopeClass" @onclick="CloseOpenShellMenus">
-<div class="playback-app-frame">
+<div class="@(IsPhoneShell && !ShowPhoneSectionChips ? "playback-app-frame playback-app-frame--no-chips" : "playback-app-frame")">
 <AppCssElement Tag="div" Class="playback-app-frame__variables">
 <AppLayout Class="@LayoutShellClass">
     <AppAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
         <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="layout-shell__left-rail">
-            @if (IsPhoneShell)
+            @if (IsPhoneShell && IsPhoneBackBarPage)
+            {
+                @* Settings, details, My List and Search: the bar is a back arrow and the page name, then the avatar (Look v3.2 D4). *@
+                <AppNativeButton Type="button"
+                                 Class="layout-shell__menu-button"
+                                 AriaLabel="@L["Common_Back"].Value"
+                                 OnClick="GoBackAsync">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" />
+                </AppNativeButton>
+                @if (PhoneBackBarTitle is { } backBarTitle)
+                {
+                    <span class="layout-shell__back-title">@backBarTitle</span>
+                }
+            }
+            else if (IsPhoneShell)
             {
                 @* Phone only: the hamburger opens the full-screen menu, generated from the same catalogue as the desktop top bar. *@
                 <AppNativeButton Type="button"
@@ -78,6 +92,8 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Menu" />
                 </AppNativeButton>
             }
+            @if (!(IsPhoneShell && IsPhoneBackBarPage))
+            {
             <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="@L["Nav_Library"].Value">
                 @if (IsPhoneShell)
                 {
@@ -102,6 +118,7 @@
                     </span>
                 }
             </AppLink>
+            }
         </AppStack>
 
         <nav class="layout-shell__desktop-nav" aria-label="@L["MainLayout_Primary"].Value">
@@ -140,6 +157,9 @@
                 </span>
             }
 
+@if (!IsPhoneShell)
+            {
+                @* My List is in the bottom dock on a phone, not the top bar (Look v3.2 D5). *@
             <span class="layout-shell__my-list-slot@(IsMyListOpen ? " is-open" : string.Empty)">
                 <AppTooltip Text="@L["TopBar_MyList"]" Placement="AppPlacement.Bottom">
                     <AppNativeButton Type="button"
@@ -151,6 +171,7 @@
                     </AppNativeButton>
                 </AppTooltip>
             </span>
+            }
 
             <NowPlayingNavButton />
 
@@ -163,8 +184,6 @@
                                    DisplayName="@_displayName"
                                    AccountLabel="@_accountLabel"
                                    CanManageProfiles="@CanManageProfiles"
-                                   ShowSecureAccount="@ShowSecureAccountCard"
-                                   OnSecureAccountNotNow="@DismissSecureAccountAsync"
                                    ProfileRole="@_profileRole"
                                    AvatarInitial="@_avatarInitial"
                                    AvatarColor="@_avatarColor"
@@ -179,8 +198,9 @@
             </span>
         </AppStack>
 
-        @if (IsPhoneShell)
+        @if (IsPhoneShell && ShowPhoneSectionChips)
         {
+            @* Section chips only on Home and the five area pages; every other phone page has at most the app bar above its content (Look v3.2 D4). *@
             <div class="layout-shell__chips-slot">
                 <PhoneSectionChips Links="@ShellNavigation.WithVault(ShellNavigation.SectionChips(_isKids), ShowVaultArea)" CurrentPath="@_currentPath" />
             </div>
@@ -385,6 +405,8 @@
         ? ShellDock.ResolvePhone(_isKids)
         : ShellDock.Resolve(DeviceContext.Settings.Shell.IntentDockItems, _isKids);
     private bool IsPhoneShell => DeviceContext.IsPhone;
+
+    private bool ShowPhoneSectionChips => _currentPath is "/" or "" || ShellNavigation.SectionChips(_isKids).Any(link => ShellNavigation.IsCurrent(link.Path, _currentPath));
     private bool OnLibrarySurface => ShellDock.IsLibrarySurface(_currentPath);
     // The phone's navigation is the three-tab floating dock plus the menu and chips (tablets keep the top navigation); TV keeps its own dock.
     private bool ShowIntentDock => DeviceContext.Settings.Shell.DockVisible
@@ -425,6 +447,7 @@
         Nav.LocationChanged += OnLocationChanged;
         State.OnStateChanged += OnUniverseStateChanged;
         Orchestrator.OnEngineConnectionStateChanged += OnEngineConnectionStateChanged;
+        TrackLiveUpdatesDown(Orchestrator.EngineConnectionState);
         Playback.Changed += OnPlaybackChanged;
         ContextSidebar.Changed += OnContextSidebarChanged;
         _session.OnAuthorityChanged += OnAuthorityChanged;
@@ -691,6 +714,28 @@
     private void CloseLibraries() => _librariesOpen = false;
 
     private void OpenMenu() => _menuOpen = true;
+
+    // Pages that are one step below an area: the phone bar there is a back arrow, the page name and the avatar (Look v3.2 D4).
+    private bool IsPhoneBackBarPage => !ShowPhoneSectionChips
+        && (IsNavActive("/settings") || IsNavActive("/my-list") || IsNavActive("/search") || IsDetailPath(_currentPath));
+
+    private string? PhoneBackBarTitle => IsNavActive("/settings") ? L["Nav_Settings"].Value
+        : IsNavActive("/my-list") ? L["TopBar_MyList"].Value
+        : IsNavActive("/search") ? L["Nav_Search"].Value
+        : null;
+
+    private async Task GoBackAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("history.back");
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "The browser could not go back; opening Home instead.");
+            Nav.NavigateTo("/");
+        }
+    }
 
     private void CloseMenu() => _menuOpen = false;
 
@@ -979,6 +1024,7 @@
         Notices.Changed -= OnNoticesChanged;
         AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
         _authorityRefreshCancellation.Cancel();
+        _liveUpdatesQuietTimer?.Dispose();
         try
         {
             await JS.InvokeVoidAsync("tuvimaResponsive.unregisterDeviceClassObserver", _deviceObserverOwner);
@@ -1014,11 +1060,6 @@
     // True while the account works only on this computer (no password).
     private bool _thisComputerOnly;
 
-    // The account menu shows its Secure your account card until the person chooses Not now (remembered with the account).
-    private bool ShowSecureAccountCard => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
-
-    private Task DismissSecureAccountAsync() => Notices.DismissAsync(AccountNoticeKeys.SecureAccount);
-
     private void OnNoticesChanged()
     {
         if (_disposed) return;
@@ -1045,11 +1086,52 @@
         });
     }
 
-    private bool ShouldShowEngineStatusBanner =>
-        Orchestrator.EngineConnectionState is EngineConnectionState.Offline
-            or EngineConnectionState.Degraded
-            or EngineConnectionState.Reconnecting
-            or EngineConnectionState.LiveUpdatesDisconnected;
+    // A live-updates connection that drops while the page is idle (a paused video, a tab in the background) comes back by itself within
+    // seconds, so the message is only shown when the connection has stayed down for a while, and never over the video player: live updates
+    // are not needed there and a message over the picture reads as a failure (issue 1255).
+    private static readonly TimeSpan LiveUpdatesQuietPeriod = TimeSpan.FromSeconds(20);
+    private DateTimeOffset? _liveUpdatesDownSince;
+    private System.Threading.Timer? _liveUpdatesQuietTimer;
+
+    private bool ShouldShowEngineStatusBanner
+    {
+        get
+        {
+            var state = Orchestrator.EngineConnectionState;
+            if (state is EngineConnectionState.Offline or EngineConnectionState.Degraded)
+            {
+                return true;
+            }
+
+            if (state is not (EngineConnectionState.Reconnecting or EngineConnectionState.LiveUpdatesDisconnected))
+            {
+                return false;
+            }
+
+            return !Playback.IsVideoMode
+                && _liveUpdatesDownSince is { } since
+                && DateTimeOffset.UtcNow - since >= LiveUpdatesQuietPeriod;
+        }
+    }
+
+    private void TrackLiveUpdatesDown(EngineConnectionState state)
+    {
+        if (state is EngineConnectionState.Reconnecting or EngineConnectionState.LiveUpdatesDisconnected)
+        {
+            if (_liveUpdatesDownSince is null)
+            {
+                _liveUpdatesDownSince = DateTimeOffset.UtcNow;
+                _liveUpdatesQuietTimer?.Dispose();
+                _liveUpdatesQuietTimer = new System.Threading.Timer(_ => RequestRenderIfAlive(), null, LiveUpdatesQuietPeriod + TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
+            }
+        }
+        else
+        {
+            _liveUpdatesDownSince = null;
+            _liveUpdatesQuietTimer?.Dispose();
+            _liveUpdatesQuietTimer = null;
+        }
+    }
 
     private string GetEngineStatusBannerText() => Orchestrator.EngineConnectionState switch
     {
@@ -1062,6 +1144,7 @@
 
     private void OnEngineConnectionStateChanged(EngineConnectionState state)
     {
+        TrackLiveUpdatesDown(state);
         RequestRenderIfAlive();
     }
 

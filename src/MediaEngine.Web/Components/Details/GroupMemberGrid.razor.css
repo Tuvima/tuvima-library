@@ -1,0 +1,18 @@
+/* The members' grid: cells at least 8.75rem wide, as many across as fit (six at 1024, seven at 1280, eight at 1440); three across on a phone.
+   The cells' own look is GroupMemberCell.razor.css. The skeleton in DetailHeroSkeleton.razor.css uses the same columns. */
+.group-member-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
+    align-items: start;
+    gap: 0.875rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+@media (width < 600px) {
+    .group-member-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.875rem 0.625rem;
+    }
+}

@@ -3,10 +3,12 @@
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Services.Editing
 @namespace MediaEngine.Web.Components.Pages
-@implements IDisposable
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
-<main class="view-timeline view-density--@Density.ToString().ToLowerInvariant()" aria-label="@L["ViewPhotoTimeline_PhotosTimeline"].Value">
+@inject ILogger<ViewPhotoTimeline> Logger
+<main @ref="_root" class="view-timeline view-density--@Density.ToString().ToLowerInvariant()" aria-label="@L["ViewPhotoTimeline_PhotosTimeline"].Value">
 @foreach (var month in Months)
 {
     <section class="view-month" data-year="@month.Key.Year" data-month="@month.Key.Month" aria-labelledby="@MonthId(month.Key)"><h2 id="@MonthId(month.Key)" tabindex="-1">@month.Key.ToString("MMMM yyyy", CultureInfo.CurrentCulture)</h2>
@@ -90,7 +92,7 @@
     private RenderFragment TileFace(LocalAssetDto item) => @<text>
         @if (Visual(item)) { <img src="@ThumbnailUrl(item)" alt="" width="@item.Width" height="@item.Height" loading="lazy" decoding="async" /> } else { <span class="view-tile__file-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><strong>@Title(item)</strong><small>@item.MimeType</small></span> }
         @if (IsLive(item)) { <span class="view-tile__motion"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MotionPhotosOn" /> Live</span> }
-        @if (IsVideo(item)) { <span class="view-tile__duration"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Videocam" />@(item.DurationSeconds is > 0 ? Duration(item.DurationSeconds.Value) : "Video")</span> }
+        @if (IsVideo(item)) { <span class="view-tile__duration"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Videocam" />@(item.DurationSeconds is > 0 ? Duration(item.DurationSeconds.Value) : L["ViewPhotoTimeline_Video"].Value)</span> }
     </text>;
 
     /// <summary>True while tiles select on a tap instead of opening the viewer. The page owns the mode and its Select button.</summary>
@@ -156,7 +158,64 @@
         : new Dictionary<string, object> { ["style"] = AspectStyle(item), ["draggable"] = "true" };
 
     protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
-    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+
+    // The drag of a tile onto a Gallery in the sidebar needs a little from the browser while the pointer is down (what the drag carries, where it may land,
+    // which place is under the pointer): wwwroot/js/tile-drag.js does that once for the whole timeline; .NET still hears the drag start and end from the tiles.
+    private ElementReference _root;
+    private IJSObjectReference? _dragModule;
+    private bool _dragWired;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _dragWired)
+        {
+            return;
+        }
+
+        try
+        {
+            _dragModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tile-drag.js");
+            await _dragModule.InvokeVoidAsync("wire", _root);
+            _dragWired = true;
+        }
+        catch (JSException exception)
+        {
+            // Dragging a photo onto a Gallery is the only thing that stops working; the tile menu's Add to Gallery and Select mode still do the same.
+            Logger.LogWarning(exception, "Dragging photos onto a Gallery could not start for the photo timeline.");
+        }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogDebug(exception, "The browser went away before the photo timeline could start dragging photos.");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        DeviceContext.OnChanged -= DeviceChanged;
+        if (_dragModule is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (_dragWired)
+            {
+                await _dragModule.InvokeVoidAsync("unwire", _root);
+            }
+
+            await _dragModule.DisposeAsync();
+        }
+        catch (Exception exception) when (exception is JSDisconnectedException or JSException or TaskCanceledException)
+        {
+            Logger.LogDebug(exception, "The browser went away before the photo timeline let go of dragging photos.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            Logger.LogDebug(exception, "The circuit ended before the photo timeline let go of dragging photos.");
+        }
+    }
+
     private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
     private string TileClass(LocalAssetDto item) => $"view-tile view-tile--{Kind(item)} view-tile--{Orientation(item)}{(Aspect(item) > 3 ? " view-tile--panorama" : string.Empty)}{(Selected.Contains(item.Id) ? " is-selected" : string.Empty)}{(item.FileMissing ? " is-missing" : string.Empty)}";
     private Task ToggleAsync(Guid id, MouseEventArgs args) => OnToggleSelectionRequested.HasDelegate

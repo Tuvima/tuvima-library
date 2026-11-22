@@ -73,16 +73,19 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
             Assert.Equal(4, cards.Count);
             string Text(int index) => cards[index].TextContent;
             Assert.Contains("The Martian", Text(0));
-            Assert.Contains("Audiobook", cards[0].QuerySelector(".media-tile-label--kind")!.TextContent);
-            // An episode: its own title on the first line, its S/E code on the picture just above the bar (D3).
-            Assert.Equal("Night 1", cards[1].QuerySelector(".continue-tile__title")!.TextContent.Trim());
-            Assert.Equal("S1 E2", cards[1].QuerySelector(".continue-tile__episode-code")!.TextContent.Trim());
-            Assert.Contains("The Continental", cards[1].QuerySelector(".continue-tile__line")!.TextContent);
-            Assert.Equal("Pilot", cards[2].QuerySelector(".continue-tile__title")!.TextContent.Trim());
-            Assert.Equal("S1 E1", cards[2].QuerySelector(".continue-tile__episode-code")!.TextContent.Trim());
+            Assert.Null(cards[0].QuerySelector(".media-tile-label--kind"));
+            Assert.StartsWith("Audiobook", cards[0].QuerySelector(".continue-tile__line")?.TextContent.Trim() ?? string.Empty);
+            // An episode: its code and own title on the first line (review mock-ups D6); no rating or year known, so no second row.
+            Assert.Equal("S1 E2: Night 1", cards[1].QuerySelector(".continue-tile__title")!.TextContent.Trim());
+            Assert.Equal("Episode", cards[1].QuerySelector(".continue-tile__line")!.TextContent.Trim());
+            Assert.Null(cards[1].QuerySelector(".continue-tile__episode-code"));
+            Assert.Equal("S1 E1: Pilot", cards[2].QuerySelector(".continue-tile__title")!.TextContent.Trim());
             Assert.Contains("Leviathan Wakes", Text(3));
-            Assert.Contains("Book", cards[3].QuerySelector(".media-tile-label--kind")!.TextContent);
-            Assert.Contains("42% complete", cards[3].QuerySelector(".continue-tile__progress-text")!.TextContent);
+            Assert.Null(cards[3].QuerySelector(".media-tile-label--kind"));
+            Assert.StartsWith("Book", cards[3].QuerySelector(".continue-tile__line")?.TextContent.Trim() ?? string.Empty);
+            // The percent is a badge on the tile, never a text row.
+            Assert.Equal("42%", cards[3].QuerySelector(".continue-tile__percent")!.TextContent.Trim());
+            Assert.Null(cards[3].QuerySelector(".continue-tile__progress-text"));
             Assert.DoesNotContain("Never Started", cut.Markup);
             Assert.DoesNotContain("Jagged Little Pill", cut.Markup);
         }
@@ -121,7 +124,7 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
                 Items = [Item("Movie", "X", 10, 1, MediaTileShape.Landscape)],
             }));
             var link = cut.Find("a.media-tile-shelf-link");
-            Assert.Equal("See All", link.TextContent.Trim());
+            Assert.Equal("View all", link.TextContent.Trim());
             Assert.Equal($"/{title.ToLowerInvariant()}", link.GetAttribute("href"));
             // The header is title then link, so the link sits on the right of the title.
             var header = cut.Find(".media-tile-shelf-header");

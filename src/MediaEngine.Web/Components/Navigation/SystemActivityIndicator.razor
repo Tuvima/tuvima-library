@@ -14,10 +14,6 @@
                          OnClick="HandleClick">
             @* The one activity icon the Activity and Libraries progress card also draws (spec library-activity D32). *@
             <AppSyncActivityIcon Percent="@RingPercent" Working="@Working" Spinning="@RingSpins" Icon="@PrimaryIcon" />
-            @if (Snapshot.IsWorking && Snapshot.ActiveCount > 1)
-            {
-                <span class="system-activity-indicator__count" aria-hidden="true">@CountLabel</span>
-            }
             <span class="sr-only">@StateLabel</span>
         </AppNativeButton>
     </AppTooltip>
@@ -55,17 +51,18 @@
         _ => AppMaterialIcons.Outlined.Build,
     };
 
-    private string CountLabel => Snapshot.ActiveCount > 9 ? "9+" : Snapshot.ActiveCount.ToString();
-
     // The state is spoken and written as text, never conveyed by colour alone.
     private string StateLabel => Snapshot.IsWorking ? SystemActivityText.WorkingState
         : NeedsAttention ? L["SystemActivityIndicator_NeedsAttentionState"].Value : SystemActivityText.IdleState;
 
     private string AriaLabel => $"{StateLabel}. {TooltipText}";
 
+    // The icon carries no number badge (review mock-ups D10, #1111); the tooltip says how many pieces of work run right now.
     private string TooltipText => NeedsAttention
         ? L["SystemActivityIndicator_NeedsAttentionTooltip"].Value
-        : SystemActivityText.Tooltip(Snapshot, DateTimeOffset.UtcNow);
+        : Snapshot.IsWorking && Snapshot.ActiveCount > 1
+            ? $"{Snapshot.ActiveCount} things running: {SystemActivityText.Tooltip(Snapshot, DateTimeOffset.UtcNow)}"
+            : SystemActivityText.Tooltip(Snapshot, DateTimeOffset.UtcNow);
 
     // Library work opens Library activity; otherwise the spinner (which also turns for an encode) opens Playing now (spec playing-now-and-general-tabs D16).
     private const string LibraryActivityRoute = "/settings/general/library-activity";

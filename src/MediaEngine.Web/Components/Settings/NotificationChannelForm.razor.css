@@ -1,0 +1,28 @@
+.notification-form {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--tl-border-subtle, transparent);
+}
+
+.notification-form__head {
+    display: grid;
+    gap: 2px;
+}
+
+.notification-form__head span {
+    color: var(--tl-text-muted);
+}
+
+.notification-form__field {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+}
+
+.notification-form__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}

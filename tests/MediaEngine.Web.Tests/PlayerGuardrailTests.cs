@@ -215,6 +215,13 @@ public sealed class PlayerGuardrailTests
         ["SongSelectionBar"] = "the phone's bottom bar for ticked songs (spec music-player-and-listen-fixes D12): library browsing, not part of the player",
         ["SongsPhoneHeader"] = "the phone Songs page header (search, Play, Shuffle, sort and filter sheet), not part of the player",
         ["ListenNavigationSection"] = "the Listen page's side navigation (Library, Formats, Your library), not part of the player",
+        ["PlaylistTilesView"] = "the Playlists page of tiles (spec listen-playlists WP3), library browsing, not part of the player",
+        ["PlaylistNameBox"] = "the sidebar's New playlist name box, not part of the player",
+        ["NewPlaylistDialog"] = "the New playlist window (Hand-picked or Smart), not part of the player",
+        ["PlaylistHero"] = "a playlist page's header with its album tile (spec group-pages-and-tiles WP1b), library browsing, not part of the player",
+        ["PlaylistSongToolbar"] = "the search, Sort and List / Cards bar over a playlist's songs (spec group-pages-and-tiles WP1b), library browsing, not part of the player",
+        ["PlaylistSongCards"] = "a playlist's songs as album tiles, the Cards side of the List / Cards switch (spec group-pages-and-tiles WP1b), library browsing, not part of the player",
+        ["PlaylistAddSongsDialog"] = "the Add songs search window of a playlist (spec group-pages-and-tiles WP1b), library browsing, not part of the player",
     };
 
     private static List<string> PlayerFiles(params string[] extensions)

@@ -231,7 +231,7 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
     }
 
     private Task<SessionIssueResult> SignInAsync(Account account) =>
-        _service.CreateExternalSessionAsync(account.Id, "google", "laptop", "Laptop", "Dashboard");
+        _service.CreateExternalSessionAsync(account.Id, "google", "laptop", "Laptop", "Dashboard", ingress: ClientIngress.HomeNetwork);
 
     private async Task<RequestAuthority> AuthorityAsync(AuthSession session, Account account)
     {

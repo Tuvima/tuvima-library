@@ -120,7 +120,7 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void NeedsReviewRoute_IsATabOfLibraries_WithALibraryLibrariesBreadcrumb()
+    public void NeedsReviewRoute_IsATabOfLibraries_WithNoBreadcrumb()
     {
         UseSpiedReviewApi();
 
@@ -128,12 +128,8 @@ public sealed partial class UiShellRenderTests
 
         host.WaitForAssertion(() =>
         {
-            var trail = host.FindAll("nav.settings-breadcrumbs li, nav.settings-breadcrumbs > *")
-                .Select(item => item.TextContent.Trim())
-                .Where(text => text.Length > 0)
-                .Distinct()
-                .ToArray();
-            Assert.Equal(["Settings", "Library", "Libraries", "Needs Review"], trail);
+            Assert.Empty(host.FindAll("nav.settings-breadcrumbs"));
+            Assert.Equal("Needs Review", host.Find(".app-page-header__title").TextContent.Trim());
             Assert.DoesNotContain(host.FindAll(".media-section-shell__tree-link"),
                 link => link.TextContent.Contains("Needs Review", StringComparison.Ordinal));
         });

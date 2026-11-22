@@ -85,7 +85,9 @@ public sealed class PlaybackCapabilitiesService
         Guid? deviceId = null,
         bool forceAdaptive = false,
         PlaybackChoices? choices = null,
-        int? burnSubtitleStream = null)
+        int? burnSubtitleStream = null,
+        double? startSeconds = null,
+        bool subtitlesOnly = false)
     {
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
@@ -232,7 +234,10 @@ public sealed class PlaybackCapabilitiesService
         string? hlsStatus = null;
         DateTimeOffset? hlsExpiresAt = null;
         PlaybackPathDto? playbackPath = decision is { Rung: PlaybackRungs.Direct } ? PlaybackPathBuilder.ForDirect(decision) : null;
-        if (recommendedDelivery == PlaybackDeliveryModes.Hls)
+        var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, profileId, ct), durationSeconds);
+        double? streamStartSeconds = null;
+        // A subtitles-only read (the player asking again while subtitles are being read out of the file) never starts or looks at a conversion.
+        if (recommendedDelivery == PlaybackDeliveryModes.Hls && !subtitlesOnly)
         {
             if (!_ffmpeg.HardwareCapabilities.AdaptiveHlsReady)
             {
@@ -243,11 +248,24 @@ public sealed class PlaybackCapabilitiesService
             {
                 var streamDecision = decision ?? new PlaybackDecision(PlaybackRungs.EncodePicture, conversionReason ?? "The player needs a prepared stream", false, []);
                 var maxHeight = profile.MaxHeight;
+                // A player that already failed on the picture encode for this kind of file gets a smaller picture next time (issue 1181).
+                if (streamDecision.Rung == PlaybackRungs.EncodePicture && negotiatedCapabilities is not null
+                    && LearnedPlaybackLimits.EncodeFailedBefore(negotiatedCapabilities.LearnedLimits, extension, probe))
+                {
+                    maxHeight = maxHeight is { } ownHeight
+                        ? Math.Min(ownHeight, LearnedPlaybackLimits.FallbackEncodeHeight)
+                        : LearnedPlaybackLimits.FallbackEncodeHeight;
+                }
                 if (networkCap?.MaxHeight is { } cappedHeight)
                 {
                     maxHeight = maxHeight is { } own ? Math.Min(own, cappedHeight) : cappedHeight;
                 }
-                var plan = new HlsStartPlan(streamDecision, maxHeight, networkCap?.MaxBitrateKbps, networkCap?.OfferLowerQuality ?? false, burn is null ? null : probe!.SubtitleStreams.OrderBy(stream => stream.StreamIndex).ToList().FindIndex(stream => stream.StreamIndex == burn), burn);
+                // A converted film starts where the viewer is going (seek-past-prepared-stream D1): the point they asked for, or where they left off
+                // when none was asked for. A start inside the first segment is the beginning.
+                var plan = new HlsStartPlan(streamDecision, maxHeight, networkCap?.MaxBitrateKbps, networkCap?.OfferLowerQuality ?? false, burn is null ? null : probe!.SubtitleStreams.OrderBy(stream => stream.StreamIndex).ToList().FindIndex(stream => stream.StreamIndex == burn), burn,
+                    StreamStartFor(startSeconds ?? resume?.PositionSeconds, durationSeconds, _configuration.LoadTranscoding().AdaptiveHls.SegmentSeconds),
+                    profileId is null && deviceId is null ? null : $"{profileId:D}:{deviceId:D}");
+                streamStartSeconds = plan.StartSeconds > 0 ? plan.StartSeconds : null;
                 var preparation = await _adaptiveHls.EnsurePackageAsync(assetId, sourceHash, audioTracks, ct, plan);
                 hlsStatus = preparation.Status;
                 playbackPath = PlaybackPathBuilder.ForStream(streamDecision, preparation.Status, preparation.Run, preparation.Error);
@@ -287,11 +305,11 @@ public sealed class PlaybackCapabilitiesService
             }
         }
 
-        var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, profileId, ct), durationSeconds);
-
+        var (subtitleTracks, subtitlesPreparing) = await BuildSubtitleTracksAsync(assetId, probe, ct);
         return new PlaybackManifestDto
         {
             DurationSeconds = durationSeconds,
+            StreamStartSeconds = streamStartSeconds,
             AssetId = assetId,
             IsVault = IsVaultAsset(assetId),
             Client = normalizedClient,
@@ -305,7 +323,8 @@ public sealed class PlaybackCapabilitiesService
             HlsExpiresAt = hlsExpiresAt,
             Profile = profile,
             AudioTracks = audioTracks,
-            SubtitleTracks = await BuildSubtitleTracksAsync(assetId, probe, ct),
+            SubtitleTracks = subtitleTracks,
+            SubtitlesPreparing = subtitlesPreparing,
             Chapters = chapters,
             OfflineVariants = variants,
             Resume = resume,
@@ -690,6 +709,22 @@ public sealed class PlaybackCapabilitiesService
             : null;
     }
 
+    /// <summary>
+    /// The second a converted stream starts at: the wanted point rounded down to a whole segment, never inside the last segment of the film.
+    /// Zero (convert from the beginning) for no wanted point or one inside the first segment.
+    /// </summary>
+    internal static double StreamStartFor(double? wantedSeconds, double? durationSeconds, int segmentSeconds)
+    {
+        if (wantedSeconds is not { } wanted || !double.IsFinite(wanted) || segmentSeconds <= 0)
+        {
+            return 0;
+        }
+
+        var latest = durationSeconds is > 0 ? Math.Max(0, durationSeconds.Value - segmentSeconds) : wanted;
+        var start = Math.Floor(Math.Min(Math.Max(0, wanted), latest) / segmentSeconds) * segmentSeconds;
+        return start < segmentSeconds ? 0 : start;
+    }
+
     private static PlaybackResumeDto? NormalizeResumePosition(PlaybackResumeDto? resume, double? durationSeconds)
     {
         if (resume is null)
@@ -921,17 +956,71 @@ public sealed class PlaybackCapabilitiesService
         _ => null,
     };
 
-    private async Task<IReadOnlyList<PlaybackSubtitleTrackDto>> BuildSubtitleTracksAsync(
+    private async Task<(IReadOnlyList<PlaybackSubtitleTrackDto> Tracks, bool Preparing)> BuildSubtitleTracksAsync(
         Guid assetId,
         MediaProbeResult? probe,
         CancellationToken ct)
     {
         // Every subtitle track inside the file is listed with its own name and flags, never reduced to one per language (issue 1058). Text tracks
-        // can be shown by the browser; picture tracks (PGS, DVD) are listed too and are burned into the video when chosen.
+        // can be shown by the browser once the Engine has read them out of the file; picture tracks (PGS, DVD) are listed too and are burned
+        // into the video when chosen.
         if (probe?.SubtitleStreams.Count is > 0)
         {
-            return BuildEmbeddedSubtitleTracks(assetId, probe.SubtitleStreams);
+            return await BuildEmbeddedSubtitleTracksWhenReadyAsync(assetId, probe.SubtitleStreams, ct);
         }
+
+        return (await BuildOtherSubtitleTracksAsync(assetId, probe, ct), false);
+    }
+
+    /// <summary>
+    /// A text subtitle is offered only once its words have been read out of the file (issue 1166): reading takes the whole file, so all the
+    /// text streams are read together in the background starting now, and the player is told to ask again while that runs. A stream that
+    /// cannot be read as text is never offered, so every listed subtitle shows something when chosen.
+    /// </summary>
+    private async Task<(IReadOnlyList<PlaybackSubtitleTrackDto> Tracks, bool Preparing)> BuildEmbeddedSubtitleTracksWhenReadyAsync(
+        Guid assetId, IReadOnlyList<EmbeddedSubtitleStream> streams, CancellationToken ct)
+    {
+        var all = BuildEmbeddedSubtitleTracks(assetId, streams);
+        var asset = streams.Any(stream => stream.IsText) ? await _assets.FindByIdAsync(assetId, ct).ConfigureAwait(false) : null;
+        var path = asset?.FilePathRoot;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path) || !_ffmpeg.IsAvailable)
+        {
+            // Nothing to read the words from: offer only the picture tracks, which the Engine draws itself.
+            return (all.Where(track => track.IsPicture).ToList(), false);
+        }
+
+        var textStreams = streams.Where(stream => stream.IsText).Select(stream => stream.StreamIndex).ToList();
+        var preparing = false;
+        var offered = new List<PlaybackSubtitleTrackDto>();
+        foreach (var track in all)
+        {
+            if (track.IsPicture)
+            {
+                offered.Add(track);
+            }
+            else if (track.StreamIndex is { } index && EmbeddedSubtitleCache.TryGetReady(assetId, path, index) is not null)
+            {
+                offered.Add(track);
+            }
+            else if (track.StreamIndex is { } pending && !EmbeddedSubtitleCache.IsUnreadable(assetId, path, pending))
+            {
+                preparing = true;
+            }
+        }
+
+        if (preparing)
+        {
+            _ = EmbeddedSubtitleCache.EnsureStarted(_ffmpeg, _logger, assetId, path, textStreams);
+        }
+
+        return (offered, preparing);
+    }
+
+    private async Task<IReadOnlyList<PlaybackSubtitleTrackDto>> BuildOtherSubtitleTracksAsync(
+        Guid assetId,
+        MediaProbeResult? probe,
+        CancellationToken ct)
+    {
 
         var managedTracks = await _textTracks.GetByAssetAsync(assetId, TextTrackKind.Subtitles, ct);
         if (managedTracks.Count > 0)

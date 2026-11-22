@@ -47,7 +47,7 @@
                     @if (_thisComputerOnly && !Capabilities.HasPassword)
                     {
                         <li class="security-settings__item">
-                            <SettingsNavRow Key="add-password" Icon="@AppMaterialIcons.Outlined.Password" Title="@L["SecuritySettingsPage_AddAPassword"].Value" Status="Anyone who can reach Library can use this account until you do" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
+                            <SettingsNavRow Key="add-password" Icon="@AppMaterialIcons.Outlined.Password" Title="@L["SecuritySettingsPage_AddAPassword"].Value" Status="Needed to sign in away from home" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
                         </li>
                     }
                     <li class="security-settings__item">
@@ -132,7 +132,7 @@
     {
         @if (!Capabilities.HasPassword)
         {
-            <p>Add a password to use the Library away from home. Phones and TVs at home keep working without one. Your library, history and favourites stay just as they are.</p>
+            <p>Add a password to sign in from outside your home network. Until then this account works on your home network only, on this computer and on your phone, TV and other devices. Your library, history and favourites stay just as they are.</p>
             <form method="post" action="/account/secure" class="security-sheet__fields">
                 <AntiforgeryToken />
                 @if (NeedsEmail)
@@ -398,7 +398,7 @@
 
     private AccountSecurityCapabilitiesResponse Capabilities => _account!.SecurityCapabilities;
     private string PasswordStatus => Capabilities.HasPassword ? "Set"
-        : _thisComputerOnly ? "Not set · anyone who can reach Library can use this account" : "Not set";
+        : _thisComputerOnly ? "Not set · works on your home network only" : "Not set";
     private string EmailStatus => string.IsNullOrWhiteSpace(_account?.Email) ? "None · only needed away from home" : _account.Email;
     private string ExtraProtectionStatus
     {

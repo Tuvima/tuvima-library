@@ -278,15 +278,16 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AnOpenedBatchThatHoldsSeveralKinds_HasNoFilterByKindInsideIt()
+    public void AnOpenedBatchThatHoldsSeveralKinds_OffersAChipForEachKindWithItsCount_AndAllFirst()
     {
-        _runs = [Run(DateTimeOffset.Now.AddMinutes(-30), [new ActivityRunCountDto("Movies", 2), new ActivityRunCountDto("Books", 3)], [])];
+        _runs = [Run(DateTimeOffset.Now.AddMinutes(-30), [new ActivityRunCountDto("Books", 3), new ActivityRunCountDto("Movies", 2)], [])];
 
         var cut = Render<LibraryActivityPage>();
         cut.WaitForElement("[data-testid='lact-entry-toggle']").Click();
 
         var open = cut.WaitForElement("[data-testid='lact-open']");
-        Assert.Empty(open.QuerySelectorAll("[aria-pressed]"));
+        var chips = open.QuerySelectorAll("[data-testid='lact-batch-chips'] button").Select(chip => string.Join(' ', chip.TextContent.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))).ToList();
+        Assert.Equal(["All 5", "Books 3", "Movies 2"], chips);
         Assert.Empty(cut.FindAll(".lact-kind-chip"));
         Assert.Empty(cut.FindAll(".lact-kinds"));
     }
@@ -298,16 +299,35 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
         var cut = Render<LibraryActivityPage>();
         cut.WaitForAssertion(() => Assert.Empty(_lastRunMediaTypes ?? []));
 
-        cut.FindAll("[data-testid='lact-chips'] button")[1].Click();
+        ClickChip(cut, 1);
 
         cut.WaitForAssertion(() => Assert.Equal(["Movies", "TV", "Videos"], _lastRunMediaTypes));
         cut.WaitForElement("[data-testid='lact-entry-toggle']").Click();
         cut.WaitForAssertion(() => Assert.Equal(["Movies", "TV", "Videos"], _lastGroupMediaTypes));
 
-        cut.FindAll("[data-testid='lact-chips'] button")[3].Click();
+        ClickChip(cut, 3);
 
         cut.WaitForAssertion(() => Assert.Equal(["Books", "Comics"], _lastRunMediaTypes));
     }
+
+    /// <summary>
+    /// Clicks a chip found fresh from the current render. A re-render between finding and clicking (the page reloads while a chip is
+    /// picked) leaves the found button without its handler, so the click is tried again on the new render instead of failing the test.
+    /// </summary>
+    private static void ClickChip(IRenderedComponent<LibraryActivityPage> cut, int index) =>
+        cut.WaitForAssertion(
+            () =>
+            {
+                try
+                {
+                    cut.FindAll("[data-testid='lact-chips'] button")[index].Click();
+                }
+                catch (Bunit.Rendering.UnknownEventHandlerIdException)
+                {
+                    Assert.Fail("The chip was re-rendered before the click; trying again on the new render.");
+                }
+            },
+            TimeSpan.FromSeconds(10));
 
     [Fact]
     public void ALibrarysOwnActivityTab_AsksTheTimelineAndAnOpenedBatchForThatLibraryOnly()
@@ -324,7 +344,7 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AnOpenedBatch_IsItsOwnPanelUnderTheLine_AndATileWithAPageHasATitleMenuAndNoCaption()
+    public void AnOpenedBatch_IsItsOwnPanelUnderTheLine_AndARowWithAPageLinksToItWithASmallCover()
     {
         _runs = [Run(DateTimeOffset.Now.AddMinutes(-30), [new ActivityRunCountDto("Movies", 1)], [])];
 
@@ -333,13 +353,14 @@ public sealed class LibraryActivityMatchesMockupTests : AsyncBunitContext
 
         var open = cut.WaitForElement("[data-testid='lact-open']");
         Assert.Empty(cut.FindAll(".lact-box [data-testid='lact-open']"));
-        var tile = open.QuerySelector("[data-testid='activity-tile']")!;
-        Assert.Equal($"/details/work/{Work:D}?context=watch", tile.QuerySelector("a")!.GetAttribute("href"));
-        Assert.Single(tile.QuerySelectorAll("img"));
-        // The art carries the title; nothing is drawn as a caption over a picture.
-        Assert.Empty(tile.QuerySelectorAll(".lact-tile__title"));
-        Assert.DoesNotContain("Dune", tile.QuerySelector(".lact-tile__face")!.TextContent, StringComparison.Ordinal);
-        Assert.NotNull(tile.QuerySelector("[data-media-tile-actions]"));
+        // The oversized tiles are gone (#1107): one table row with a small cover, the title as a link, and Type, Size and Status.
+        Assert.Empty(open.QuerySelectorAll("[data-testid='activity-tile']"));
+        var row = open.QuerySelector("[data-testid='lact-batch-row']")!;
+        Assert.Equal($"/details/work/{Work:D}?context=watch", row.QuerySelector("a")!.GetAttribute("href"));
+        Assert.Equal("Dune", row.QuerySelector("a")!.TextContent.Trim());
+        Assert.Single(row.QuerySelectorAll(".lact-batch__cover img"));
+        Assert.Equal("Movies", row.QuerySelector(".lact-batch__type")!.TextContent.Trim());
+        Assert.Equal("Done", row.QuerySelector(".lact-batch__status")!.TextContent.Trim());
     }
 
     [Fact]

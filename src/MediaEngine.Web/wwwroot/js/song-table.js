@@ -1,3 +1,5 @@
+import { wireToDotnet } from './touch-reorder.js';
+
 // Press and hold on a phone song row: opens the row's "..." bottom sheet by pressing its menu button, so the sheet and its items stay
 // the shared menu component's. Returns false when the row or its button is not on the page.
 
@@ -41,6 +43,37 @@ export function scrollToIndex(list, index, itemSize, topOffset) {
     return true;
 }
 
+// ---- Reordering a playlist by finger ----------------------------------------------------------------------------------------
+// A finger cannot start the browser's drag, so a playlist's rows carry a grip (data-song-grip) that is dragged by pointer events
+// (touch-reorder.js; the page keeps scrolling because only the grip stops it). Rows carry data-song-row-key. A drop tells .NET which row moved
+// and which row it was dropped before or after, and the table works the new place out exactly as it does for the mouse drag and Alt+Arrow.
+// A mouse still uses the browser's drag and drop. `root` is the .song-table element (the desktop table on a touch tablet, or the phone list).
+
+export const TOUCH_REORDER = Object.freeze({
+    handle: '[data-song-grip]',
+    row: '[data-song-row-key]',
+    keyAttribute: 'data-song-row-key',
+    dropMethod: 'TouchReorder',
+});
+
+export function wireTouchReorder(root, dotnetRef) {
+    return wireToDotnet(root, dotnetRef, TOUCH_REORDER);
+}
+
+const touchWirings = new WeakMap();
+
+export function wireReorder(root, dotnetRef) {
+    unwireReorder(root);
+    if (root) touchWirings.set(root, wireTouchReorder(root, dotnetRef));
+}
+
+export function unwireReorder(root) {
+    if (root && touchWirings.has(root)) {
+        touchWirings.get(root)();
+        touchWirings.delete(root);
+    }
+}
+
 // ---- Dragging songs out to a playlist ---------------------------------------------------------------------------------------
 // A song row can be dragged onto a playlist in the left rail, a playlist tile, or the rail's New playlist (spec D10). Which songs travel
 // is decided in .NET (a ticked row carries every ticked song, an unticked row just itself) and the drop is a normal Blazor drop on the
@@ -67,7 +100,9 @@ export function dragPictureLabel(row, root) {
 }
 
 // Wires the drag for one table: `root` is the .song-table element. Returns a function that removes everything it added.
-export function wireDragOut(root, dotnetRef) {
+// `options` lets another surface (the View photo timeline, tile-drag.js) reuse the same drag: `rowSelector` finds the dragged item, `titleSelector`
+// the words carried with it, and `alwaysOut` skips the table's data-song-drag-out switch because the surface only draws draggable items when allowed.
+export function wireDragOut(root, dotnetRef, options) {
     if (!root) {
         return () => { };
     }
@@ -155,16 +190,16 @@ export function wireDragOut(root, dotnetRef) {
     };
 
     const onDragStart = (event) => {
-        const row = event.target?.closest?.('[data-song-row-id]');
+        const row = event.target?.closest?.(options?.rowSelector ?? '[data-song-row-id]');
         const transfer = event.dataTransfer;
         if (!row || !root.contains(row) || !transfer) {
             return;
         }
 
-        const title = row.querySelector('.song-table__title')?.textContent?.trim() ?? '';
+        const title = row.querySelector(options?.titleSelector ?? '.song-table__title')?.textContent?.trim() ?? '';
         const label = dragPictureLabel(row, root);
         transfer.setData('text/plain', label ?? title);
-        if (root.dataset.songDragOut !== 'true') {
+        if (!options?.alwaysOut && root.dataset.songDragOut !== 'true') {
             return;
         }
 

@@ -25,7 +25,9 @@ public partial interface IEngineApiClient
         CancellationToken ct = default,
         PlaybackConnectionContextDto? connection = null,
         bool adaptive = false,
-        int? burnSubtitleStream = null);
+        int? burnSubtitleStream = null,
+        double? startSeconds = null,
+        bool subtitlesOnly = false);
 
     /// <summary>
     /// PUT /api/v1/playback/browser-capabilities  -  tells the Engine what this browser measured about the video it can play (playback-path spec D12).
@@ -107,7 +109,11 @@ public partial interface IEngineApiClient
     Task<bool> SetPreferredTextTrackAsync(Guid assetId, Guid trackId, CancellationToken ct = default);
 
     /// <summary>Asks the sources live for other lyrics or subtitles for the item ("Not right? Find another"). Null when the Engine could not be reached.</summary>
-    Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null);
+    /// <param name="query">Search text the person typed in the shared "pick a result" window; null when the box was left as filled in (the Engine's own lookup).</param>
+    Task<TextTrackAlternativesResponse?> GetTextTrackAlternativesAsync(Guid assetId, string kind, CancellationToken ct = default, string? language = null, string? query = null);
+
+    /// <summary>Reads one result of Find another on request (a subtitle row other than the best match); null when the Engine could not be reached.</summary>
+    Task<TextTrackAlternativePreviewResponse?> GetTextTrackAlternativePreviewAsync(Guid assetId, string kind, string provider, string sourceId, CancellationToken ct = default, string? language = null, string? query = null);
 
     /// <summary>Whether a lyrics or subtitle source is switched on for the item, from settings alone (no source is contacted). Null when the Engine could not be reached.</summary>
     Task<TextTrackSourcesResponse?> GetTextTrackSourcesAsync(Guid assetId, string kind, CancellationToken ct = default);
@@ -138,6 +144,12 @@ public partial interface IEngineApiClient
 
     /// <summary>The Test hardware button: the Engine tests the graphics encoders again and returns what it found, or null when it could not be reached.</summary>
     Task<GraphicsHardwareDto?> TestPlaybackHardwareAsync(CancellationToken ct = default);
+
+    /// <summary>What the Engine's last computer capacity test measured (Settings > Tools, Computer capacity), or null when the Engine could not be reached.</summary>
+    Task<PlaybackCapacityDto?> GetPlaybackCapacityAsync(CancellationToken ct = default);
+
+    /// <summary>Run again: the Engine measures this computer now (about a minute) and returns the numbers, or null when it could not be reached.</summary>
+    Task<PlaybackCapacityDto?> TestPlaybackCapacityAsync(CancellationToken ct = default);
 
     Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(Guid profileId, CancellationToken ct = default);
 

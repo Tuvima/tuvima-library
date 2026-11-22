@@ -7,6 +7,8 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Identity;
+using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage.Configuration;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,6 +16,14 @@ namespace MediaEngine.Api.Endpoints;
 
 public static class NetworkEndpoints
 {
+    /// <summary>409 code and plain message when outside access is switched on before a server administrator has a password or passkey.</summary>
+    public const string AdministratorNeedsPasswordCode = "administrator_needs_password";
+
+    public const string AdministratorNeedsPasswordMessage =
+        "Add a password or passkey to the server administrator's sign-in before turning on access away from home.";
+
+    private const int OutsideSignInListLimit = 20;
+
     public static IEndpointRouteBuilder MapNetworkEndpoints(this IEndpointRouteBuilder app)
     {
         var settings = app.MapGroup("/settings/network")
@@ -31,6 +41,9 @@ public static class NetworkEndpoints
             IConfigurationLoader configuration,
             ClaimsPrincipal user,
             [FromServices] RecentSignInGuard recentSignIn,
+            IOutsideAccessGate outsideAccess,
+            [FromServices] IOutsideSessionEnder outsideSessions,
+            [FromServices] IOutsideAccessPolicy outsidePolicy,
             CancellationToken ct) =>
         {
             if (await recentSignIn.RefuseHumanIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
@@ -53,9 +66,26 @@ public static class NetworkEndpoints
                 return ApiErrors.Conflict("Use the Change Port action so Library can check the new port before saving it.");
             }
 
+            // Outside access needs somebody to look after it: switching it on (or to another way in) waits until an
+            // enabled server administrator has a password or passkey. Switching it off, or saving other settings, never waits.
+            if (!string.Equals(proposed.Remote.ConnectionMode, NetworkConnectionModes.LocalOnly, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(proposed.Remote.ConnectionMode, current.Remote.ConnectionMode, StringComparison.OrdinalIgnoreCase)
+                && !await outsideAccess.HasSecuredAdministratorAsync(ct).ConfigureAwait(false))
+            {
+                return ApiErrors.Conflict(AdministratorNeedsPasswordCode, AdministratorNeedsPasswordMessage);
+            }
+
             try
             {
                 configuration.SaveNetwork(proposed);
+                // The kept answer to "is outside access on?" is dropped so the new setting applies to the very next request.
+                outsidePolicy.Invalidate();
+                if (!proposed.Remote.HasOutsidePath)
+                {
+                    // Outside access is off: anyone still signed in from outside is signed out now, and home is not touched.
+                    await outsideSessions.EndOutsideSessionsAsync(OutsideSignInRefusedException.AccessOffCode, ct).ConfigureAwait(false);
+                }
+
                 return Results.Ok(NetworkContractMapper.ToContract(proposed));
             }
             catch (ConfigValidationException ex)
@@ -70,6 +100,27 @@ public static class NetworkEndpoints
         .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
 
+        // Remembering the home-network question needs no fresh "Confirm it's you": it changes one flag, never what the app listens on.
+        settings.MapPost("/firewall-answered", (IConfigurationLoader configuration) =>
+        {
+            var current = configuration.LoadNetwork();
+            current.Local.FirewallPromptAnswered = true;
+            try
+            {
+                configuration.SaveNetwork(current);
+                return Results.Ok(NetworkContractMapper.ToContract(current));
+            }
+            catch (ConfigValidationException ex)
+            {
+                return ApiErrors.BadRequest(string.Join(" ", ex.ValidationMessages));
+            }
+        })
+        .WithName("MarkFirewallPromptAnswered")
+        .WithSummary("Remember that the first-run home-network question was answered.")
+        .Produces<NetworkSettingsDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
+
         var network = app.MapGroup("/network")
             .WithTags("Network & Remote Access");
 
@@ -78,6 +129,89 @@ public static class NetworkEndpoints
             .WithSummary("Return observed connectivity state without mixing it into configuration.")
             .Produces<NetworkRuntimeStatusDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
+
+        // The guided "away from home" flow reads this once per step. It reads only: nothing is saved. ?intent=skip is a wish the flow
+        // passes along ("Not now"); it never changes what the Engine allows, so the role check below is the only gate.
+        network.MapGet("/remote-check", async (
+            IRemoteCheckService check,
+            [FromQuery] string? intent,
+            CancellationToken ct) =>
+            Results.Ok(await check.CheckAsync(string.Equals(intent?.Trim(), "skip", StringComparison.OrdinalIgnoreCase), ct)))
+            .WithName("GetNetworkRemoteCheck")
+            .WithSummary("Check what is needed to reach Library away from home and suggest the easiest way, in plain findings.")
+            .Produces<RemoteCheckResultDto>()
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
+
+        // The one-click fix for "Library does not trust your proxy yet" (spec remote-access D12). Administrators only; the role check
+        // is the only gate, and it only ever closes a gap (outside visitors on the proxy port count as outside). Safe to repeat.
+        network.MapPost("/remote-fix/trust-proxy", (IRemoteFixService fixes) =>
+        {
+            try
+            {
+                return Results.Ok(fixes.TrustProxy());
+            }
+            catch (ConfigValidationException ex)
+            {
+                return ApiErrors.BadRequest(string.Join(" ", ex.ValidationMessages));
+            }
+        })
+        .WithName("TrustRemoteProxy")
+        .WithSummary("Let Library trust the proxy or tunnel on this computer by turning on the Dashboard's proxy port. Safe to repeat.")
+        .Produces<RemoteFixResultDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
+
+        // Who has tried to sign in from outside the home network lately (newest first), so the person setting this up can
+        // see that the way in works and who was turned away. Addresses are never kept, only the kind of place.
+        network.MapGet("/outside-sign-ins", async (IOutsideSignInHistory history, CancellationToken ct) =>
+            Results.Ok(await history.GetRecentAsync(OutsideSignInListLimit, ct).ConfigureAwait(false)))
+            .WithName("GetNetworkOutsideSignIns")
+            .WithSummary("Return the last 20 attempts to sign in from outside the home network, with who, when, how and whether they got in.")
+            .Produces<IReadOnlyList<OutsideSignInDto>>()
+        .RequireAdmin();
+
+        // One switch for "turn away-from-home access off now". It puts the connection mode back to local-only and removes
+        // the router door Library opened; the address, ports and trusted proxies stay as they were, and home access is not
+        // touched. Safe to repeat. It needs no fresh "Confirm it's you": it only ever closes a door.
+        network.MapPost("/remote-off", async (
+            IConfigurationLoader configuration,
+            RouterPortMappingCoordinator routerMappings,
+            [FromServices] IOutsideSessionEnder outsideSessions,
+            [FromServices] IOutsideAccessPolicy outsidePolicy,
+            CancellationToken ct) =>
+        {
+            var current = configuration.LoadNetwork();
+            var wasOn = current.Remote.HasOutsidePath || current.Remote.AutomaticRouterConfiguration;
+            if (wasOn)
+            {
+                current.Remote.ConnectionMode = NetworkConnectionModes.LocalOnly;
+                current.Remote.AutomaticRouterConfiguration = false;
+                try
+                {
+                    configuration.SaveNetwork(current);
+                }
+                catch (ConfigValidationException ex)
+                {
+                    return ApiErrors.BadRequest(string.Join(" ", ex.ValidationMessages));
+                }
+            }
+
+            // Dropped even when nothing was saved, so "off" never waits for the kept answer to run out.
+            outsidePolicy.Invalidate();
+
+            // The Engine refuses outside sign-ins and outside requests from now on; everyone already signed in from outside is
+            // signed out. Home sessions are not touched. Safe to repeat.
+            await outsideSessions.EndOutsideSessionsAsync(OutsideSignInRefusedException.AccessOffCode, ct).ConfigureAwait(false);
+
+            // With the mode back at local-only the coordinator removes the door it opened (and does nothing when there is none).
+            await routerMappings.EnsureMappingAsync(ct).ConfigureAwait(false);
+            return Results.Ok(new RemoteOffResultDto { WasOn = wasOn, ConnectionMode = NetworkConnectionModes.LocalOnly });
+        })
+        .WithName("TurnOffRemoteAccess")
+        .WithSummary("Switch away-from-home access off at once without touching home access.")
+        .Produces<RemoteOffResultDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
 
         // The Apps page shows these two addresses to every signed-in person; the address is not a secret, and nothing else
         // from the network settings or status is returned.
@@ -181,10 +315,11 @@ public static class NetworkEndpoints
         .Produces<NetworkRuntimeStatusDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
 
-        network.MapPost("/reset", (IConfigurationLoader configuration) =>
+        network.MapPost("/reset", (IConfigurationLoader configuration, [FromServices] IOutsideAccessPolicy outsidePolicy) =>
         {
             var defaults = new NetworkSettings();
             configuration.SaveNetwork(defaults);
+            outsidePolicy.Invalidate();
             return Results.Ok(NetworkContractMapper.ToContract(defaults));
         })
         .WithName("ResetNetworkSettings")

@@ -1,0 +1,103 @@
+@namespace MediaEngine.Web.Components.Listen
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* The small box a sidebar's New playlist asks for a name in (spec listen-playlists WP3, issue 1200): a name field and a visible Create button.
+   Enter and Create make it, Escape closes it, and so does moving away from it (the focus leaving the whole box, not only the field, so
+   tabbing from the field to Create keeps it open). Pressing Create keeps the focus in the field, so the blur never takes the button away
+   before the click lands. The host does the work: it gets the name from OnCreate and closes the box itself when that worked. *@
+<div class="playlist-name-box" data-playlist-name-box @onfocusin="OnFocusIn" @onfocusout="OnFocusOutAsync">
+    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" Class="tl-u-font-size-18px" />
+    <AppNativeInput @ref="_input"
+                    Value="@_name"
+                    ValueChanged="@(value => _name = value?.ToString() ?? string.Empty)"
+                    OnKeyDown="OnKeyDownAsync"
+                    Placeholder="@Placeholder"
+                    AriaLabel="@Placeholder"
+                    Disabled="@Busy"
+                    maxlength="100" />
+    <span class="playlist-name-box__create" @onmousedown:preventDefault="true">
+        <AppButton ButtonStyle="AppButtonStyle.Filled"
+                   Tone="AppUiTone.Primary"
+                   Label="@L["PlaylistPicker_Create"].Value"
+                   Disabled="@(Busy || string.IsNullOrWhiteSpace(_name))"
+                   OnClick="CreateAsync"
+                   data-playlist-name-create="true" />
+    </span>
+    @if (Busy)
+    {
+        <AppSpinner Indeterminate="true" Size="AppSize.Small" />
+    }
+</div>
+
+@code {
+    private AppNativeInput? _input;
+    private string _name = string.Empty;
+    private int _blurVersion;
+    private bool _focused;
+    private bool _disposed;
+
+    /// <summary>What the field says when it is empty, and its accessible name.</summary>
+    [Parameter, EditorRequired] public string Placeholder { get; set; } = string.Empty;
+
+    /// <summary>True while the host is making the playlist: the field and the button wait.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>How long the focus may be away from the whole box before it closes; the next field or button inside it cancels the wait.</summary>
+    [Parameter] public TimeSpan BlurGrace { get; set; } = TimeSpan.FromMilliseconds(200);
+
+    /// <summary>The person pressed Enter or Create with a name typed.</summary>
+    [Parameter] public EventCallback<string> OnCreate { get; set; }
+
+    /// <summary>The person pressed Escape or moved away.</summary>
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _input is not null)
+        {
+            await _input.FocusAsync();
+        }
+    }
+
+    private void OnFocusIn()
+    {
+        _focused = true;
+        _blurVersion++;
+    }
+
+    private async Task OnFocusOutAsync()
+    {
+        _focused = false;
+        var version = ++_blurVersion;
+        await Task.Delay(BlurGrace);
+        if (!_disposed && !_focused && version == _blurVersion && !Busy)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal))
+        {
+            await OnCancel.InvokeAsync();
+        }
+        else if (string.Equals(args.Key, "Enter", StringComparison.Ordinal))
+        {
+            await CreateAsync();
+        }
+    }
+
+    private async Task CreateAsync()
+    {
+        if (Busy || string.IsNullOrWhiteSpace(_name))
+        {
+            return;
+        }
+
+        await OnCreate.InvokeAsync(_name.Trim());
+    }
+
+    public void Dispose() => _disposed = true;
+}

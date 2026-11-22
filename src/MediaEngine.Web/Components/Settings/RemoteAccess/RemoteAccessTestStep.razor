@@ -1,0 +1,108 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+
+@* Step 5, Test (mock-ups, picture 7; spec WP6). It asks the existing remote test, named before it runs because it asks the internet
+   to reach Library once, and says the result in plain words with the single next step when it fails. Under it sits the same On panel
+   the start page shows once access is on: a QR for the phone to try from outside, the recent outside sign-ins (refused ones marked)
+   and the one off switch. A test run reads the sign-ins again, so a phone attempt shows up here straight away. *@
+<div class="ra-test" data-remote-screen="test">
+    @if (_testing)
+    {
+        <RemoteAccessCard Key="testing" Title="@L["RemoteAccessTestStep_Testing"].Value">
+            <div class="ra-test__busy" role="status">
+                <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
+                <span>@L["RemoteAccessTestStep_TestingText"]</span>
+            </div>
+        </RemoteAccessCard>
+    }
+    else if (_result is null)
+    {
+        <RemoteAccessCard Key="intro" Title="@L["RemoteAccessTestStep_Title"].Value" Intro="@L["RemoteAccessTestStep_Intro"].Value">
+            <AppButton Label="@L["RemoteAccessTestStep_Run"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Science"
+                       OnClick="RunAsync" data-remote-action="run-test" />
+        </RemoteAccessCard>
+    }
+    else
+    {
+        <RemoteAccessCard Key="result" Title="@_result.Headline" Intro="@_result.Detail">
+            <div data-remote-test-status="@_result.Status">
+                @foreach (var check in _result.Checks)
+                {
+                    <RemoteAccessRow Key="@check.Key" Tone="ToneFor(check.Status)" StatusText="@StatusWords(check.Status)" Title="@check.Label" Detail="@check.Detail" />
+                }
+            </div>
+        </RemoteAccessCard>
+        @if (NextStep is not null)
+        {
+            <RemoteAccessCard Key="next-step" Tone="AppUiTone.Warning">
+                <span>@NextStep</span>
+            </RemoteAccessCard>
+        }
+    }
+
+    <RemoteAccessOnPanel @ref="_onPanel" TurnedOff="TurnedOff" />
+
+    <div class="ra-test__actions">
+        @if (_result is not null && !_testing)
+        {
+            <AppButton Label="@L["RemoteAccessTestStep_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="DoneRequested" data-remote-action="done" />
+            <AppButton Label="@L["RemoteAccessTestStep_TestAgain"].Value" OnClick="RunAsync" data-remote-action="run-test" />
+        }
+        <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback StatusRefreshRequested { get; set; }
+    [Parameter] public EventCallback DoneRequested { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+
+    /// <summary>Raised once the off switch has turned outside access off.</summary>
+    [Parameter] public EventCallback TurnedOff { get; set; }
+
+    private RemoteAccessOnPanel? _onPanel;
+    private bool _testing;
+    private NetworkTestResultDto? _result;
+
+    // When the test did not pass, the one next step is what the first failed check says.
+    private string? NextStep => _result is { Status: not "passed" }
+        ? _result.Checks.FirstOrDefault(check => check.Status == "failed" && !string.IsNullOrWhiteSpace(check.Detail))?.Detail
+        : null;
+
+    private async Task RunAsync()
+    {
+        _testing = true;
+        _result = null;
+        _result = await ApiClient.TestRemoteNetworkAsync()
+            ?? new NetworkTestResultDto
+            {
+                Kind = "remote",
+                Status = "failed",
+                Headline = L["RemoteAccessTestStep_NoAnswer"].Value,
+                Detail = L["RemoteAccessTestStep_NoAnswerText"].Value,
+            };
+        _testing = false;
+        await StatusRefreshRequested.InvokeAsync();
+        if (_onPanel is not null)
+        {
+            await _onPanel.RefreshAsync();
+        }
+    }
+
+    private string StatusWords(string status) => status switch
+    {
+        "passed" => L["RemoteAccessTestStep_Passed"].Value,
+        "failed" => L["RemoteAccessTestStep_Failed"].Value,
+        _ => L["RemoteAccessTestStep_Skipped"].Value,
+    };
+
+    private static AppStatusDotTone ToneFor(string status) => status switch
+    {
+        "passed" => AppStatusDotTone.Working,
+        "failed" => AppStatusDotTone.Broken,
+        _ => AppStatusDotTone.Off,
+    };
+}

@@ -173,7 +173,7 @@
     max-width: calc(100% - 1rem);
     padding: 0.125rem 0.5rem;
     overflow: hidden;
-    border-radius: 0.25rem;
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-scrim-dark-5);
     color: var(--tl-text-primary);
     font-size: var(--tl-type-caption-size);

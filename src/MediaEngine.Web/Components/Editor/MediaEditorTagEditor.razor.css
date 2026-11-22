@@ -26,7 +26,7 @@
 .sme-tag-editor__suggestions button {
     padding: 0.55rem 0.7rem;
     border: 0;
-    border-radius: 0.35rem;
+    border-radius: var(--tl-radius-pill);
     background: transparent;
     color: var(--tl-text-primary);
     text-align: left;

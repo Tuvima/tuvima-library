@@ -1,0 +1,127 @@
+@namespace MediaEngine.Web.Components.Editor
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Lyrics area of a song's editor (issue 1258): "Edit lyrics" in the player lands here, so the person who asked to fix lyrics sees lyrics, not a
+   window about the whole song. It names where the lyrics now in use came from and offers Find different lyrics, which lists the other close matches
+   (title, artist, album and length) to pick from, or another search by words. A choice applies at once, like a picture, and the Engine remembers it for
+   this song. The player's "..." menu has the same Find another. *@
+<section class="tl-editor-details__group tl-editor-lyrics" aria-label="@L["EditorLyrics_Heading"].Value" data-field-key="lyrics" data-editor-lyrics="true">
+    <div class="tl-editor-field tl-editor-field--wide">
+        <div class="tl-editor-field__label"><span>@L["EditorLyrics_Heading"]</span></div>
+        <div class="tl-editor-lyrics__row">
+            <span class="tl-editor-lyrics__state" data-editor-lyrics-state="true">@StateText</span>
+            @if (_assetId is not null)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           Disabled="@(_loading || _choosing)" OnClick="@(() => OpenAsync(null))" data-editor-lyrics-find="true">@L["PlaybackLyrics_FindLyrics"]</AppButton>
+            }
+        </div>
+        @if (_notice is not null)
+        {
+            <AppAlert Severity="AppSeverity.Info" Dense="true" data-editor-lyrics-notice="true">@_notice</AppAlert>
+        }
+    </div>
+</section>
+
+@if (_open)
+{
+    <AppPickResultDialog Title="@L["PlaybackLyrics_FindLyrics"].Value" Visible="true" CoverShape="AppPickCoverShape.Square"
+                         SearchText="@_searchText" Results="@Results" Loading="@_loading"
+                         LoadingText="@L["PlaybackLyrics_LookingForOtherLyrics"].Value" Busy="@_choosing"
+                         Message="@EmptyMessage" OnSearch="SearchAsync" OnUse="UseAsync" OnCancel="Close" />
+}
+
+@code {
+    /// <summary>The song's item id (the editor stages fields under it); the lyrics belong to its media file.</summary>
+    [Parameter, EditorRequired] public Guid WorkId { get; set; }
+
+    /// <summary>The song's title, the box's starting text.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    private readonly CancellationTokenSource _cts = new();
+    private Guid? _assetId;
+    private Guid _resolvedFor;
+    private bool _open, _loading, _choosing;
+    private string _searchText = string.Empty;
+    private string? _query;
+    private string? _notice;
+    private TextTrackAlternativesResponse? _result;
+    private TextTrackAlternativeDto? _current;
+    private IReadOnlyList<AppPickResult> _results = [];
+
+    private string StateText => _assetId is null ? L["EditorLyrics_None"].Value
+        : _current is null ? L["EditorLyrics_NoneChosen"].Value
+        : L[_current.is_timed ? "PlaybackLyrics_SourceSynced" : "PlaybackLyrics_SourceUnsynced", string.IsNullOrWhiteSpace(_current.provider_name) ? _current.provider : _current.provider_name].Value;
+
+    private IReadOnlyList<AppPickResult> Results => _results;
+
+    private string EmptyMessage => _result?.message is { Length: > 0 } message ? message : L["PlaybackLyrics_NoOtherLyrics"].Value;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_resolvedFor == WorkId)
+        {
+            return;
+        }
+        _resolvedFor = WorkId;
+        _assetId = await Api.ResolveWorkToAssetAsync(WorkId, _cts.Token);
+        _searchText = Title ?? string.Empty;
+        if (_assetId is { } asset)
+        {
+            // The list for the song itself shows which result is in use now.
+            var own = await Api.GetTextTrackAlternativesAsync(asset, "lyrics", _cts.Token);
+            _current = own?.items.FirstOrDefault(item => item.is_current);
+        }
+    }
+
+    private async Task OpenAsync(string? query)
+    {
+        if (_assetId is not { } asset)
+        {
+            return;
+        }
+        _open = true; _loading = true; _query = query; _notice = null; StateHasChanged();
+        _result = await Api.GetTextTrackAlternativesAsync(asset, "lyrics", _cts.Token, null, query)
+            ?? new TextTrackAlternativesResponse { message = L["EditorLyrics_LookupFailed"].Value };
+        _results = _result.items.Select(ToResult).ToList();
+        _loading = false;
+    }
+
+    private AppPickResult ToResult(TextTrackAlternativeDto offer) => FindAnotherResultMapper.ForLyrics(offer, L);
+
+    // Only words the person changed are sent; an untouched box is the Engine's own lookup.
+    private Task SearchAsync(string text) => OpenAsync(FindDialogSearchText.EditedOrNull(_searchText, text));
+
+    private async Task UseAsync(AppPickResult pick)
+    {
+        if (_assetId is not { } asset || _choosing
+            || _result?.items.FirstOrDefault(offer => $"{offer.provider}:{offer.source_id}" == pick.Key) is not { } offer)
+        {
+            return;
+        }
+        _choosing = true; StateHasChanged();
+        var response = await Api.ChooseTextTrackAlternativeAsync(asset,
+            new ChooseTextTrackAlternativeRequest { kind = "lyrics", provider = offer.provider, source_id = offer.source_id, query = _query }, _cts.Token);
+        _choosing = false;
+        _notice = response is null ? L["EditorLyrics_NotSaved"].Value : response.message;
+        if (response is not null)
+        {
+            _current = offer;
+            _open = false;
+        }
+    }
+
+    private void Close() => _open = false;
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

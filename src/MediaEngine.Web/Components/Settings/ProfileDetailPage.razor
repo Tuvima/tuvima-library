@@ -12,7 +12,6 @@
 @inject ConfirmedActionRunner Confirmed
 @inject NavigationManager Nav
 @inject ILogger<ProfileDetailPage> Logger
-@inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
 @* Settings > Manage Profiles > one person, in three tabs: Profile (details, sign-in, roles), Preferences (watching, listening, reading,
@@ -171,12 +170,6 @@
                                                                    IsSelf="@IsSelf"
                                                                    IsAdministrator="@IsAdministrator"
                                                                    AdministratorHasPin="@(_active?.HasPin == true)" />
-        }
-
-        @if (!OnPreferencesTab && CanManage && _managedPerson is not null && DeviceContext.IsPhone)
-        {
-            @* A phone shows who is who; roles, access and Delete profile are changed on a computer or tablet. *@
-            <p class="access-phone-note" role="note">@L["Common_ManageOnAComputerOr"]</p>
         }
 
         @if (OnProfileTab && ShowRoles)
@@ -389,10 +382,9 @@
     // The profile editor saves through administrator-only Engine actions; a member's rename/avatar route may come later.
     private bool CanEditDetails => IsAdministrator;
 
-    // Roles, access and Delete profile are changed on a computer or tablet; a phone only reads them.
-    private bool ShowRoles => CanManage && _managedPerson is not null && !DeviceContext.IsPhone;
+    private bool ShowRoles => CanManage && _managedPerson is not null;
 
-    private bool ShowAccess => CanManage && _managedPerson is not null && !DeviceContext.IsPhone;
+    private bool ShowAccess => CanManage && _managedPerson is not null;
 
     // The server switch is not drawn for everyone; when it is hidden the person's current state is sent, never "off".
     private bool ServerRoleValue => _serverRole.Visible ? _serverRole.On : _managedPerson?.IsServerAdmin == true;
@@ -464,7 +456,7 @@
 
     // Delete is offered only to someone who can manage people, and never for the profile in use, the last household administrator,
     // a server administrator (to a household administrator) or the household's only person.
-    private bool CanDelete => _managedPerson is { } person && _active is { } active && CanManage && !DeviceContext.IsPhone
+    private bool CanDelete => _managedPerson is { } person && _active is { } active && CanManage
         && ProfileRoleRules.CanDelete(person, active.Id, HouseholdPeople, IsServerAdministrator);
 
     private string DetailsStatus
@@ -741,7 +733,7 @@
     {
         DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
         DashboardAccessMutationFailure.Unauthorized => "Your session has expired.",
-        DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+        DashboardAccessMutationFailure.Transient => "The server is unavailable. Try again.",
         _ when !string.IsNullOrWhiteSpace(engineMessage) => engineMessage,
         DashboardAccessMutationFailure.Validation or DashboardAccessMutationFailure.Forbidden
             => "That wasn't saved. You can only give what your profile has, and only to people in your household.",
@@ -829,7 +821,7 @@
 
     private async Task RemoveAsync(bool keepPhotos)
     {
-        if (_person is not { } profile || _editorSaving || DeviceContext.IsPhone)
+        if (_person is not { } profile || _editorSaving)
         {
             return;
         }

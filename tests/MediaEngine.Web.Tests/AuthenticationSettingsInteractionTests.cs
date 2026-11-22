@@ -23,6 +23,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     private CancellationToken _saveToken;
     private bool _throwOnSave;
     private bool _saveSucceeds;
+    private UpdateAuthSettingsRequest? _lastRequest;
 
     public AuthenticationSettingsInteractionTests()
     {
@@ -34,14 +35,19 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetAuthSettingsAsync), _ => Task.FromResult<AuthSettingsDto?>(_settings));
+            stub.SetHandler(nameof(IEngineApiClient.GetMailServerAsync), _ => Task.FromResult<MediaEngine.Contracts.Notifications.MailServerSettingsDto?>(
+                new() { Configured = true, Host = "smtp.gmail.com", Port = 587, FromAddress = "library@example.test", HasPassword = true }));
+            stub.SetHandler(nameof(IEngineApiClient.TestMailServerAsync), _ => Task.FromResult<MediaEngine.Contracts.Notifications.NotificationTestResponse?>(
+                new() { Success = true, Message = "A test message was sent." }));
             stub.SetHandler(nameof(IEngineApiClient.UpdateAuthSettingsAsync), args =>
             {
                 _saveCalls++;
                 _saveToken = (CancellationToken)args![1]!;
+                _lastRequest = args[0] as UpdateAuthSettingsRequest;
                 _saveStarted.TrySetResult();
                 return _throwOnSave
                     ? Task.FromException<AuthSettingsDto?>(new InvalidOperationException("simulated failure"))
-                    : _saveSucceeds ? Task.FromResult<AuthSettingsDto?>(_settings) : WaitForCancellationAsync(_saveToken);
+                    : _saveSucceeds ? Task.FromResult<AuthSettingsDto?>(_settings = Echo(_settings, _lastRequest)) : WaitForCancellationAsync(_saveToken);
             });
         }));
         Services.AddSingleton(_ => _registered);
@@ -69,53 +75,86 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AdvancedTab_HoldsEverySignInControlUnderOneOfThreeHeadings()
+    public void AdvancedTab_HoldsEverySignInControlWithoutTheDoubledAuthenticationHeadings()
     {
         var cut = Render<SecurityTab>();
         cut.WaitForElement(".security-settings__facts");
 
-        Assert.Equal(["How people sign in", "Sessions and invitations", "Status"], cut.FindAll("h3").Select(h => h.TextContent.Trim()));
+        // The page and its Advanced tab already say where this is: no "Authentication" and no "How people sign in" heading.
+        Assert.Equal(["Sessions and invitations", "Status"], cut.FindAll("h3").Select(h => h.TextContent.Trim()));
+        Assert.DoesNotContain("Authentication", string.Concat(cut.FindAll("h2, h3").Select(h => h.TextContent)), StringComparison.Ordinal);
 
-        string[] InGroup(string id) => cut.Find($"#{id}").NextElementSibling is { } group ? [group.TextContent] : [];
-        var signIn = string.Concat(InGroup("security-group-sign-in")) + cut.Find("h4").TextContent;
-        Assert.Contains("Password sign-in", signIn, StringComparison.Ordinal);
+        var signIn = cut.Find("[data-testid='sign-in-switches']").TextContent + cut.Find("h4").TextContent;
+        Assert.Contains("Allow passwords", signIn, StringComparison.Ordinal);
+        Assert.DoesNotContain("Require sign-in for everyone", signIn, StringComparison.Ordinal);
         Assert.Contains("Passkey sign-in", signIn, StringComparison.Ordinal);
         Assert.Contains("External provider sign-in", signIn, StringComparison.Ordinal);
         Assert.Contains("External providers", signIn, StringComparison.Ordinal);
-        Assert.Single(cut.FindAll("select"), select => select.InnerHtml.Contains("Optional", StringComparison.Ordinal));
+        // The Authentication mode dropdown is gone; its three values live behind two switches.
+        Assert.Empty(cut.FindAll("select"));
+        Assert.DoesNotContain("Authentication mode", cut.Markup, StringComparison.Ordinal);
 
+        string[] InGroup(string id) => cut.Find($"#{id}").NextElementSibling is { } group ? [group.TextContent] : [];
         var sessions = string.Concat(InGroup("security-group-sessions"));
         Assert.Contains("Session lifetime (hours)", sessions, StringComparison.Ordinal);
         Assert.Contains("Maximum active sessions per account", sessions, StringComparison.Ordinal);
         Assert.Contains("Invitation lifetime (hours)", sessions, StringComparison.Ordinal);
-        Assert.Contains("Trusted local networks", sessions, StringComparison.Ordinal);
+        Assert.Contains("Extra home network ranges", sessions, StringComparison.Ordinal);
+        Assert.DoesNotContain("CIDR", sessions, StringComparison.Ordinal);
 
         var status = cut.Find("dl.security-settings__facts").TextContent;
         Assert.Contains("Public address", status, StringComparison.Ordinal);
         Assert.Contains("Passkeys", status, StringComparison.Ordinal);
-        Assert.Contains("Recovery delivery", status, StringComparison.Ordinal);
+        // The mail server is set up in one place only; here it is a status line with a link to it.
+        Assert.Contains("Password recovery email", status, StringComparison.Ordinal);
+        Assert.DoesNotContain("Recovery delivery", status, StringComparison.Ordinal);
+        Assert.DoesNotContain("SMTP", cut.Markup, StringComparison.Ordinal);
+        var recovery = cut.Find("[data-recovery-email-status]");
+        Assert.Contains("Configured", recovery.TextContent, StringComparison.Ordinal);
+        Assert.Equal("/settings/general/notifications", recovery.QuerySelector("a")!.GetAttribute("href"));
     }
 
     [Fact]
-    public void GeneralNotifications_OffersTheTestEmailOnceOutgoingEmailIsSetUp()
+    public void AdvancedTab_EmailBlock_IsAStatusLineWithALinkToNotifications_WhenTheMailServerIsNotSetUp()
     {
-        var cut = Render<NotificationsEmailTest>();
-        cut.WaitForElement("[data-testid='notifications-email-test']");
+        _settings = new AuthSettingsDto { Mode = "Local", PasswordReset = new PasswordResetDeliveryDto { Configured = false } };
 
-        var button = cut.Find("[data-testid='notifications-email-test-send']");
-        Assert.False(button.HasAttribute("disabled"));
-        Assert.Contains("Send test email to my account", button.TextContent, StringComparison.Ordinal);
-        Assert.Contains("current signed-in account", cut.Markup, StringComparison.Ordinal);
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-recovery-email-status]");
+
+        var line = cut.Find("[data-recovery-email-status]");
+        Assert.Contains("Not configured", line.TextContent, StringComparison.Ordinal);
+        Assert.Equal("/settings/general/notifications", line.QuerySelector("a")!.GetAttribute("href"));
+        Assert.Contains("Notifications", line.QuerySelector("a")!.TextContent, StringComparison.Ordinal);
+        // The mail server is never set up here: no fields for it.
+        Assert.DoesNotContain("SMTP", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("input[type='email']"));
     }
 
     [Fact]
-    public void GeneralNotifications_ShowsNoTestEmailWhileOutgoingEmailIsNotConfigured()
+    public void GeneralNotifications_MailServerForm_ShowsTheSavedServerAndNeverThePassword()
     {
-        _settings = new AuthSettingsDto();
+        var cut = Render<NotificationsMailServer>();
+        cut.WaitForElement("[data-testid='notifications-mail-server-line']");
 
-        var cut = Render<NotificationsEmailTest>();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid='notifications-email-test']")));
-        Assert.DoesNotContain("Send test email", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("smtp.gmail.com", cut.Find("[data-testid='notifications-mail-server-line']").TextContent, StringComparison.Ordinal);
+        Assert.Equal(string.Empty, cut.Find("[data-testid='notifications-mail-password']").GetAttribute("value") ?? string.Empty);
+        Assert.Contains("Saved. Leave blank to keep it.", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneralNotifications_MailServerForm_SaveWaitsForASuccessfulTest()
+    {
+        var cut = Render<NotificationsMailServer>();
+        cut.WaitForElement("[data-testid='notifications-mail-from-address']");
+        cut.Find("[data-testid='notifications-mail-from-address']").Input("someone@example.test");
+
+        Assert.True(cut.Find("[data-testid='notifications-mail-save']").HasAttribute("disabled"));
+        cut.Find("[data-testid='notifications-mail-test']").Click();
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid='notifications-mail-save']").HasAttribute("disabled")));
+
+        cut.Find("[data-testid='notifications-mail-from-address']").Input("other@example.test");
+        Assert.True(cut.Find("[data-testid='notifications-mail-save']").HasAttribute("disabled"));
     }
 
     [Fact]
@@ -178,8 +217,8 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Assert.Equal(1, _saveCalls);
         Assert.False((bool)typeof(SecurityTab).GetField("_saving", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(cut.Instance)!);
-        var button = cut.FindAll("button").Single(element =>
-            element.TextContent.Contains("Save authentication settings", StringComparison.Ordinal));
+        var button = cut.FindAll(".security-settings__actions button").Single(element =>
+            element.TextContent.Contains("Save changes", StringComparison.Ordinal));
         Assert.False(button.HasAttribute("disabled"));
         // Told once, in place, at the top of the section; never as a pop-up notice.
         Assert.Equal("alert", cut.Find("[data-security-failure]").GetAttribute("role"));
@@ -216,6 +255,101 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
 
         Assert.Equal(0, _saveCalls);
         Assert.NotEmpty(cut.Find("[data-security-failure]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void ChangingASwitch_SavesAtOnce_AndShowsTheSavedNote()
+    {
+        _saveSucceeds = true;
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-testid='sign-in-switches']");
+
+        cut.Find("input[aria-label='Allow passwords']").Change(false);
+
+        cut.WaitForAssertion(() => Assert.Equal(1, _saveCalls));
+        cut.WaitForAssertion(() =>
+            Assert.Contains("Saved", cut.Find("[data-testid='sign-in-saved']").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-security-failure]"));
+        Assert.Empty(cut.FindAll("input[aria-label='Require sign-in for everyone']"));
+    }
+
+    [Fact]
+    public void TurningOffAllowPasswords_SavesAtOnce_AndKeepsTheSignInMode()
+    {
+        _saveSucceeds = true;
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-testid='sign-in-switches']");
+
+        cut.Find("input[aria-label='Allow passwords']").Change(false);
+
+        cut.WaitForAssertion(() => Assert.Equal(1, _saveCalls));
+        Assert.False(_lastRequest!.PasswordSignInEnabled);
+        Assert.True(_lastRequest.PasskeySignInEnabled);
+        Assert.Equal("Required", _lastRequest.Mode);
+    }
+
+    [Fact]
+    public void TurningOnLinkedSignIn_MovesTheLocalModeToOptional_AndOffMovesItBack()
+    {
+        _saveSucceeds = true;
+        _settings = WithMode(ReadySettings(), "Local");
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-testid='sign-in-switches']");
+
+        cut.Find("input[aria-label='External provider sign-in']").Change(true);
+        cut.WaitForAssertion(() => Assert.Equal(1, _saveCalls));
+        Assert.True(_lastRequest!.ExternalSignInEnabled);
+        Assert.Equal("Optional", _lastRequest.Mode);
+
+        cut.Find("input[aria-label='External provider sign-in']").Change(false);
+        cut.WaitForAssertion(() => Assert.Equal(2, _saveCalls));
+        Assert.False(_lastRequest.ExternalSignInEnabled);
+        Assert.Equal("Local", _lastRequest.Mode);
+    }
+
+    [Fact]
+    public void TurningOffTheLastSignInMethod_ShowsAnInlineMessage_AndNeverCallsTheServer()
+    {
+        _settings = new AuthSettingsDto
+        {
+            Mode = "Required",
+            PasswordSignInEnabled = true,
+            PasskeySignInEnabled = false,
+            InvitationLifetimeHours = 168,
+            SessionLifetimeHours = 336,
+            MaximumActiveSessions = 20,
+        };
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement("[data-testid='sign-in-switches']");
+
+        cut.Find("input[aria-label='Allow passwords']").Change(false);
+
+        Assert.Equal(0, _saveCalls);
+        Assert.NotEmpty(cut.Find("[data-security-failure]").TextContent.Trim());
+        Assert.True(cut.Find("input[aria-label='Allow passwords']").HasAttribute("checked"));
+    }
+
+    // What the server keeps after a save: the stored settings with the request's sign-in switches applied.
+    private static AuthSettingsDto Echo(AuthSettingsDto stored, UpdateAuthSettingsRequest? request)
+    {
+        if (request is null)
+        {
+            return stored;
+        }
+
+        var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(stored))!.AsObject();
+        json["mode"] = request.Mode;
+        json["password_sign_in_enabled"] = request.PasswordSignInEnabled;
+        json["passkey_sign_in_enabled"] = request.PasskeySignInEnabled;
+        json["external_sign_in_enabled"] = request.ExternalSignInEnabled;
+        return System.Text.Json.JsonSerializer.Deserialize<AuthSettingsDto>(json.ToJsonString())!;
+    }
+
+    private static AuthSettingsDto WithMode(AuthSettingsDto source, string mode)
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(source))!.AsObject();
+        json["mode"] = mode;
+        return System.Text.Json.JsonSerializer.Deserialize<AuthSettingsDto>(json.ToJsonString())!;
     }
 
     private static async Task<AuthSettingsDto?> WaitForCancellationAsync(CancellationToken ct)

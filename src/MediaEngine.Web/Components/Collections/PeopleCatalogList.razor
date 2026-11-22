@@ -4,10 +4,33 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IStringLocalizer<SharedStrings> L
 
-@* The people list is a grid of the shared person tile: a square photo with the name on the art and the count per lane in the bottom label. *@
-<div class="people-catalog-list" role="list" aria-label="@L["PeopleCatalogList_PeopleInYourLibrary"].Value">
-    <PersonTileGrid Items="@Tiles" />
-</div>
+@* The people list uses the cast tile's size (issue 1120): a small rounded square photo beside the name and what they have in the Library,
+   as on the details page's cast. Many more fit on a row than the old poster-sized tiles, and the list opens faster. *@
+<ul class="people-catalog-list" aria-label="@L["PeopleCatalogList_PeopleInYourLibrary"].Value">
+    @foreach (var tile in Tiles)
+    {
+        <li class="people-catalog-list__item" @key="tile.Id">
+            <a class="people-row" href="@tile.NavigationUrl" aria-label="@tile.Title">
+                <span class="people-row__photo">
+                    @if (!string.IsNullOrWhiteSpace(tile.Person?.ImageUrl))
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(tile.Person!.ImageUrl, PhotoDrawnPx)"
+                             srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(tile.Person.ImageUrl, PhotoDrawnPx)"
+                             alt="" loading="lazy" decoding="async" />
+                    }
+                    else
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" Size="AppIconSize.Control20" aria-hidden="true" />
+                    }
+                </span>
+                <span class="people-row__text">
+                    <span class="people-row__name">@tile.Title</span>
+                    <span class="people-row__detail">@DetailText(tile)</span>
+                </span>
+            </a>
+        </li>
+    }
+</ul>
 
 @code {
     private static readonly Dictionary<string, int> EmptyPresence = new(StringComparer.OrdinalIgnoreCase);
@@ -15,6 +38,15 @@
     [Parameter] public IReadOnlyList<PersonListItemResponse> Items { get; set; } = [];
     [Parameter] public IReadOnlyDictionary<string, Dictionary<string, int>> Presence { get; set; } =
         new Dictionary<string, Dictionary<string, int>>();
+
+    // Drawn at 72 px at most, like the cast tile, so the copy is sharp on dense screens without loading a large picture per person.
+    private const int PhotoDrawnPx = 140;
+
+    private static string DetailText(MediaTileViewModel tile)
+    {
+        var counts = string.Join(" · ", tile.MediaCounts.Select(count => $"{count.Count} {count.Label}"));
+        return counts.Length > 0 ? counts : string.Join(", ", tile.Person?.Roles ?? []);
+    }
 
     private IReadOnlyList<MediaTileViewModel> Tiles => Items.Select(ToTile).ToList();
 

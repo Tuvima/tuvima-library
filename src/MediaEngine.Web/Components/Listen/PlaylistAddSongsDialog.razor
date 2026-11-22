@@ -1,0 +1,204 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+
+@* Add songs (spec group-pages-and-tiles D7, Q61, mockup D note 5): a search of the person's own songs and albums. Tapping + beside a result adds
+   it to the END of the playlist through the same add every other entry point uses (PlaylistMembership), and the window stays open so
+   several can be added in a row. A result already in the playlist says so. Done closes the window; the page then reads the playlist
+   again. A bottom sheet on a phone and a touch tablet. *@
+<AppDialogShell Title="@L["PlaylistAddSongs_Title"].Value" Size="Medium" OnClose="CloseAsync">
+    <ChildContent>
+        @if (_failure is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error" data-playlist-add-failed>@_failure</AppAlert>
+        }
+        <div class="playlist-add__search">
+            <AppTextField InputType="AppInputType.Search"
+                          Value="@_query"
+                          ValueChanged="OnQueryInput"
+                          Placeholder="@L["PlaylistAddSongs_Search"].Value"
+                          Label="@L["PlaylistAddSongs_Search"].Value"
+                          HideLabel="true"
+                          Adornment="AppAdornment.Start"
+                          AdornmentIcon="@AppMaterialIcons.Outlined.Search"
+                          AutoFocus="true"
+                          data-playlist-add-search="true" />
+        </div>
+
+        @if (string.IsNullOrWhiteSpace(_query))
+        {
+            <p class="playlist-add__hint" data-playlist-add-hint>@L["PlaylistAddSongs_Hint"]</p>
+        }
+        else if (Matches.Count == 0)
+        {
+            <p class="playlist-add__hint" data-playlist-add-none>@L["PlaylistAddSongs_None"]</p>
+        }
+        else
+        {
+            <ul class="playlist-add__list" aria-label="@L["PlaylistAddSongs_Results"].Value">
+                @foreach (var match in Matches)
+                {
+                    var holds = match.WorkIds.All(IsIn);
+                    <li class="@(holds ? "playlist-add__row is-added" : "playlist-add__row")" @key="match.Key" data-playlist-add-row="@match.Key">
+                        <span class="playlist-add__art">
+                            @if (!string.IsNullOrWhiteSpace(match.CoverUrl))
+                            {
+                                <img src="@MediaTileArtworkUrl.ForDrawnSize(match.CoverUrl, 40)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(match.CoverUrl, 40)" alt="" loading="lazy" decoding="async" />
+                            }
+                            else
+                            {
+                                <AppMaterialIcon Icon="@(match.IsAlbum ? AppMaterialIcons.Outlined.Album : AppMaterialIcons.Outlined.MusicNote)" Size="AppIconSize.Control20" />
+                            }
+                        </span>
+                        <span class="playlist-add__text">
+                            <span class="playlist-add__title">@match.Title</span>
+                            <span class="playlist-add__sub">@match.Subtitle</span>
+                        </span>
+                        @if (holds)
+                        {
+                            <span class="playlist-add__state" data-playlist-add-state="added">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppIconSize.Control20" />
+                                <span>@(IsAddedHere(match) ? L["PlaylistAddSongs_Added"].Value : L["PlaylistAddSongs_AlreadyIn"].Value)</span>
+                            </span>
+                        }
+                        else
+                        {
+                            <AppIconButton Icon="@AppMaterialIcons.Filled.Add"
+                                           ButtonStyle="AppButtonStyle.Outlined"
+                                           Tooltip="@L["PlaylistAddSongs_AddTitle", match.Title].Value"
+                                           AriaLabel="@L["PlaylistAddSongs_AddTitle", match.Title].Value"
+                                           Disabled="@(_busyKey is not null)"
+                                           data-playlist-add="@match.Key"
+                                           OnClick="@(() => AddAsync(match))" />
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="CloseAsync" data-playlist-add-done="true" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    private const int MaxResults = 40;
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired] public ManagedCollectionViewModel Playlist { get; set; } = default!;
+
+    [Parameter] public Guid? ProfileId { get; set; }
+
+    /// <summary>The person's songs, to search.</summary>
+    [Parameter] public IReadOnlyList<WorkViewModel> Songs { get; set; } = [];
+
+    /// <summary>The songs the playlist holds when the window opens.</summary>
+    [Parameter] public IReadOnlySet<Guid> AlreadyIn { get; set; } = new HashSet<Guid>();
+
+    private readonly HashSet<Guid> _addedHere = [];
+    private List<SongRow> _rows = [];
+    private List<AlbumGroup> _albums = [];
+    private string _query = string.Empty;
+    private string? _busyKey;
+    private string? _failure;
+
+    /// <summary>One line of results: a song, or an album whose songs all go in together.</summary>
+    private sealed record Match(string Key, string Title, string Subtitle, string? CoverUrl, bool IsAlbum, IReadOnlyList<Guid> WorkIds);
+
+    private sealed record AlbumGroup(string Name, string? Artist, string? CoverUrl, IReadOnlyList<Guid> WorkIds);
+
+    protected override void OnInitialized()
+    {
+        _rows = [.. Songs.Select(SongRowMapper.FromWork).Where(row => row.WorkId is { } id && id != Guid.Empty)];
+        _albums =
+        [
+            .. _rows
+                .Where(row => !string.IsNullOrWhiteSpace(row.Album))
+                .GroupBy(row => (Album: row.Album!.Trim().ToUpperInvariant(), Artist: (row.Artist ?? string.Empty).Trim().ToUpperInvariant()))
+                .Select(group => new AlbumGroup(
+                    group.First().Album!.Trim(),
+                    group.Select(row => row.Artist).FirstOrDefault(artist => !string.IsNullOrWhiteSpace(artist)),
+                    group.Select(row => row.CoverUrl).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url)),
+                    [.. group.Select(row => row.WorkId!.Value).Distinct()]))
+                .OrderBy(album => album.Name, StringComparer.OrdinalIgnoreCase),
+        ];
+    }
+
+    private IReadOnlyList<Match> Matches => string.IsNullOrWhiteSpace(_query) ? [] : FindMatches(_query.Trim());
+
+    private IReadOnlyList<Match> FindMatches(string query)
+    {
+        var albums = _albums
+            .Where(album => Contains(album.Name, query) || Contains(album.Artist, query))
+            .Take(5)
+            .Select(album => new Match(
+                $"album:{album.Name}|{album.Artist}",
+                album.Name,
+                string.IsNullOrWhiteSpace(album.Artist)
+                    ? L["PlaylistAddSongs_AlbumSongs", album.WorkIds.Count].Value
+                    : $"{album.Artist} · {L["PlaylistAddSongs_AlbumSongs", album.WorkIds.Count].Value}",
+                album.CoverUrl,
+                true,
+                album.WorkIds));
+        var songs = _rows
+            .Where(row => Contains(row.Title, query) || Contains(row.Artist, query) || Contains(row.Album, query))
+            .Take(MaxResults)
+            .Select(row => new Match(
+                $"song:{row.Id}",
+                row.Title,
+                string.Join(" · ", new[] { row.Artist, row.Album }.Where(part => !string.IsNullOrWhiteSpace(part))),
+                row.CoverUrl,
+                false,
+                [row.WorkId!.Value]));
+        return [.. albums.Concat(songs)];
+    }
+
+    private static bool Contains(string? text, string query) => text?.Contains(query, StringComparison.CurrentCultureIgnoreCase) == true;
+
+    private bool IsIn(Guid workId) => AlreadyIn.Contains(workId) || _addedHere.Contains(workId);
+
+    private bool IsAddedHere(Match match) => match.WorkIds.Any(_addedHere.Contains);
+
+    private void OnQueryInput(string? text)
+    {
+        _query = text ?? string.Empty;
+        _failure = null;
+    }
+
+    // The songs go to the end of the playlist (the Engine appends). A refusal is told in the window and nothing is marked as added.
+    private async Task AddAsync(Match match)
+    {
+        _busyKey = match.Key;
+        _failure = null;
+        try
+        {
+            var result = await PlaylistMembership.AddAsync(ApiClient, Playlist.Id, Playlist.Name, match.WorkIds, ProfileId);
+            if (result.Failed > 0)
+            {
+                _failure = string.IsNullOrWhiteSpace(result.Reason) ? L["PlaylistAddSongs_Failed"].Value : result.Reason;
+                return;
+            }
+
+            foreach (var workId in match.WorkIds)
+            {
+                _addedHere.Add(workId);
+            }
+        }
+        finally
+        {
+            _busyKey = null;
+        }
+    }
+
+    // The page reads the playlist again only when something went in.
+    private Task CloseAsync() => _addedHere.Count > 0
+        ? Dialog.CloseAsync(AppDialogResult.Ok(_addedHere.Count))
+        : Dialog.CancelAsync();
+}

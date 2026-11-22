@@ -76,7 +76,7 @@ public sealed class EditorHeaderReadService(
         var kind = ResolveKind(family.MediaType, current);
         var support = await ReadSupportAsync(family, ct).ConfigureAwait(false);
 
-        var secondLevel = BuildSecondLevel(family, support);
+        var secondLevel = await BuildSecondLevelAsync(family, support, ct).ConfigureAwait(false);
         var levelChoice = ChooseLevel(family, current, secondLevel);
         var level = await BuildLevelAsync(family, levelChoice, support, query: null, offset: 0, profileId, supportingFileId, ct).ConfigureAwait(false);
 
@@ -191,7 +191,7 @@ public sealed class EditorHeaderReadService(
         }
 
         var support = await ReadSupportAsync(family, ct).ConfigureAwait(false);
-        var secondLevel = BuildSecondLevel(family, support);
+        var secondLevel = await BuildSecondLevelAsync(family, support, ct).ConfigureAwait(false);
         var choice = secondLevel?.Entries.Any(entry => entry.Id == wanted) == true
             ? new LevelChoice(wanted, LevelKinds.Mid)
             : new LevelChoice(wanted, family.HasSecondLevel ? LevelKinds.Root : LevelKinds.All);
@@ -495,12 +495,14 @@ public sealed class EditorHeaderReadService(
             : new LevelChoice(family.Root.EntityId, LevelKinds.Root);
     }
 
-    private EditorHeaderSecondLevelDto? BuildSecondLevel(Family family, Support support)
+    private async Task<EditorHeaderSecondLevelDto?> BuildSecondLevelAsync(Family family, Support support, CancellationToken ct)
     {
         if (!family.HasSecondLevel)
         {
             return null;
         }
+
+        var combined = await ReadCombinedFileCountsAsync(family, ct).ConfigureAwait(false);
 
         Guid? currentId = null;
         if (!family.Current.IsRoot)
@@ -521,11 +523,63 @@ public sealed class EditorHeaderReadService(
                     Id = mid.EntityId,
                     Title = mid.Title,
                     Number = support.MidNumbers.GetValueOrDefault(mid.EntityId),
-                    ItemCount = mid.QuarantineCount,
+                    ItemCount = combined.TryGetValue(mid.EntityId, out var counts) ? counts.Episodes : mid.QuarantineCount,
+                    FileCount = combined.TryGetValue(mid.EntityId, out var fileCounts) ? fileCounts.Files : null,
                     SupportingFileCount = support.CountFor(mid.EntityId),
                 }),
             ],
         };
+    }
+
+    /// <summary>
+    /// Per season where a file such as S01E19-20 covers several episodes: how many episodes it holds and how many files hold them (20 and
+    /// 19). Each covered episode is its own Work and only the first one owns the file's edition, so the navigator's owned count misses the
+    /// others; the coverage rows (<c>media_asset_coverage</c>, spec multi-episode-files D4) name every episode a file covers. A season with
+    /// no combined file is left out and keeps the navigator's own count.
+    /// </summary>
+    private async Task<Dictionary<Guid, (int Episodes, int Files)>> ReadCombinedFileCountsAsync(Family family, CancellationToken ct)
+    {
+        var result = new Dictionary<Guid, (int Episodes, int Files)>();
+        if (!string.Equals(family.MediaType, "TV", StringComparison.Ordinal))
+        {
+            return result;
+        }
+
+        var leavesBySeason = family.Leaves
+            .Where(node => node.ParentNodeId is not null)
+            .GroupBy(node => node.ParentNodeId!.Value)
+            .ToDictionary(group => group.Key, group => group.ToList());
+        if (leavesBySeason.Count == 0)
+        {
+            return result;
+        }
+
+        IReadOnlyList<MediaAssetCoverage> rows;
+        try
+        {
+            rows = await new MediaAssetCoverageRepository(db)
+                .ListByWorksAsync([.. leavesBySeason.Values.SelectMany(leaves => leaves.Select(node => node.EntityId))], ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The files figure is decoration on the Season dropdown; it still lists every season without it.
+            _logger.LogWarning(ex, "The combined-file counts of the Season dropdown could not be read; seasons list episodes only");
+            return result;
+        }
+
+        var assetsByWork = rows.GroupBy(row => row.WorkId).ToDictionary(group => group.Key, group => group.Select(row => row.AssetId).Distinct().ToList());
+        foreach (var (season, leaves) in leavesBySeason)
+        {
+            var episodes = leaves.Where(node => node.IsOwned || assetsByWork.ContainsKey(node.EntityId)).ToList();
+            var (episodeCount, fileCount) = CombinedEpisodeFiles.Count(episodes.Select(node =>
+                (node.EntityId.ToString("D"), assetsByWork.TryGetValue(node.EntityId, out var assets) ? assets[0].ToString("D") : null)));
+            if (fileCount < episodeCount)
+            {
+                result[season] = (episodeCount, fileCount);
+            }
+        }
+
+        return result;
     }
 
     private async Task<EditorHeaderLevelDto> BuildLevelAsync(
@@ -569,6 +623,8 @@ public sealed class EditorHeaderReadService(
             items.Add(BuildItem(family, page[index], values.GetValueOrDefault(page[index].EntityId), seasonNumber, places.GetValueOrDefault(page[index].EntityId)));
         }
 
+        items = await MergeCombinedEpisodeRowsAsync(family, items, ct).ConfigureAwait(false);
+
         return new EditorHeaderLevelDto
         {
             LevelId = choice.LevelId,
@@ -579,6 +635,88 @@ public sealed class EditorHeaderReadService(
             HasMore = offset + page.Count < matching.Count,
             Items = items,
             SupportingFiles = support.SummaryFor(choice, config.InlineSupportingFiles, supportingFileId),
+        };
+    }
+
+    /// <summary>
+    /// A file named S01E19-20 is one row, "S01E19-20: Title A + Title B" (review mock-ups 2026-11-18 D9). The row opens the first episode and
+    /// says how many it stands for (<see cref="EditorNavItemDto.EpisodeCount"/>); each covered episode is still its own Work. Only a show's
+    /// episodes on the same page merge; a page never splits a file's episodes across rows it did not read.
+    /// </summary>
+    private async Task<List<EditorNavItemDto>> MergeCombinedEpisodeRowsAsync(Family family, List<EditorNavItemDto> items, CancellationToken ct)
+    {
+        if (items.Count < 2 || !string.Equals(family.MediaType, "TV", StringComparison.Ordinal))
+        {
+            return items;
+        }
+
+        IReadOnlyList<MediaAssetCoverage> rows;
+        try
+        {
+            rows = await new MediaAssetCoverageRepository(db).ListByWorksAsync([.. items.Select(item => item.Id)], ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The merged row is presentation; the list still shows one row per episode without it.
+            _logger.LogWarning(ex, "The combined-file rows of the item dropdown could not be read; episodes list one by one");
+            return items;
+        }
+
+        var fileOf = rows.GroupBy(row => row.WorkId).ToDictionary(group => group.Key, group => group.First().AssetId);
+        var consumed = new HashSet<Guid>();
+        var merged = new List<EditorNavItemDto>(items.Count);
+        foreach (var item in items)
+        {
+            if (consumed.Contains(item.Id))
+            {
+                continue;
+            }
+
+            if (!fileOf.TryGetValue(item.Id, out var asset))
+            {
+                merged.Add(item);
+                continue;
+            }
+
+            var members = items.Where(other => fileOf.TryGetValue(other.Id, out var otherAsset) && otherAsset == asset && other.Number is not null).ToList();
+            if (members.Count < 2 || item.Number is null)
+            {
+                merged.Add(item);
+                continue;
+            }
+
+            foreach (var member in members)
+            {
+                consumed.Add(member.Id);
+            }
+
+            merged.Add(CombineEpisodeRows(members));
+        }
+
+        return merged;
+    }
+
+    private static EditorNavItemDto CombineEpisodeRows(IReadOnlyList<EditorNavItemDto> members)
+    {
+        var ordered = members.OrderBy(member => member.Number).ToList();
+        var first = ordered[0];
+        var numbers = ordered.Select(member => member.Number!.Value).ToList();
+        var unbroken = numbers.Zip(numbers.Skip(1), (left, right) => right == left + 1).All(step => step);
+        var tail = unbroken
+            ? "-" + numbers[^1].ToString("00", CultureInfo.InvariantCulture)
+            : string.Concat(numbers.Skip(1).Select(number => "E" + number.ToString("00", CultureInfo.InvariantCulture)));
+        return new EditorNavItemDto
+        {
+            Id = first.Id,
+            Kind = first.Kind,
+            Code = first.Code is { } code ? code + tail : null,
+            Number = first.Number,
+            Title = CombinedEpisodeFiles.TitleText(ordered.Select(member => member.Title)),
+            StillUrl = first.StillUrl,
+            State = first.State,
+            DurationSeconds = first.DurationSeconds,
+            IsCurrent = ordered.Any(member => member.IsCurrent),
+            EpisodeCount = ordered.Count,
         };
     }
 
@@ -1204,6 +1342,16 @@ public sealed class EditorHeaderReadService(
 
     // The work's best stored cover: kept under the work or its edition, with the row's type naming that owner (the access check resolves a "Work"
     // row by its work and an "Edition" row by its edition, and nothing else); a picture the user chose first, then the preferred one.
+    /// <summary>The address of a work's own stored cover, the picture the header shows; null when it has none (the Match tab's fallback when the provider's picture cannot be shown).</summary>
+    internal static string? StoredCoverUrl(IDatabaseConnection db, Guid workId)
+    {
+        using var connection = db.CreateConnection();
+        var picked = FindStoredCover(connection, workId);
+        return picked is null
+            ? null
+            : ArtworkCanonicalHelper.StoredArtworkUrl(new EntityAsset { Id = picked.AssetId, LocalImagePath = picked.LocalImagePath ?? string.Empty });
+    }
+
     private static CoverRow? FindStoredCover(System.Data.IDbConnection connection, Guid workId) => connection.QueryFirstOrDefault<CoverRow>("""
         SELECT ea.id AS AssetId, ea.primary_hex AS PrimaryHex, ea.secondary_hex AS SecondaryHex, ea.accent_hex AS AccentHex,
                ea.local_image_path AS LocalImagePath

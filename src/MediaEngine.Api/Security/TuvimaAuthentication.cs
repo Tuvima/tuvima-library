@@ -66,8 +66,7 @@ public sealed class TuvimaAuthenticationHandler(
     IFirstPartyIdentityService identity,
     ClientAuthorizationService clientAuthorization,
     IApplicationRepository applications,
-    IConfigurationLoader configurationLoader,
-    IWebHostEnvironment environment)
+    IOutsideAccessPolicy? outsideAccess = null)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -79,7 +78,19 @@ public sealed class TuvimaAuthenticationHandler(
             && Request.Headers.Authorization.ToString() is { } authorization
             && authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
+            // A paired app is turned away from outside while away-from-home access is off (spec remote-access D6). Its tokens are not
+            // revoked: the same token keeps working at home, and again when outside access is switched back on.
+            if (RequestIngress.DeviceRefusedWhileOutsideAccessOff(Context, outsideAccess))
+            {
+                return AuthenticateResult.Fail("Away-from-home access is off.");
+            }
+
             var rawToken = authorization["Bearer ".Length..].Trim();
+            if (RequestIngress.HomeOnlyTokenRefused(Context, rawToken))
+            {
+                return AuthenticateResult.Fail("This device can only be used on the home network.");
+            }
+
             var client = await clientAuthorization.ValidateAccessTokenAsync(rawToken, Context.RequestAborted).ConfigureAwait(false);
             if (client is null)
             {
@@ -136,11 +147,8 @@ public sealed class TuvimaAuthenticationHandler(
             if (Request.Headers.TryGetValue(TuvimaAuthDefaults.SessionHeader, out var sessionValues)
                 && !string.IsNullOrWhiteSpace(sessionValues.ToString()))
             {
-                // The Dashboard says where the visitor is when it knows; the place is recorded but no longer restricts access.
-                var claimedIngress = Request.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
-                    && !string.IsNullOrWhiteSpace(ingressValues.ToString())
-                    ? ClientIngress.Parse(ingressValues.ToString())
-                    : null;
+                // The Dashboard says where the visitor is; a no-password account is only valid on this computer or the home network.
+                var claimedIngress = RequestIngress.CurrentOrNull(Request);
                 session = await identity.ValidateSessionAsync(sessionValues.ToString(), true, Context.RequestAborted, claimedIngress).ConfigureAwait(false);
                 if (session is null)
                 {
@@ -175,16 +183,7 @@ public sealed class TuvimaAuthenticationHandler(
             return Success(claims);
         }
 
-        var auth = configurationLoader.LoadCore().Auth;
-        if (environment.IsDevelopment() && auth.LocalhostBypass && IsLoopback(Context.Connection.RemoteIpAddress))
-        {
-            return Success([
-                new Claim(ClaimTypes.NameIdentifier, "development:localhost"),
-                new Claim(ClaimTypes.Name, "Development localhost"),
-                new Claim(TuvimaClaimTypes.PrincipalKind, Domain.Authorization.PrincipalKind.HostRecovery.ToString()),
-            ]);
-        }
-
+        // No credential, no identity.
         return AuthenticateResult.NoResult();
     }
 
@@ -219,7 +218,4 @@ public sealed class TuvimaAuthenticationHandler(
             claims.Add(new Claim(TuvimaClaimTypes.ProfilePending, "true"));
         }
     }
-
-    private static bool IsLoopback(System.Net.IPAddress? address) =>
-        address is not null && System.Net.IPAddress.IsLoopback(address);
 }

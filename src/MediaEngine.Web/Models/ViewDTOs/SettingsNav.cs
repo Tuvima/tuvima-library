@@ -322,29 +322,29 @@ public static class SettingsNav
         new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security & Devices", false, null, "sqlite", Status: SettingsStatusKind.Live),
 
         // Library: the media and how it is matched and played. Libraries, Activity, Needs Review, Matching and Rules are the five tabs of one page.
-        new(SettingsSection.Libraries, "library", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Review, "library", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Providers, "library", "matching", AppMaterialIcons.Outlined.AccountTree, "Matching", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.LibraryRules, "library", "rules", AppMaterialIcons.Outlined.Tune, "Rules", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.Playback, "library", "playback", AppMaterialIcons.Outlined.Stream, "Playback", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Libraries, "library", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, Status: SettingsStatusKind.Live),
+        new(SettingsSection.Review, "library", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", "mixed", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Providers, "library", "matching", AppMaterialIcons.Outlined.AccountTree, "Matching", true, null, Status: SettingsStatusKind.Live),
+        new(SettingsSection.LibraryRules, "library", "rules", AppMaterialIcons.Outlined.Tune, "Rules", true, null, Status: SettingsStatusKind.Live),
+        new(SettingsSection.Playback, "library", "playback", AppMaterialIcons.Outlined.Stream, "Playback", true, null, Status: SettingsStatusKind.Live),
 
         // Server: this machine and who may reach it. Retired addresses are not forwarded (settings-and-setup-simplified D19).
-        new(SettingsSection.General, "server", "general", AppMaterialIcons.Outlined.Settings, "General", true, null, "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Access, "server", "access", AppMaterialIcons.Outlined.AdminPanelSettings, "Users & Households", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Network, "server", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Tools, "server", "tools", AppMaterialIcons.Outlined.Build, "Tools", true, null, "runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.LocalAi, "server", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Plugins, "server", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Integrations, "server", "integrations", AppMaterialIcons.Outlined.Link, "Integrations", true, null, "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Backups, "server", "backups", AppMaterialIcons.Outlined.Backup, "Backups", true, null, Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.AdminOverview, "server", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.General, "server", "general", AppMaterialIcons.Outlined.Settings, "General", true, null, "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Access, "server", "access", AppMaterialIcons.Outlined.AdminPanelSettings, "Users & Households", true, null, Status: SettingsStatusKind.Live),
+        new(SettingsSection.Network, "server", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, "json+runtime", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Tools, "server", "tools", AppMaterialIcons.Outlined.Build, "Tools", true, null, "runtime", Status: SettingsStatusKind.Live),
+        new(SettingsSection.LocalAi, "server", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, Status: SettingsStatusKind.Live),
+        new(SettingsSection.Plugins, "server", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, "sqlite", Status: SettingsStatusKind.Partial),
+        new(SettingsSection.Integrations, "server", "integrations", AppMaterialIcons.Outlined.Link, "Integrations", true, null, "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Backups, "server", "backups", AppMaterialIcons.Outlined.Backup, "Backups", true, null, Status: SettingsStatusKind.Live),
+        new(SettingsSection.AdminOverview, "server", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, "json+sqlite", Status: SettingsStatusKind.Live),
 
         // Developer Tools opens on the Provider Tester, so that page owns the "developer" address.
         // Enrichment Tester and Development data are its other tabs; they are offered only when the running Engine is a development
         // build (see DevelopmentToolsState). The Enrichment Tester is temporary: it is removed at beta.
-        new(SettingsSection.ProviderTester, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Provider Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.EnrichmentTester, "developer", "enrichment-tester", AppMaterialIcons.Outlined.Science, "Enrichment Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.DevHarness, "developer", "development-data", AppMaterialIcons.Outlined.Inventory2, "Development data", true, null, "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.ProviderTester, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Provider Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.EnrichmentTester, "developer", "enrichment-tester", AppMaterialIcons.Outlined.Science, "Enrichment Tester", true, null, "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.DevHarness, "developer", "development-data", AppMaterialIcons.Outlined.Inventory2, "Development data", true, null, "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.Full),
     ];
 
     /// <summary>
@@ -363,7 +363,6 @@ public static class SettingsNav
                 Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
                 Tab("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
                 Tab("Linked accounts", AppMaterialIcons.Outlined.Link, SettingsSection.Overview, AccountsSubsection),
-                Tab("Import", AppMaterialIcons.Outlined.UploadFile, SettingsSection.Overview, ImportSubsection),
             ]),
             Page("Manage Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
             Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
@@ -391,7 +390,7 @@ public static class SettingsNav
         [
             Page("General", AppMaterialIcons.Outlined.Settings, SettingsSection.General,
             [
-                Tab("General", AppMaterialIcons.Outlined.Settings, SettingsSection.General),
+                Tab("Name and address", AppMaterialIcons.Outlined.Settings, SettingsSection.General),
                 Tab("Notifications", AppMaterialIcons.Outlined.Mail, SettingsSection.General, NotificationsSubsection),
                 Tab("Library activity", AppMaterialIcons.Outlined.History, SettingsSection.General, LibraryActivitySubsection),
                 Tab("Playing now", AppMaterialIcons.Outlined.PlayCircle, SettingsSection.General, PlayingNowSubsection),
@@ -411,15 +410,14 @@ public static class SettingsNav
             Page("Tools", AppMaterialIcons.Outlined.Build, SettingsSection.Tools),
             Page("Local AI", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi,
             [
-                Tab("Status", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, "status"),
-                Tab("Models", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
+                Tab("Status and models", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, "status"),
                 AdvancedTab(SettingsSection.LocalAi),
             ]),
             Page("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins),
             Page("Integrations", AppMaterialIcons.Outlined.Link, SettingsSection.Integrations),
             Page("Backups", AppMaterialIcons.Outlined.Backup, SettingsSection.Backups,
             [
-                Tab("Backups", AppMaterialIcons.Outlined.Backup, SettingsSection.Backups),
+                Tab("Back up and restore", AppMaterialIcons.Outlined.Backup, SettingsSection.Backups),
                 Tab("Destinations", AppMaterialIcons.Outlined.Storage, SettingsSection.Backups, DestinationsSubsection),
                 AdvancedTab(SettingsSection.Backups),
             ]),
@@ -484,8 +482,7 @@ public static class SettingsNav
             [SettingsSection.LibraryRules] = [],
             [SettingsSection.LocalAi] =
             [
-                new("status", "Status", AppMaterialIcons.Outlined.Memory),
-                new("models", "Models", AppMaterialIcons.Outlined.Storage),
+                new("status", "Status and models", AppMaterialIcons.Outlined.Memory),
                 new(AdvancedSubsection, "Advanced", AppMaterialIcons.Outlined.Settings),
             ],
             [SettingsSection.Plugins] = [],
@@ -650,10 +647,10 @@ public static class SettingsNav
 
     /// <summary>
     /// Sub-pages that have their own route but no tab, because a link on their page's main tab opens them. They sit beneath
-    /// that tab in the breadcrumb. None today. Slugs are in their normalised form.
+    /// that tab in the breadcrumb. Import opens from the Import button on Profile &gt; Overview. Slugs are in their normalised form.
     /// </summary>
     public static readonly IReadOnlySet<(SettingsSection Section, string Subsection)> OffMenuSubsections =
-        new HashSet<(SettingsSection, string)>();
+        new HashSet<(SettingsSection, string)> { (SettingsSection.Overview, ImportSubsection) };
 
     public static IReadOnlyList<SettingsItemDef> FilteredItems(SettingsGroupDef group, bool administrationAllowed)
     {
@@ -674,45 +671,12 @@ public static class SettingsNav
     public static bool IsVisibleOnMobile(SettingsSection section) =>
         GetMobileAvailability(section) != SettingsMobileAvailability.DesktopOnly;
 
-    public static bool IsMobileRouteAvailable(SettingsSection section, string? subsection = null, string? detail = null)
-    {
-        if (!IsVisibleOnMobile(section))
-        {
-            return false;
-        }
-
-        var normalized = subsection?.Trim().ToLowerInvariant() ?? string.Empty;
-
-        // Libraries has levels of its own (group and type pages); a phone reads them, it cannot change folders there.
-        if (section == SettingsSection.Libraries)
-        {
-            return string.IsNullOrWhiteSpace(normalized) ? string.IsNullOrWhiteSpace(detail) : IsLibraryRouteSegment(normalized);
-        }
-
-        // A person's Preferences tab (Watching, Listening, Reading, Home) is how a phone changes those settings.
-        if (section == SettingsSection.Profiles && Guid.TryParse(normalized, out _)
-            && string.Equals(detail?.Trim(), "preferences", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(detail))
-        {
-            return false;
-        }
-
-        return section switch
-        {
-            SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || Guid.TryParse(normalized, out _),
-            SettingsSection.Network => normalized is "" or HomeNetworkSubsection,
-            SettingsSection.Access => normalized is "" or "users" or AdvancedSubsection or HouseholdsSubsection,
-            // The Logs page (technical log, retention) is a desktop and tablet page; a phone keeps the System summary.
-            SettingsSection.AdminOverview or SettingsSection.Playback or SettingsSection.LocalAi or SettingsSection.Plugins
-                or SettingsSection.Providers or SettingsSection.Backups =>
-                string.IsNullOrWhiteSpace(normalized),
-            _ => true,
-        };
-    }
+    /// <summary>
+    /// Every page of a Settings section except Developer Tools works on a phone (look-pass-v3-2 D3): the same pages, tabs and
+    /// actions as a computer, laid out as cards and sheets. Only the developer pages stay on larger screens.
+    /// </summary>
+    public static bool IsMobileRouteAvailable(SettingsSection section, string? subsection = null, string? detail = null) =>
+        IsVisibleOnMobile(section);
 
     /// <summary>
     /// The first address segment under /settings/libraries that names a level of the Libraries screen: a library's own Id (its page),

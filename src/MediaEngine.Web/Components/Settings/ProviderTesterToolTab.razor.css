@@ -16,3 +16,18 @@
         padding-left: 75px;
         border-top: 1px solid var(--tl-divider);
     }
+    /* Cover (60 px) plus gap: the detail text lines up under the title on wider screens. */
+    .pt-detail-indent {
+        padding-left: 75px;
+    }
+
+/* Phones (Settings alignment D13): results and their details use the full card width; the main action is full width and 48 px tall. */
+:root[data-form-factor="phone"] .pt-detail-indent,
+:root[data-form-factor="phone"] .pt-detail-panel {
+    padding-left: 16px;
+}
+
+:root[data-form-factor="phone"] .pt-result-row {
+    min-height: var(--tl-touch-target-min);
+}
+

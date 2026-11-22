@@ -99,10 +99,9 @@ public sealed class ResponsivePwaGuardrailTests
         Assert.Contains("height: var(--tl-phone-dock-height);", dock, StringComparison.Ordinal);
         Assert.Contains("grid-row: 4;", layout, StringComparison.Ordinal);
 
-        // The Home hero measures from the whole chrome and has one reserve variable for the bottom bar.
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(hero, @"--phone-hero-bottom-bar:\s*[^;]+;"));
+        // The Home hero starts at the top of the screen under the whole chrome and has one height variable (issue 1180).
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(hero, @"--phone-hero-card-height:\s*[^;]+;"));
         Assert.Contains("var(--app-topbar-height, 65px)", hero, StringComparison.Ordinal);
-        Assert.Contains("var(--phone-hero-bottom-bar)", hero, StringComparison.Ordinal);
 
         // The menu frame respects reduced motion: it only animates for people who have not asked for less.
         var menuMotion = global[global.IndexOf(".phone-nav-menu-dialog[open]", StringComparison.Ordinal)..];

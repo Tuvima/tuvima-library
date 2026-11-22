@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Logging;
@@ -26,7 +27,8 @@ public sealed record ArtworkPickerPicture(
     string? ContentType = null,
     string Source = "Saved",
     string? FileName = null,
-    bool InOwnFolder = false);
+    bool InOwnFolder = false,
+    string? SourceUrl = null);
 
 /// <summary>One picture to make Preferred: the item, the slot, and the picture (an asset id, or <see cref="EditSessionArtworkTargets.None"/>).</summary>
 public sealed record ArtworkChoice(Guid EntityId, string Slot, string TargetId);
@@ -118,11 +120,27 @@ public static class ArtworkPickerRules
         || sourceProvider.Trim().ToLowerInvariant() is "embedded" or "folder" or "library_scanner"
         || sourceProvider.StartsWith("local", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>What a picture the Engine made from a frame of the video is called in the source line ("From video frame").</summary>
+    public const string VideoFrameSourceLabel = "From video frame";
+
+    /// <summary>
+    /// Whether the tab for this slot has the "Frames from the video" strip: the cover and background of a video or a folder of videos
+    /// and an episode's still. A logo is never a frame, and a film, book or album has no frames to offer.
+    /// </summary>
+    public static bool OffersFrames(string? mediaType, string? slot)
+    {
+        var key = slot?.Trim().ToLowerInvariant();
+        return (key is "coverart" or "background" && VideoFolderWording.IsVideoItemMediaType(mediaType))
+            || (key is "episodestill" && string.Equals(mediaType, "TV", StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>The real shape of a role's pictures, so thumbnails and the preview are never cropped to something else.</summary>
     public static ArtworkRoleShape ShapeFor(string? slot, string? mediaType) => slot?.Trim().ToLowerInvariant() switch
     {
         "background" or "seasonthumb" or "episodestill" => ArtworkRoleShape.Landscape,
         "logo" => ArtworkRoleShape.Wide,
+        // A video's cover is a frame of the video, so it keeps the video's own shape.
+        "coverart" when VideoFolderWording.IsVideoItemMediaType(mediaType) => ArtworkRoleShape.Landscape,
         "coverart" when mediaType is not null
             && (mediaType.Contains("music", StringComparison.OrdinalIgnoreCase) || mediaType.Contains("audio", StringComparison.OrdinalIgnoreCase)) => ArtworkRoleShape.Square,
         _ => ArtworkRoleShape.Portrait,
@@ -250,6 +268,15 @@ public sealed class ArtworkPickerSession
     /// <summary>Raised each time a picture change went through, so the editor can refresh the page behind it when the window closes.</summary>
     public event Action? Applied;
 
+    private readonly HashSet<Guid> _changedOwners = [];
+    private readonly Dictionary<Guid, string> _appliedCovers = [];
+
+    /// <summary>
+    /// The cover each owner has now, for an owner whose picture was changed while the editor was open (issue 1125): the header shows it at once
+    /// instead of the one it was opened with. An owner nobody changed is not listed.
+    /// </summary>
+    public IReadOnlyDictionary<Guid, string> AppliedCovers => _appliedCovers;
+
     public IReadOnlyList<ArtworkPickerTab> Tabs => ArtworkPickerRules.TabsFor(_fields.ArtworkSlots, _fields.MediaType);
 
     public string? ActiveSlot { get; private set; }
@@ -330,6 +357,28 @@ public sealed class ArtworkPickerSession
 
     public ProviderArtworkDiscoveryDto? Provider { get; private set; }
 
+    private VideoFramesDto? _frames;
+    private (Guid Entity, string Scope)? _framesFor;
+
+    /// <summary>The frames taken from the item's video, for the strip under the preview; empty for a slot or an item with none.</summary>
+    public IReadOnlyList<VideoFrameDto> Frames =>
+        ActiveSlot is { } slot && ArtworkPickerRules.OffersFrames(_fields.MediaType, slot) && _frames is { } frames ? frames.Items : [];
+
+    /// <summary>The frames are being taken from the video (the first read of a video can take a few seconds).</summary>
+    public bool FramesLoading { get; private set; }
+
+    /// <summary>Why the strip is empty, when the Engine said so (no video file, no FFmpeg, every frame dark); null otherwise.</summary>
+    public string? FramesMessage => ActiveSlot is { } slot && ArtworkPickerRules.OffersFrames(_fields.MediaType, slot) ? _frames?.Message : null;
+
+    /// <summary>Whether this tab has a "Frames from the video" strip to draw (its frames are loading or there are some).</summary>
+    public bool ShowsFrames => ActiveSlot is { } slot && ArtworkPickerRules.OffersFrames(_fields.MediaType, slot) && (FramesLoading || Frames.Count > 0);
+
+    /// <summary>Whether this frame is the picture in use for the open tab (the strip outlines it).</summary>
+    public bool IsFrameCurrent(VideoFrameDto frame) =>
+        ActiveSlot is { } slot
+        && PreferredVersion(slot) is { SourceUrl: { Length: > 0 } source }
+        && string.Equals(source, frame.SourceKey, StringComparison.Ordinal);
+
     /// <summary>Opens the picker on a slot (the poster or cover tab when the slot is not one this item has).</summary>
     public async Task OpenAsync(string? slot)
     {
@@ -351,8 +400,60 @@ public sealed class ArtworkPickerSession
         Changed?.Invoke();
         if (slot is not null)
         {
+            // The frames are read first: reading them also gives a video with no cover its best frame as the default cover.
+            await LoadFramesAsync();
             await LoadSavedAsync();
         }
+    }
+
+    /// <summary>
+    /// Reads the frames of the item's video once per item (the Engine caches them, and every tab with a strip shows the same ones). Nothing
+    /// is asked for a tab that has no strip, so a film or a book never makes the Engine open its file.
+    /// </summary>
+    public async Task LoadFramesAsync()
+    {
+        var slot = ActiveSlot;
+        (Guid Entity, string Scope) key = (_fields.EditorEntityId, _fields.ScopeId);
+        if (slot is null || !ArtworkPickerRules.OffersFrames(_fields.MediaType, slot) || (_framesFor is { } loaded && loaded == key && _frames is not null))
+        {
+            return;
+        }
+
+        FramesLoading = true;
+        Changed?.Invoke();
+        try
+        {
+            _frames = await _api.GetVideoFramesAsync(key.Entity, key.Scope) ?? new VideoFramesDto([], "Frames from the video could not be loaded.");
+            _framesFor = key;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger?.LogWarning(ex, "The frames of the video for {Slot} could not be loaded", slot);
+            _frames = new VideoFramesDto([], "Frames from the video could not be loaded.");
+            _framesFor = null;
+        }
+        finally
+        {
+            FramesLoading = false;
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Choosing a frame saves it as a picture of the item and makes it the one in use at once, like an upload (no Undo, no Review line).</summary>
+    public Task<bool> ChooseFrameAsync(VideoFrameDto frame)
+    {
+        // The item, scope and role are fixed here, before anything is awaited (see ChooseProviderAsync).
+        var slot = ActiveSlot;
+        var entityId = _fields.ArtworkEntityId;
+        var editorEntity = _fields.EditorEntityId;
+        var scope = _fields.ScopeId;
+        if (slot is null || entityId == Guid.Empty || Busy || !ArtworkPickerRules.OffersFrames(_fields.MediaType, slot) || IsFrameCurrent(frame))
+        {
+            return Task.FromResult(false);
+        }
+
+        return RunChangeAsync(() => StoreAndApplyAsync(
+            entityId, slot, () => _api.UseVideoFrameAsync(editorEntity, scope, frame.Id, slot), "That frame could not be used."));
     }
 
     /// <summary>Closes the picker.</summary>
@@ -372,6 +473,8 @@ public sealed class ArtworkPickerSession
         ActiveSlot = null;
         Provider = null;
         Saved = [];
+        _frames = null;
+        _framesFor = null;
         Message = null;
         ClearFailure();
         await OpenAsync(slot);
@@ -410,7 +513,19 @@ public sealed class ArtworkPickerSession
             {
                 var versions = VersionsOf(workspace, tab.Slot);
                 _bySlot[tab.Slot] = versions;
-                _preview.SetCurrent(tab.Slot, versions.FirstOrDefault(picture => picture.IsCurrent)?.ContentUrl);
+                var currentUrl = versions.FirstOrDefault(picture => picture.IsCurrent)?.ContentUrl;
+                _preview.SetCurrent(tab.Slot, currentUrl);
+                if (_changedOwners.Contains(_fields.ArtworkEntityId) && ArtworkPickerRules.RoleFor(tab.Slot) == "Primary")
+                {
+                    if (string.IsNullOrWhiteSpace(currentUrl))
+                    {
+                        _appliedCovers.Remove(_fields.ArtworkEntityId);
+                    }
+                    else
+                    {
+                        _appliedCovers[_fields.ArtworkEntityId] = currentUrl;
+                    }
+                }
             }
 
             Saved = VersionsOf(workspace, slot);
@@ -454,7 +569,8 @@ public sealed class ArtworkPickerSession
                 variant.ContentType,
                 SourceOf(variant),
                 variant.FileName,
-                ArtworkPickerRules.IsInOwnFolder(variant.SourceProvider)))
+                ArtworkPickerRules.IsInOwnFolder(variant.SourceProvider),
+                variant.SourceUrl))
             .ToList();
     }
 
@@ -498,6 +614,7 @@ public sealed class ArtworkPickerSession
                 return false;
             }
 
+            _changedOwners.Add(_fields.ArtworkEntityId);
             Applied?.Invoke();
             await LoadSavedAsync();
             return true;
@@ -835,6 +952,7 @@ public sealed class ArtworkPickerSession
             return FailChange(FailureText(outcome));
         }
 
+        _changedOwners.Add(entityId);
         Applied?.Invoke();
         await LoadSavedAsync();
         return true;
@@ -911,7 +1029,9 @@ public sealed class ArtworkPickerSession
     private static string SourceOf(ArtworkEntityVariantDto variant) =>
         string.Equals(variant.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase)
             ? "Uploaded"
-            : string.IsNullOrWhiteSpace(variant.SourceProvider) ? "Saved" : variant.SourceProvider!;
+            : string.Equals(variant.SourceProvider, VideoFrameSources.GeneratedProvider, StringComparison.OrdinalIgnoreCase)
+                ? ArtworkPickerRules.VideoFrameSourceLabel
+                : string.IsNullOrWhiteSpace(variant.SourceProvider) ? "Saved" : variant.SourceProvider!;
 
     private static string Caption(ArtworkEntityVariantDto variant)
     {

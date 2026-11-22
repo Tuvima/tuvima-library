@@ -35,4 +35,10 @@ public partial interface IEngineApiClient
     Task<ArtworkAssetDto?> AddArtworkFromUrlAsync(string entityType, Guid entityId, ArtworkFromUrlRequest request, CancellationToken ct = default);
     Task<ArtworkAssetDto?> UploadCanonicalArtworkAsync(string entityType, Guid entityId, string role, Stream stream, string fileName, string? entityLabel = null, string? mediaType = null, string? year = null, string? sourceAssetType = null, bool preferred = true, CancellationToken ct = default);
     Task<bool> RemoveArtworkLinkAsync(Guid linkId, CancellationToken ct = default);
+
+    /// <summary>The frames taken from the item's video, for the Artwork tab's "Frames from the video" strip; null when the Engine did not answer.</summary>
+    Task<VideoFramesDto?> GetVideoFramesAsync(Guid entityId, string scope, CancellationToken ct = default);
+
+    /// <summary>Saves one frame of the item's video as an unchosen picture of the item for a slot; the picker then chooses it. Null when it could not be saved.</summary>
+    Task<ArtworkAssetDto?> UseVideoFrameAsync(Guid entityId, string scope, string frameId, string slot, CancellationToken ct = default);
 }

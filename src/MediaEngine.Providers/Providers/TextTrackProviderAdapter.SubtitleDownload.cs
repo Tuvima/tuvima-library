@@ -161,7 +161,10 @@ public sealed partial class TextTrackProviderAdapter
         if (download.PathPrefix is not null && download.RelativeBase is not null
             && value.StartsWith(download.PathPrefix, StringComparison.Ordinal))
         {
-            value = download.RelativeBase + value;
+            // The source adds the account's own key to the end of its file links; the file is fetched without it, so the key is never
+            // sent on, stored or logged (a link that still carries a query after this is refused below).
+            var query = value.IndexOf('?', StringComparison.Ordinal);
+            value = download.RelativeBase + (query >= 0 ? value[..query] : value);
         }
 
         return Uri.TryCreate(value, UriKind.Absolute, out uri!) && uri.Scheme == Uri.UriSchemeHttps

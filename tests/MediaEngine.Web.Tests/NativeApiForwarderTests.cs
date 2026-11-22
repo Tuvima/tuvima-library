@@ -317,6 +317,36 @@ public sealed class NativeApiForwarderTests
         Assert.Equal(expected, NativeApiForwardPolicy.Evaluate(method, path, bearer));
 
     [Fact]
+    public async Task HomeOnlyTokens_WorkFromTheHomeNetwork_ButNeverWhenForwardedFromOutside()
+    {
+        var engineHits = 0;
+        await using var engine = await TestApplication.StartEngineAsync(engineHits: () => Interlocked.Increment(ref engineHits));
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
+        using var client = new HttpClient { BaseAddress = dashboard.Address };
+
+        using var home = Bearer(HttpMethod.Get, "/api/v1/display/home");
+        home.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "lan.token");
+        using var homeResponse = await client.SendAsync(home);
+
+        using var outside = Bearer(HttpMethod.Get, "/api/v1/display/home");
+        outside.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "lan.token");
+        outside.Headers.Add("X-Forwarded-For", "203.0.113.9");
+        using var outsideResponse = await client.SendAsync(outside);
+
+        using var refresh = new HttpRequestMessage(HttpMethod.Post, "/api/v1/oauth/token")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["grant_type"] = "refresh_token", ["refresh_token"] = "lan.refresh" }),
+        };
+        refresh.Headers.Add("X-Forwarded-For", "203.0.113.9");
+        using var refreshResponse = await client.SendAsync(refresh);
+
+        Assert.Equal(HttpStatusCode.OK, homeResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, outsideResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
+        Assert.Equal(1, engineHits);
+    }
+
+    [Fact]
     public async Task AppDoor_IsOpenOnAFreshInstall_DiscoveryAnswersAndTheApiIsNotRefused()
     {
         var engineHits = 0;
@@ -649,6 +679,7 @@ public sealed class NativeApiForwarderTests
             builder.WebHost.UseUrls("http://127.0.0.1:0");
             builder.Services.AddAntiforgery();
             builder.Services.AddSingleton<NativeAppPairingThrottle>();
+            builder.Services.AddSingleton(new MediaEngine.Web.Services.Configuration.IngressClassifier(null, []));
 
             builder.Services.AddClientApiProxyClient(engine!);
             builder.Services.AddHttpClient("EngineIdentity", client => client.BaseAddress = engine);

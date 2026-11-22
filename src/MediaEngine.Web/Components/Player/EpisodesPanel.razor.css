@@ -16,7 +16,7 @@
 
 .eps__chip {
     background: var(--playback-state-selected);
-    border-radius: 4px;
+    border-radius: var(--tl-radius-pill);
     color: var(--playback-accent-hover);
     flex: none;
     font: 600 11px/1.45 var(--font-ui);

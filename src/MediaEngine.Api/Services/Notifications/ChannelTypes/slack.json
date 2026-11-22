@@ -1,0 +1,30 @@
+{
+  "id": "slack",
+  "name": "Slack or Teams",
+  "order": 60,
+  "cost": "Free",
+  "effort": "Paste a link",
+  "summary": "Free · paste a link",
+  "help": "Slack: create an Incoming Webhook and copy its URL. Teams: add an Incoming Webhook to a channel and copy its URL.",
+  "what_leaves": "The alert text goes to Slack or Microsoft, and everyone who can read that channel sees it.",
+  "fields": [
+    {
+      "key": "url",
+      "label": "Webhook link",
+      "kind": "url",
+      "secret": true,
+      "required": true,
+      "placeholder": "https://hooks.slack.com/services/…",
+      "host_suffixes": [
+        "hooks.slack.com",
+        "webhook.office.com"
+      ]
+    }
+  ],
+  "request": {
+    "method": "POST",
+    "url": "{url}",
+    "content_type": "application/json",
+    "body": "{\"text\":\"*{title}*\\n{body}\"}"
+  }
+}

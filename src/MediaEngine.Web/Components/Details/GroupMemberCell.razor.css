@@ -1,0 +1,95 @@
+/* One member of the numbered cover grid. The cover keeps its own shape (portrait, square, wide) at the cell's width and is never cropped; the
+   number sits on its top-left corner. A title not in the library is dimmed with a dashed outline. */
+.group-member {
+    min-width: 0;
+}
+
+.group-member__link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+a.group-member__link:hover .group-member__title {
+    color: var(--tl-text-primary);
+}
+
+.group-member__art {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border-radius: var(--tl-radius-xs);
+    background: var(--tl-bg-surface-raised);
+    aspect-ratio: 2 / 3;
+}
+
+.group-member--square .group-member__art {
+    aspect-ratio: 1;
+}
+
+.group-member--wide .group-member__art {
+    aspect-ratio: 16 / 9;
+}
+
+.group-member__art img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.group-member__placeholder {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    color: var(--tl-text-muted);
+}
+
+/* The number on the cover. */
+.group-member__number {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 1px 8px;
+    border-radius: 0 0 6px 0;
+    background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent);
+    color: var(--tl-text-primary);
+    font-size: var(--tl-type-caption-size);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+}
+
+.group-member__title {
+    display: block;
+    margin-top: 0.375rem;
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-caption-size);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.group-member__detail {
+    display: block;
+    margin-top: 0.125rem;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
+}
+
+/* Not in the library: the cover is dimmed and outlined with a dashed line; the title stays readable. */
+.group-member.is-missing .group-member__art {
+    background: transparent;
+    outline: 1px dashed var(--tl-border-strong, var(--tl-border-default));
+    outline-offset: -1px;
+}
+
+.group-member.is-missing .group-member__placeholder,
+.group-member.is-missing .group-member__number {
+    opacity: 0.35;
+}
+
+.group-member.is-missing .group-member__title {
+    color: var(--tl-text-muted);
+}

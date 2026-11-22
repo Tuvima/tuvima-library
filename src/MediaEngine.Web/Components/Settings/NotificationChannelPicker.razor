@@ -1,0 +1,58 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Notifications
+@inject IStringLocalizer<SharedStrings> L
+@* Add a channel: one tile per kind of channel, each saying in words what it costs and what it needs (notifications and delivery
+   spec WP2, mock B). Less common kinds sit behind "More" so a phone shows only the first few. *@
+<div class="notification-picker" data-testid="notification-channel-picker">
+    <div class="notification-picker__head">
+        <strong>@L["NotificationChannelPicker_AddAChannel"]</strong>
+        <span>@L["NotificationChannelPicker_PickWhereMessagesShouldGo"]</span>
+    </div>
+    <div class="notification-picker__tiles">
+        <div class="notification-picker__tile">
+            <AppNativeButton Type="button" InlineStyle="@TileButton" OnClick="@(() => { _emailNote = !_emailNote; })" data-channel-type="email">
+                <strong>@L["NotificationChannelPicker_Email"]</strong>
+                <span>@L["NotificationChannelPicker_EmailSummary"]</span>
+            </AppNativeButton>
+        </div>
+        @foreach (var type in Visible)
+        {
+            <div class="notification-picker__tile">
+                <AppNativeButton Type="button" InlineStyle="@TileButton" OnClick="@(() => OnPick.InvokeAsync(type))" data-channel-type="@type.Id">
+                    <strong>@type.Name</strong>
+                    <span>@type.Summary</span>
+                </AppNativeButton>
+            </div>
+        }
+    </div>
+    @if (_emailNote)
+    {
+        <AppQuietNote data-testid="notification-picker-email-note">@L["NotificationChannelPicker_EmailIsSetUpUnderEmail"]</AppQuietNote>
+    }
+    @if (HasMore)
+    {
+        <AppButton Label="@(_showMore ? L["NotificationChannelPicker_Fewer"].Value : L["NotificationChannelPicker_More"].Value)" Size="AppControlSize.Compact"
+                   OnClick="@(() => { _showMore = !_showMore; })" data-testid="notification-picker-more" />
+    }
+    <div class="notification-picker__foot">
+        <AppButton Label="@L["Search_Cancel"].Value" Size="AppControlSize.Compact" OnClick="OnCancel" />
+    </div>
+</div>
+
+@code {
+    private const int FirstTiles = 4;
+
+    // The tile's look (border, fill, padding) is on the wrapper this component owns; the button inside only fills it and shows no chrome of its own.
+    private const string TileButton = "display:grid;gap:4px;width:100%;min-height:44px;padding:0;text-align:left;background:none;border:0;color:inherit;font:inherit;cursor:pointer;";
+
+    private bool _showMore;
+    private bool _emailNote;
+
+    [Parameter] public IReadOnlyList<NotificationChannelTypeDto> Types { get; set; } = [];
+    [Parameter] public EventCallback<NotificationChannelTypeDto> OnPick { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private IEnumerable<NotificationChannelTypeDto> Main => Types.Where(type => !type.Advanced);
+    private bool HasMore => Types.Any(type => type.Advanced) || Main.Count() > FirstTiles;
+    private IEnumerable<NotificationChannelTypeDto> Visible => _showMore ? Types : Main.Take(FirstTiles);
+}

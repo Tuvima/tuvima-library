@@ -220,6 +220,91 @@
             "year_path": "year",
             "year": "{year}"
           }
+        },
+        {
+          "when_media_type": "TV",
+          "needs": [
+            "search_text",
+            "season_number",
+            "episode_number"
+          ],
+          "path": "/api/v2/subtitles/search",
+          "query": [
+            [
+              "film_name",
+              "{search_text}"
+            ],
+            [
+              "type",
+              "tv"
+            ],
+            [
+              "season",
+              "{season_number}"
+            ],
+            [
+              "episode",
+              "{episode_number}"
+            ],
+            [
+              "languages",
+              "{language}"
+            ],
+            [
+              "unpack",
+              "1"
+            ]
+          ]
+        },
+        {
+          "when_media_type": "TV",
+          "needs": [
+            "search_text"
+          ],
+          "path": "/api/v2/subtitles/search",
+          "query": [
+            [
+              "film_name",
+              "{search_text}"
+            ],
+            [
+              "type",
+              "tv"
+            ],
+            [
+              "languages",
+              "{language}"
+            ],
+            [
+              "unpack",
+              "1"
+            ]
+          ]
+        },
+        {
+          "when_media_type": "Movies",
+          "needs": [
+            "search_text"
+          ],
+          "path": "/api/v2/subtitles/search",
+          "query": [
+            [
+              "film_name",
+              "{search_text}"
+            ],
+            [
+              "type",
+              "movie"
+            ],
+            [
+              "languages",
+              "{language}"
+            ],
+            [
+              "unpack",
+              "1"
+            ]
+          ]
         }
       ],
       "empty_search_minutes": 15,
@@ -231,6 +316,9 @@
         "id_paths": [
           "n_id",
           "nId"
+        ],
+        "id_link_paths": [
+          "subtitlePage"
         ],
         "release_paths": [
           "release_name",

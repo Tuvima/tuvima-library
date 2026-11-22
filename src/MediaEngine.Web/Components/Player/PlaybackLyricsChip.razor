@@ -7,11 +7,16 @@
 @* The "Synced" or "Unsynced" chip beside the Lyrics title (unified player v2 D17; mockup screen 7). Nothing is drawn until there are lyrics to describe, nor while they are being looked up again. *@
 @if (Presenter.Lines.Count > 0 && !Presenter.Loading && !Presenter.Refreshing)
 {
-    <span class="@(Presenter.IsSynced ? "playback-lyrics-chip playback-lyrics-chip--synced" : "playback-lyrics-chip")" data-lyrics-chip="@(Presenter.IsSynced ? "synced" : "unsynced")">@(Presenter.IsSynced ? L["PlaybackLyrics_Synced"] : L["PlaybackLyrics_Unsynced"])</span>
+    <span class="@ChipClass" data-lyrics-chip="@(Presenter.IsSynced ? "synced" : "unsynced")">@(Presenter.IsSynced ? L["PlaybackLyrics_Synced"] : L["PlaybackLyrics_Unsynced"])</span>
 }
 
 @code {
     private bool _disposed;
+
+    /// <summary>True draws the larger chip the Now playing page uses beside its tabs (mockup screen 13); the lyrics panel's header keeps the small one.</summary>
+    [Parameter] public bool Large { get; set; }
+
+    private string ChipClass => string.Join(' ', new[] { "playback-lyrics-chip", Presenter.IsSynced ? "playback-lyrics-chip--synced" : null, Large ? "playback-lyrics-chip--large" : null }.Where(c => c is not null));
 
     protected override void OnInitialized() => Presenter.Changed += Changed;
 

@@ -1,0 +1,232 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Configuration
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Settings
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+
+@* Step 4 of the guided flow for "My own address" (spec remote-access D11, mock-ups 6b): four short screens, Address, Point it here,
+   Secure it and Check, each re-checking itself and ticking. The person types only the front name and the domain; the address is saved
+   when they leave the first screen. The route (tunnel, Caddy file or router door) decides which steps show. Library never buys a domain
+   or keeps registrar details, and installs nothing: it hands over text to copy and a file to download. *@
+<div class="ra-wizard" data-remote-screen="connect-own-address" data-remote-domain-screen="@_screen.ToString().ToLowerInvariant()">
+    <ol class="ra-wizard__stepper" aria-label="@L["RemoteAccessDomainWizard_Steps"].Value" data-remote-domain-stepper>
+        @foreach (var screen in Screens)
+        {
+            <li class="@PillClass(screen)" aria-current="@(screen == _screen ? "step" : null)" data-remote-domain-step="@screen.ToString().ToLowerInvariant()">@LabelFor(screen)</li>
+        }
+    </ol>
+
+    @switch (_screen)
+    {
+        case OwnDomainScreen.Address:
+            <RemoteAccessDomainAddress Owns="_owns" OwnsChosen="@(() => { _owns = true; })"
+                                       Front="@_front" FrontChanged="@(value => { _front = value ?? string.Empty; })"
+                                       Domain="@_domain" DomainChanged="@(value => { _domain = value ?? string.Empty; })"
+                                       Busy="_busy" ContinueRequested="SaveAddressAsync" BackRequested="BackRequested" />
+            break;
+        case OwnDomainScreen.Point:
+            <RemoteAccessDomainPoint Address="@Address" Route="_route" RouteChosen="ChooseRouteAsync" ProxyPort="@ProxyPort"
+                                     Result="Result" Checking="_checking" Busy="_busy"
+                                     TryRouterDoorRequested="TryRouterDoorAsync" CheckAgainRequested="CheckNowAsync"
+                                     ContinueRequested="@(() => GoAsync(OwnDomainScreen.Secure))"
+                                     BackRequested="@(() => GoAsync(OwnDomainScreen.Address))" />
+            break;
+        case OwnDomainScreen.Secure:
+            <RemoteAccessDomainSecure Result="Result" Route="_route" Checking="_checking" CheckAgainRequested="CheckNowAsync"
+                                      ContinueRequested="@(() => GoAsync(OwnDomainScreen.Check))"
+                                      BackRequested="@(() => GoAsync(OwnDomainScreen.Point))" />
+            break;
+        default:
+            <RemoteAccessDomainCheck Address="@Address" Result="Result" Checking="_checking" Fixing="_fixing" FixNote="@_fixNote"
+                                     FixRequested="FixAsync" CheckAgainRequested="CheckNowAsync" ContinueRequested="ContinueRequested"
+                                     BackRequested="@(() => GoAsync(OwnDomainScreen.Secure))" />
+            break;
+    }
+</div>
+
+@code {
+    private static readonly OwnDomainScreen[] Screens = [OwnDomainScreen.Address, OwnDomainScreen.Point, OwnDomainScreen.Secure, OwnDomainScreen.Check];
+
+    [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
+
+    /// <summary>The latest answer from the Engine's check, or null before the first one.</summary>
+    [Parameter] public RemoteCheckResultDto? Result { get; set; }
+
+    /// <summary>Saves the network settings (the Network page's own save).</summary>
+    [Parameter] public EventCallback SaveRequested { get; set; }
+    [Parameter] public EventCallback StatusRefreshRequested { get; set; }
+
+    /// <summary>Asks the Engine's check again, quietly; the new answer arrives through <see cref="Result"/>.</summary>
+    [Parameter] public EventCallback CheckAgainRequested { get; set; }
+
+    /// <summary>The person finished the Check screen: on to the test.</summary>
+    [Parameter] public EventCallback ContinueRequested { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+
+    private OwnDomainScreen _screen = OwnDomainScreen.Address;
+    private OwnDomainRoute? _route;
+    private bool _owns;
+    private string _front = OwnDomainAddress.SuggestedFrontName;
+    private string _domain = string.Empty;
+    private bool _busy;
+    private bool _checking;
+    private bool _fixing;
+    private string? _fixNote;
+
+    // The address the person built (or saved earlier); empty until both parts make a web address.
+    private string Address => OwnDomainAddress.Build(_front, _domain) ?? Settings.Remote.PublicHostname?.Trim() ?? string.Empty;
+
+    private int ProxyPort => Settings.Remote.ProxyPort ?? ProxyPortConfiguration.TailscalePresetPort;
+
+    protected override void OnInitialized()
+    {
+        // Coming back with an address already saved starts from it.
+        var (front, domain) = OwnDomainAddress.Split(Settings.Remote.PublicHostname);
+        if (domain.Length > 0)
+        {
+            _front = front;
+            _domain = domain;
+            _owns = true;
+        }
+
+        _route = Settings.Remote.ConnectionMode?.Trim().ToLowerInvariant() == "direct-only" && domain.Length > 0 ? OwnDomainRoute.RouterDoor : null;
+    }
+
+    private string PillClass(OwnDomainScreen screen) =>
+        screen == _screen ? "ra-wizard__pill is-current" : (int)screen < (int)_screen ? "ra-wizard__pill is-done" : "ra-wizard__pill";
+
+    private string LabelFor(OwnDomainScreen screen) => screen switch
+    {
+        OwnDomainScreen.Address => L["RemoteAccessDomainWizard_Address"].Value,
+        OwnDomainScreen.Point => L["RemoteAccessDomainWizard_Point"].Value,
+        OwnDomainScreen.Secure => L["RemoteAccessDomainWizard_Secure"].Value,
+        _ => L["RemoteAccessDomainWizard_Check"].Value,
+    };
+
+    // Leaving the first screen saves the address and the way in; every screen after it looks again on arrival so its ticks are current.
+    private async Task GoAsync(OwnDomainScreen screen)
+    {
+        _screen = screen;
+        _fixNote = null;
+        if (screen != OwnDomainScreen.Address)
+        {
+            await CheckNowAsync();
+        }
+    }
+
+    private async Task SaveAddressAsync()
+    {
+        if (OwnDomainAddress.Build(_front, _domain) is not { } address || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            Settings.Remote.PublicHostname = address;
+            var mode = Settings.Remote.ConnectionMode?.Trim().ToLowerInvariant();
+            if (mode is not ("custom" or "direct-only"))
+            {
+                Settings.Remote.ConnectionMode = "custom";
+                Settings.Remote.AutomaticRouterConfiguration = false;
+            }
+
+            await SaveRequested.InvokeAsync();
+            await StatusRefreshRequested.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        await GoAsync(OwnDomainScreen.Point);
+    }
+
+    // The tunnel and the Caddy file are the "custom" way in; the router door is "direct-only". Only a change of way is saved.
+    private async Task ChooseRouteAsync(OwnDomainRoute route)
+    {
+        _route = route;
+        var wanted = route == OwnDomainRoute.RouterDoor ? "direct-only" : "custom";
+        if (!string.Equals(Settings.Remote.ConnectionMode?.Trim(), wanted, StringComparison.OrdinalIgnoreCase))
+        {
+            Settings.Remote.ConnectionMode = wanted;
+            Settings.Remote.AutomaticRouterConfiguration = false;
+            await SaveRequested.InvokeAsync();
+            await StatusRefreshRequested.InvokeAsync();
+        }
+    }
+
+    // Library's own try at the router door: the automatic way on, with the usual secure port (443) for the proxy and the outside port.
+    private async Task TryRouterDoorAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            Settings.Remote.ConnectionMode = "direct-only";
+            Settings.Remote.AutomaticRouterConfiguration = true;
+            Settings.Remote.TlsTerminationPort ??= 443;
+            Settings.Remote.ExternalPort ??= 443;
+            await SaveRequested.InvokeAsync();
+            await StatusRefreshRequested.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        await CheckNowAsync();
+    }
+
+    private async Task CheckNowAsync()
+    {
+        _checking = true;
+        StateHasChanged();
+        try
+        {
+            await CheckAgainRequested.InvokeAsync();
+        }
+        finally
+        {
+            _checking = false;
+        }
+    }
+
+    // The one-click fix (spec D12). Only the trusted-proxy fix exists. The Engine saves the proxy port itself, so the page's copy of the
+    // settings takes it too, or the next save from this page would put it back to nothing.
+    private async Task FixAsync(string action)
+    {
+        if (_fixing || action != RemoteCheckFixActions.TrustProxy)
+        {
+            return;
+        }
+
+        _fixing = true;
+        try
+        {
+            var fixedResult = await ApiClient.TrustRemoteProxyAsync();
+            if (fixedResult is null)
+            {
+                _fixNote = L["RemoteAccessDomain_FixFailed"].Value;
+            }
+            else
+            {
+                Settings.Remote.ProxyPort = fixedResult.ProxyPort ?? Settings.Remote.ProxyPort;
+                _fixNote = fixedResult.RestartRequired ? L["RemoteAccessDomain_FixDoneRestart"].Value : L["RemoteAccessDomain_FixDone"].Value;
+            }
+        }
+        finally
+        {
+            _fixing = false;
+        }
+
+        await CheckNowAsync();
+    }
+}

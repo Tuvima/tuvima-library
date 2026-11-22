@@ -111,6 +111,21 @@ public interface IMediaAssetRepository
     /// </summary>
     Task<HashSet<string>> GetAllFilePathsAsync(CancellationToken ct = default);
 
+    /// <summary>The path of one normal file of each of these Works (Works with no file are left out). One lookup for pages that list many Works.</summary>
+    async Task<IReadOnlyDictionary<Guid, string>> GetFirstFilePathsByWorkIdsAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default)
+    {
+        var paths = new Dictionary<Guid, string>();
+        foreach (var id in workIds.Distinct())
+        {
+            if (await FindFirstByWorkIdAsync(id, ct).ConfigureAwait(false) is { } asset)
+            {
+                paths[id] = asset.FilePathRoot;
+            }
+        }
+
+        return paths;
+    }
+
     /// <summary>The file path of each of these assets (assets that do not exist are left out). One query, for pages that need only the places.</summary>
     async Task<IReadOnlyDictionary<Guid, string>> GetFilePathsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
     {

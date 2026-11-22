@@ -63,6 +63,10 @@ public static partial class BackupTableClassification
         Config("view_galleries", "Galleries a person built in View.", refs: [LocalItem("cover_item_id"), Coll("soundtrack_playlist_id")]),
         Config("view_gallery_items", "The View items in a person-built gallery.", refs: [LocalItem("item_id")]),
         Config("view_gallery_shares", "Who a person-built View gallery is shared with."),
+        Config("view_people", "The people a person named in their own photos, and groups still waiting for a name."),
+        Config("view_faces", "Where faces are in a person's own photos and who they were matched to; looks are kept so groups survive a restore.", refs: [LocalItem("item_id")]),
+        Config("view_face_rejections", "Faces a person said are not a given person."),
+        Config("view_face_scans", "Which of a person's photos were already looked at for faces.", refs: [LocalItem("item_id")]),
         Config("doc_field_values", "Values a person entered in custom document fields.", refs: [LocalItem("item_id")]),
         Config("local_item_tag_links", "Which tags a person put on which View item.", refs: [LocalItem("item_id")]),
         Config("doc_item_details", "Filing details a person entered for a document (machine suggestions are rebuilt).", refs: [LocalItem("item_id")], excluded: ["suggestions_json"]),
@@ -99,6 +103,7 @@ public static partial class BackupTableClassification
         Personal("profile_taste_overrides", "profile_id", "Genres and tastes a person switched on or off.", refs: []),
         Personal("profile_work_preferences", "profile_id", "A person's own tags and preferences for a title.", refs: [Work("work_id")]),
         Personal("profile_person_preferences", "profile_id", "A person's own tags and preferences for a creator or performer.", refs: [Person("person_id")]),
+        Personal("profile_pinned_playlists", "profile_id", "The playlists a person pinned to the top of their own list.", refs: [Coll("collection_id")]),
 
         // ---------------------------------------------------------------------------------------------------------
         // Catalogue: anything a rescan rebuilds. Not kept, except a person's own choices and corrections on its rows.

@@ -43,9 +43,6 @@
         <div class="playback-lyrics__lines" role="@(HasLines ? "group" : null)" tabindex="@(HasLines ? 0 : null)" aria-label="@(HasLines ? L["PlaybackLyrics_LyricLines"].Value : null)">
             @switch (View)
             {
-                case "alternatives":
-                    <PlaybackLyricsAlternatives />
-                    break;
                 case "about":
                     <div class="playback-lyrics__state" data-lyrics-state="about">
                         <PlaybackLyricsAbout />
@@ -141,6 +138,11 @@
         <p class="playback-lyrics__following" data-lyrics-following><span class="playback-lyrics__following-check"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span><span>@L["PlaybackLyrics_FollowingPlayback"]</span></p>
     }
     <PlaybackLyricsFilePicker @ref="_picker" />
+    @if (Presenter.AlternativesOpen)
+    {
+        @* "Find another" opens the shared pick-a-result window (review mock-ups D7) over the page instead of replacing the lines. *@
+        <PlaybackLyricsAlternatives Item="@CurrentItem" />
+    }
     @if (ShowFooter)
     {
         <div class="playback-lyrics__footer">
@@ -198,8 +200,7 @@
     private bool StillLooking => Presenter.Lookup == PlaybackLyricsLookupState.StillLooking;
 
     // Which of the five states (or the two lists that replace the lines for a moment) the panel is in.
-    private string View => Presenter.AlternativesOpen ? "alternatives"
-        : _aboutOpen ? "about"
+    private string View => _aboutOpen ? "about"
         : Presenter.Loading || Presenter.Refreshing ? "loading"
         : Presenter.Lines.Count > 0 ? (Presenter.IsSynced ? "synced" : "unsynced")
         : Presenter.LoadFailed ? "error"
@@ -253,18 +254,18 @@
         }
     }
 
-    // Find another and About lyrics sources replace the lines for a moment; focus goes into them and comes back to the "..." button, never to the page.
+    // About lyrics sources replaces the lines for a moment; focus goes into it and comes back to the "..." button, never to the page.
+    // Find another is its own window, which holds focus itself.
     private async Task MoveFocusAsync()
     {
         var view = View;
-        var focusKey = view == "alternatives" ? $"alternatives:{Presenter.AlternativesLoading}" : view;
-        if (focusKey == _focusKey || _module is null) return;
+        if (view == _focusKey || _module is null) return;
         var previous = _focusKey;
-        _focusKey = focusKey;
+        _focusKey = view;
         if (previous is null) return;
-        if (view is "alternatives" or "about")
-            await _module.InvokeVoidAsync("focusView", _root, view, previous is not null && previous.StartsWith("alternatives:", StringComparison.Ordinal) && view == "alternatives");
-        else if (previous is not null && (previous.StartsWith("alternatives:", StringComparison.Ordinal) || previous == "about"))
+        if (view == "about")
+            await _module.InvokeVoidAsync("focusView", _root, view, false);
+        else if (previous == "about")
             await _module.InvokeVoidAsync("focusMore", _root);
     }
 

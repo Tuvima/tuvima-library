@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.MediaTiles
 @inject IStringLocalizer<SharedStrings> L
 
 <CinematicHeroSurface Artwork="Model.Artwork"
@@ -11,15 +12,15 @@
                       ShowTitleBar="Presentation.ShowTitleBar"
                       Class="@($"cinematic-hero-surface--detail {Presentation.HeroClass} {TitleDensityClass}")"
                       Css="Presentation.GradientStyle">
-    @if (IsStructuralContainer && CollectionHeroArtwork.Count > 0)
+    @if (HasCollectionArtwork)
     {
-        <div class="tl-detail-collection-artwork" aria-hidden="true">
-            <MediaArtworkGroupPreview Items="CollectionHeroArtwork"
-                                      TotalCount="CollectionHeroArtworkTotal"
-                                      Layout="MediaArtworkGroupPreviewLayout.Cluster"
-                                      ShowOverflowCount="false"
-                                      DrawnPx="640"
-                                      AriaLabel="@($"{Model.Title} representative artwork")" />
+        @* The artwork slot of a Series or collection page: its covers in their own shape at one height (GroupHeroCovers), not a tile. *@
+        <div class="tl-detail-collection-artwork">
+            <GroupHeroCovers Members="CollectionHeroArtwork"
+                             TotalCount="CollectionHeroArtworkTotal"
+                             ChosenCoverUrl="@ChosenGroupCoverUrl"
+                             DrawnPx="640"
+                             AriaLabel="@($"{Model.Title} covers")" />
         </div>
     }
 
@@ -107,8 +108,21 @@
                            SecondaryTitleText="@Presentation.SecondaryTitleText"
                            Synopsis="@Presentation.HeroCopy"
                            SynopsisHeading="@WatchEpisodeHeading"
-                           SynopsisClass="@HeroSummaryClass">
+                           SynopsisClass="@HeroSummaryClass"
+                           Class="@(HasCollectionArtwork ? "tl-detail-hero--collection-art" : string.Empty)">
             <IdentityBeforeTitle>
+                @if (IsGroupPage)
+                {
+                    @* The path above a group's title: Read, then Series (a collection: just Collections). *@
+                    <nav class="tl-detail-hero__path" aria-label="@L["AppBreadcrumbs_Breadcrumb"].Value">
+                        <a href="@GroupPathRoot.Href">@GroupPathRoot.Label</a>
+                        @if (GroupPageRules.PathKind(Model.EntityType) is { } pathKind)
+                        {
+                            <span aria-hidden="true">&rsaquo;</span>
+                            <span>@pathKind</span>
+                        }
+                    </nav>
+                }
                 @if (!(Presentation.IsWatchHero && HasHeroBrand) && !string.IsNullOrWhiteSpace(Presentation.Eyebrow))
                 {
                     <div class="tl-detail-hero__eyebrow">@Presentation.Eyebrow</div>
@@ -147,13 +161,26 @@
                 }
             </IdentityAfterTitle>
             <MetadataContent>
-                <HeroMetadataPills Metadata="Model.Metadata"
-                                   EntityType="Model.EntityType"
-                                   IsWatchHero="Presentation.IsWatchHero"
-                                   SeasonCount="@OwnedSeasonCount"
-                                   UsePrimaryHeroChrome="Presentation.UsePrimaryHeroChrome"
-                                   HeroBrand="Model.HeroBrand"
-                                   RenderHeroBrandInMetadata="false" />
+                @if (IsGroupPage)
+                {
+                    @* A group's facts are pills in words: Series, Books, years, count. *@
+                    <ul class="tl-detail-group-pills" aria-label="@L["HeroMetadataPills_MediaDetails"].Value">
+                        @foreach (var pill in GroupPills)
+                        {
+                            <li class="@(pill.IsType ? "tl-detail-group-pill tl-detail-group-pill--type" : "tl-detail-group-pill")">@pill.Text</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <HeroMetadataPills Metadata="Model.Metadata"
+                                       EntityType="Model.EntityType"
+                                       IsWatchHero="Presentation.IsWatchHero"
+                                       SeasonCount="@OwnedSeasonCount"
+                                       UsePrimaryHeroChrome="Presentation.UsePrimaryHeroChrome"
+                                       HeroBrand="Model.HeroBrand"
+                                       RenderHeroBrandInMetadata="false" />
+                }
             </MetadataContent>
             <CapabilityContent>
                 @if (Presentation.CapabilityPills.Count > 0)
@@ -225,11 +252,15 @@
     private string HeroSummaryClass => $"tl-detail-hero__tagline tl-detail-hero__tagline--ai{(string.IsNullOrWhiteSpace(Presentation.HeroCopy) ? " is-empty" : string.Empty)}";
     private string TitleDensityClass => ResolveTitleDensityClass(Presentation.Title, Presentation.UseLogo);
     private IReadOnlyList<(string Label, string Value)> HeroCreditLines => BuildHeroCreditLines();
-    private bool IsStructuralContainer => Model.EntityType is DetailEntityType.Collection
-        or DetailEntityType.BookSeries
-        or DetailEntityType.ComicSeries
-        or DetailEntityType.MovieSeries;
+    private bool IsStructuralContainer => GroupPageRules.IsGroupPage(Model.EntityType);
+    private bool IsGroupPage => IsStructuralContainer;
+    private (string Label, string Href) GroupPathRoot => GroupPageRules.PathRoot(Model.EntityType);
+    private IReadOnlyList<GroupPagePill> GroupPills => GroupPageRules.Pills(Model);
+
+    // A cover somebody chose for the group shows whole in place of its members' covers, as it does on the group's tile.
+    private string? ChosenGroupCoverUrl => IsStructuralContainer && !string.IsNullOrWhiteSpace(Model.Artwork.CoverUrl) ? Model.Artwork.CoverUrl : null;
     private IReadOnlyList<ArtworkStackItem> CollectionHeroArtwork => BuildCollectionHeroArtwork();
+    private bool HasCollectionArtwork => IsStructuralContainer && (ChosenGroupCoverUrl is not null || CollectionHeroArtwork.Count > 0);
     private int CollectionHeroArtworkTotal => Model.MediaGroups
         .SelectMany(group => group.Items)
         .Count(item => item.IsOwned);
@@ -300,7 +331,7 @@
             if (!string.IsNullOrWhiteSpace(details.PlaceOfBirth))
                 facts.Add((AppMaterialIcons.Outlined.Place, details.PlaceOfBirth!));
             if (Model.MediaGroups.Sum(group => group.Items.Count) > 0)
-                facts.Add((AppMaterialIcons.Outlined.VideoLibrary, $"{Model.MediaGroups.Sum(group => group.Items.Count)} titles in library"));
+                facts.Add((AppMaterialIcons.Outlined.VideoLibrary, $"{DisplayFormat.FormatCountNoun(Model.MediaGroups.Sum(group => group.Items.Count), "title")} in library"));
             return facts;
         }
     }
@@ -451,14 +482,11 @@
         if (!IsStructuralContainer)
             return [];
 
-        if (!string.IsNullOrWhiteSpace(Model.Artwork.CoverUrl))
-            return [new ArtworkStackItem { Id = Model.Id, Title = Model.Title, ImageUrl = Model.Artwork.CoverUrl, Shape = ArtworkShape.Portrait }];
-
         return Model.MediaGroups
             .SelectMany(group => group.Items)
             .Where(item => item.IsOwned && !string.IsNullOrWhiteSpace(item.ArtworkUrl))
             .DistinctBy(item => $"{item.EntityType}:{item.Id}", StringComparer.OrdinalIgnoreCase)
-            .Take(4)
+            .Take(GroupCollageLayout.MaxCovers)
             .Select(item => new ArtworkStackItem
             {
                 Id = $"{item.EntityType}:{item.Id}",

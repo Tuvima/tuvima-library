@@ -46,21 +46,3 @@
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-attention {
     color: var(--tl-status-warning);
 }
-
-.system-activity-indicator__count {
-    position: absolute;
-    top: -0.05rem;
-    right: -0.05rem;
-    min-width: 1.05rem;
-    height: 1.05rem;
-    display: grid;
-    place-items: center;
-    padding-inline: 0.2rem;
-    border: 2px solid var(--tl-bg-surface);
-    border-radius: var(--tl-radius-pill);
-    color: var(--tl-bg-surface);
-    background: var(--tl-accent-secondary);
-    font-size: var(--tl-type-overline-size);
-    font-weight: var(--tl-type-overline-weight);
-    line-height: 1;
-}

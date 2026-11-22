@@ -117,20 +117,20 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheCollapsedBarIs56PixelsTallWithA44PixelPictureAndA15PixelTitle()
+    public void TheCollapsedBarIs64PixelsTallWithA44PixelPictureAndA15PixelTitle()
     {
         var shell = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackShell.razor.css");
         var identity = RepoFile("src", "MediaEngine.Web", "Components", "Player", "PlaybackIdentity.razor.css");
 
         var row = shell.Split(".playback-shell--compact .playback-shell__row {", StringSplitOptions.None)[1].Split('}')[0];
-        Assert.Contains("min-height: 56px;", row);
+        Assert.Contains("min-height: 57px;", row); // hairline 1 + row 57 + 6 below = the mockup's 64 px (#1259)
         var art = identity.Split(".playback-identity--compact .playback-identity__art {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("height: 44px;", art);
         Assert.Contains("width: 44px;", art);
         var title = identity.Split(".playback-identity--compact .playback-identity__title {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("font-size: 15px;", title);
         var button = identity.Split(".playback-identity ::deep .playback-identity__expand {", StringSplitOptions.None)[1].Split('}')[0];
-        Assert.Contains("min-height: 56px;", button);
+        Assert.Contains("min-height: 57px;", button);
     }
 
     [Fact]
@@ -231,12 +231,12 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
     [InlineData("phone", null, true)]
     [InlineData("phone", 1280d, true)]
     [InlineData("desktop", 390d, true)]
-    [InlineData("desktop", 720d, true)]
-    [InlineData("desktop", 721d, false)]
+    [InlineData("desktop", 599d, true)]
+    [InlineData("desktop", 600d, false)]
     [InlineData("tablet", 800d, false)]
     [InlineData("desktop", null, false)]
     [InlineData("desktop", 0d, false)]
-    public async Task APlayerIsDrawnForAPhoneWhenTheDeviceIsOneOrTheWindowIs720PixelsOrNarrower(string formFactor, double? width, bool phone)
+    public async Task APlayerIsDrawnForAPhoneWhenTheDeviceIsOneOrTheWindowIs599PixelsOrNarrower(string formFactor, double? width, bool phone)
     {
         var device = new MediaEngine.Web.Services.Theming.DeviceContextService(MediaEngine.Web.Tests.Support.EngineApiClientStub.Create(_ => { }));
         await device.SwitchDeviceAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, formFactor != "desktop"));
@@ -255,9 +255,9 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
         device.SetViewportWidth(1280);
         device.SetViewportWidth(1100);
         Assert.Equal(0, changes);
-        device.SetViewportWidth(700);
-        Assert.Equal(1, changes);
         device.SetViewportWidth(500);
+        Assert.Equal(1, changes);
+        device.SetViewportWidth(400);
         Assert.Equal(1, changes);
         device.SetViewportWidth(900);
         Assert.Equal(2, changes);
@@ -274,7 +274,7 @@ public sealed class PhoneAndTabletPlayerTests : AsyncBunitContext
     {
         var script = RepoFile("src", "MediaEngine.Web", "wwwroot", "js", "playback-popover.js");
 
-        Assert.Contains("matchMedia('(max-width:720px), (max-width:1024px) and (pointer:coarse)')", script);
+        Assert.Contains("matchMedia('(max-width:600px), (max-width:1024px) and (pointer:coarse)')", script);
     }
 
     [Fact]

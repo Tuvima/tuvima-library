@@ -111,6 +111,33 @@ public sealed class SetupSessionCodeTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("setup_session_token").GetString()));
     }
 
+    [Fact]
+    public async Task OutsideVisitor_IsRefusedAndNoSessionStarts()
+    {
+        var result = await _sessions.BeginAsync(ClientIngress.Outside, CancellationToken.None);
+
+        Assert.Null(result.Started);
+        Assert.Equal(SetupBeginRefusalReasons.RemoteRefused, result.Refusal!.Reason);
+    }
+
+    [Fact]
+    public async Task PlainRemoteVisitor_BehindDockerNat_CanStillBeginSetup()
+    {
+        // A home install in a container can show home traffic as "remote" (not known to be home), which is not clear evidence.
+        var result = await _sessions.BeginAsync(ClientIngress.Remote, CancellationToken.None);
+
+        Assert.NotNull(result.Started);
+    }
+
+    [Fact]
+    public async Task BeginEndpoint_Outside_IsForbidden()
+    {
+        var (status, body) = await PostBeginAsync(new SetupBeginRequest { OriginalClientIngress = ClientIngress.Outside });
+
+        Assert.Equal(StatusCodes.Status403Forbidden, status);
+        Assert.Equal(SetupBeginRefusalReasons.RemoteRefused, body.GetProperty("reason").GetString());
+    }
+
     private async Task<(int Status, JsonElement Body)> PostBeginAsync(SetupBeginRequest? requestBody)
     {
         var builder = WebApplication.CreateBuilder();
@@ -215,7 +242,7 @@ public sealed class SetupSessionCodeTests : IDisposable
         public Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default, string? currentIngress = null) => throw new NotSupportedException();
         public Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default) => throw new NotSupportedException();
     }
 }

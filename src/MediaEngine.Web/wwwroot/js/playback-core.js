@@ -95,6 +95,22 @@ window.listenPlayback = (function () {
         }
     }
 
+    // A converted film that was started partway (seek-past-prepared-stream) has its own clock that begins at zero at that second of the film.
+    // Everything the Dashboard sees and asks for is in the film's own time; this is the one place the two are told apart.
+    function streamOffsetOf(element) {
+        var offset = Number(element && element._tuvimaStreamOffset);
+        return Number.isFinite(offset) && offset > 0 ? offset : 0;
+    }
+
+    // Seconds of the stream the Engine has ready so far (stream time); Infinity when it is complete or not a growing stream.
+    function preparedEndOf(element) {
+        var hls = element._tuvimaHls;
+        var level = hls && hls.levels && hls.levels[hls.currentLevel >= 0 ? hls.currentLevel : 0];
+        var details = level && level.details;
+        if (details && details.live) return Number(details.totalduration) || 0;
+        return Infinity;
+    }
+
     function readAudioElementState(element) {
         synchronizeCaptionSelection(element);
         if (!element) {
@@ -109,7 +125,8 @@ window.listenPlayback = (function () {
         }
 
         var pendingStart = Number.parseFloat(element.dataset.listenPendingStartPosition || '');
-        var currentTime = element.currentTime || 0;
+        var streamOffset = streamOffsetOf(element);
+        var currentTime = (element.currentTime || 0) + streamOffset;
         if (Number.isFinite(pendingStart) && pendingStart > 0) {
             var pendingStartedAt = Number.parseFloat(element.dataset.listenPendingStartAt || '');
             var pendingAge = Number.isFinite(pendingStartedAt) ? Date.now() - pendingStartedAt : 0;
@@ -128,7 +145,7 @@ window.listenPlayback = (function () {
             assetId: element.tagName === 'VIDEO' ? element._tuvimaVideoBinding?.asset || '' : audioAssetId(element),
             requestVersion: element.tagName === 'VIDEO' ? element._tuvimaVideoBinding?.request ?? null : Number(element.dataset.playbackRequestVersion),
             audioTrackCount: element._tuvimaHls?.audioTracks?.length || element.audioTracks?.length || 0,
-            duration: isFinite(element.duration) ? element.duration : 0,
+            duration: isFinite(element.duration) ? element.duration + streamOffset : 0,
             volume: typeof element.volume === 'number' ? element.volume : playbackConfig.defaultVolume,
             muted: !!element.muted,
             paused: !!element.paused,
@@ -560,6 +577,8 @@ window.listenPlayback = (function () {
         // A later start, pause, release, close or source change raises the token while hls.js is still loading;
         // this start then stands down instead of playing a source the page has already moved on from.
         var startToken = raiseStartToken(element);
+        var streamOffset = Number(payload.streamOffsetSeconds ?? payload.StreamOffsetSeconds ?? 0);
+        element._tuvimaStreamOffset = Number.isFinite(streamOffset) && streamOffset > 0 ? streamOffset : 0;
         try {
             if (streamUrl && element.dataset.playbackSource !== streamUrl) {
                 ensureAudioSource(element, streamUrl);
@@ -597,7 +616,7 @@ window.listenPlayback = (function () {
             var applyTargetSeek = function () {
                 if (target <= 0) return;
                 try {
-                    element.currentTime = target;
+                    element.currentTime = Math.max(0, target - streamOffsetOf(element));
                 } catch (seekError) {
                     console.debug("Audio start seek was rejected.", seekError);
                 }
@@ -612,10 +631,10 @@ window.listenPlayback = (function () {
             delete element.dataset.playbackStartFailure;
             await element.play();
             scheduleNativeSleepTimer(audioObserverFor(element));
-            if (target > 0 && element.readyState >= 1 && Math.abs((element.currentTime || 0) - target) > playbackConfig.seekToleranceSeconds) {
+            if (target > 0 && element.readyState >= 1 && Math.abs((element.currentTime || 0) + streamOffsetOf(element) - target) > playbackConfig.seekToleranceSeconds) {
                 applyTargetSeek();
             }
-            if (target <= 0 || (element.currentTime || 0) >= target - playbackConfig.seekToleranceSeconds) {
+            if (target <= 0 || (element.currentTime || 0) + streamOffsetOf(element) >= target - playbackConfig.seekToleranceSeconds) {
                 delete element.dataset.listenPendingStartPosition;
                 delete element.dataset.listenPendingStartAt;
             }
@@ -632,6 +651,20 @@ window.listenPlayback = (function () {
         element._tuvimaCaptionAbort = null;
         clearTimeout(element._tuvimaCaptionTimer);
         element.querySelectorAll('track[data-prepared-caption]').forEach(track => track.remove());
+    }
+
+    // A new source must not inherit the last video's subtitles: switch every text track off, drop the cues the old video left on
+    // tracks that have no <track> element of their own (hls.js and the browser add those), and forget the old caption choice.
+    function resetTextTracks(element) {
+        element._tuvimaCaptionSelection = null;
+        for (const track of Array.from(element.textTracks || [])) {
+            try {
+                track.mode = 'disabled';
+                for (const cue of Array.from(track.cues || [])) track.removeCue(cue);
+            } catch (error) {
+                console.debug('A text track could not be cleared.', error);
+            }
+        }
     }
 
     function discoverPreparedCaptions(element, streamUrl) {
@@ -665,7 +698,7 @@ window.listenPlayback = (function () {
             } catch (error) {
                 if (controller.signal.aborted) return;
             }
-            if (++attempts < 150) element._tuvimaCaptionTimer = setTimeout(poll, 2000);
+            if (++attempts < 240) element._tuvimaCaptionTimer = setTimeout(poll, 5000);
         };
         element._tuvimaCaptionTimer = setTimeout(poll, 2000);
     }
@@ -746,6 +779,7 @@ window.listenPlayback = (function () {
                 element._tuvimaHls.destroy();
                 element._tuvimaHls = null;
             }
+            resetTextTracks(element);
             element.dataset.playbackSource = streamUrl;
             if (/\.m3u8(?:[?#]|$)/i.test(streamUrl) && browserMayUseHlsJs()) {
                 // Playback starts wait on this: the player is attached only once hls.js has loaded.
@@ -1376,6 +1410,14 @@ window.listenPlayback = (function () {
         },
         startAudio: startAudioElement,
         startFailure: function (element) { return element?.dataset.playbackStartFailure || "PlaybackError"; },
+        // What the element's error event really was (issue 1257): an aborted load (code 1) and the error a cleared source raises while the next
+        // track is being set up are not failures a person should see.
+        audioErrorState: function (element) {
+            return {
+                code: element?.error?.code || 0,
+                hasSource: !!(element && (element.currentSrc || element.getAttribute('src') || element._tuvimaHls))
+            };
+        },
         pauseAudio: function (element) {
             if (!element) return;
             raiseStartToken(element);
@@ -1390,6 +1432,7 @@ window.listenPlayback = (function () {
             clearPreparedCaptions(element);
             element._tuvimaHls?.destroy();
             element._tuvimaHls = null;
+            resetTextTracks(element);
             delete element.dataset.playbackSource;
             element.removeAttribute('src');
             element.load();
@@ -1397,8 +1440,16 @@ window.listenPlayback = (function () {
             return true;
         },
         seekAudio: function (element, seconds) {
-            if (!element) return;
-            var target = Math.max(0, seconds || 0);
+            // Seeks to a second of the film. False (and nothing moved) when the converted stream does not hold that second: before the point it
+            // started at, or past what the Engine has ready. The Dashboard then asks the Engine to start the stream at that second.
+            if (!element) return true;
+            var film = Math.max(0, seconds || 0);
+            var offset = streamOffsetOf(element);
+            var target = Math.max(0, film - offset);
+            if (element.tagName === 'VIDEO' && (element._tuvimaHls || offset > 0)) {
+                var end = preparedEndOf(element);
+                if (film < offset - 0.5 || (Number.isFinite(end) && target > end - 1)) return false;
+            }
             try {
                 element.currentTime = target;
             } catch (error) {
@@ -1411,6 +1462,7 @@ window.listenPlayback = (function () {
                 };
                 element.addEventListener('loadedmetadata', applyWhenReady, { once: true });
             }
+            return true;
         },
         setVolume: function (element, volume) {
             if (!element) return;

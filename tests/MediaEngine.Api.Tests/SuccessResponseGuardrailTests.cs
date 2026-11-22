@@ -12,7 +12,6 @@ public sealed partial class SuccessResponseGuardrailTests
     // route starts returning JSON, and new entries require the same explicit review.
     private static readonly HashSet<string> UntypedSuccessMetadataAllowlist =
     [
-        "AddCollectionItem",
         "SaveCollectionDisplayOverrides",
         "CancelEncodeJob",
         "CancelMediaOperation",
@@ -48,6 +47,7 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetEntityCover",
         "GetProfileAvatar",
         "GetTvdbMatchPreview",
+        "GetScopedVideoFrameImage",
         "GetPersonHeadshot",
         // The Documents list export streams a CSV file, not JSON.
         "ExportViewDocumentsCsv",
@@ -56,6 +56,7 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetPersonalActivityArtwork",
         "GetViewItemContent",
         "GetViewItemThumbnail",
+        "GetViewFaceCrop",
         // An Extras card picture is an image, not JSON.
         "GetExtraThumbnail",
         // A scrub-preview sprite sheet is a JPEG image, not JSON.
@@ -71,7 +72,8 @@ public sealed partial class SuccessResponseGuardrailTests
         "RemoveCollectionItem",
         "RemoveCollectionPersonalMediaSource",
         "RevokeClientDevice",
-        "ReorderCollectionItems",
+        "MoveCollectionItem",
+        "SetCollectionPinned",
         "RetryMediaOperation",
         "StartAiModelDownload",
         "StreamAsset",

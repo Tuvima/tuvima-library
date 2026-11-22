@@ -149,9 +149,6 @@ else
 
     protected override Task OnInitializedAsync()
     {
-        // The Add household button on the Profiles list lands here with the name box already open.
-        _adding = IsServerAdministrator
-            && System.Web.HttpUtility.ParseQueryString(Nav.ToAbsoluteUri(Nav.Uri).Query)["add"] == "1";
         return IsServerAdministrator ? LoadAsync() : Task.CompletedTask;
     }
 
@@ -289,7 +286,7 @@ else
                 DashboardAccessMutationFailure.NotFound => "That household is no longer there.",
                 DashboardAccessMutationFailure.Validation => "One of those libraries is no longer available. Reload and try again.",
                 DashboardAccessMutationFailure.Unauthorized => "Sign in again to continue.",
-                DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+                DashboardAccessMutationFailure.Transient => "The server is unavailable. Try again.",
                 _ => "That couldn't be saved. Try again.",
             };
     }
@@ -372,7 +369,7 @@ else
                 DashboardAccessMutationFailure.NotFound => "That household is no longer there.",
                 DashboardAccessMutationFailure.Forbidden => "You can't change households.",
                 DashboardAccessMutationFailure.Unauthorized => "Sign in again to continue.",
-                DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+                DashboardAccessMutationFailure.Transient => "The server is unavailable. Try again.",
                 _ => "That couldn't be saved. Try again.",
             };
         return false;

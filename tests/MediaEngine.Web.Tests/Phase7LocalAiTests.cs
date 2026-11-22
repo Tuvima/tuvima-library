@@ -97,7 +97,7 @@ public sealed class Phase7LocalAiTests
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
-        Assert.Contains("DeviceContext.IsMobile", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("DeviceContext.IsMobile", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
         // Every AI feature is a plugin: Status points at the Plugins page and holds no feature list or switches.
         Assert.Contains("AI features are plugins", source, StringComparison.Ordinal);
@@ -109,7 +109,9 @@ public sealed class Phase7LocalAiTests
         Assert.Contains("LocalAiUsagePanel", source, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/ai/vocabulary", source, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/ai/automation", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/ai/models", source, StringComparison.Ordinal);
+        // Status and Models are one tab: the models section is drawn on this tab, with no address of its own.
+        Assert.Contains("<ModelsTab />", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("/settings/ai/models", source, StringComparison.Ordinal);
         Assert.Contains("OnParametersSetAsync", source, StringComparison.Ordinal);
     }
 

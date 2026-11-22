@@ -115,6 +115,8 @@ internal sealed partial class DetailCompositionOrchestrator
                    CASE WHEN p.work_kind = 'parent' AND p.parent_work_id IS NOT NULL THEN CAST((SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = p.id AND cv.key = 'title' LIMIT 1) AS TEXT) END AS SectionTitle,
                    CASE WHEN p.work_kind = 'parent' AND p.parent_work_id IS NOT NULL AND gp.work_kind = 'parent' AND gp.parent_work_id IS NOT NULL THEN CAST((SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = gp.id AND cv.key = 'title' LIMIT 1) AS TEXT) END AS SectionParentTitle,
                    CAST(COALESCE(
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'episode_title' AND ma.id IS NOT NULL AND (SELECT ed.work_id FROM editions ed WHERE ed.id = ma.edition_id) <> w.id LIMIT 1),
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'title' AND ma.id IS NOT NULL AND (SELECT ed.work_id FROM editions ed WHERE ed.id = ma.edition_id) <> w.id LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'issue_title' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'issue_title' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'episode_title' LIMIT 1),
@@ -136,10 +138,12 @@ internal sealed partial class DetailCompositionOrchestrator
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'description' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'overview' LIMIT 1)) AS TEXT) AS Description,
                    CAST(COALESCE(
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'season_number' AND ma.id IS NOT NULL AND (SELECT ed.work_id FROM editions ed WHERE ed.id = ma.edition_id) <> w.id LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'season_number' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'season_number' LIMIT 1),
                        '') AS TEXT) AS Season,
                    CAST(COALESCE(
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'episode_number' AND ma.id IS NOT NULL AND (SELECT ed.work_id FROM editions ed WHERE ed.id = ma.edition_id) <> w.id LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'episode_number' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'episode_number' LIMIT 1),
                        '') AS TEXT) AS Episode,

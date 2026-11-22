@@ -3,26 +3,15 @@
 @using MediaEngine.Web.Services.Settings
 @implements IDisposable
 @inject UIOrchestratorService Orchestrator
-@inject DeviceContextService DeviceContext
 @inject SettingsAttentionState Attention
 
 <div class="tl-page local-ai-settings">
     @switch (NormalizedSubsection)
     {
-        case "models":
-            @* Desktop and tablet only, like the other runtime controls. *@
-            @if (!DeviceContext.IsMobile)
-            {
-                <ModelsTab />
-            }
-            break;
         case "advanced":
             @* Runtime settings, invalidate benchmark and diagnostics, then the plugin allowance, then the detailed usage table. *@
-            @if (!DeviceContext.IsMobile)
-            {
-                <LocalAiRuntimePanel />
-                <LocalAiBudgetPanel />
-            }
+            <LocalAiRuntimePanel />
+            <LocalAiBudgetPanel />
             <LocalAiUsagePanel View="LocalAiUsagePanel.LocalAiUsageView.Table" />
             break;
         default:
@@ -36,7 +25,6 @@
 
     private string NormalizedSubsection => Subsection?.Trim().ToLowerInvariant() switch
     {
-        "models" => "models",
         "advanced" => "advanced",
         _ => "status",
     };
@@ -81,6 +69,9 @@
             <LocalAiUsagePanel View="LocalAiUsagePanel.LocalAiUsageView.Plugins" />
 
             <SettingsAdvancedLinkRow Title="AI features are plugins" Description="Smart labelling, vibe tags and the other AI features are switched on, approved and changed on the Plugins page. Turning one on for the first time may download an AI model." Href="/settings/plugins" ActionLabel="Open Plugins" />
+
+            @* The resource profile, benchmark and model files sit on this same tab, on every device. *@
+            <ModelsTab />
         }
     </text>;
 
@@ -96,14 +87,8 @@
                               LastProblem="@health.LastProblem"
                               AllowedTo="@StateCardHealth.EngineAllowedTo"
                               SendsDataOut="false"
-                              SendsDataTo="@StateCardHealth.RunsOnThisMachine"
-                              Action="@ModelsAction()" />;
+                              SendsDataTo="@StateCardHealth.RunsOnThisMachine" />;
     }
-
-    // The model and hardware page is desktop and tablet only, like the other runtime controls.
-    private RenderFragment? ModelsAction() => DeviceContext.IsMobile
-        ? null
-        : @<AppButton Label="Model and hardware" Href="/settings/ai/models" Size="AppControlSize.Compact" />;
 
     private string ActiveModelName()
     {

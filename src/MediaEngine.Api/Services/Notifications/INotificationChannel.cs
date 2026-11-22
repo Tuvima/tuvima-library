@@ -26,5 +26,17 @@ internal interface INotificationChannel
     /// <summary>False until the person has set the channel up. A channel that is not configured is skipped, not counted as failing.</summary>
     bool IsConfigured { get; }
 
+    /// <summary>
+    /// True for a channel that sends to the administrators' own addresses (email). A channel that has one destination of its own
+    /// (a Discord channel, a phone topic) sends even when no administrator has an email address.
+    /// </summary>
+    bool NeedsRecipients => true;
+
     Task<ChannelSendResult> SendAsync(OutgoingNotification message, IReadOnlyList<NotificationRecipient> recipients, CancellationToken ct);
+}
+
+/// <summary>Offers the channels people added, built fresh from the store so adding or removing one needs no restart.</summary>
+internal interface IAsyncNotificationChannelSource
+{
+    Task<IReadOnlyList<INotificationChannel>> GetChannelsAsync(CancellationToken ct);
 }

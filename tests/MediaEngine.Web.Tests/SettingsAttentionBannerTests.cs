@@ -15,7 +15,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// The administrator attention banner above every Settings page, the one shared state behind it, and the permanent
-/// Local AI and remote access notices: who sees what, how a dismissed line stays dismissed until something new needs
+/// Local AI notice (the "Remote access is off" notice is gone): who sees what, how a dismissed line stays dismissed until something new needs
 /// attention, and that Install for me and download progress still work from the banner.
 /// </summary>
 public sealed class SettingsAttentionBannerTests : AsyncBunitContext
@@ -39,6 +39,8 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();
+        Services.AddSingleton<MediaEngine.Web.Services.Configuration.IFirewallCommandRunner, MediaEngine.Web.Services.Configuration.NoFirewallCommandRunner>();
+        Services.AddSingleton<MediaEngine.Web.Services.Configuration.IHomeNetworkFirewall, MediaEngine.Web.Services.Configuration.HomeNetworkFirewall>();
         _api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetToolRequirementsAsync), _ =>
@@ -509,7 +511,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         Assert.Equal(afterStop, Volatile.Read(ref _toolReads));
     }
 
-    // ── Local AI and remote access page notices ──────────────────────────────
+    // ── Local AI page notice ──────────────────────────────
 
     [Fact]
     public async Task LocalAiNotice_ShowsWhileBlocked_HasNoDismiss_AndDownloadStartsTheMissingModels()
@@ -639,19 +641,17 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OnAPhone_NeitherPageNoticeIsDrawn_AndOnADesktopBothAre()
+    public async Task OnAPhone_TheLocalAiNoticeIsNotDrawn_AndOnADesktopItIs()
     {
         SignIn(SettingsRole.ServerAdministrator);
         _onTools = () => Tools(Model("text_fast", ToolRequirementStates.Missing));
         await State.StartAsync();
 
         Assert.Single(Render<LocalAiBlockedNotice>().FindAll("[data-settings-notice='local-ai-off']"));
-        Assert.Single(Render<RemoteAccessOffNotice>().FindAll("[data-settings-notice='remote-access-off']"));
 
         await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
 
         Assert.Empty(Render<LocalAiBlockedNotice>().FindAll("[data-settings-notice]"));
-        Assert.Empty(Render<RemoteAccessOffNotice>().FindAll("[data-settings-notice]"));
     }
 
     [Fact]
@@ -663,32 +663,14 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
     }
 
     [Fact]
-    public void RemoteAccessNotice_SaysRemoteAccessIsOff_CannotBeDismissed_AndSetUpOpensTheRemotePage()
+    public void TheRemoteAccessOffNotice_IsGone_BecauseHomeWorkingIsTheNormalState()
     {
-        var cut = Render<RemoteAccessOffNotice>();
+        var settings = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
+        var network = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Settings", "NetworkRemoteAccessSettings.razor"));
 
-        var notice = cut.Find("[data-settings-notice='remote-access-off']");
-        Assert.Contains("Remote access is off, so the Library only works at home.", notice.TextContent, StringComparison.Ordinal);
-        Assert.Empty(notice.QuerySelectorAll("button[aria-label='Dismiss']"));
-        Assert.Contains(notice.QuerySelectorAll("a"), link => link.TextContent.Trim() == "Set up"
-            && link.GetAttribute("href") == SettingsNav.RouteFor(SettingsSection.Network, "remote"));
-    }
-
-    [Fact]
-    public void TheNetworkPage_ReportsWhetherRemoteAccessIsNotSetUp()
-    {
-        var api = EngineApiClientStub.Create(stub =>
-        {
-            stub.SetHandler(nameof(IEngineApiClient.GetNetworkSettingsAsync), _ =>
-                Task.FromResult<NetworkSettingsDto?>(new NetworkSettingsDto { Remote = { ConnectionMode = "local-only" } }));
-        });
-        Services.AddSingleton(api);
-        var reports = new List<bool>();
-
-        var cut = Render<NetworkRemoteAccessSettings>(parameters => parameters
-            .Add(p => p.Subsection, "overview")
-            .Add(p => p.RemoteAccessOffChanged, Microsoft.AspNetCore.Components.EventCallback.Factory.Create<bool>(this, off => reports.Add(off))));
-        cut.WaitForAssertion(() => Assert.Equal([true], reports.ToArray()));
+        Assert.False(File.Exists(RepoFile("src", "MediaEngine.Web", "Components", "Settings", "Frame", "RemoteAccessOffNotice.razor")));
+        Assert.DoesNotContain("RemoteAccessOff", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("RemoteAccessOff", network, StringComparison.Ordinal);
     }
 
     // ── The frame and the shell ──────────────────────────────────────────────
@@ -703,7 +685,6 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         Assert.Contains("PageNotice=\"@PageNoticeFragment\"", settings, StringComparison.Ordinal);
         Assert.Contains("<SettingsAttentionBanner />", settings, StringComparison.Ordinal);
         Assert.Contains("<LocalAiBlockedNotice />", settings, StringComparison.Ordinal);
-        Assert.Contains("<RemoteAccessOffNotice />", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("ToolsAttentionBanner", layout, StringComparison.Ordinal);
         Assert.False(File.Exists(RepoFile("src", "MediaEngine.Web", "Components", "Shared", "Tools", "ToolsAttentionBanner.razor")));
     }

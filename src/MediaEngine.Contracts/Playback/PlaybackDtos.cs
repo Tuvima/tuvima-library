@@ -20,10 +20,14 @@ public sealed record PlaybackManifestDto
     public string? HlsUrl { get; init; }
     public string? HlsStatus { get; init; }
     public double? DurationSeconds { get; init; }
+    /// <summary>The second of the film a converted stream starts at (a whole number of segments), or null when it starts at the beginning. Times inside that stream are this much earlier than the film's.</summary>
+    public double? StreamStartSeconds { get; init; }
     public DateTimeOffset? HlsExpiresAt { get; init; }
     public PlaybackProfileDto Profile { get; init; } = new();
     public IReadOnlyList<PlaybackTrackDto> AudioTracks { get; init; } = [];
     public IReadOnlyList<PlaybackSubtitleTrackDto> SubtitleTracks { get; init; } = [];
+    /// <summary>True while the Engine is still reading text subtitles out of the video file. They are listed in <see cref="SubtitleTracks"/> only once they can be shown, so a player asks for the manifest again until this is false.</summary>
+    public bool SubtitlesPreparing { get; init; }
     public IReadOnlyList<PlaybackChapterDto> Chapters { get; init; } = [];
     public IReadOnlyList<OfflineVariantDto> OfflineVariants { get; init; } = [];
     public PlaybackResumeDto? Resume { get; init; }

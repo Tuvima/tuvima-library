@@ -138,7 +138,7 @@
     private RenderFragment ControlFragment(PluginSetupControlDto control) => control.Control == PluginSetupValues.GroupListControl && control.GroupList is not null
         ? @<PluginGroupList @key="control.Key" PluginId="@PluginId" Control="@control" CanChange="@CanChange" Changed="@Changed" />
         : @<PluginSettingControl @key="control.Key" Control="@control" Value="@ShownValue(control)" Saved="@_saved.Contains(control.Key)"
-                                 DisabledReason="@(CanChange ? PluginSetupValues.WhyDisabled(control, Context) : "Plugins are changed on a computer or tablet.")"
+                                 DisabledReason="@PluginSetupValues.WhyDisabled(control, Context)"
                                  ValueChanged="@(value => Typed(control, value))" />;
 
     private void Typed(PluginSetupControlDto control, JsonElement value)

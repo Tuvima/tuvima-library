@@ -931,7 +931,7 @@
 @media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
         align-items: flex-end;
-        min-height: clamp(30rem, 68svh, 36rem);
+        min-height: var(--cinematic-hero-phone-min-height, clamp(30rem, 68svh, 36rem));
         padding:
             calc(var(--app-topbar-height, 65px) + 2.25rem)
             1.1rem
@@ -958,5 +958,30 @@
         font-size: clamp(2.35rem, 11vw, 3.6rem);
         line-height: 0.96;
         text-wrap: balance;
+    }
+}
+
+/* The title is never under the covers (issues 1190, 1252): the copy column is 44vw wide and the covers keep the other 44vw (GroupHeroCovers),
+   so the title wraps (to as many lines as the name needs) inside its column. */
+.tl-detail-hero--collection-art .tl-detail-hero__identity {
+    min-width: 0;
+    width: 100%;
+}
+
+@media (width >= 840px) {
+    .tl-detail-hero--collection-art .tl-detail-hero__copy {
+        width: min(47.5rem, 42vw);
+    }
+}
+
+.tl-detail-hero--collection-art .tl-detail-hero__copy h1 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+/* A phone: the covers sit on top (8.25rem tall, under the top bar), so the text starts under them. */
+@media (width < 840px) {
+    .tl-detail-hero__inner.tl-detail-hero--collection-art {
+        padding-top: calc(var(--app-topbar-height, 65px) + 1.25rem + 8.25rem + 1.5rem);
     }
 }

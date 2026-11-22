@@ -1,0 +1,105 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.MediaTiles
+@inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
+
+@* A playlist's own page header (spec group-pages-and-tiles D7, WP1b, mockup D): the standard details hero, the path, name, type pills in words,
+   description and actions on the left and the playlist's square album tile on the right (a phone stacks the tile on top, centered). The
+   tile is the one the Playlists page draws from PlaylistTileComposer: the first four albums in a 2 by 2, a missing quarter a faint dashed
+   square, or the person's own cover whole. The page decides what the pills say and which actions there are; they come in as Pills and
+   ChildContent. *@
+<section class="@HeroClass" data-playlist-hero aria-label="@Title">
+    <div class="playlist-hero__art" data-playlist-hero-art aria-hidden="true">
+        @if (Covers.Count == 0)
+        {
+            <AppMaterialIcon Icon="@FallbackIcon" Class="tl-u-font-size-64px" />
+        }
+        else
+        {
+            <div class="@($"playlist-hero__quadrants is-count-{Covers.Count}")">
+                @for (var index = 0; index < Covers.Count; index++)
+                {
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(Covers[index].ImageUrl, Covers.Count == 1 ? SingleDrawnPx : QuadrantDrawnPx)"
+                         srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Covers[index].ImageUrl, Covers.Count == 1 ? SingleDrawnPx : QuadrantDrawnPx)"
+                         alt=""
+                         class="@($"playlist-hero__quadrant is-slot-{Slots[index]}")"
+                         decoding="async" />
+                }
+                @foreach (var slot in EmptySlots)
+                {
+                    <span class="@($"playlist-hero__quadrant is-empty is-slot-{slot}")"></span>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="playlist-hero__copy" data-playlist-hero-copy>
+        @if (!DeviceContext.IsPhone)
+        {
+            <nav class="playlist-hero__crumb" aria-label="@L["PlaylistPage_Path"].Value">
+                <a href="/listen" data-enhance-nav="false" @onclick="@(() => OnNavigate.InvokeAsync("/listen"))" @onclick:preventDefault="true">@L["Nav_Listen"]</a>
+                <span aria-hidden="true">&rsaquo;</span>
+                <a href="@PlaylistsRoute" data-enhance-nav="false" @onclick="@(() => OnNavigate.InvokeAsync(PlaylistsRoute))" @onclick:preventDefault="true">@L["Glossary_Playlists"]</a>
+            </nav>
+        }
+        <h2 class="playlist-hero__title">@Title</h2>
+        @if (Pills.Count > 0)
+        {
+            <p class="playlist-hero__pills" data-playlist-pills>
+                @for (var index = 0; index < Pills.Count; index++)
+                {
+                    <span class="@(index == 0 ? "playlist-hero__pill is-kind" : "playlist-hero__pill")" data-playlist-pill="@(index == 0 ? "kind" : "fact")">@Pills[index]</span>
+                }
+            </p>
+        }
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p class="playlist-hero__description" data-playlist-description>@Description</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(UnavailableText))
+        {
+            <p class="playlist-hero__unavailable" data-playlist-unavailable>@UnavailableText</p>
+        }
+        <div class="playlist-hero__actions">
+            @ChildContent
+        </div>
+    </div>
+</section>
+
+@code {
+    private const int QuadrantDrawnPx = 160;
+    private const int SingleDrawnPx = 320;
+
+    // Top-left, bottom-left, top-right, bottom-right: the order the Playlists page's tile fills its quarters.
+    private static readonly string[] Slots = ["tl", "bl", "tr", "br"];
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The words in the pills: the first is the kind of list ("Playlist"), the rest are facts ("48 songs", "3 h 12 min").</summary>
+    [Parameter] public IReadOnlyList<string> Pills { get; set; } = [];
+
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>"2 unavailable songs": songs the library cannot find, told once under the description.</summary>
+    [Parameter] public string? UnavailableText { get; set; }
+
+    /// <summary>The covers of the tile (up to four albums, or the person's own cover alone), from <see cref="PlaylistTileComposer"/>.</summary>
+    [Parameter] public IReadOnlyList<ArtworkStackItem> Covers { get; set; } = [];
+
+    /// <summary>The icon the tile shows when the playlist has no covers at all (the shared "no covers" tile).</summary>
+    [Parameter] public string FallbackIcon { get; set; } = AppMaterialIcons.Outlined.QueueMusic;
+
+    [Parameter] public string PlaylistsRoute { get; set; } = "/listen/playlists";
+
+    [Parameter] public EventCallback<string> OnNavigate { get; set; }
+
+    /// <summary>Play, Shuffle, Add songs and the "..." menu, in the order the page gives them.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string HeroClass => DeviceContext.IsPhone ? "playlist-hero playlist-hero--phone" : "playlist-hero";
+
+    // Two covers leave the right column empty and three leave the bottom-right quarter; one cover fills the tile whole.
+    private IEnumerable<string> EmptySlots => Covers.Count < 2 ? [] : Slots.Skip(Covers.Count);
+}

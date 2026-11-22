@@ -91,7 +91,12 @@ internal sealed class CatalogueResourceAuthorizationService(
         var candidates = await GetEntityAssetCandidatesAsync(entityType, entityId, ViewerProfileOf(authority), ct).ConfigureAwait(false);
         if (candidates.Count == 0)
         {
-            return CatalogueResourceAccess.NotFound;
+            // A hand-made playlist or collection with nothing in it yet has no files to clear, so it would always read as not found:
+            // its first song could never be added and it could never be deleted. It holds nothing anyone could be kept from, and the
+            // route itself still checks who may edit it.
+            return await IsEmptyManualCollectionAsync(entityType, entityId, ct).ConfigureAwait(false)
+                ? CatalogueResourceAccess.Allowed
+                : CatalogueResourceAccess.NotFound;
         }
 
         // Files the request cannot know about (a Vault file without an unlocked Vault mode session) answer "not found". An entity whose
@@ -530,10 +535,15 @@ internal sealed class CatalogueResourceAuthorizationService(
                 """,
             "person" =>
                 """
+                -- A band member no file credits has no files of their own: their picture is shown on the band's page, so it
+                -- follows the band's files (the same people the band's own page shows).
                 SELECT DISTINCT ma.id
                 FROM primary_person_media_credits pml
                 JOIN media_assets ma ON ma.id=pml.media_asset_id
-                WHERE pml.person_id=@entityId AND ma.status='Normal' AND ma.is_orphaned=0
+                WHERE (pml.person_id=@entityId
+                       OR (NOT EXISTS (SELECT 1 FROM primary_person_media_credits own WHERE own.person_id=@entityId)
+                           AND pml.person_id IN (SELECT group_id FROM person_group_members WHERE member_id=@entityId)))
+                  AND ma.status='Normal' AND ma.is_orphaned=0
                 ORDER BY ma.id;
                 """,
             "character" or "fictionalentity" =>
@@ -686,6 +696,27 @@ internal sealed class CatalogueResourceAuthorizationService(
         }
 
         return assetIds.Distinct().ToList();
+    }
+
+    private async Task<bool> IsEmptyManualCollectionAsync(string entityType, Guid entityId, CancellationToken ct)
+    {
+        if (!string.Equals(entityType.Trim(), "Collection", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        using var connection = database.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            """
+            SELECT COUNT(*) FROM collections c
+            WHERE c.id=@entityId
+              AND c.is_enabled=1
+              AND c.resolution='materialized'
+              AND c.collection_type IN ('Playlist','Custom')
+              AND NOT EXISTS (SELECT 1 FROM collection_items ci WHERE ci.collection_id=c.id);
+            """,
+            new { entityId },
+            cancellationToken: ct)).ConfigureAwait(false) > 0;
     }
 
     private static bool IsCollectionEntityType(string normalized) => normalized.ToLowerInvariant() is

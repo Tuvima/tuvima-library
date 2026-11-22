@@ -1,0 +1,175 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient ApiClient
+
+@* Naming a group of faces (spec view-people-search D3). Step one asks for a name. Then, one at a time, any other group that may be the same
+   person is offered as "Is this Sam?": untick faces that are someone else, then Yes, Not Sam or Skip. Nothing is named without a Yes.
+   On a phone the dialog is the full-screen step. *@
+<AppDialogShell Title="@Heading" Size="Medium" OnClose="@(() => Dialog.CancelAsync())">
+    <ChildContent>
+        @if (_failed)
+        {
+            <AppAlert Tone="AppUiTone.Error">@ViewPeopleText.CouldNotSave</AppAlert>
+        }
+        @if (_suggestion is null)
+        {
+            <ul class="view-face-grid view-face-grid--preview">
+                @foreach (var id in _previewFaces)
+                {
+                    <li @key="id"><ViewFaceImage FaceId="@id" ProfileId="@ProfileId" /></li>
+                }
+            </ul>
+            <AppTextField Label="@ViewPeopleText.NameLabel" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)" MaxLength="120" AutoFocus="true" OnKeyDown="OnKeyDownAsync" />
+        }
+        else
+        {
+            <p class="view-face-hint">@ViewPeopleText.IsThisHint(_name)</p>
+            <ul class="view-face-grid">
+                @foreach (var face in _suggestion.Faces)
+                {
+                    var ticked = !_unticked.Contains(face.FaceId);
+                    <li @key="face.FaceId">
+                        <AppNativeButton Type="button" Class="@("view-face-tile view-face-tile--check" + (ticked ? " view-face-tile--on" : string.Empty))" AriaLabel="@_name" aria-pressed="@(ticked ? "true" : "false")" OnClick="@(_ => Toggle(face.FaceId))">
+                            <ViewFaceImage FaceId="@face.FaceId" ProfileId="@ProfileId" />
+                        </AppNativeButton>
+                    </li>
+                }
+            </ul>
+        }
+    </ChildContent>
+    <FooterContent>
+        @if (_suggestion is null)
+        {
+            <AppButton Label="@ViewPeopleText.Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="_busy" OnClick="@(() => Dialog.CancelAsync())" />
+            <AppButton Label="@ViewPeopleText.NameButton" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_name))" OnClick="SaveNameAsync" />
+        }
+        else
+        {
+            <AppButton Label="@ViewPeopleText.Skip" ButtonStyle="AppButtonStyle.Text" Disabled="_busy" OnClick="NextAsync" />
+            <AppButton Label="@ViewPeopleText.NotThem(_name)" ButtonStyle="AppButtonStyle.Outlined" Disabled="_busy" OnClick="NotThemAsync" />
+            <AppButton Label="@ViewPeopleText.Yes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || _unticked.Count >= _suggestion.Faces.Count)" OnClick="YesAsync" />
+        }
+    </FooterContent>
+</AppDialogShell>
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>The group being named, or the person being renamed.</summary>
+    [Parameter, EditorRequired] public Guid PersonId { get; set; }
+    [Parameter] public string? CurrentName { get; set; }
+    [Parameter] public Guid? ProfileId { get; set; }
+    [Parameter] public bool OfferSuggestions { get; set; } = true;
+
+    private string _name = string.Empty;
+    private IReadOnlyList<Guid> _previewFaces = [];
+    private readonly Queue<ViewFaceSuggestionDto> _queue = new();
+    private ViewFaceSuggestionDto? _suggestion;
+    private readonly HashSet<Guid> _unticked = [];
+    private Guid _namedId;
+    private bool _busy;
+    private bool _failed;
+    private bool _changed;
+
+    private string Heading => _suggestion is null ? (CurrentName is null ? ViewPeopleText.NamePrompt : ViewPeopleText.Rename) : ViewPeopleText.IsThis(_name);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _name = CurrentName ?? string.Empty;
+        _namedId = PersonId;
+        var faces = await ApiClient.GetViewFaceGroupFacesAsync(PersonId, 8);
+        _previewFaces = faces?.Items.Select(face => face.FaceId).ToList() ?? [];
+    }
+
+    private async Task OnKeyDownAsync(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter" && !string.IsNullOrWhiteSpace(_name))
+        {
+            await SaveNameAsync();
+        }
+    }
+
+    private async Task SaveNameAsync()
+    {
+        _busy = true;
+        _failed = false;
+        var result = await ApiClient.NameViewFacePersonAsync(PersonId, _name.Trim());
+        if (result is null)
+        {
+            _failed = true;
+            _busy = false;
+            return;
+        }
+
+        _changed = true;
+        _namedId = result.PersonId;
+        _name = _name.Trim();
+        if (OfferSuggestions)
+        {
+            var suggestions = await ApiClient.GetViewFaceSuggestionsAsync(_namedId);
+            foreach (var item in suggestions?.Items ?? [])
+            {
+                _queue.Enqueue(item);
+            }
+        }
+
+        _busy = false;
+        await NextAsync();
+    }
+
+    private async Task NextAsync()
+    {
+        _unticked.Clear();
+        if (_queue.Count == 0)
+        {
+            _suggestion = null;
+            await Dialog.CloseAsync(AppDialogResult.Ok(_changed));
+            return;
+        }
+
+        _suggestion = _queue.Dequeue();
+    }
+
+    private void Toggle(Guid faceId)
+    {
+        if (!_unticked.Add(faceId))
+        {
+            _unticked.Remove(faceId);
+        }
+    }
+
+    private async Task YesAsync()
+    {
+        if (_suggestion is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        var all = _suggestion.Faces.Select(face => face.FaceId).ToList();
+        var ok = await ApiClient.ConfirmViewFacesAsync(_namedId, all.Where(id => !_unticked.Contains(id)).ToList(), all.Where(_unticked.Contains).ToList());
+        _failed = !ok;
+        _busy = false;
+        if (ok)
+        {
+            await NextAsync();
+        }
+    }
+
+    private async Task NotThemAsync()
+    {
+        if (_suggestion is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        var ok = await ApiClient.RejectViewFacesAsync(_namedId, _suggestion.Faces.Select(face => face.FaceId).ToList());
+        _failed = !ok;
+        _busy = false;
+        if (ok)
+        {
+            await NextAsync();
+        }
+    }
+}

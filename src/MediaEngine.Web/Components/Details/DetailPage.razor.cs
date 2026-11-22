@@ -54,6 +54,9 @@ public partial class DetailPage
         || MediaKindClassifier.IsAudiobook(Model?.Facts?.MediaKind)
         || Model?.OwnedFormats.Any(format => format.FormatType == MediaFormatType.Audiobook) == true;
     private bool ShowDetailNavigation => Model?.EntityType != DetailEntityType.Person;
+
+    // A Series or collection page: In order and Details tabs, the members as a numbered cover grid (spec group-pages-and-tiles D4).
+    private bool IsGroupPage => Model is not null && GroupPageRules.IsGroupPage(Model.EntityType);
     // The Engine only offers "edit" to a person who may edit; the device rule is checked here again at the handler.
     private bool CanEditMedia => DeviceContext.CanEditItems && Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
@@ -114,6 +117,18 @@ public partial class DetailPage
             _setSummaryFor = setId;
             var profile = await Orchestrator.GetActiveProfileAsync();
             _setSummary = await ApiClient.GetCollectionSummaryAsync(setId, profile?.Id);
+        }
+    }
+
+    // The part of the page under the hero and tabs waits one render, so the hero and Play reach the screen first (issue 1262).
+    private bool _belowHeroReady;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && !_belowHeroReady && !_disposed)
+        {
+            _belowHeroReady = true;
+            StateHasChanged();
         }
     }
 

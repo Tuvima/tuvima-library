@@ -42,7 +42,10 @@
         {
             <AppIconButton Class="hero-icon-circle hero-open-folder cinematic-hero-carousel__folder-link" Href="@FolderHref" ButtonStyle="AppButtonStyle.Text" OverArtwork="true" Size="AppControlSize.Large" Icon="@AppMaterialIcons.Outlined.Folder" Tooltip="@(ShowLabels ? null : VideoFolderWording.OpenLabel)" AriaLabel="@VideoFolderWording.OpenLabel" Label="@(ShowLabels ? L["HeroActionRow_Open"].Value : null)" />
         }
-        <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle app-icon-button app-icon-button--plain app-icon-button--over-artwork app-control--large" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
+        @if (!HideMore)
+        {
+            <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle app-icon-button app-icon-button--plain app-icon-button--over-artwork app-control--large" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
+        }
     </div>
 </div>
 @code {
@@ -54,6 +57,8 @@
 
     /// <summary>False on the Home hero and the phone card, where the companions are icon-only and keep their tooltip; true names each one underneath.</summary>
     [Parameter] public bool ShowLabels { get; set; } = true;
+    /// <summary>Leaves out the "..." More button: the phone Home hero keeps just the main button and My List (Like and More are on the details page).</summary>
+    [Parameter] public bool HideMore { get; set; }
     [Parameter] public bool IsMusicAlbum { get; set; }
 
     /// <summary>Set for a folder of videos: the hero then shows an Open companion button (folder icon) that goes to the folder.</summary>

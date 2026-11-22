@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Browse;
@@ -38,37 +39,15 @@ public partial class ListenPage
     private string ActivePlaylistTitle => !string.IsNullOrWhiteSpace(PlaylistKey)
         ? PlaylistKey.ToLowerInvariant() switch
         {
-            "all-music" => "All Music",
+            "all-music" => L["PlaylistPage_AllMusic"].Value,
             "favorite-songs" => L["Glossary_Favorites"].Value,
-            "recently-added" => "Recently Added",
-            _ => "Playlist",
+            "recently-added" => L["Glossary_RecentlyAdded"].Value,
+            _ => L["PlaylistPage_Kind"].Value,
         }
-        : ActivePlaylistCollection?.Name ?? "Playlist";
+        : ActivePlaylistCollection?.Name ?? L["PlaylistPage_Kind"].Value;
 
     // The built-in Favorites list: the profile's hearted songs, kept in an order it can change by hand.
     private bool IsFavoritesPlaylist => string.Equals(PlaylistKey, "favorite-songs", StringComparison.OrdinalIgnoreCase);
-
-    private string ActivePlaylistTypeLabel => !string.IsNullOrWhiteSpace(PlaylistKey)
-        ? "System Playlist"
-        : ActivePlaylistCollection?.TypeLabel is { Length: > 0 } label
-            ? $"{label} Playlist"
-            : "Playlist";
-
-    private string? ActivePlaylistDescription => !string.IsNullOrWhiteSpace(PlaylistKey)
-        ? PlaylistKey.ToLowerInvariant() switch
-        {
-            "all-music" => "Every song in your library in one utility view.",
-            "favorite-songs" => "Songs this profile has marked as Favorites.",
-            "recently-added" => "Fresh music sorted by arrival time.",
-            _ => null,
-        }
-        : ActivePlaylistCollection?.Description;
-
-    private string? ActivePlaylistMeta => !string.IsNullOrWhiteSpace(PlaylistKey)
-        ? null
-        : ActivePlaylistCollection is null
-            ? null
-            : $"{ActivePlaylistCollection.ItemCount} items";
 
     private async Task ToggleActivePlaylistSavedAsync()
     {
@@ -88,22 +67,132 @@ public partial class ListenPage
         _activePlaylistSaved = result.IsSaved;
     }
 
-    private int GetPlaylistOrderIndex(ManagedCollectionViewModel playlist)
-    {
-        var index = _playlistOrder.IndexOf(playlist.Id);
-        return index < 0 ? int.MaxValue : index;
-    }
-
+    // The sidebar's "..." menu: Move up and Move down put the playlist one place earlier or later in the order the profile keeps (spec D3).
     private async Task MovePlaylistAsync(Guid playlistId, int direction)
     {
-        var orderedIds = PlaylistCollections.Select(playlist => playlist.Id).ToList();
-        if (!ListenPlaylistOrderState.TryMoveByOffset(orderedIds, playlistId, direction, out var updatedOrder))
+        var shown = PlaylistCollections;
+        var orderedIds = shown.Select(playlist => playlist.Id).ToList();
+        if (!ListenPlaylistOrderState.CanMoveWithinGroup(shown, playlistId, direction)
+            || !ListenPlaylistOrderState.TryMoveByOffset(orderedIds, playlistId, direction, out var updatedOrder))
         {
             return;
         }
 
         _playlistOrder = updatedOrder;
         await SavePlaylistOrderAsync();
+    }
+
+    private Task MovePlaylistUpAsync(ManagedCollectionViewModel playlist) => MovePlaylistAsync(playlist.Id, -1);
+
+    private Task MovePlaylistDownAsync(ManagedCollectionViewModel playlist) => MovePlaylistAsync(playlist.Id, 1);
+
+    private bool CanMovePlaylist(ManagedCollectionViewModel playlist, int direction)
+        => ListenPlaylistOrderState.CanMoveWithinGroup(PlaylistCollections, playlist.Id, direction);
+
+    // ---- Reorder by finger (spec listen-playlists WP5, issue 1201) ----
+    // The sidebar's playlists are dragged by their grip (playlist-reorder.js): a finger cannot start the browser's drag. A drop reports the playlist
+    // that moved and the one it landed before or after; the order is worked out and saved exactly as for the mouse's drag.
+
+    private ElementReference _playlistRailRoot;
+    private string? _playlistRailWiredId;
+    private IJSObjectReference? _playlistReorderModule;
+    private DotNetObjectReference<ListenPage>? _playlistReorderSelf;
+
+    private async Task WirePlaylistTouchReorderAsync()
+    {
+        var rootId = !DeviceContext.IsPhone && PlaylistCollections.Count > 1 ? _playlistRailRoot.Id : null;
+        if (rootId == _playlistRailWiredId || _disposed)
+        {
+            return;
+        }
+
+        await UnwirePlaylistTouchReorderAsync();
+        if (rootId is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _playlistReorderModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playlist-reorder.js");
+            _playlistReorderSelf ??= DotNetObjectReference.Create(this);
+            await _playlistReorderModule.InvokeVoidAsync("attach", _playlistRailRoot, _playlistReorderSelf);
+            _playlistRailWiredId = rootId;
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException)
+        {
+            // The mouse's drag and the menu's Move up and Move down still reorder the playlists.
+            Logger.LogWarning(exception, "Dragging a playlist by finger could not start in the Listen sidebar.");
+        }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogDebug(exception, "The browser went away before the Listen sidebar could start dragging playlists by finger.");
+        }
+    }
+
+    private async Task UnwirePlaylistTouchReorderAsync()
+    {
+        var wired = _playlistRailWiredId;
+        _playlistRailWiredId = null;
+        if (wired is null || _playlistReorderModule is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _playlistReorderModule.InvokeVoidAsync("detach", _playlistRailRoot);
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException or ObjectDisposedException or JSDisconnectedException)
+        {
+            // The sidebar may already be gone from the page; there is nothing left to let go of.
+            Logger.LogDebug(exception, "Letting go of the sidebar's finger drag failed.");
+        }
+    }
+
+    /// <summary>A finger let go of a playlist's grip over another playlist: the script names both and whether it was the lower half.</summary>
+    [JSInvokable]
+    public Task TouchReorderPlaylistAsync(string from, string to, bool after) => InvokeAsync(async () =>
+    {
+        if (!Guid.TryParse(from, out var playlistId) || !Guid.TryParse(to, out var targetId))
+        {
+            return;
+        }
+
+        var orderedIds = PlaylistCollections.Select(playlist => playlist.Id).ToList();
+        var moved = after
+            ? ListenPlaylistOrderState.TryMoveAfter(orderedIds, playlistId, targetId, out var updatedOrder)
+            : ListenPlaylistOrderState.TryMoveBefore(orderedIds, playlistId, targetId, out updatedOrder);
+        if (!moved)
+        {
+            return;
+        }
+
+        _playlistOrder = updatedOrder;
+        await SavePlaylistOrderAsync();
+        StateHasChanged();
+    });
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        await UnwirePlaylistTouchReorderAsync();
+        if (_playlistReorderModule is not null)
+        {
+            try
+            {
+                await _playlistReorderModule.DisposeAsync();
+            }
+            catch (Exception exception) when (exception is JSException or InvalidOperationException or ObjectDisposedException or JSDisconnectedException)
+            {
+                Logger.LogDebug(exception, "The sidebar's script was already gone when the Listen page closed.");
+            }
+
+            _playlistReorderModule = null;
+        }
+
+        _playlistReorderSelf?.Dispose();
+        _playlistReorderSelf = null;
     }
 
     private void BeginPlaylistReorder(Guid playlistId)
@@ -141,30 +230,25 @@ public partial class ListenPage
     private void BeginPlaylistInlineCreate()
     {
         _creatingPlaylistInline = true;
-        _newPlaylistName = string.Empty;
     }
 
-    private async Task CreatePlaylistOnKeyDownAsync(KeyboardEventArgs args)
+    // Escape, or moving away from the name box, closes it; songs dropped on New playlist are let go with it.
+    private void CancelPlaylistInlineCreate()
     {
-        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal))
-        {
-            _creatingPlaylistInline = false;
-            _newPlaylistName = string.Empty;
-            _pendingPlaylistDrop = null;
-            return;
-        }
-        if (!string.Equals(args.Key, "Enter", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(_newPlaylistName))
-        {
-            return;
-        }
+        _creatingPlaylistInline = false;
+        _pendingPlaylistDrop = null;
+    }
 
+    // Enter or the Create button in the name box.
+    private async Task CreatePlaylistNamedAsync(string name)
+    {
         _notice = null;
         if (_activeProfileId is null)
         {
             ShowNotice(L["ListenPage_ProfileRequiredToCreatePlaylists"].Value, AppUiTone.Warning);
             return;
         }
-        var name = _newPlaylistName.Trim();
+
         if (_pendingPlaylistDrop is { } carried)
         {
             // Songs were dropped on New playlist: the playlist is made already holding them, and the sentence goes to their table.
@@ -173,7 +257,6 @@ public partial class ListenPage
             {
                 _pendingPlaylistDrop = null;
                 _creatingPlaylistInline = false;
-                _newPlaylistName = string.Empty;
                 await LoadAsync();
             }
 
@@ -184,7 +267,7 @@ public partial class ListenPage
             name,
             null,
             AppMaterialIcons.Outlined.QueueMusic,
-            "Playlist",
+            CollectionTypeNames.Playlist,
             new CollectionRuleDefinitionViewModel(),
             "title",
             "asc",
@@ -196,54 +279,14 @@ public partial class ListenPage
             ShowNotice(L["ListenPage_PlaylistCreateFailed"].Value, AppUiTone.Error);
             return;
         }
+
         _creatingPlaylistInline = false;
-        _newPlaylistName = string.Empty;
-        await LoadAsync();
-    }
-
-    private void BeginPlaylistRename(ManagedCollectionViewModel playlist)
-    {
-        _renamingPlaylistId = playlist.Id;
-        _renamePlaylistName = playlist.Name;
-    }
-
-    private async Task RenamePlaylistOnKeyDownAsync(ManagedCollectionViewModel playlist, KeyboardEventArgs args)
-    {
-        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal))
-        {
-            _renamingPlaylistId = null;
-            return;
-        }
-        if (!string.Equals(args.Key, "Enter", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(_renamePlaylistName))
-        {
-            return;
-        }
-
-        _notice = null;
-        if (!await ApiClient.UpdateCollectionAsync(
-                playlist.Id,
-                _renamePlaylistName.Trim(),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                _activeProfileId))
-        {
-            ShowNotice(L["ListenPage_PlaylistRenameFailed"].Value, AppUiTone.Error);
-            return;
-        }
-        _renamingPlaylistId = null;
         await LoadAsync();
     }
 
     // Delete is instant after one "are you sure" (the shared confirm).
     private async Task BeginPlaylistDeleteAsync(ManagedCollectionViewModel playlist)
     {
-        _renamingPlaylistId = null;
         var confirmed = await Dialogs.ShowMessageBoxAsync(
             L["Common_Delete2", playlist.Name].Value,
             string.Empty,
@@ -261,7 +304,11 @@ public partial class ListenPage
         _notice = null;
         if (!await ApiClient.DeleteCollectionAsync(playlist.Id, _activeProfileId))
         {
-            ShowNotice(L["ListenPage_PlaylistDeleteFailed"].Value, AppUiTone.Error);
+            // The Engine's own reason goes after the sentence when it gave one, so a refusal says why.
+            var reason = MediaEngine.Web.Services.Integration.EngineFailureText.FromClient(ApiClient);
+            ShowNotice(
+                string.IsNullOrWhiteSpace(reason) ? L["ListenPage_PlaylistDeleteFailed"].Value : $"{L["ListenPage_PlaylistDeleteFailed"].Value} {reason}",
+                AppUiTone.Error);
             return;
         }
         if (CollectionId == playlist.Id)
@@ -337,93 +384,6 @@ public partial class ListenPage
         }
     }
 
-    private async Task AddSelectedTracksToPlaylistAsync(Guid? collectionId = null)
-    {
-        if (SelectedTrackWorks.Count == 0)
-        {
-            return;
-        }
-
-        if (collectionId.HasValue)
-        {
-            var collection = PlaylistCollections.FirstOrDefault(item => item.Id == collectionId.Value);
-            if (collection is null)
-            {
-                return;
-            }
-
-            await AddTracksToPlaylistAsync(SelectedTrackWorks, collection);
-            return;
-        }
-
-        await CreatePlaylistAndAddTracksAsync(SelectedTrackWorks);
-    }
-
-    private async Task AddTracksToPlaylistAsync(IEnumerable<WorkViewModel> works, ManagedCollectionViewModel collection)
-    {
-        _notice = null;
-        if (!_activeProfileId.HasValue)
-        {
-            ShowNotice(L["ListenPage_ProfileRequiredToSaveToPlaylists"].Value, AppUiTone.Warning);
-            return;
-        }
-
-        var added = 0;
-        foreach (var work in works)
-        {
-            if (await ApiClient.AddCollectionItemAsync(collection.Id, work.Id, _activeProfileId.Value))
-            {
-                added++;
-            }
-        }
-
-        if (added == 0)
-        {
-            ShowNotice(L["ListenPage_AddSongsFailed", collection.Name].Value, AppUiTone.Error);
-            return;
-        }
-
-        await LoadAsync();
-    }
-
-    private async Task CreatePlaylistAndAddTracksAsync(IEnumerable<WorkViewModel> works)
-    {
-        _notice = null;
-        if (!_activeProfileId.HasValue)
-        {
-            ShowNotice(L["ListenPage_ChooseProfileBeforeCreatingPlaylists"].Value, AppUiTone.Warning);
-            return;
-        }
-
-        var timestamp = DateTimeOffset.Now.ToString("M-d HHmm", CultureInfo.InvariantCulture);
-        var created = await ApiClient.CreateCollectionAsync(
-            name: $"New Playlist {timestamp}",
-            description: "Created from the Listen grid.",
-            iconName: AppMaterialIcons.Outlined.QueueMusic,
-            collectionType: "Playlist",
-            definition: new CollectionRuleDefinitionViewModel(),
-            sortField: null,
-            sortDirection: "asc",
-            visibility: "private",
-            profileId: _activeProfileId.Value);
-
-        if (!created)
-        {
-            ShowNotice(L["ListenPage_DroppedSongsPlaylistFailed"].Value, AppUiTone.Error);
-            return;
-        }
-
-        await LoadAsync();
-        var createdPlaylist = PlaylistCollections.OrderByDescending(collection => collection.CreatedAt).FirstOrDefault();
-        if (createdPlaylist is null)
-        {
-            ShowNotice(L["ListenPage_PlaylistCreatedNotLoaded"].Value, AppUiTone.Warning);
-            return;
-        }
-
-        await AddTracksToPlaylistAsync(works, createdPlaylist);
-    }
-
     // Dragged songs dropped on a hand-made playlist in the rail: the add, the skip of songs already there and the sentence come from the one
     // drop service; the table the songs came from shows the sentence in place.
     private async Task DropSongsOnPlaylistAsync(ManagedCollectionViewModel playlist)
@@ -455,7 +415,7 @@ public partial class ListenPage
         };
 
     private static bool CanAcceptPlaylistItems(ManagedCollectionViewModel collection)
-        => string.Equals(collection.CollectionType, "Playlist", StringComparison.OrdinalIgnoreCase);
+        => string.Equals(collection.CollectionType, CollectionTypeNames.Playlist, StringComparison.OrdinalIgnoreCase);
 
     // The playlists dragged songs can be dropped on: exactly the ones the Add to playlist list offers (a rule-based or system list never).
     private static bool AcceptsSongDrops(ManagedCollectionViewModel collection)

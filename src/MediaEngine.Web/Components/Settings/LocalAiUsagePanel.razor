@@ -3,7 +3,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* Two views of the same usage report. Plugins (Local AI > Status) lists each AI plugin's standing against its hourly
-   allowance; AI features are plugins, so every row links to its card on the Plugins page. Table (Local AI > Advanced) is the
+   allowance; the one link to the Plugins page sits beside it on the tab (Local AI keeps a single link there). Table (Local AI > Advanced) is the
    detailed week of use by caller and ability. *@
 <div class="local-ai-usage" data-testid="local-ai-usage">
     @if (_loading)
@@ -35,7 +35,6 @@
                             {
                                 <AppStatusBadge Text="@L["Common_NeedsAttention"].Value" Tone="AppUiTone.Warning" />
                             }
-                            <AppButton Label="@L["Common_Open"].Value" Href="@($"/settings/plugins?plugin={Uri.EscapeDataString(plugin.PluginId)}")" Size="AppControlSize.Compact" />
                         </li>
                     }
                 </ul>
@@ -51,11 +50,11 @@
             }
             else
             {
-                <AppTable Dense="true" Striped="true" Hover="true">
+                <AppTable Dense="true" Striped="true" Hover="true" CardsOn="AppTableCardsMode.Phone">
                     <thead>
                         <tr>
-                            <th>@L["Common_UsedBy"]</th>
-                            <th>@L["LocalAiUsagePanel_Ability"]</th>
+                            <th data-card-role="title">@L["Common_UsedBy"]</th>
+                            <th data-card-role="subtitle">@L["LocalAiUsagePanel_Ability"]</th>
                             <th class="app-table__num">@L["LocalAiUsagePanel_Requests"]</th>
                             <th class="app-table__num">@L["LocalAiUsagePanel_BusyTime"]</th>
                             <th>@L["LocalAiUsagePanel_LastUsed"]</th>
@@ -65,11 +64,11 @@
                         @foreach (var row in _usage.Rows)
                         {
                             <tr @key="@($"{row.CallerKind}/{row.CallerId}/{row.Ability}")">
-                                <td>@CallerLabel(row)</td>
-                                <td>@row.Ability</td>
-                                <td class="app-table__num">@row.Requests@(row.Succeeded < row.Requests ? $" ({row.Succeeded} worked)" : "")</td>
-                                <td class="app-table__num">@row.BusySeconds.ToString("0.#") s</td>
-                                <td>@row.LastUsedAt.ToLocalTime().ToString("g")</td>
+                                <td data-card-role="title">@CallerLabel(row)</td>
+                                <td data-card-role="subtitle">@row.Ability</td>
+                                <td class="app-table__num" data-label="@L["LocalAiUsagePanel_Requests"].Value">@row.Requests@(row.Succeeded < row.Requests ? $" ({row.Succeeded} worked)" : "")</td>
+                                <td class="app-table__num" data-label="@L["LocalAiUsagePanel_BusyTime"].Value">@row.BusySeconds.ToString("0.#") s</td>
+                                <td data-label="@L["LocalAiUsagePanel_LastUsed"].Value">@row.LastUsedAt.ToLocalTime().ToString("g")</td>
                             </tr>
                         }
                     </tbody>

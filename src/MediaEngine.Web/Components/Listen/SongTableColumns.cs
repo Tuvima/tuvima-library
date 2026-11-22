@@ -71,19 +71,21 @@ public static class SongTableColumns
         Order.Where(column => IsAvailable(place, column) && column is not (SongColumn.Tick or SongColumn.Song)).ToList();
 
     /// <summary>
-    /// True when the place can show the column at all. The playlist has no Genre, Plays or Date added; the album page has no Album,
-    /// Genre, Plays or Date added (every track is on that album, and the Engine sends none of the others); Status is the album page's.
+    /// True when the place can show the column at all. The playlist has no Genre, Plays or Status (it does have Date added, spec
+    /// group-pages-and-tiles D7); the album page has no Album, Genre, Plays or Date added (every track is on that album, and the Engine
+    /// sends none of the others); Status is the album page's.
     /// </summary>
     public static bool IsAvailable(SongTablePlace place, SongColumn column) => place switch
     {
         SongTablePlace.AlbumPage => column is not (SongColumn.Album or SongColumn.DateAdded or SongColumn.Plays or SongColumn.Genre),
-        SongTablePlace.Playlist => column is not (SongColumn.DateAdded or SongColumn.Plays or SongColumn.Genre or SongColumn.Status),
+        SongTablePlace.Playlist => column is not (SongColumn.Plays or SongColumn.Genre or SongColumn.Status),
         _ => column != SongColumn.Status,
     };
 
     /// <summary>
     /// The columns that start on in a place. Songs and Albums: all but Genre. Album page: #, Song, Time, Status, Favorite, plus Artist only
-    /// when the album has more than one artist. Playlist: #, Song, Artist, Album, Favorite, Time. Tick is the host's call and is not here.
+    /// when the album has more than one artist. Playlist: #, Song (the artist sits under the title), Album, Date added, Time (spec
+    /// group-pages-and-tiles D7; Artist and Favorite stay in the Columns list). Tick is the host's call and is not here.
     /// </summary>
     public static IReadOnlyList<SongColumn> Defaults(SongTablePlace place, bool albumHasMultipleArtists = false)
     {
@@ -99,8 +101,10 @@ public static class SongTableColumns
 
                 break;
             case SongTablePlace.Playlist:
-                on.Add(SongColumn.Artist);
+                // The playlist's song cell carries the artist under the title, as streaming lists do, so Artist is a column only on request.
+                on.Remove(SongColumn.Favorite);
                 on.Add(SongColumn.Album);
+                on.Add(SongColumn.DateAdded);
                 break;
             default:
                 on.Add(SongColumn.Artist);

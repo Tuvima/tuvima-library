@@ -33,6 +33,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     private UserPlaybackSettingsDto? _otherSettings = UserPlaybackSettingsDto.CreateDefaults(OtherId);
     private readonly CapturingLoggerProvider _logs = new();
     private bool _putThrows;
+    private VideoPlaybackOptionsDto _videoOptions = new();
     private UserPlaybackSettingsDto? _remote = UserPlaybackSettingsDto.CreateDefaults(ActiveId);
 
     public PlaybackSettingsPageTests()
@@ -55,6 +56,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
                 _apiCalls.Add((id, "get"));
                 return Task.FromResult(Copy(id == OtherId ? _otherSettings : id == ActiveId ? _remote : UserPlaybackSettingsDto.CreateDefaults(id)));
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetVideoPlaybackOptionsAsync), _ => Task.FromResult<VideoPlaybackOptionsDto?>(_videoOptions));
             stub.SetHandler(nameof(IEngineApiClient.SaveSpoilerLevelAsync), args =>
             {
                 var id = (Guid)args![0]!;
@@ -77,6 +79,8 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             });
         });
         Services.AddSingleton(api);
+        Services.AddSingleton(new DashboardSessionAccessor());
+        Services.AddScoped<BrowserPlaybackCapabilityReporter>();
         var profiles = new ActiveProfileSessionService(null!, api, authenticationStateProvider: new ProfileAuthentication(ActiveId));
         Services.AddSingleton(profiles);
         Services.AddSingleton(new UIOrchestratorService(api, new UniverseStateContainer(), profiles, new ConfigurationManager(), NullLogger<UIOrchestratorService>.Instance));
@@ -99,13 +103,58 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             Assert.DoesNotContain("Subtitle appearance", cut.Markup);
             Assert.DoesNotContain("Text size", cut.Markup);
             Assert.DoesNotContain("Show bookmarks on the bar", cut.Markup);
-            // Resume, Bar, Spoilers, Video quality and devices, Subtitles and audio.
-            Assert.Equal(5, cut.FindAll(".app-settings-group").Count);
+            // Resume, Bar, Spoilers, Video quality and devices, On this device, Subtitles and audio.
+            Assert.Equal(6, cut.FindAll(".app-settings-group").Count);
             Assert.DoesNotContain("Default playback speed", cut.Markup);
             Assert.DoesNotContain("Audiobook default speed", cut.Markup);
             Assert.DoesNotContain("Adjust text while reading", cut.Markup);
             Assert.DoesNotContain("Choose tracks in the player", cut.Markup);
         });
+    }
+
+    private static VideoPlaybackOptionsDto WithBrowserChoices() => new()
+    {
+        Options =
+        [
+            new VideoOptionDto { Id = VideoOptionIds.VideoQuality, Label = "Video quality", Kind = VideoOptionKinds.Choice, Scope = VideoOptionScopes.Profile, Value = "Auto", DefaultValue = "Auto", Choices = [new VideoOptionChoiceDto { Value = "Auto", Label = "Automatic" }] },
+            new VideoOptionDto { Id = VideoOptionIds.MaxResolution, Label = "Maximum resolution", Kind = VideoOptionKinds.Choice, Scope = VideoOptionScopes.Device, Value = "auto", DefaultValue = "auto", Choices = [new VideoOptionChoiceDto { Value = "auto", Label = "Automatic" }] },
+            new VideoOptionDto { Id = VideoOptionIds.HardwareDecoding, Label = "Hardware decoding", Kind = VideoOptionKinds.Toggle, Scope = VideoOptionScopes.Device, Value = "on", DefaultValue = "on" },
+            new VideoOptionDto { Id = VideoOptionIds.SurroundSound, Label = "Surround sound", Kind = VideoOptionKinds.Toggle, Scope = VideoOptionScopes.Device, Value = "on", DefaultValue = "on" },
+            new VideoOptionDto { Id = VideoOptionIds.DeviceAbilities, Label = "What this device can play", Kind = VideoOptionKinds.Summary, Scope = VideoOptionScopes.Device, Value = "Plays H.264" },
+            new VideoOptionDto { Id = VideoOptionIds.CheckAgain, Label = "Check again", Kind = VideoOptionKinds.Action, Scope = VideoOptionScopes.Device },
+        ],
+    };
+
+    [Fact]
+    public void OwnProfile_ShowsTheThreeChoicesForThisBrowserUnderOnThisDevice()
+    {
+        _videoOptions = WithBrowserChoices();
+        var cut = Render<PlaybackSettingsPage>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var group = cut.Find("[data-playback-section='on-this-device']");
+            Assert.Contains("On this device", group.TextContent, StringComparison.Ordinal);
+            Assert.Equal(
+                [VideoOptionIds.MaxResolution, VideoOptionIds.HardwareDecoding, VideoOptionIds.SurroundSound, VideoOptionIds.DeviceAbilities, VideoOptionIds.CheckAgain],
+                group.QuerySelectorAll("[data-video-option]").Select(row => row.GetAttribute("data-video-option")));
+            Assert.Contains("What this device can play", group.TextContent, StringComparison.Ordinal);
+            Assert.Contains("Check again", group.TextContent, StringComparison.Ordinal);
+            // The person's own rows stay in their own group.
+            Assert.DoesNotContain("Maximum resolution", cut.Find("#video-quality").TextContent, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void AnotherProfilesPreferences_DoNotShowTheChoicesAboutThisBrowser()
+    {
+        _videoOptions = WithBrowserChoices();
+        var cut = Render<PlaybackSettingsPage>(parameters => parameters.Add(page => page.ProfileId, OtherId));
+
+        cut.WaitForAssertion(() => Assert.Contains("Resume where you left off", cut.Markup));
+        Assert.Empty(cut.FindAll("[data-playback-section='on-this-device']"));
+        Assert.DoesNotContain("On this device", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Maximum resolution", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

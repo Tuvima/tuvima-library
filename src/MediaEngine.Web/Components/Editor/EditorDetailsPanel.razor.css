@@ -30,20 +30,6 @@
     padding: var(--tl-space-2) 0;
 }
 
-/* A Series' members in order (universal editor v5 screen H): a locked, read-only list, never inputs. */
-.tl-editor-details__members {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--tl-space-1) var(--tl-space-4);
-    margin: 0;
-    padding: var(--tl-space-3);
-    border: 1px dashed var(--tl-divider);
-    border-radius: var(--tl-radius-md);
-    color: var(--tl-text-secondary);
-    line-height: 1.8;
-    list-style: none;
-}
-
 /* The groups of fields are columns of shared form rows (Editor v6 D12): each row lines its own fields up, so the group only stacks the rows. */
 .tl-editor-details__group {
     display: flex;

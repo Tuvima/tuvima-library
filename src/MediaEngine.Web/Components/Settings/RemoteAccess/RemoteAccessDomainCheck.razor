@@ -1,0 +1,49 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* Own-domain wizard, screen 4: Check (mock-ups 6b C). Three plain questions, each ticking when the Engine's check says yes: the name points
+   here, the certificate is valid, and Library recognises outside visitors. A line that is not fine says why in one sentence and gives the
+   single next step; where the Engine has a safe fix there is one button, "Fix it for me". Each line links to its entry in the
+   troubleshooting guide. Save and continue goes on to the test. *@
+<div class="ra-check" data-remote-screen="domain-check">
+    <RemoteAccessCard Key="checks" Title="@string.Format(L["RemoteAccessDomainCheck_Title"].Value, Address)">
+        @foreach (var row in Rows)
+        {
+            <RemoteAccessDomainCheckLine Row="@row" Busy="@(Checking || Fixing)" FixRequested="FixRequested" FixNote="@(row.FixAction is null ? null : FixNote)" />
+        }
+    </RemoteAccessCard>
+    @if (!Checking && OwnDomainChecks.AllGreen(Rows))
+    {
+        <p class="ra-check__ok" role="status" data-remote-all-green>@L["RemoteAccessDomainCheck_AllGood"]</p>
+    }
+
+    <div class="ra-check__actions">
+        <AppButton Label="@L["Common_Continue"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Checking || Fixing)"
+                   OnClick="ContinueRequested" data-remote-action="continue" />
+        <AppButton Label="@L["RemoteAccessCheckStep_CheckAgain"].Value" Disabled="@(Checking || Fixing)" OnClick="CheckAgainRequested" data-remote-action="check-again" />
+        <AppButton Label="@L["Common_Back"].Value" OnClick="BackRequested" data-remote-action="back" />
+    </div>
+</div>
+
+@code {
+    /// <summary>The https address being checked.</summary>
+    [Parameter, EditorRequired] public string Address { get; set; } = string.Empty;
+
+    [Parameter] public RemoteCheckResultDto? Result { get; set; }
+    [Parameter] public bool Checking { get; set; }
+
+    /// <summary>True while a one-click fix is being applied.</summary>
+    [Parameter] public bool Fixing { get; set; }
+
+    /// <summary>What the last fix said, in a plain sentence.</summary>
+    [Parameter] public string? FixNote { get; set; }
+
+    [Parameter] public EventCallback<string> FixRequested { get; set; }
+    [Parameter] public EventCallback CheckAgainRequested { get; set; }
+    [Parameter] public EventCallback ContinueRequested { get; set; }
+    [Parameter] public EventCallback BackRequested { get; set; }
+
+    private IReadOnlyList<OwnDomainCheckRow> Rows => OwnDomainChecks.CheckRows(Result, Checking);
+}

@@ -95,3 +95,14 @@ public static class ViewDiscoveryCapabilityStates
     public const string Empty = "empty";
     public const string NoMatches = "no_matches";
 }
+
+/// <summary>One search-bar suggestion: its kind ("person", "place", "year", "camera" or "tag"), the text to search for, and how many photos and videos it matches.</summary>
+public sealed record ViewSuggestionDto(
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("value")] string Value,
+    [property: JsonPropertyName("count")] int Count);
+
+/// <summary>The suggestions for what the person has typed so far, over only the photos and videos their View scope may see.</summary>
+public sealed record ViewSuggestionsDto(
+    [property: JsonPropertyName("items")] IReadOnlyList<ViewSuggestionDto> Items);
+

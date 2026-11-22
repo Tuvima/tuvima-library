@@ -117,9 +117,18 @@ public partial class DetailPage
                 .Select(item => Guid.Parse(item.Id))
                 .Distinct()
                 .ToList();
-            await Dialogs.ShowAsync<MediaMembershipDialog>(action.Label, new AppDialogParameters<MediaMembershipDialog> {
-                { d => d.Playlist, true }, { d => d.WorkIds, works },
-            });
+            // The same Add to playlist flow every place uses (picker, add, one sentence), shown in place at the top of the page.
+            var notice = await PlaylistMembershipFlow.RunForSongsAsync(Services, works, action.Label);
+            if (notice is not null)
+            {
+                ShowNotice(notice.Message, notice.Severity switch
+                {
+                    AppSeverity.Error => AppUiTone.Error,
+                    AppSeverity.Warning => AppUiTone.Warning,
+                    AppSeverity.Success => AppUiTone.Success,
+                    _ => AppUiTone.Info,
+                });
+            }
             return;
         }
         if (DetailActionKeys.IsPersonalStatus(action.Key))

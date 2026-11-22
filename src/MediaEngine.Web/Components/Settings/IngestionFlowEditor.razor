@@ -10,7 +10,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Ingestion Flow (Provider settings spec P2): one card per media type listing the providers that run for it, in order,
-   with a role. Reading is for everyone who can open Settings; editing is administrators on a computer only. Nothing applies
+   with a role. Reading is for everyone who can open Settings; editing is for administrators, on a desktop, tablet or phone. Nothing applies
    until Save changes, which shows Review changes first. A saved change affects new ingestion only. *@
 <div class="ingestion-flow" data-testid="ingestion-flow">
     @if (_loading)
@@ -34,7 +34,7 @@
             }
             else if (!CanEdit)
             {
-                <AppInfoTip Text="@EditorDeviceRule.Message" />
+                <AppInfoTip Text="@EditorDeviceRule.ItemMessage" />
             }
         </div>
 
@@ -136,7 +136,7 @@
     private bool _saving;
     private string? _saveError;
 
-    private bool CanEdit => EditorDeviceRule.CanEdit(DeviceContext);
+    private bool CanEdit => EditorDeviceRule.CanEditItems(DeviceContext);
 
     protected override async Task OnInitializedAsync()
     {
@@ -268,10 +268,24 @@
         var item = InventoryFor(name);
         if (item is null) return;
         var ok = item.Enabled && !item.NeedsSetup;
-        builder.OpenComponent<AppStatusBadge>(0);
-        builder.AddAttribute(1, "Text", ok ? "Connected" : item.NeedsSetup ? "Needs setup" : "Off");
-        builder.AddAttribute(2, "Tone", ok ? AppUiTone.Success : AppUiTone.Warning);
+        // A provider that needs setup links straight to its own place on Plugins, where its keys and settings are.
+        var sequence = 0;
+        if (item.NeedsSetup)
+        {
+            builder.OpenElement(sequence++, "a");
+            builder.AddAttribute(sequence++, "href", ProviderRoute(name));
+            builder.AddAttribute(sequence++, "data-needs-setup-link", name);
+        }
+
+        builder.OpenComponent<AppStatusBadge>(sequence++);
+        builder.AddAttribute(sequence++, "Text", ok ? "Connected" : item.NeedsSetup ? "Needs setup" : "Off");
+        builder.AddAttribute(sequence++, "Tone", ok ? AppUiTone.Success : AppUiTone.Warning);
         builder.CloseComponent();
+
+        if (item.NeedsSetup)
+        {
+            builder.CloseElement();
+        }
     };
 
     private static readonly IReadOnlyList<AppSelectOption> RoleOptions =

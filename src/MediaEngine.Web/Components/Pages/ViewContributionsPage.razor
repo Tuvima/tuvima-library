@@ -35,9 +35,7 @@
         {
             <div class="view-contributions-controls">
                 <AppCountTabs Tabs="@ModeTabs" Selected="@_mode" SelectedChanged="ChangeModeAsync" AriaLabel="@L["ViewContributionsPage_ContributionQueue"].Value" />
-                <AppSelect Native="true" Value="@_status" ValueChanged="StatusChangedAsync" aria-label="@L["ViewContributionsPage_ContributionStatus"].Value">
-                    <option value="">@L["ViewContributionsPage_AllStatuses"]</option><option value="pending">@L["Ingestion_StatusPending"]</option><option value="accepted">@L["ViewContributionsPage_Accepted"]</option><option value="declined">@L["ViewContributionsPage_Declined"]</option><option value="cancelled">@L["ViewContributionsPage_Cancelled"]</option>
-                </AppSelect>
+                <AppSelect Options="@StatusOptions" Value="@_status" ValueChanged="StatusChangedAsync" AriaLabel="@L["ViewContributionsPage_ContributionStatus"].Value" />
             </div>
             @if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@L["ViewContributionsPage_NoContributions"].Value" Message="@L["ViewContributionsPage_ThereAreNoContributionsIn"].Value" /> }
             else
@@ -109,7 +107,7 @@
             @if (contribution.Status == "pending" && _page?.CanReview == true && !contribution.IncludesHiddenItems)
             {
                 <div class="view-contribution-decision">
-                    <label><span>Accepted destination</span><AppSelect Native="true" Value="@_decisionKind" ValueChanged="DecisionKindChanged" aria-label="Accepted Shared Library destination"><option value="timeline">Shared Timeline</option><option value="folder">Named Shared folder</option></AppSelect></label>
+                    <label><span>@L["ViewContributionsPage_AcceptedDestination"]</span><AppSelect Options="@DestinationOptions" Value="@_decisionKind" ValueChanged="DecisionKindChanged" AriaLabel="@L["ViewContributionsPage_AcceptedDestination"].Value" /></label>
                     @if (_decisionKind == "folder") { <AppTextField Label="Shared folder name" Value="@_decisionFolder" ValueChanged="@(value => _decisionFolder = value ?? string.Empty)" /> }
                     <AppTextField Label="Reviewer note (optional)" Value="@_decisionReason" ValueChanged="@(value => _decisionReason = value ?? string.Empty)" />
                 </div>
@@ -138,6 +136,8 @@
     private async Task StatusChangedAsync(string? selected) { _status = selected ?? string.Empty; await LoadAsync(); }
     private void Open(Guid id) => Navigation.NavigateTo($"/view/contributions/{id:D}");
     private async Task CancelAsync(ViewSharedContributionDto value) { var result = await ApiClient.CancelViewSharedContributionAsync(value.Id, value.Revision); Mutated(result, "Contribution cancelled."); }
+    private IReadOnlyList<AppSelectOption> StatusOptions => [new(string.Empty, L["ViewContributionsPage_AllStatuses"].Value), new("pending", L["Ingestion_StatusPending"].Value), new("accepted", L["ViewContributionsPage_Accepted"].Value), new("declined", L["ViewContributionsPage_Declined"].Value), new("cancelled", L["ViewContributionsPage_Cancelled"].Value)];
+    private IReadOnlyList<AppSelectOption> DestinationOptions => [new("timeline", L["ViewContributionsPage_DestinationTimeline"].Value), new("folder", L["ViewContributionsPage_DestinationFolder"].Value)];
     private void DecisionKindChanged(string? selected) => _decisionKind = selected == "folder" ? "folder" : "timeline";
     private async Task DecideAsync(ViewSharedContributionDto value, string decision)
     {

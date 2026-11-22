@@ -37,7 +37,7 @@
                            Tone="AppUiTone.Neutral"
                            Size="AppControlSize.Large"
                            StartIcon="@AppMaterialIcons.Outlined.PendingActions"
-                           Href="/settings/libraries">
+                           Href="/settings/general/library-activity">
                     @L["LibraryBrowsePage_ViewProgress"]
                 </AppButton>
             </div>
@@ -112,7 +112,12 @@
                     <MediaTileShelf Shelf="@shelf" @key="shelf.Key" />
                 }
                 <RecentMediaFeed Type="@_recentType" TypeChanged="RecentTypeChanged" RefreshKey="@_recentRefreshKey" HasItemsChanged="RecentItemsChanged" />
-                @foreach (var (shelf, shelfIndex) in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue && !IsMyListShelf(s)).Select((shelf, shelfIndex) => (shelf, shelfIndex)))
+                @* Series and collections are their own row of group tiles, right after Recently added; the row is left out when there are none. *@
+                @foreach (var shelf in VisibleShelves.Where(s => IsCollectionsAndSeriesShelf(s)))
+                {
+                    <MediaTileShelf Shelf="@shelf" @key="shelf.Key" />
+                }
+                @foreach (var (shelf, shelfIndex) in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue && !IsMyListShelf(s) && !IsCollectionsAndSeriesShelf(s)).Select((shelf, shelfIndex) => (shelf, shelfIndex)))
                 {
                     <MediaTileShelf Shelf="@shelf" EagerItemCount="@(shelfIndex == 0 ? FirstShelfEagerTileCount : 0)" LanePlace="home" OnLaneHidden="HideLane" @key="shelf.Key" />
                 }
@@ -188,6 +193,8 @@
 
     // The profile's My List row (My List spec D9) sits directly under Continue, not among the lanes below.
     private static bool IsMyListShelf(MediaTileShelfViewModel shelf) => string.Equals(shelf.Key, "my-list", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCollectionsAndSeriesShelf(MediaTileShelfViewModel shelf) => string.Equals(shelf.Key, MediaTileShelfKeys.CollectionsAndSeries, StringComparison.OrdinalIgnoreCase);
 
     private IReadOnlyList<MediaTileShelfViewModel> VisibleShelves =>
         _hiddenLanes.Count == 0 ? _visibleShelves : _visibleShelves.Where(shelf => !_hiddenLanes.Contains(shelf.Key)).ToList();

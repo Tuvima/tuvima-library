@@ -1,0 +1,127 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using Microsoft.AspNetCore.Components.Authorization
+@using MediaEngine.Web.Services.Configuration
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Navigation
+@inject IHomeNetworkFirewall Firewall
+@inject DashboardSessionAccessor Session
+@inject AuthenticationStateProvider AuthenticationState
+@inject IStringLocalizer<SharedStrings> L
+
+@* Settings > Network > Home network, "Reach from other devices" (review mock-ups spec D8). The Dashboard listens on the home
+   network by default so phones, TVs and tablets can open it; the Engine always stays on this computer. Off binds the Dashboard to
+   this computer again, from the next start. Two pills say what is still open: "Add a password" until the signed-in administrator
+   has one (an account without a password works on the home network only), and whether outside access is on. On Windows the panel also
+   says whether the firewall lets the home network in, and offers the one Private-only rule. *@
+<SettingsSectionPanel Title="@L["ReachDevices_Title"].Value">
+    @if (_inContainer)
+    {
+        <p class="network-supporting-copy" data-testid="reach-container-note">@L["ReachDevices_ContainerNote"]</p>
+    }
+    else
+    {
+        <div class="network-setting-rows">
+            <AppSwitchRow Label="@L["ReachDevices_Title"].Value"
+                          Description="@L["ReachDevices_Subtitle"].Value"
+                          Value="@Settings.Local.ReachOtherDevices"
+                          ValueChanged="ChangeReachAsync" />
+        </div>
+        @if (_changedThisVisit)
+        {
+            <p class="network-supporting-copy" data-testid="reach-restart-note" role="status">@L["ReachDevices_RestartNote"]</p>
+        }
+    }
+
+    <div class="reach-devices__pills" data-testid="reach-pills">
+        @if (_needsPassword)
+        {
+            <a class="reach-devices__pill-link" href="@SecureAccountPrompt.SecureAccountHref" data-testid="reach-add-password">
+                <AppStatusBadge Text="@L["ReachDevices_AddPassword"].Value" Tone="AppUiTone.Warning" Title="@L["ReachDevices_AddPasswordHint"].Value" />
+            </a>
+        }
+        <span data-testid="reach-outside">
+            <AppStatusBadge Text="@(HasOutsideAccess ? L["ReachDevices_OutsideOn"].Value : L["ReachDevices_OutsideOff"].Value)"
+                            Tone="@(HasOutsideAccess ? AppUiTone.Info : AppUiTone.Neutral)" />
+        </span>
+    </div>
+
+    @if (!_inContainer && Settings.Local.ReachOtherDevices && _firewall != HomeNetworkFirewallState.NotApplicable)
+    {
+        <div class="reach-devices__firewall" data-testid="reach-firewall">
+            @if (_firewall == HomeNetworkFirewallState.RuleInPlace)
+            {
+                <p class="network-supporting-copy" data-testid="reach-firewall-open">@L["ReachDevices_FirewallOpen"]</p>
+            }
+            else
+            {
+                <p class="network-supporting-copy" data-testid="reach-firewall-blocked">@L["ReachDevices_FirewallBlocked"]</p>
+                @if (_refused)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" role="alert" data-testid="reach-firewall-refused">@L["ReachDevices_FirewallRefused"]</AppAlert>
+                }
+                @if (_mayChangeFirewall)
+                {
+                    <AppButton Label="@L["ReachDevices_FirewallAllow"].Value" ButtonStyle="AppButtonStyle.Outlined"
+                               Loading="@_allowing" Disabled="@_allowing" OnClick="AllowAsync" data-testid="reach-firewall-allow" />
+                }
+                else
+                {
+                    <p class="network-supporting-copy" data-testid="reach-firewall-elsewhere">@L["ReachDevices_FirewallElsewhere"]</p>
+                }
+                <p class="network-supporting-copy">@L["ReachDevices_FirewallManual"]</p>
+                <code class="reach-devices__command" data-testid="reach-firewall-command">@HomeNetworkFirewallCommands.ManualCommand(Settings.Local.Port)</code>
+            }
+        </div>
+    }
+</SettingsSectionPanel>
+
+@code {
+    [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
+    [Parameter] public EventCallback SaveRequested { get; set; }
+
+    /// <summary>Whether this is a container install; null asks the host. Set only by tests.</summary>
+    [Parameter] public bool? InContainer { get; set; }
+
+    private HomeNetworkFirewallState _firewall = HomeNetworkFirewallState.NotApplicable;
+    private bool _inContainer;
+    private bool _needsPassword;
+    private bool _mayChangeFirewall;
+    private bool _changedThisVisit;
+    private bool _allowing;
+    private bool _refused;
+
+    private bool HasOutsideAccess =>
+        !string.Equals(Settings.Remote.ConnectionMode?.Trim(), "local-only", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _inContainer = InContainer ?? ContainerGateway.IsContainer();
+        var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+        _needsPassword = SecureAccountPrompt.IsThisComputerOnly(user);
+        _mayChangeFirewall = Caller(user).MayChangeFirewall;
+        _firewall = await Firewall.GetStateAsync(Settings.Local.Port);
+    }
+
+    private HomeNetworkFirewallCaller Caller(System.Security.Claims.ClaimsPrincipal user) => new(
+        Session.Authority?.EffectiveAdministrator == true,
+        user.FindFirst(DashboardPrincipalFactory.ClientIngressClaim)?.Value);
+
+    private async Task ChangeReachAsync(bool value)
+    {
+        Settings.Local.ReachOtherDevices = value;
+        _changedThisVisit = true;
+        await SaveRequested.InvokeAsync();
+    }
+
+    private async Task AllowAsync()
+    {
+        _allowing = true;
+        _refused = false;
+        var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+        var outcome = await Firewall.AllowAsync(Settings.Local.Port, Caller(user));
+        _firewall = await Firewall.GetStateAsync(Settings.Local.Port);
+        _refused = outcome != HomeNetworkFirewallOutcome.Allowed;
+        _allowing = false;
+    }
+}

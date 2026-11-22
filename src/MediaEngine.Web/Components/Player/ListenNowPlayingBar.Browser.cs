@@ -212,9 +212,20 @@ public partial class ListenNowPlayingBar
                 return _restored;
             }
 
+            // The player bar comes back after a page reload while the app keeps running, but not after the app was closed and started again:
+            // after a restart nothing is playing, so the bar waits until something is played (issue 1240). The browser remembers which start
+            // of the app its saved player belongs to. Resume shelves on Home are the Engine's and are not touched.
+            if (hasStoredState && !await StoredPlayerBelongsToThisStartAsync())
+            {
+                await JS.InvokeVoidAsync("listenPlayback.clearState");
+                _playbackRestoreError = null;
+                return true;
+            }
+
             if (!hasStoredState)
             {
                 _playbackRestoreError = null;
+                await RememberThisStartAsync();
                 return true;
             }
 
@@ -258,6 +269,41 @@ public partial class ListenNowPlayingBar
             Logger.LogDebug(exception, "Could not restore listen playback state from the browser stream.");
             _playbackRestoreError = L["ListenNowPlayingBar_PlaybackStateCouldNotBe"].Value;
             return false;
+        }
+    }
+
+    private const string PlayerStartMarkerKey = "tuvima.player.app-start";
+    private static readonly string AppStartId = Guid.NewGuid().ToString("N");
+
+    private async Task<bool> StoredPlayerBelongsToThisStartAsync()
+    {
+        try
+        {
+            var marker = await JS.InvokeAsync<string?>("localStorage.getItem", PlayerStartMarkerKey);
+            if (string.Equals(marker, AppStartId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            await RememberThisStartAsync();
+            return false;
+        }
+        catch (JSException)
+        {
+            // Browser storage is blocked: keep the saved player as it was rather than lose it on every reload.
+            return true;
+        }
+    }
+
+    private async Task RememberThisStartAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", PlayerStartMarkerKey, AppStartId);
+        }
+        catch (JSException)
+        {
+            // Browser storage is blocked: the saved player simply keeps its previous behaviour.
         }
     }
 
