@@ -1,0 +1,197 @@
+/* A Series' order in two steps (group pages and tiles D5, mock screen C): the rules in the order they are tried, then the result with the rule that
+   placed each title. Square pills (3 px corners), dark surfaces, no toasts. */
+.tl-order {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.tl-order__step {
+    margin: var(--tl-space-3) 0 0;
+    font-size: var(--tl-type-label-size);
+    font-weight: 600;
+    color: var(--tl-text-secondary);
+}
+
+.tl-order__step:first-child {
+    margin-top: 0;
+}
+
+.tl-order__unknown {
+    margin: 0 0 var(--tl-space-2);
+    color: var(--tl-text-secondary);
+}
+
+/* Step 1: the rules, wrapping onto a second line when the window is narrow. */
+.tl-order__rules {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin: 0 0 var(--tl-space-2);
+    padding: 0;
+    list-style: none;
+}
+
+.tl-order__rule {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    padding: 6px 10px;
+    border-radius: var(--tl-radius-pill);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-primary);
+}
+
+.tl-order__rule + .tl-order__rule::before {
+    content: "\203A";
+    margin-right: var(--tl-space-1);
+    margin-left: calc(var(--tl-space-1) * -1);
+    color: var(--tl-text-muted);
+}
+
+.tl-order__rule-step {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-accent-primary);
+    color: var(--tl-text-on-accent);
+    font-size: var(--tl-type-caption-size);
+}
+
+.tl-order__rule-count {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
+}
+
+/* Step 2: the result list. */
+.tl-order__list {
+    margin: 0;
+    padding: var(--tl-space-1) var(--tl-space-2);
+    border: 1px dashed var(--tl-divider);
+    border-radius: var(--tl-radius-md);
+    list-style: none;
+}
+
+/* A row is a flex column so the shared row button inside it stretches across the whole row. */
+.tl-order__row {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border-radius: var(--tl-radius-md);
+}
+
+.tl-order__row + .tl-order__row {
+    border-top: 1px solid var(--tl-divider);
+}
+
+.tl-order__row--open:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+/* The row's own grid, plain or inside the row button: number, cover, title, rule. */
+.tl-order__line {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: 36px 40px minmax(0, 1fr) auto;
+    gap: var(--tl-space-3);
+    align-items: center;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 56px;
+    padding: 6px var(--tl-space-2);
+}
+
+.tl-order__num {
+    font-weight: 700;
+    font-size: var(--tl-type-subheading-size);
+    text-align: center;
+    color: var(--tl-text-primary);
+}
+
+.tl-order__cover {
+    display: block;
+    width: 34px;
+    height: 50px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--tl-bg-surface-raised);
+    justify-self: center;
+}
+
+.tl-order__cover img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tl-order__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tl-order__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--tl-text-primary);
+}
+
+.tl-order__detail {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-type-caption-size);
+}
+
+.tl-order__chip {
+    padding: 2px 9px;
+    border-radius: var(--tl-radius-pill);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-type-caption-size);
+    white-space: nowrap;
+}
+
+/* Placed by a later rule than the first (a novella with no number, say). */
+.tl-order__chip--later {
+    background: var(--tl-status-warning-soft);
+    color: var(--tl-status-warning);
+}
+
+/* Phone (the editor's phone sheet, or a viewport under 600 px): the number and cover shrink and the rule chip drops under the title. */
+.tl-order[data-phone] .tl-order__line {
+    grid-template-columns: 30px 34px minmax(0, 1fr);
+    gap: var(--tl-space-2);
+}
+
+.tl-order[data-phone] .tl-order__chip {
+    grid-column: 3;
+    justify-self: start;
+}
+
+.tl-order[data-phone] .tl-order__cover {
+    width: 30px;
+    height: 44px;
+}
+
+@media (max-width: 600px) {
+    .tl-order__line {
+        grid-template-columns: 30px 34px minmax(0, 1fr);
+        gap: var(--tl-space-2);
+    }
+
+    .tl-order__chip {
+        grid-column: 3;
+        justify-self: start;
+    }
+
+    .tl-order__cover {
+        width: 30px;
+        height: 44px;
+    }
+}

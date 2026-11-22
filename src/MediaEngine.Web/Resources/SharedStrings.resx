@@ -9224,6 +9224,42 @@
   <data name="EditorSeries_MixedOrder" xml:space="preserve">
     <value>In order</value>
   </data>
+  <data name="EditorSeriesOrder_HowOrdered" xml:space="preserve">
+    <value>How the order is worked out</value>
+  </data>
+  <data name="EditorSeriesOrder_Rule_number" xml:space="preserve">
+    <value>Series number</value>
+  </data>
+  <data name="EditorSeriesOrder_Rule_date" xml:space="preserve">
+    <value>Publication date</value>
+  </data>
+  <data name="EditorSeriesOrder_Rule_title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="EditorSeriesOrder_Placed" xml:space="preserve">
+    <value>{0} of {1} placed</value>
+  </data>
+  <data name="EditorSeriesOrder_Unknown" xml:space="preserve">
+    <value>No order known. Titles are listed A to Z.</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Books" xml:space="preserve">
+    <value>Book</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Audiobooks" xml:space="preserve">
+    <value>Audiobook</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Comics" xml:space="preserve">
+    <value>Comic</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Movies" xml:space="preserve">
+    <value>Movie</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_TV" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="EditorSeriesOrder_Kind_Music" xml:space="preserve">
+    <value>Album</value>
+  </data>
   <data name="EditorSeriesNav_Kind" xml:space="preserve">
     <value>Kind of title</value>
   </data>

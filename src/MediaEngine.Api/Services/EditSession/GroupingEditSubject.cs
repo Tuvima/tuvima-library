@@ -185,26 +185,12 @@ public sealed class SeriesEditSubject(
         };
     }
 
-    // The Series' works in their order (the number the Series gives each, then title), so the editor can list them and open any one.
+    // The Series' works in their order (the number the Series gives each, then publication date, then title), each naming the rule that placed it,
+    // so the editor can list them and open any one.
     protected override async Task<List<EditorSubjectMemberDto>> LoadMembersAsync(Guid id, CancellationToken ct)
     {
         var full = await Collections.GetCollectionWithWorksAsync(id, ct).ConfigureAwait(false);
-        return
-        [
-            .. (full?.Works ?? [])
-                .Select(work => new EditorSubjectMemberDto
-                {
-                    Id = work.Id,
-                    Title = work.CanonicalValues
-                        .Where(value => string.Equals(value.Key, "title", StringComparison.OrdinalIgnoreCase))
-                        .Select(value => value.Value)
-                        .FirstOrDefault(text => !string.IsNullOrWhiteSpace(text)) ?? string.Empty,
-                    Number = work.Ordinal,
-                })
-                .Where(member => member.Title.Length > 0)
-                .OrderBy(member => member.Number ?? int.MaxValue)
-                .ThenBy(member => member.Title, StringComparer.CurrentCultureIgnoreCase),
-        ];
+        return EditorSeriesOrder.Place((full?.Works ?? []).Select(EditorSeriesOrder.EntryOf));
     }
 
     protected override async Task<EditorSubjectMatchBadgeDto?> LoadMatchBadgeAsync(Collection collection, CancellationToken ct) =>
