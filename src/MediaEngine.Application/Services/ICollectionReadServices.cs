@@ -72,11 +72,13 @@ public interface ICollectionMediaLookupReadService
     /// When given, the file that stands in for a root (its cover, title and creator fallbacks) comes only from works in
     /// this set, so a restricted child never shows through its parent's tile. Null leaves every work eligible.
     /// </param>
+    /// <param name="songsAreMembers">True for a playlist: a song is listed as itself, never folded into its album.</param>
     Task<List<CollectionItemDto>> ResolveItemsAsync(
         Guid collectionId,
         IReadOnlyList<CollectionItem> items,
         CancellationToken ct,
-        IReadOnlySet<Guid>? allowedWorkIds = null);
+        IReadOnlySet<Guid>? allowedWorkIds = null,
+        bool songsAreMembers = false);
 
     Task<List<CollectionResolvedItemDto>> ResolveMetadataAsync(
         IReadOnlyList<Guid> workIds,

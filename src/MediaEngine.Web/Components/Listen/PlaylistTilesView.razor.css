@@ -4,7 +4,8 @@
     display: grid;
     gap: var(--tl-space-4);
     min-width: 0;
-    padding: var(--tl-space-4) 0;
+    /* The same side margin the browse shell gives every other Listen page (24 to 42 px, 12 px on a phone). */
+    padding: var(--tl-space-4) clamp(24px, 2.2vw, 42px) 56px;
 }
 
 .playlist-tiles__header {
@@ -39,6 +40,10 @@
 }
 
 @media (max-width: 600px) {
+    .playlist-tiles {
+        padding-inline: 12px;
+    }
+
     .playlist-tiles__header {
         grid-template-columns: minmax(0, 1fr) auto;
     }

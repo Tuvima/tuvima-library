@@ -372,15 +372,29 @@ public sealed class PlaylistActionEndpointTests : IDisposable
         Assert.Equal(new CollectionItemsAddedResponse(2, 0), await response.Content.ReadFromJsonAsync<CollectionItemsAddedResponse>());
     }
 
-    private Guid SeedMusicTrack(string title)
+    [Fact]
+    public async Task ReadingAPlaylistOfSongsFromOneAlbum_ListsEachSongAsItself_NotItsAlbum()
     {
+        // Dragging songs onto a playlist added them, but the page showed "unavailable" and empty because the read folded every song into its album.
         var album = Guid.NewGuid();
+        var songs = new[] { SeedMusicTrack("One", album), SeedMusicTrack("Two", album), SeedMusicTrack("Other album") };
+        var playlist = SeedPlaylist("Dragged", songs);
+        await using var app = await StartAsync();
+
+        var items = await app.Client.GetFromJsonAsync<List<CollectionItemDto>>($"/collections/{playlist:D}/items?limit=5000");
+
+        Assert.Equal(songs, items!.OrderBy(item => item.SortOrder).Select(item => item.WorkId));
+    }
+
+    private Guid SeedMusicTrack(string title, Guid? albumId = null)
+    {
+        var album = albumId ?? Guid.NewGuid();
         var track = Guid.NewGuid();
         var editionId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute("""
-            INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@album, 'Music', 'parent', 'accepted');
+            INSERT OR IGNORE INTO works (id, media_type, work_kind, curator_state) VALUES (@album, 'Music', 'parent', 'accepted');
             INSERT INTO works (id, media_type, work_kind, parent_work_id, curator_state) VALUES (@track, 'Music', 'child', @album, 'accepted');
             INSERT INTO editions (id, work_id) VALUES (@editionId, @track);
             INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)

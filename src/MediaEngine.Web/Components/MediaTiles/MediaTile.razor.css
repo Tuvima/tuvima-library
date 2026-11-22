@@ -96,12 +96,14 @@ body.is-song-dragging .media-tile[data-song-drop] .media-tile-media { outline:1p
 
 /* A video with no cover art (D7, D16): the still on top, the name and one detail line below, at poster size. */
 .media-tile.is-video-still .media-tile-media { display:flex; flex-direction:column; background:var(--tl-bg-surface); }
-.media-tile-video-still { position:relative; flex:0 0 auto; width:calc(100% - 16px); margin:8px 8px 0; aspect-ratio:16 / 9; overflow:hidden; border-radius:var(--tl-radius-sm,6px); background:var(--tl-bg-root); }
-.media-tile-video-still__image { display:block; width:100%; height:100%; object-fit:cover; }
+.media-tile-video-still { position:relative; flex:1 1 0; min-height:0; width:calc(100% - 16px); margin:8px 8px 0; overflow:hidden; border-radius:var(--tl-radius-sm,6px); background:var(--tl-bg-root); }
+.media-tile-video-still__image { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; }
 .media-tile-video-still__panel { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:44px; color:var(--tl-text-disabled); }
-.media-tile-video-text { display:flex; flex:1 1 auto; flex-direction:column; justify-content:flex-end; gap:4px; min-height:0; padding:10px 12px; }
+.media-tile-video-text { display:flex; flex:0 0 auto; flex-direction:column; justify-content:flex-start; gap:4px; min-height:0; padding:10px 12px; }
 .media-tile-video-text__title { font-weight:600; color:var(--tl-text-primary); }
 .media-tile-video-text__detail { font-weight:500; color:var(--tl-text-secondary); }
+/* The count of a folder of videos ("88 videos") sits in its own line under the detail line, in the flow, so it covers nothing (issue 1297). */
+.media-tile.is-video-still .media-tile-label--bottom { position:static; align-self:flex-start; max-width:100%; margin:0 12px 10px; padding:0; background:none; border-radius:0; color:var(--tl-text-secondary); font-weight:500; }
 
 /* Episode lists on a show or season page keep their number and title under the still. */
 .media-tile-episode-caption { display:grid; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size: var(--tl-type-caption-size); color:var(--tl-text-secondary); padding-top:.2rem; }

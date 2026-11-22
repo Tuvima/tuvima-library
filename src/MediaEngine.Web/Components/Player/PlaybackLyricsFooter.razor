@@ -20,6 +20,11 @@
         @* Edit lyrics that is not available for this song: said here, in place, until the next try or the close button. *@
         <AppAlert Severity="AppSeverity.Warning" Dense="true" ShowCloseIcon="true" CloseIconClicked="@(() => _editNotice = null)" data-lyrics-edit-notice="true">@_editNotice</AppAlert>
     }
+    @if (Presenter.Offers("find_lyrics") && Presenter.Lines.Count > 0)
+    {
+        @* The obvious way to change wrong lyrics (issue 1187): a plain link under the lyrics that opens Find different lyrics, the same window as the menu's Find another. *@
+        <div class="playback-lyrics-footer__findrow"><AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => Presenter.OpenAlternativesAsync())" data-lyrics-find-different>@L["PlaybackLyrics_NotTheseLyrics"]</AppButton></div>
+    }
     <PlaybackLyricsFilePicker @ref="_picker" />
     <AppTooltip Text="@L["PlaybackLyrics_LyricsOptions"].Value" Suppressed="@_menuOpen">
         <AppNativeButton @ref="_more" Type="button" Class="playback-lyrics-footer__more" AriaLabel="@L["PlaybackLyrics_LyricsOptions"].Value"

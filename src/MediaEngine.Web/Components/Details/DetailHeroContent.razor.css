@@ -968,6 +968,12 @@
     width: 100%;
 }
 
+@media (width >= 840px) {
+    .tl-detail-hero--collection-art .tl-detail-hero__copy {
+        width: min(47.5rem, 42vw);
+    }
+}
+
 .tl-detail-hero--collection-art .tl-detail-hero__copy h1 {
     max-width: 100%;
     overflow-wrap: anywhere;
@@ -975,7 +981,7 @@
 
 /* A phone: the covers sit on top (8.25rem tall, under the top bar), so the text starts under them. */
 @media (width < 840px) {
-    .tl-detail-hero .tl-detail-hero__inner.tl-detail-hero--collection-art {
+    .tl-detail-hero__inner.tl-detail-hero--collection-art {
         padding-top: calc(var(--app-topbar-height, 65px) + 1.25rem + 8.25rem + 1.5rem);
     }
 }

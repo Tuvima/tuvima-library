@@ -10757,6 +10757,9 @@
   <data name="PlaybackLyrics_FindAnother" xml:space="preserve">
     <value>Find another</value>
   </data>
+  <data name="PlaybackLyrics_NotTheseLyrics" xml:space="preserve">
+    <value>Not these lyrics? Find different lyrics</value>
+  </data>
   <data name="PlaybackLyrics_AboutSources" xml:space="preserve">
     <value>About lyrics sources</value>
   </data>

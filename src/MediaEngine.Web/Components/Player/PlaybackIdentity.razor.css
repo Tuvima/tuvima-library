@@ -155,6 +155,7 @@
     display: flex;
     flex: 1 1 auto;
     gap: 10px;
+    justify-content: flex-start;
     min-height: 57px;
     min-width: 0;
     padding: 0;
