@@ -41,6 +41,23 @@ sub init()
     m.video.observeField("state", "onVideoState")
     m.pairingTimer.observeField("fire", "pollPairing")
     m.heartbeatTimer.observeField("fire", "sendHeartbeat")
+    m.panel = m.top.findNode("panel")
+    m.findWindow = m.top.findNode("findWindow")
+    m.panel.observeField("selection", "onPanelSelection")
+    m.panel.observeField("closeRequested", "onPanelClose")
+    m.findWindow.observeField("closed", "onFindClosed")
+    m.findWindow.observeField("tokenUpdate", "onSideToken")
+    m.sideTasks = {}
+    m.sideCounter = 0
+    m.subtitleTracks = []
+    m.activeSubtitleId = ""
+    m.findAvailable = false
+    m.subtitleFileCounter = 0
+    m.pendingSubtitleTrack = invalid
+    m.pendingTrack = invalid
+    m.subtitleLanguage = invalid
+    m.sideMode = ""
+    m.lastTitle = ""
 
     server = m.registry.Read("server")
     token = m.registry.Read("access_token")
@@ -322,6 +339,7 @@ end sub
 sub onItemSelected()
     location = m.rows.rowItemSelected
     item = m.rows.content.getChild(location[0]).getChild(location[1])
+    m.lastTitle = item.title
     if item.kind = "collection"
         ' A plain collection opened from Home: Back returns Home, not to a Universe.
         m.universePage = invalid
@@ -617,6 +635,7 @@ end sub
 sub showDetails(detail as Object)
     m.top.findNode("detailTitle").text = detail.title
     m.top.findNode("detailText").text = detail.description
+    m.lastTitle = detail.title
     if detail.primaryActions <> invalid
         for each action in detail.primaryActions
             if action.assetId <> invalid
@@ -652,12 +671,26 @@ sub playManifest(manifest as Object)
     m.video.setFocus(true)
     if manifest.resume <> invalid then m.video.seek = manifest.resume.positionSeconds
     m.activeAssetId = manifest.assetId
+    ' What the Audio & subtitles panel needs to start this video again with a different subtitle file.
+    m.contentUrl = content.url
+    m.contentFormat = format
+    m.activeSubtitleId = ""
+    m.subtitleLanguage = invalid
+    m.pendingSubtitleTrack = invalid
     m.video.control = "play"
     m.heartbeatTimer.control = "start"
 end sub
 
 sub onVideoState()
+    if m.video.state = "playing" and m.pendingSubtitleTrack <> invalid
+        ' The new subtitle file is attached; turn it on and clear the Updating state.
+        m.video.subtitleTrack = m.pendingSubtitleTrack
+        m.pendingSubtitleTrack = invalid
+        m.status.text = ""
+    end if
     if m.video.state = "finished" or m.video.state = "error"
+        m.panel.visible = false
+        m.findWindow.visible = false
         m.heartbeatTimer.control = "stop"
         m.video.visible = false
         m.libraryGroup.visible = true
@@ -700,6 +733,222 @@ function detailEntityType(mediaType as Dynamic) as String
     return "work"
 end function
 
+' ---- Audio & subtitles panel and Find another (spec find-another-on-tv) ---------------------------------------------
+' The panel opens from the remote's Options (*) key while a video plays. Its calls run in their own ApiTask each, so they
+' never compete with the heartbeat for the shared task.
+
+sub runSide(operation as String, payload as Object)
+    m.sideCounter = m.sideCounter + 1
+    id = "side" + m.sideCounter.ToStr()
+    task = CreateObject("roSGNode", "ApiTask")
+    task.id = id
+    task.serverOrigin = m.api.serverOrigin
+    task.accessToken = m.api.accessToken
+    task.refreshToken = m.api.refreshToken
+    task.observeField("result", "onSideResult")
+    task.observeField("error", "onSideError")
+    task.observeField("tokenUpdate", "onSideToken")
+    ' Keeping the node here keeps the task alive until it answers.
+    m.sideTasks[id] = { node: task, operation: operation }
+    task.operation = operation
+    task.payload = payload
+    task.control = "RUN"
+end sub
+
+sub onSideToken(event as Object)
+    tokens = event.getData()
+    if tokens = invalid then return
+    m.api.accessToken = tokens.accessToken
+    m.api.refreshToken = tokens.refreshToken
+    m.registry.Write("access_token", tokens.accessToken)
+    m.registry.Write("refresh_token", tokens.refreshToken)
+    m.registry.Flush()
+end sub
+
+sub openAudioSubtitles()
+    if m.activeAssetId = invalid then return
+    m.sidePosition = m.video.position
+    m.video.control = "pause"
+    m.sideMode = "open"
+    runSide("textTracks", { assetId: m.activeAssetId })
+end sub
+
+sub onSideResult(event as Object)
+    info = m.sideTasks[event.getNode()]
+    if info = invalid then return
+    m.sideTasks.Delete(event.getNode())
+    result = event.getData()
+    if result = invalid then return
+    value = result.value
+    if info.operation = "textTracks"
+        m.subtitleTracks = faSubtitleTracks(value)
+        if m.sideMode = "afterChoose"
+            applyChosenTrack()
+        else
+            runSide("textTrackSources", { assetId: m.activeAssetId })
+        end if
+    else if info.operation = "textTrackSources"
+        m.findAvailable = faSourcesReady(faStr(value.status))
+        askPreferences()
+    else if info.operation = "playbackPreferences"
+        m.subtitleLanguage = faStr(value.subtitleLanguage)
+        showPanel()
+    else if info.operation = "alternativeChoose"
+        if faStr(value.status) = "Updated"
+            m.chosenTrackId = faStr(value.track_id)
+            m.sideMode = "afterChoose"
+            runSide("textTracks", { assetId: m.activeAssetId })
+        else
+            abandonApply(faStr(value.message))
+        end if
+    else if info.operation = "textTrackFile"
+        attachSubtitleFile(value.path)
+    end if
+end sub
+
+sub onSideError(event as Object)
+    info = m.sideTasks[event.getNode()]
+    if info = invalid then return
+    m.sideTasks.Delete(event.getNode())
+    if info.operation = "textTracks" and m.sideMode <> "afterChoose"
+        m.subtitleTracks = []
+        runSide("textTrackSources", { assetId: m.activeAssetId })
+    else if info.operation = "textTrackSources"
+        ' Nothing known about sources means nothing to search: the footer row stays hidden.
+        m.findAvailable = false
+        askPreferences()
+    else if info.operation = "playbackPreferences"
+        m.subtitleLanguage = "English"
+        showPanel()
+    else
+        abandonApply("")
+    end if
+end sub
+
+' The profile's subtitle language is asked once per video.
+sub askPreferences()
+    if m.subtitleLanguage <> invalid
+        showPanel()
+    else
+        runSide("playbackPreferences", {})
+    end if
+end sub
+
+sub showPanel()
+    audio = []
+    active = -1
+    tracks = m.video.availableAudioTracks
+    if tracks <> invalid
+        for i = 0 to tracks.Count() - 1
+            track = tracks[i]
+            name = faStr(track.Name)
+            if faStr(track.Language) <> "" then name = faLanguageName(faStr(track.Language))
+            audio.Push({ name: name, index: i })
+            if faStr(track.Track) = faStr(m.video.audioTrack) then active = i
+        end for
+    end if
+    m.audioTracks = tracks
+    m.panel.openWith = { rows: faPanelRows(audio, active, m.subtitleTracks, m.activeSubtitleId, m.findAvailable) }
+end sub
+
+sub closePanel(resume as Boolean)
+    m.panel.visible = false
+    if resume then m.video.control = "resume"
+    m.video.setFocus(true)
+end sub
+
+sub onPanelClose()
+    closePanel(true)
+end sub
+
+sub onPanelSelection()
+    selection = m.panel.selection
+    if selection = invalid then return
+    if selection.kind = "audio"
+        index = selection.value.ToInt()
+        if m.audioTracks <> invalid and index >= 0 and index < m.audioTracks.Count()
+            m.video.audioTrack = m.audioTracks[index].Track
+        end if
+        closePanel(true)
+    else if selection.kind = "off"
+        m.video.globalCaptionMode = "Off"
+        m.activeSubtitleId = ""
+        closePanel(true)
+    else if selection.kind = "subtitle"
+        track = faTrackById(m.subtitleTracks, selection.value)
+        if track = invalid then return
+        m.panel.visible = false
+        m.status.text = faTextUpdating()
+        m.pendingTrack = track
+        m.sideMode = "pick"
+        downloadTrack(track.id)
+    else if selection.kind = "find"
+        m.panel.visible = false
+        m.findWindow.serverOrigin = m.api.serverOrigin
+        m.findWindow.accessToken = m.api.accessToken
+        m.findWindow.refreshToken = m.api.refreshToken
+        language = m.subtitleLanguage
+        if language = invalid or language = "" then language = "English"
+        m.findWindow.visible = true
+        m.findWindow.openWith = { assetId: m.activeAssetId, title: m.lastTitle, language: language }
+        m.findWindow.setFocus(true)
+    end if
+end sub
+
+' Cancel or Back returns to the panel; Use this closes everything, asks the Engine to use the result and shows Updating.
+sub onFindClosed()
+    result = m.findWindow.closed
+    if result = invalid then return
+    m.findWindow.visible = false
+    if faIsTrue(result.applied)
+        m.status.text = faTextUpdating()
+        m.sideMode = "choose"
+        m.video.setFocus(true)
+        runSide("alternativeChoose", { assetId: m.activeAssetId, provider: result.provider, sourceId: result.sourceId, language: result.language })
+    else
+        showPanel()
+    end if
+end sub
+
+sub applyChosenTrack()
+    trackId = faTrackToEnable(m.subtitleTracks, m.chosenTrackId)
+    if trackId = "" then abandonApply(""): return
+    m.pendingTrack = faTrackById(m.subtitleTracks, trackId)
+    downloadTrack(trackId)
+end sub
+
+sub downloadTrack(trackId as String)
+    m.subtitleFileCounter = (m.subtitleFileCounter + 1) mod 2
+    runSide("textTrackFile", { assetId: m.activeAssetId, trackId: trackId, target: "tmp:/subtitles" + m.subtitleFileCounter.ToStr() + ".vtt" })
+end sub
+
+' The new WebVTT is on the device: start the same stream again at the same position with it attached and switched on.
+sub attachSubtitleFile(path as String)
+    track = m.pendingTrack
+    if track = invalid then abandonApply(""): return
+    content = CreateObject("roSGNode", "ContentNode")
+    content.url = m.contentUrl
+    content.streamFormat = m.contentFormat
+    content.HttpHeaders = { Authorization: "Bearer " + m.api.accessToken }
+    content.SubtitleTracks = [{ Language: track.language, TrackName: path, Description: faLanguageName(track.language) }]
+    m.video.content = content
+    m.video.seek = m.sidePosition
+    m.video.globalCaptionMode = "On"
+    m.pendingSubtitleTrack = path
+    m.activeSubtitleId = track.id
+    m.video.control = "play"
+    m.video.setFocus(true)
+end sub
+
+' Something went wrong after Use this or a pick: say so plainly and let the video carry on as it was.
+sub abandonApply(message as String)
+    if message = "" then message = faTextApplyFailed()
+    m.status.text = message
+    m.pendingTrack = invalid
+    m.pendingSubtitleTrack = invalid
+    closePanel(true)
+end sub
+
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
     if m.photoGroup.visible
@@ -738,6 +987,10 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             m.rows.setFocus(true)
             return true
         end if
+    end if
+    if key = "options" and m.video.visible and not m.panel.visible and not m.findWindow.visible
+        openAudioSubtitles()
+        return true
     end if
     if key = "back" and m.video.visible
         m.video.control = "stop"
