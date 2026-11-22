@@ -109,6 +109,19 @@ language list, then the full words, then the window. The best match is read as s
 read only after focus has rested on it for one second, a row is read once per window and a failed read is not retried.
 Nothing can be typed. The player starts with the Engine's subtitle files attached (the profile's language preferences
 pick the one shown); the entry is hidden when no source is on or the profile may not use it.
+**Lyrics on Android TV** (spec WP5, D6). A song plays through the same player screen, and the Engine's playback manifest
+names it as music, so for music the tool reads **Lyrics** (it replaces Audio & subtitles, which a song does not need) and
+opens a **Lyrics** side panel: the heading with a **Synced** or **Unsynced** chip, the lyric lines (the current synced line
+is bright and larger and the list follows the song's position every quarter second) and a footer row **Find lyrics…**,
+hidden unless `GET /api/v1/stream/{asset}/text-tracks/sources?kind=lyrics` says `Ready`. The panel reads the song's
+preferred lyrics track (`GET .../text-tracks`, then the file as text); a file with times is synced (word stamps and tag
+lines such as `[ar:...]` are dropped, a line with several time tags appears at each), a file without is plain words. Select
+on the footer opens the same Find another window with kind lyrics: title "Find lyrics", six lyric lines in the pane with no
+times, the checks "Synced" or "Words only, not timed" and "Fits the song" or "N seconds longer or shorter", no Language
+button and no language sent. Use this closes the window, the song carries on from the same place and the panel reads the
+lyrics again ("Updating lyrics…"). Back or Left closes the panel. The reading, key and screen-free rules are in
+`LyricsFollow` (`parse`, `currentIndex`, `pickTrack`, `isMusic`, `panelKey`) with `LyricsFollowTest`; the panel is drawn by
+`LyricsPanel.kt` in `tv`.
 All of the logic is in `core` (pure Kotlin, no screen types, JVM unit-tested) so the phone's sheet reuses it:
 `FindAnotherModel` (one window's state: search, reading, focus, apply), `FindAnotherKeys` (the key map), `FindAnotherDwell`
 (the reading rule, with an injected scheduler), `FindAnotherWording` and `FindAnotherRows` (the Dashboard's sentences and
@@ -117,8 +130,7 @@ row data), `FindAnotherLanguages`, the wire models and parsers (`TextTrackAltern
 `ClientRoutes` and the matching `TuvimaClient` calls. Gaps for **Android TV**: it still has none of the contract's other
 controls: the five transport buttons in order with Previous and Next dimmed in place, skips of 10 seconds back and 30
 forward by default (the profile's saved pair), the other tool-row entries (Episodes, Bookmarks, Playback settings) and
-their side panels, Bookmarks (Everyone | Mine), paused details, the end card and the Autoplay switch; the Lyrics panel
-(spec WP5); and the window's "Updating" wait after Use this is shown inside the window, not on the panel. The Cast
+their side panels, Bookmarks (Everyone | Mine), paused details, the end card and the Autoplay switch; and the window's "Updating" wait after Use this is shown inside the window, not on the panel. The Cast
 button (V6b-A) stays waiting on the product owner's television test. Gaps for **Android Auto**: the media service browses a Library
 root, but the list should be Continue, the Listen shelves, Audiobooks, Playlists
 and Recently played, and the Now playing card should carry the contract's

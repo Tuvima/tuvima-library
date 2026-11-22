@@ -1,5 +1,6 @@
 package com.tuvima.library.core
 
+import org.json.JSONArray
 import org.json.JSONObject
 
 // Readers for the Find another answers. Names are the Engine's own snake_case; nothing here guesses at a missing field:
@@ -45,6 +46,14 @@ internal fun parseTextTrackAlternativePreview(json: JSONObject): TextTrackAltern
     )
 
 internal fun parseTextTrackSources(json: JSONObject): TextTrackSources = TextTrackSources(json.optString("status"))
+
+/** The asset's text-track list (`GET .../text-tracks`), reduced to what the Lyrics panel needs: which tracks are lyrics and which is preferred. */
+internal fun parseLyricsTrackList(array: JSONArray): List<LyricsTrackInfo> = buildList {
+    for (index in 0 until array.length()) {
+        val track = array.optJSONObject(index) ?: continue
+        add(LyricsTrackInfo(id = track.optString("id"), kind = track.optString("kind"), isPreferred = track.optBoolean("isPreferred")))
+    }
+}
 
 internal fun parseTextTrackChoice(json: JSONObject): TextTrackChoiceResult = TextTrackChoiceResult(
     status = json.optString("status"),

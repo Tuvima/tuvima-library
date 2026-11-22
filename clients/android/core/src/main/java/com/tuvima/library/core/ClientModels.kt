@@ -125,6 +125,8 @@ data class PlaybackManifest(
     val segments: List<PlaybackSegment> = emptyList(),
     val sourceExtension: String? = null,
     val conversionReason: String? = null,
+    /** The Engine's media type for the asset ("Music", "Movie", ...); the Lyrics panel is offered for music only. */
+    val mediaType: String? = null,
 ) {
     fun playablePath(): String? = when (recommendedDelivery) {
         "hls" -> if (hlsStatus == "ready") hlsUrl else null

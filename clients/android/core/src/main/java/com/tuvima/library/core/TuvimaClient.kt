@@ -325,6 +325,7 @@ class TuvimaClient(
             segments = parsePlaybackSegments(json.optJSONArray("segments")),
             sourceExtension = json.optionalString("sourceExtension")?.takeIf(String::isNotBlank),
             conversionReason = json.optionalString("conversionReason")?.takeIf(String::isNotBlank),
+            mediaType = json.optionalString("mediaType"),
         )
     }
 
@@ -376,6 +377,14 @@ class TuvimaClient(
         parseTextTrackAlternativePreview(
             requestJson("GET", ClientRoutes.textTrackAlternativePreview(assetId, provider, sourceId, kind, language)),
         )
+
+    /** The song's lyrics tracks (the track list holds subtitle tracks too; [LyricsFollow.pickTrack] chooses one). */
+    suspend fun lyricsTracks(assetId: String): List<LyricsTrackInfo> =
+        parseLyricsTrackList(requestArray("GET", ClientRoutes.textTracks(assetId)))
+
+    /** One text track's file as text (a lyrics file). */
+    suspend fun textTrackText(assetId: String, trackId: String): String =
+        requestText("GET", ClientRoutes.textTrackFile(assetId, trackId), null, authenticated = true)
 
     /** Uses one result. The choice is Library-wide and the previous one is kept so Go back works once. */
     suspend fun chooseTextTrackAlternative(assetId: String, request: ChooseTextTrackRequest): TextTrackChoiceResult =

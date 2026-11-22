@@ -116,6 +116,13 @@ object ClientRoutes {
         "$API/stream/${encode(assetId)}/text-tracks/alternatives/preview?" +
             queryOf("kind" to kind.wire, "provider" to provider, "sourceId" to sourceId, "language" to language)
 
+    /** The asset's lyrics and subtitle tracks (the Lyrics panel picks the preferred lyrics one). */
+    fun textTracks(assetId: String): String = "$API/stream/${encode(assetId)}/text-tracks"
+
+    /** One text track's file, served as text (a lyrics file is read as LRC or plain words). */
+    fun textTrackFile(assetId: String, trackId: String): String =
+        "$API/stream/${encode(assetId)}/text-tracks/${encode(trackId)}"
+
     /** Use one result (POST). The choice is Library-wide. */
     fun chooseTextTrackAlternative(assetId: String): String =
         "$API/stream/${encode(assetId)}/text-tracks/alternatives/choose"
