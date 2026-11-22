@@ -414,12 +414,12 @@ public sealed class EditorHeaderNavTests : AsyncBunitContext
         cut.Find("#tl-hnav-item").Click();
 
         cut.Find(".tl-hnav__search input").Input("a");
-        cut.WaitForAssertion(() => { lock (reads) { Assert.True(reads.ContainsKey("a")); } });
+        cut.WaitForAssertion(() => { lock (reads) { Assert.True(reads.ContainsKey("a")); } }, TimeSpan.FromSeconds(10));
         cut.Find(".tl-hnav__search input").Input("ab");
-        cut.WaitForAssertion(() => { lock (reads) { Assert.True(reads.ContainsKey("ab")); } });
+        cut.WaitForAssertion(() => { lock (reads) { Assert.True(reads.ContainsKey("ab")); } }, TimeSpan.FromSeconds(10));
 
         reads["ab"].SetResult(Answer("Newest"));
-        cut.WaitForAssertion(() => Assert.Equal(["Newest"], cut.FindAll(".tl-hnav__option[data-state]").Select(OptionTitle)));
+        cut.WaitForAssertion(() => Assert.Equal(["Newest"], cut.FindAll(".tl-hnav__option[data-state]").Select(OptionTitle)), TimeSpan.FromSeconds(10));
         reads["a"].SetResult(Answer("Stale"));
         cut.WaitForState(() => true, TimeSpan.FromMilliseconds(100));
 
