@@ -738,6 +738,9 @@ code{
 .media-tile-actions__notice { position:absolute; top:100%; right:0; width:max-content; max-width:16rem; }
 .media-tile-actions .media-tile-action.app-icon-button { --app-control-height:var(--tl-tile-menu-button); min-height:var(--tl-tile-menu-button); background:transparent; color:var(--tl-on-scrim); }
 .media-tile-actions .media-tile-action.app-icon-button .tl-icon-root { filter:var(--tl-tile-mark-shadow); }
+/* A page that draws its own menu in the slot (the Playlists page's playlist menu) gets the same bare light "..." as the tile's own. */
+.media-tile-actions .app-row-menu__trigger { min-width:var(--tl-tile-menu-button); min-height:var(--tl-tile-menu-button); background:transparent; color:var(--tl-on-scrim); }
+.media-tile-actions .app-row-menu__trigger .tl-icon-root { filter:var(--tl-tile-mark-shadow); }
 .media-tile-actions .media-tile-action.app-icon-button.app-icon-button--plain:hover:not(:disabled):not([aria-disabled="true"]),
 .media-tile-actions .media-tile-action.app-icon-button.app-icon-button--plain[aria-expanded="true"] { background:transparent; }
 @media (prefers-reduced-motion: reduce){

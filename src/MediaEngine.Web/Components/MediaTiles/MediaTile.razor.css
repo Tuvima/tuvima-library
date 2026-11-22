@@ -49,6 +49,13 @@
 .media-tile-quadrants.is-count-1 .media-tile-quadrant { width:100%; height:100%; aspect-ratio:auto; border-radius:0; }
 .media-tile-quadrant.is-empty { box-sizing:border-box; border:1px dashed var(--tl-tile-group-empty-outline); background:var(--tl-tile-group-empty-tint); }
 
+/* A hand-made playlist's tile while songs are dragged (group-pages-and-tiles D1): the dashed outline marks where to let go and the purple outline with a
+   tinted fill shows the one under the pointer. They sit on the cover (song-table.js puts the class on the tile), not on the square box around it. */
+.media-tile[data-song-drop] { outline:none; background:transparent; }
+body.is-song-dragging .media-tile[data-song-drop] .media-tile-media { outline:1px dashed var(--tl-accent-primary-border); outline-offset:-1px; }
+.media-tile[data-song-drop].is-song-drop-over .media-tile-media { outline:2px solid var(--tl-accent-primary); outline-offset:0; }
+.media-tile[data-song-drop].is-song-drop-over .media-tile-media::after { content:""; position:absolute; inset:0; z-index:8; border-radius:inherit; background:var(--tl-accent-primary-soft); pointer-events:none; }
+
 /* Series and Collection outlines (D5): 2 px, inset, on the cover; the tag moves in so the outline stays whole. */
 .media-tile.is-series-outlined .media-tile-media::after, .media-tile.is-collection-outlined .media-tile-media::after { content:""; position:absolute; inset:0; z-index:5; box-sizing:border-box; border:2px solid var(--tl-tile-series-outline); border-radius:inherit; pointer-events:none; }
 .media-tile.is-collection-outlined .media-tile-media::after { border-color:var(--tl-tile-collection-outline); }

@@ -112,7 +112,10 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
     }
 
     private static List<string> TileNames(IRenderedComponent<PlaylistTilesView> page) =>
-        [.. page.FindAll("[data-playlist-tile] .playlist-tile__name").Select(name => name.TextContent.Trim())];
+        [.. page.FindAll("[data-playlist-tile] article.media-tile").Select(tile => tile.GetAttribute("aria-label")!)];
+
+    private static List<string> TypeLines(IRenderedComponent<PlaylistTilesView> page) =>
+        [.. page.FindAll("[data-playlist-tile] .media-tile-label--bottom").Select(line => line.TextContent.Trim())];
 
     [Fact]
     public async Task ThePlaylistsPage_OnAPhone_OffersNewHandPickedAndNewSmart()
@@ -164,14 +167,14 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
             Playlist(Focus, "Focus", "Smart", items: 310),
         ]);
 
-        var meta = page.FindAll("[data-playlist-tile-meta]").Select(line => line.TextContent.Trim()).ToList();
+        var meta = TypeLines(page);
 
-        Assert.Contains("Songs · 42 · 2h 55m", meta);
-        Assert.Contains("Smart · Songs · 310", meta);
+        Assert.Contains("Playlist · 42 songs · 2h 55m", meta);
+        Assert.Contains("Smart playlist · 310 songs", meta);
     }
 
     [Fact]
-    public async Task OnAPhoneATileUsesTheShortLineSoTwoFitAcross()
+    public async Task OnAPhoneATileLeavesOutTheLengthSoTwoFitAcross()
     {
         await UseFormFactorAsync("phone");
         var (_, page) = RenderTiles(
@@ -180,9 +183,30 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
             Playlist(Focus, "Focus", "Smart", items: 310),
         ]);
 
-        var meta = page.FindAll("[data-playlist-tile-meta]").Select(line => line.TextContent.Trim()).ToList();
+        var meta = TypeLines(page);
 
-        Assert.Equal(["42 songs", "Smart · 310"], meta);
+        Assert.Equal(["Playlist · 42 songs", "Smart playlist · 310 songs"], meta);
+    }
+
+    [Fact]
+    public async Task ATileIsFilledWithTheFirstFourAlbumsOfItsSongsAndAPlaylistWithNoCoversShowsThePlaylistIcon()
+    {
+        await UseFormFactorAsync("desktop");
+        Render<AppPopoverHost>();
+        var page = Render<PlaylistTilesView>(parameters => parameters
+            .Add(view => view.Playlists, [Playlist(RoadTrip, "Road trip"), Playlist(Focus, "Focus", "Smart")])
+            .Add(view => view.AlbumCovers, new Dictionary<Guid, IReadOnlyList<string>>
+            {
+                [RoadTrip] = ["/c/1.jpg", "/c/2.jpg", "/c/3.jpg"],
+            }));
+
+        var roadTrip = page.Find($"[data-playlist-tile='{RoadTrip:D}']");
+        var focus = page.Find($"[data-playlist-tile='{Focus:D}']");
+
+        Assert.Equal(3, roadTrip.QuerySelectorAll("img.media-tile-quadrant").Length);
+        Assert.Single(roadTrip.QuerySelectorAll(".media-tile-quadrant.is-empty"));
+        Assert.Empty(focus.QuerySelectorAll(".media-tile-quadrants"));
+        Assert.Single(focus.QuerySelectorAll(".media-tile-fallback"));
     }
 
     [Fact]
@@ -246,7 +270,7 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
         var drops = Services.GetRequiredService<SongDragDropService>();
         CarrySongs(drops, new object(), 3);
 
-        var tile = page.Find($"[data-playlist-tile='{RoadTrip:D}']");
+        var tile = page.Find($"[data-playlist-tile='{RoadTrip:D}'] article.media-tile");
         Assert.Equal("playlist", tile.GetAttribute("data-song-drop"));
         tile.TriggerEvent("ondrop", new DragEventArgs());
 
@@ -263,7 +287,7 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
         var drops = Services.GetRequiredService<SongDragDropService>();
         CarrySongs(drops, new object(), 2);
 
-        var tile = page.Find($"[data-playlist-tile='{Focus:D}']");
+        var tile = page.Find($"[data-playlist-tile='{Focus:D}'] article.media-tile");
         Assert.Null(tile.GetAttribute("data-song-drop"));
         tile.TriggerEvent("ondrop", new DragEventArgs());
 
@@ -284,9 +308,9 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
 
         var favorites = page.Find("[data-playlist-tile='favorites']");
 
-        Assert.Equal("Favorites", favorites.QuerySelector(".playlist-tile__name")!.TextContent.Trim());
-        Assert.Equal("Songs · 128", favorites.QuerySelector("[data-playlist-tile-meta]")!.TextContent.Trim());
-        Assert.Null(favorites.GetAttribute("data-song-drop"));
+        Assert.Equal("Favorites", favorites.QuerySelector("article.media-tile")!.GetAttribute("aria-label"));
+        Assert.Equal("Built in · 128 songs", favorites.QuerySelector(".media-tile-label--bottom")!.TextContent.Trim());
+        Assert.Null(favorites.QuerySelector("article.media-tile")!.GetAttribute("data-song-drop"));
         Assert.Empty(favorites.QuerySelectorAll(".app-overflow-menu__trigger"));
         Assert.Equal("favorites", page.Find("[data-playlist-tile]").GetAttribute("data-playlist-tile"));
     }
@@ -463,7 +487,7 @@ public sealed class ListenPlaylistsPageTests : AsyncBunitContext
 
     private static async Task OpenTileMenuAsync(IRenderedComponent<PlaylistTilesView> page, string playlistName)
     {
-        var tile = page.FindAll("[data-playlist-tile]").Single(candidate => candidate.QuerySelector(".playlist-tile__name")!.TextContent.Trim() == playlistName);
+        var tile = page.FindAll("[data-playlist-tile]").Single(candidate => candidate.QuerySelector("article.media-tile")!.GetAttribute("aria-label") == playlistName);
         await tile.QuerySelector(".app-row-menu__trigger")!.ClickAsync(new());
         page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("button.app-menu-item")));
     }
