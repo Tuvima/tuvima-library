@@ -224,6 +224,13 @@ else if (Flow?.Session.ActiveItem is { } active)
             {
                 <div class="tl-editor-header__badge tl-editor-header__badge--phone"><EditorHeaderBadge State="badge" Short="true" /></div>
             }
+            @if (header is null && fields.IsSeriesSubject && fields.SeriesMediaTypes.Count > 0)
+            {
+                @* A visible navigation button, as a show's editor has (issue 1281): it opens the same sheet as the line, with Kind of title and Title. *@
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.MoreVert" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Normal"
+                               Tooltip="@string.Format(L["EditorPhone_OpenNavigation"].Value, title)" AriaLabel="@string.Format(L["EditorPhone_OpenNavigation"].Value, title)"
+                               data-testid="phone-series-nav-button" OnClick="@(() => _seriesSheet = !_seriesSheet)" />
+            }
             @if (PhoneMenuItems is { Count: > 0 })
             {
                 <AppRowMenu AriaLabel="@L["Common_MoreActions"].Value" Items="PhoneMenuItems" Class="tl-editor-header__more" />

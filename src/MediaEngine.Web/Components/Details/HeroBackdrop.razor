@@ -9,6 +9,8 @@
              src="@HeroImageUrl"
              srcset="@(HeroImageSrcSet ?? MediaTileArtworkUrl.SrcSetByLongSide(HeroImageCandidate))"
              sizes="100vw"
+             fetchpriority="high"
+             decoding="async"
              alt=""
              aria-hidden="true"
              @onerror="HandleImageError" />

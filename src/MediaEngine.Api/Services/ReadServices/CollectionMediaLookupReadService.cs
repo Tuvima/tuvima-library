@@ -361,7 +361,8 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
         Guid collectionId,
         IReadOnlyList<CollectionItem> items,
         CancellationToken ct,
-        IReadOnlySet<Guid>? allowedWorkIds = null)
+        IReadOnlySet<Guid>? allowedWorkIds = null,
+        bool songsAreMembers = false)
     {
         if (items.Count == 0)
         {
@@ -383,6 +384,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                 SELECT requested.ItemId,
                        requested.SortOrder,
                        CASE
+                           WHEN @SongsAreMembers = 1 AND w.media_type = 'Music' AND w.work_kind <> 'parent' THEN w.id
                            WHEN w.work_kind = 'child' THEN COALESCE(gp.id, p.id, w.id)
                            WHEN w.work_kind = 'parent' AND p.id IS NOT NULL THEN COALESCE(gp.id, p.id, w.id)
                            ELSE w.id
@@ -448,6 +450,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
             new
             {
                 CollectionId = collectionId,
+                SongsAreMembers = songsAreMembers ? 1 : 0,
                 AllowedHex = CollectionAssetAllowList.ToJson(allowedWorkIds),
                 ItemsJson = System.Text.Json.JsonSerializer.Serialize(items.Select(item => new
                 {
