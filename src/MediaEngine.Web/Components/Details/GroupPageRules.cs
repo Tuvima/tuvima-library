@@ -71,7 +71,7 @@ public static class GroupPageRules
 
             if (placement is not null)
             {
-                pills.Add(new GroupPagePill(CountWords(SeriesOwnedCount.KnownTotal(placement), placement), false));
+                pills.Add(new GroupPagePill(CountWords(SeriesOwnedCount.Of(placement), placement), false));
             }
             else if (model.Metadata.FirstOrDefault(item => string.Equals(item.Kind, "count", StringComparison.OrdinalIgnoreCase)) is { Label.Length: > 0 } count)
             {

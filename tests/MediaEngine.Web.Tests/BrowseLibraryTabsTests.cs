@@ -27,7 +27,7 @@ public sealed class BrowseLibraryTabsTests
                 Label = "Videos",
                 MediaType = "Videos",
                 DefaultGrouping = "videos",
-                GroupingOptions = [new("videos", "Series and videos", "icon")],
+                GroupingOptions = [new("videos", "Folders and videos", "icon")],
             },
             new BrowseTabPreset { Id = "playlists", Label = "Playlists", MediaType = "Music" },
         ],
@@ -51,7 +51,7 @@ public sealed class BrowseLibraryTabsTests
         Assert.Equal([Youtube, Lectures], videos.LibraryChips.Select(chip => chip.Id));
         Assert.Equal(["YouTube", "Lectures"], videos.LibraryChips.Select(chip => chip.Label));
         Assert.Equal("videos", videos.DefaultGrouping);
-        Assert.Equal("Series and videos", Assert.Single(videos.GroupingOptions).Label);
+        Assert.Equal("Folders and videos", Assert.Single(videos.GroupingOptions).Label);
         Assert.Equal("videos", videos.EffectiveBehaviourId);
         Assert.Null(preset.Tabs[1].LibraryId);
     }

@@ -81,13 +81,13 @@ public sealed class GroupPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ASeriesPills_AreInWords_TypeThenKindThenYearsThenCount()
+    public void ASeriesPills_AreInWords_TypeThenKindThenYearsThenOwnedCount()
     {
         var model = SeriesModel(owned: 10, total: 11);
 
         var pills = GroupPageRules.Pills(model);
 
-        Assert.Equal(["Series", "Books", "2011 – 2021", "11 books"], pills.Select(pill => pill.Text));
+        Assert.Equal(["Series", "Books", "2011 – 2021", "10 books"], pills.Select(pill => pill.Text));
         Assert.True(pills[0].IsType);
         Assert.All(pills.Skip(1), pill => Assert.False(pill.IsType));
     }
@@ -129,7 +129,7 @@ public sealed class GroupPageTests : AsyncBunitContext
         Assert.Contains("Read", path.TextContent);
         Assert.Contains("Series", path.TextContent);
         Assert.Equal(
-            ["Series", "Books", "2011 – 2021", "11 books"],
+            ["Series", "Books", "2011 – 2021", "3 books"],
             cut.FindAll(".tl-detail-group-pill").Select(pill => pill.TextContent.Trim()));
         Assert.Single(cut.FindAll(".tl-detail-group-pill--type"));
         Assert.Single(cut.FindAll(".tl-detail-primary-actions"));
