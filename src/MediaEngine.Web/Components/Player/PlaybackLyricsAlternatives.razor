@@ -7,7 +7,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* "Find another" for lyrics (unified player v2 D17, review mock-ups 2026-11-18 D7): the shared pick-a-result window, with the song's art, a search box that
-   starts as "Title Artist" (the album artist when the song has none), what the lyrics sources offer with the best match selected, and Use this.
+   starts as "Artist Title" (the album artist when the song has none), what the lyrics sources offer with the best match selected, and Use this.
    Searching again with other words asks the sources again; the Library's own pick (the normal case) never opens this. *@
 <AppPickResultDialog Title="@L["PlaybackLyrics_FindLyrics"].Value" Visible="true" CoverShape="AppPickCoverShape.Square"
                      SearchText="@SearchText" Results="@Results" Loading="@Presenter.AlternativesLoading"
@@ -33,8 +33,8 @@
             if (!ReferenceEquals(_mapped, Presenter.Alternatives))
             {
                 _mapped = Presenter.Alternatives;
-                var cover = Item is null ? null : PlaybackArtworkUrl.ForDrawnSize(Item, 96);
-                _results = Presenter.Alternatives?.items.Select(offer => ToResult(offer, cover)).ToList() ?? [];
+                // No album art: a lyrics result does not say which album it belongs to.
+                _results = Presenter.Alternatives?.items.Select(offer => ToResult(offer, null)).ToList() ?? [];
             }
             return _results;
         }
@@ -44,7 +44,7 @@
 
     protected override void OnInitialized()
     {
-        // The box starts with the song's title and artist; with no artist on the song, the other name it carries (the album's artist).
+        // The box starts with the song's artist and title; with no artist on the song, the other name it carries (the album's artist).
         _searchText = Item is null ? string.Empty : FindDialogSearchText.ForSong(Item.Title, Item.Subtitle, Item.AuthorName);
         Presenter.Changed += Changed;
     }
@@ -54,6 +54,8 @@
     private AppPickResult ToResult(TextTrackAlternativeDto offer, string? cover)
     {
         var kind = offer.is_timed ? L["PlaybackLyrics_TimedToTheSong"].Value : L["PlaybackLyrics_WordsOnly"].Value;
+        // A negative length score means the source's song is a different length from this one; it is still offered, with that said.
+        if (offer.duration_match_score is < 0) kind = $"{kind} · {L["PlaybackLyrics_LengthDiffers"].Value}";
         var second = string.IsNullOrWhiteSpace(offer.preview) ? kind : $"{kind} · {offer.preview}";
         return new AppPickResult(
             $"{offer.provider}:{offer.source_id}",

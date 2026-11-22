@@ -61,6 +61,15 @@
         },
         {
           "when_media_type": "Music",
+          "needs": ["title", "artist"],
+          "interactive_only": true,
+          "path": "/api/search",
+          "query": [
+            ["q", "{artist} {title}"]
+          ]
+        },
+        {
+          "when_media_type": "Music",
           "needs": ["title", "artist", "album", "duration_seconds"],
           "path": "/api/get",
           "query": [

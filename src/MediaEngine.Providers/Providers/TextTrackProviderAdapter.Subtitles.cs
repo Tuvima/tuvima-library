@@ -28,16 +28,41 @@ public sealed partial class TextTrackProviderAdapter
                 availability.Status, availability.Message ?? Message(TextTrackMessages.Unreachable, "{display_name} is unavailable."));
         }
 
-        // The first search that fits what is known about the title answers: its online ids when it has them, otherwise its name and year.
-        // The log says what was asked and how many results came back.
+        // The searches that fit what is known about the title are tried best first (its online ids, then its name and year); the first
+        // that offers anything answers. A search whose answer is about another title, or that offers nothing, falls through to the next.
+        // The log says what was asked, how many results came back and which search answered.
         var values = LookupValues(lookup);
-        var request = SelectRequest(lookup.MediaType, values);
-        if (request is null)
+        var requests = SelectRequests(lookup.MediaType, values);
+        if (requests.Count == 0)
         {
             _logger.LogInformation("{Provider} {Noun} search skipped for {Title}: nothing to search with", Name, _text.Noun, lookup.Title);
             return [];
         }
 
+        TextTrackLookupException? mismatch = null;
+        foreach (var request in requests)
+        {
+            try
+            {
+                var found = await SearchSubtitlesWithAsync(lookup, values, request, byText, ct).ConfigureAwait(false);
+                if (found.Count > 0)
+                {
+                    return found;
+                }
+            }
+            catch (TextTrackLookupException ex) when (ex.Status == "IdentityMismatch")
+            {
+                mismatch = ex;
+                _logger.LogInformation("{Provider} {Noun} search for {Title} answered about another title; trying the next search", Name, _text.Noun, lookup.Title);
+            }
+        }
+
+        return mismatch is null ? [] : throw mismatch;
+    }
+
+    private async Task<IReadOnlyList<TextTrackCandidate>> SearchSubtitlesWithAsync(
+        TextTrackLookup lookup, IReadOnlyDictionary<string, string> values, TextTrackRequestConfiguration request, bool byText, CancellationToken ct)
+    {
         var requestedLanguage = values.GetValueOrDefault("language", _text.Language.Unknown);
         var path = BuildPath(request, values);
         if (!lookup.Interactive && _emptySearches.TryGetValue(path, out var nextAttempt) && nextAttempt > DateTimeOffset.UtcNow)
@@ -82,14 +107,22 @@ public sealed partial class TextTrackProviderAdapter
             }
 
             var candidates = new List<TextTrackCandidate>();
+            var dropped = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var item in items.EnumerateArray().Take(search.MaxItems))
             {
-                AddCandidates(item, lookup, values, requestedLanguage, candidates);
+                AddCandidates(item, lookup, values, requestedLanguage, candidates, dropped);
             }
+
+            // Says why a source's answer shrank to what is offered, so a missing subtitle can be explained from the log.
+            _logger.LogInformation(
+                "{Provider} {Noun} search {Path}: {Offered} offered; left out: {Dropped}",
+                Name, _text.Noun, path, candidates.Count,
+                dropped.Count == 0 ? "nothing" : string.Join(", ", dropped.Select(pair => $"{pair.Value} {pair.Key}")));
 
             var ranked = candidates.OrderByDescending(candidate => candidate.Confidence).ToList();
             // A person looking through a list of results picks one, so nothing is withheld for being tied and the list is not cut short here.
-            if (byText)
+            // "Find another" (Interactive) is the same: the person is choosing, so ties are listed and the list is not cut to the automatic pick's few.
+            if (byText || lookup.Interactive)
             {
                 if (ranked.Count == 0)
                 {
@@ -153,12 +186,23 @@ public sealed partial class TextTrackProviderAdapter
         TextTrackLookup lookup,
         IReadOnlyDictionary<string, string> values,
         string requestedLanguage,
-        List<TextTrackCandidate> candidates)
+        List<TextTrackCandidate> candidates,
+        Dictionary<string, int> dropped)
     {
+        void Drop(string reason) => dropped[reason] = dropped.GetValueOrDefault(reason) + 1;
         var config = _text.Search.Item;
-        var subtitleId = FirstString(item, config.IdPaths);
+        var subtitleId = FirstString(item, config.IdPaths)
+            ?? FirstString(item, config.IdLinkPaths)?.Split(['/', '?'], StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
         if (string.IsNullOrWhiteSpace(subtitleId) || !IsSafeId(subtitleId))
         {
+            if (!dropped.ContainsKey("without a usable id") && item.ValueKind == JsonValueKind.Object)
+            {
+                // Field names only (never values), so a source that renamed its id field can be recognised from the log.
+                _logger.LogInformation("{Provider} {Noun} item has no id under {Expected}; its fields are: {Fields}", Name, _text.Noun,
+                    string.Join('/', config.IdPaths), string.Join(", ", item.EnumerateObject().Select(property => property.Name)));
+            }
+
+            Drop("without a usable id");
             return;
         }
 
@@ -175,6 +219,7 @@ public sealed partial class TextTrackProviderAdapter
             {
                 if (episode is { } wanted && !EpisodeMatches(file, config.EpisodeMatch!, wanted.Season, wanted.Episode))
                 {
+                    Drop("for another episode");
                     continue;
                 }
 
@@ -183,12 +228,14 @@ public sealed partial class TextTrackProviderAdapter
                 var url = ReadString(file, fileRules.UrlPath);
                 if (fileId is null || !IsSafeId(fileId) || !TryDownloadUri(url, out _) || !SupportedFile(fileName))
                 {
+                    Drop(SupportedFile(fileName) ? "with an unusable link or id" : "of an unsupported file type");
                     continue;
                 }
 
                 var language = NormalizeLanguage(FirstString(file, fileRules.LanguagePaths) ?? FirstString(item, config.LanguagePaths));
                 if (language != requestedLanguage)
                 {
+                    Drop($"in another language ({language})");
                     continue;
                 }
 
