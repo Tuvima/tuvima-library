@@ -1,6 +1,6 @@
 # Spec: Find another on TV (subtitle and lyrics results on the television apps)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-22 (Locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [Find another, clearer lyrics and subtitle results](archive/find-another-results-v2.md) (D7, D10, D11) · [Unified player v2](archive/unified-player-v2.md) (D12, D29) · `clients/contracts/v1/player-controls.md` (Televisions) · PRs 1288 and 1291 (the list rows and the preview action, already merged)
+> **Status:** Built (awaiting Local checks L1-L7 in `engineering/validation/batch.md`) · **Version:** 1 · **Last updated:** 2026-11-22 (Locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [Find another, clearer lyrics and subtitle results](archive/find-another-results-v2.md) (D7, D10, D11) · [Unified player v2](archive/unified-player-v2.md) (D12, D29) · `clients/contracts/v1/player-controls.md` (Televisions) · PRs 1288 and 1291 (the list rows and the preview action, already merged)
 
 ## 1. Goal
 On a television, when the subtitles that came with a film or episode are wrong or missing, the person can open the list of other results, see the actual first lines of each one and whether it fits, and pick one, using only the remote. It is the same list the Dashboard shows, built for a remote and a screen across the room.
