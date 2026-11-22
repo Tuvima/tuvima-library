@@ -126,3 +126,22 @@ lock-screen fields and the music or audiobook actions (back 10, forward 30,
 Previous and Next chapter, Speed presets as extra buttons). The television side
 panels and the car list are a first definition, to be settled in their own
 threads (Unified player v2, D29 and section 9).
+
+**Android phone: Find another** (spec "Find another on TV", WP8; Find another v1 D12). The video player's **Audio &
+subtitles** view (the Subtitles sheet) ends with a **Find subtitles…** row, drawn only when the same sources check as on
+Android TV says `Ready` and the phone is not playing a downloaded copy (a download has none of the Engine's subtitle
+files to swap). The row opens a **bottom sheet** (`FindAnotherSheet.kt` in `mobile`) with the same content as the
+television window in one column: a header (the item's name, "Find subtitles", one Language button that swaps the list for
+a short list of languages), then one row per result (release name, "Hearing impaired", "Made for your file" or "A
+different release, may be out of step", once read "Fits the film" or the minutes short or long, "Best match" and "In use"
+chips, and the words of the row inside the row), with **Cancel** and **Use this** pinned at the bottom (spec L5). Touch:
+the best match is read as soon as the sheet opens and is the selected row; a tap on any other row reads it at once (no
+one-second wait on touch) and selects it, showing its words in full; Use this applies the selected row, Cancel or a swipe
+down closes. Reading goes through the shared `FindAnotherModel` read-once cache (`tapRow`, `useSelected`, `cancel`,
+`chooseLanguage`; the touch rules in `FindAnotherSheet` are in `core` and JVM-tested). The video pauses behind the sheet
+and goes back as it was. After Use this the player asks the media service to reload the subtitle files at the same
+position (`COMMAND_RELOAD_SUBTITLES`: a fresh playback manifest, the same item with its new sidecar subtitles) and then
+switches the new file on, leaving the audio choice alone. Dark only, controls 44dp or more, no toasts ("Updating…" shows
+in the sheet's footer). The phone app has **no Lyrics view** yet, so no "Find lyrics…" row is wired: the sheet and the
+shared model already accept `TextTrackKind.Lyrics` (title "Find lyrics", the lyrics rows and checks), so a lyrics view only
+needs to open it with that kind.
