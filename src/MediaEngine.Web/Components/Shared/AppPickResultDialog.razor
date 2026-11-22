@@ -227,7 +227,7 @@
     {
         var changed = !string.Equals(result.Key, _selectedKey, StringComparison.Ordinal);
         _selectedKey = result.Key;
-        if (changed || result.Preview == AppPickPreview.Failed)
+        if (changed || result.Preview is AppPickPreview.Failed or AppPickPreview.Available)
         {
             await OnSelect.InvokeAsync(result);
         }

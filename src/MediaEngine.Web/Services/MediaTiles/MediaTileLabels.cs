@@ -40,6 +40,12 @@ public static class MediaTileLabels
     {
         ArgumentNullException.ThrowIfNull(item);
 
+        // A playlist says what it is and how much it holds ("Playlist · 48 songs"); the plain count is the fallback.
+        if (item.IsPlaylist)
+        {
+            return string.IsNullOrWhiteSpace(item.TypeLine) ? GroupCount(item) : item.TypeLine;
+        }
+
         // A person counts what they have ("11 albums", "9 films"); a person tile never says "Kept".
         if (item.Person is not null)
         {

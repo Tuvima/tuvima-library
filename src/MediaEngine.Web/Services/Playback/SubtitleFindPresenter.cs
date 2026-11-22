@@ -60,7 +60,12 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
     public string? FailedAction { get; private set; }
 
     /// <summary>The row being read now (its source id), or null.</summary>
-    public string? ReadingSourceId { get; private set; }
+    public string? ReadingSourceId => _reading.Count == 0 ? null : _reading.Last();
+
+    private readonly List<string> _reading = [];
+
+    /// <summary>True while that row's file is being read (several rows can be read at once when the person moves quickly).</summary>
+    public bool IsReading(string sourceId) => _reading.Contains(sourceId);
 
     /// <summary>The row that could not be read, so it says so; the row can still be used.</summary>
     public string? PreviewFailedSourceId { get; private set; }
@@ -105,7 +110,7 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         CancelSearch();
         Loading = false; StillSearching = false; Response = null; Failed = false; SourceName = null;
         ChoosingSourceId = null; FailedSourceId = null; FailedAction = null;
-        ReadingSourceId = null; PreviewFailedSourceId = null; PreviewVersion++;
+        _reading.Clear(); PreviewFailedSourceId = null; PreviewVersion++;
         _query = null;
         Raise();
     }
@@ -165,7 +170,7 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         var token = _search.Token;
         Loading = true; StillSearching = false; Response = null; Failed = false;
         ChoosingSourceId = null; FailedSourceId = null; FailedAction = null;
-        ReadingSourceId = null; PreviewFailedSourceId = null; PreviewVersion++;
+        _reading.Clear(); PreviewFailedSourceId = null; PreviewVersion++;
         Raise();
         _ = WatchAsync(generation, token);
         TextTrackAlternativesResponse? answer;
@@ -198,12 +203,12 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
     public async Task PreviewAsync(TextTrackAlternativeDto item)
     {
         if (_assetId is not Guid assetId || Response is null || item.preview_lines.Count > 0
-            || ReadingSourceId is not null || ChoosingSourceId is not null)
+            || _reading.Contains(item.source_id) || ChoosingSourceId is not null)
         {
             return;
         }
         var generation = _generation;
-        ReadingSourceId = item.source_id; PreviewFailedSourceId = null; PreviewVersion++;
+        _reading.Add(item.source_id); PreviewFailedSourceId = null; PreviewVersion++;
         Raise();
         TextTrackAlternativePreviewResponse? read = null;
         try
@@ -218,7 +223,7 @@ public sealed class SubtitleFindPresenter(IEngineApiClient api, TimeSpan? stillS
         {
             return;
         }
-        ReadingSourceId = null; PreviewVersion++;
+        _reading.Remove(item.source_id); PreviewVersion++;
         if (read is not { status: "Found", item: { } fresh })
         {
             PreviewFailedSourceId = item.source_id;

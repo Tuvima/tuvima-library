@@ -66,6 +66,7 @@
                            Loading="@(!_playlistsLoaded)"
                            ShowFavorites="@(_activeProfileId.HasValue)"
                            FavoritesCount="@_favoritesCount"
+                           AlbumCovers="@_playlistCovers"
                            OnCreateHandPicked="CreateHandPickedAsync"
                            OnCreateSmart="CreateSmartAsync"
                            OnSongsDropped="@(_ => ReloadPlaylistsAsync())"
@@ -108,6 +109,12 @@
     private bool _loadFailed;
     private bool _playlistsLoaded;
     private int? _favoritesCount;
+
+    // The album covers of each playlist's songs for the Playlists page's tiles (group-pages-and-tiles D1): read once per visit to the tab and
+    // again after a change to the playlists, after the tiles are already drawn, so the page never waits on them.
+    private IReadOnlyDictionary<Guid, IReadOnlyList<string>> _playlistCovers = new Dictionary<Guid, IReadOnlyList<string>>();
+    private bool _playlistCoversRequested;
+    private const int PlaylistCoverSongsRead = 24;
 
     // The tabs follow the Engine's library list (one per library with folders, then Playlists); the fixed tabs stand in when it cannot be read.
     private LibraryBrowsePreset Preset = null!;
@@ -255,6 +262,11 @@
     protected override async Task OnParametersSetAsync()
     {
         await EnsurePlaylistNavigationAsync();
+        if (_playlistsLoaded && !_playlistCoversRequested && string.Equals(Tab, ListenBrowseConfiguration.PlaylistsTabId, StringComparison.OrdinalIgnoreCase))
+        {
+            _playlistCoversRequested = true;
+            _ = LoadPlaylistCoversAsync(_playlists);
+        }
 
         if (!string.IsNullOrWhiteSpace(Tab) || _landingPage is not null)
         {
@@ -516,7 +528,45 @@
     private async Task ReloadPlaylistsAsync()
     {
         _playlistsLoaded = false;
+        _playlistCoversRequested = false;
         await EnsurePlaylistNavigationAsync();
+        if (string.Equals(Tab, ListenBrowseConfiguration.PlaylistsTabId, StringComparison.OrdinalIgnoreCase))
+        {
+            _playlistCoversRequested = true;
+            _ = LoadPlaylistCoversAsync(_playlists);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // Reads the first songs of every playlist that has any and keeps their different album covers in song order (the tile draws the first four).
+    // A read that fails leaves that playlist as the no-covers tile; the reason is logged, and the rest still draw.
+    private async Task LoadPlaylistCoversAsync(IReadOnlyList<ManagedCollectionViewModel> playlists)
+    {
+        var covers = new Dictionary<Guid, IReadOnlyList<string>>();
+        foreach (var playlist in playlists.Where(candidate => candidate.ItemCount > 0))
+        {
+            try
+            {
+                var items = await ApiClient.GetCollectionItemsAsync(playlist.Id, PlaylistCoverSongsRead, _activeProfileId);
+                covers[playlist.Id] =
+                [
+                    .. items
+                        .OrderBy(item => item.SortOrder)
+                        .Select(item => item.CoverUrl)
+                        .Where(url => !string.IsNullOrWhiteSpace(url))
+                        .Select(url => url!)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Take(PlaylistTileComposer.MaxAlbumCovers),
+                ];
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Could not read the album covers of playlist {PlaylistId} for its tile.", playlist.Id);
+            }
+        }
+
+        _playlistCovers = covers;
         await InvokeAsync(StateHasChanged);
     }
 

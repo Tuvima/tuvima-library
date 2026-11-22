@@ -15077,17 +15077,14 @@
   <data name="PlaylistTiles_SortRecentlyAdded" xml:space="preserve">
     <value>Recently added</value>
   </data>
-  <data name="PlaylistTiles_MetaSongs" xml:space="preserve">
-    <value>Songs · {0}</value>
+  <data name="PlaylistTiles_TypePlaylist" xml:space="preserve">
+    <value>Playlist</value>
   </data>
-  <data name="PlaylistTiles_MetaSongsLength" xml:space="preserve">
-    <value>Songs · {0} · {1}</value>
+  <data name="PlaylistTiles_TypeSmartPlaylist" xml:space="preserve">
+    <value>Smart playlist</value>
   </data>
-  <data name="PlaylistTiles_MetaSmart" xml:space="preserve">
-    <value>Smart · Songs · {0}</value>
-  </data>
-  <data name="PlaylistTiles_MetaSmartShort" xml:space="preserve">
-    <value>Smart · {0}</value>
+  <data name="PlaylistTiles_TypeBuiltIn" xml:space="preserve">
+    <value>Built in</value>
   </data>
   <data name="PlaylistTiles_MetaShortOne" xml:space="preserve">
     <value>1 song</value>
@@ -16132,5 +16129,8 @@
   </data>
   <data name="PickResult_HearingImpaired" xml:space="preserve">
     <value>Hearing impaired</value>
+  </data>
+  <data name="PickResult_UntitledResult" xml:space="preserve">
+    <value>Untitled result</value>
   </data>
 </root>

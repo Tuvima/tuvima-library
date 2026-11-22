@@ -176,8 +176,11 @@ public sealed class MediaTileViewModel
     /// <summary>The small corner word on a group tile: Collection, Series, Universe, List or Set.</summary>
     public MediaTileGroupKind GroupKind { get; init; }
 
-    /// <summary>True for a playlist, which draws as the square tile beside albums.</summary>
+    /// <summary>True for a playlist, which draws as the square album quadrant (the artist tile's 2 by 2) beside albums.</summary>
     public bool IsPlaylist { get; init; }
+
+    /// <summary>The line a playlist's tile says in the bottom label ("Playlist · 48 songs · 3 h 12 min"); null falls back to the plain count.</summary>
+    public string? TypeLine { get; init; }
     /// <summary>True on a hand-made playlist the person may add to: dragged songs can be dropped on its tile (Listen music spec D10). A rule-based or system playlist is false.</summary>
     public bool AcceptsSongDrops { get; init; }
 

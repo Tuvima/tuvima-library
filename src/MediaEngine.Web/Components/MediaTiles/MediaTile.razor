@@ -3,6 +3,7 @@
 @using MediaEngine.Domain.Services
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.MediaTiles
 @inject NavigationManager Nav
 @inject IServiceProvider Services
@@ -16,14 +17,11 @@
    shapes in one row, the name and count on a solid band, the kind word in the top-left slot. It is one tile at every width (issue 1260):
    a phone differs only in the tile's size and how many tiles sit across, never in what the tile draws. A person with works is the quadrant tile (spec
    details-and-tile-fixes D2): the first four covers in a 2 by 2 grid with the person's square photo at the bottom left; a person with no
-   works is a square photo (PersonTile). *@
+   works is a square photo (PersonTile). A playlist is the same square quadrant with no photo (group-pages-and-tiles D1, D1a): its first four
+   albums, the name on the scrim, the type line ("Playlist · 48 songs") as the bottom label, and, on a hand-made one, a drop target for songs. *@
 @if (Item.RenderAsPersonPhoto)
 {
     <PersonTile Item="@Item" />
-}
-else if (Item.IsPlaylist)
-{
-    <MediaSquareTile Item="@Item" />
 }
 else if (!_removed)
 {
@@ -31,6 +29,8 @@ else if (!_removed)
                Css="@PaletteScopeStyle">
 <article class='@($"media-tile {ShapeClass} {MediaKindClass} {PresentationClass} {SurfaceClass} {(IsVideoStill ? "is-video-still" : string.Empty)} {(IsGroup ? "is-group" : string.Empty)} {GroupLookClass} {(ShowsEpisodeCaption ? "has-episode-caption" : string.Empty)} {(IsJustSaved ? "tl-just-changed" : string.Empty)}")'
          data-new="@(IsJustSaved ? "true" : null)"
+         data-song-drop="@(Item.IsPlaylist && Item.AcceptsSongDrops ? "playlist" : null)"
+         @ondrop="DropHandler"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
     <div class="media-tile-frame">
@@ -121,7 +121,7 @@ else if (!_removed)
             }
             else if (ShowQuadrants)
             {
-                @* A person's covers around their photo (review mock-ups D4). One title is one cover filling the tile; two fill top-left and
+                @* A person's covers around their photo, or a playlist's first four albums (review mock-ups D4). One title is one cover filling the tile; two fill top-left and
                    bottom-left; three add top-right; four fill the grid, and an empty square is a faint dashed outline. A square cover (an album)
                    stays square and centered in its quarter. A group of titles is never drawn here: it is the landscape collage above. *@
                 var covers = GroupCoverItems;
@@ -188,7 +188,7 @@ else if (!_removed)
             {
                 @* A person's name over a bottom scrim (One tile design D9), beside their photo. A group's name sits on the collage's own band. *@
                 <span class="media-tile-scrim" aria-hidden="true"></span>
-                <span class="media-tile-name media-tile-name--beside-photo">@Item.Title</span>
+                <span class="@($"media-tile-name{(IsPersonQuadrant ? " media-tile-name--beside-photo" : string.Empty)}")">@Item.Title</span>
             }
             @if (StatusLabel is { } status)
             {
@@ -212,7 +212,12 @@ else if (!_removed)
         <div class="media-tile-episode-caption"><strong>@(Item.EpisodeContext is { } episode ? MediaTileLabels.EpisodeHeading(Item, episode) : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
     }
     </a>
-    @if (ShowActions)
+    @if (Menu is not null)
+    {
+        @* A page that owns the "..." menu (the Playlists page: Rename, Pin, Delete and the rest) draws it in the shared slot, top right. *@
+        <div class="media-tile-actions" data-media-tile-actions>@Menu</div>
+    }
+    else if (ShowActions)
     {
         <MediaTileActions Item="@Item" OnDeleted="@(() => { _removed = true; StateHasChanged(); })" />
     }
@@ -234,6 +239,12 @@ else if (!_removed)
         && (Item.CollectionId is { } collectionId && saved.Contains(collectionId));
     /// <summary>Draws the cover's "..." menu; off for places where a cover is only a picture.</summary>
     [Parameter] public bool ShowActions { get; set; } = true;
+
+    /// <summary>A menu the page draws in the "..." slot instead of the tile's own (a playlist's menu on the Playlists page).</summary>
+    [Parameter] public RenderFragment? Menu { get; set; }
+
+    /// <summary>Raised after songs dropped on a hand-made playlist's tile were added, so the page can read the playlists again.</summary>
+    [Parameter] public EventCallback OnSongsDropped { get; set; }
     /// <summary>The episode lists of a show or season keep the episode number and title under each still; no other tile has text under it.</summary>
     [Parameter] public bool ShowEpisodeText { get; set; }
     private bool _removed;
@@ -294,6 +305,9 @@ else if (!_removed)
 
     private bool IsPersonQuadrant => Item.RenderAsPersonQuadrants;
 
+    // A playlist is the same quadrant without the photo: its first four albums, or the chosen cover whole.
+    private bool IsPlaylistQuadrant => Item.IsPlaylist;
+
     // The kind word in the top-left slot (spec details-and-tile-fixes D1). A status label ("New", "Getting details") takes the slot first.
     private string? KindWord => IsGroup && Item.Person is null && !ShowBrandLogo && !IsVideoStill ? GroupKindWord : null;
 
@@ -307,8 +321,8 @@ else if (!_removed)
     private bool ShowCollage => IsLandscapeGroup
         && (!string.IsNullOrWhiteSpace(CollageCoverUrl) || Item.ArtworkStackItems.Any(member => !string.IsNullOrWhiteSpace(member.ImageUrl)));
 
-    // The four-cover grid is only a person's: the first four covers of their works around their photo.
-    private bool ShowQuadrants => IsPersonQuadrant && !ShowBrandLogo && GroupCoverItems.Count > 0;
+    // The four-cover grid is a person's (the first four covers of their works around their photo) and a playlist's (its first four albums).
+    private bool ShowQuadrants => (IsPersonQuadrant || IsPlaylistQuadrant) && !ShowBrandLogo && GroupCoverItems.Count > 0;
 
     private IReadOnlyList<ArtworkStackItem> GroupCoverItems => Item.GroupCoverItems;
 
@@ -391,7 +405,7 @@ else if (!_removed)
 
     private string? EpisodeShowCaption => Item.EpisodeContext?.ShowTitle ?? Item.Subtitle;
 
-    private string FallbackIcon => IsVideoCollection ? AppMaterialIcons.Outlined.Movie : IsGroup ? AppMaterialIcons.Outlined.CollectionsBookmark : Item.Presentation switch
+    private string FallbackIcon => Item.IsPlaylist ? AppMaterialIcons.Outlined.QueueMusic : IsVideoCollection ? AppMaterialIcons.Outlined.Movie : IsGroup ? AppMaterialIcons.Outlined.CollectionsBookmark : Item.Presentation switch
     {
         MediaTilePresentation.Album => AppMaterialIcons.Filled.Album,
         MediaTilePresentation.Artist => AppMaterialIcons.Filled.Person,
@@ -418,7 +432,8 @@ else if (!_removed)
         _ => string.IsNullOrWhiteSpace(Item.MediaKind) ? "Media" : Item.MediaKind,
     };
 
-    private string DisplaySubtitle => Item.Subtitle ?? Item.Creator ?? string.Empty;
+    // A playlist's "N items" line is not drawn: its type line is the bottom label.
+    private string DisplaySubtitle => Item.IsPlaylist ? string.Empty : Item.Subtitle ?? Item.Creator ?? string.Empty;
 
     private string DetailsNavigationUrl => IsGroup
         ? StringHelpers.FirstNonBlank(Item.DetailsNavigationUrl, Item.NavigationUrl, Item.PrimaryNavigationUrl) ?? "/"
@@ -427,7 +442,9 @@ else if (!_removed)
     // A group's name and kind are not on the art, so the link says both ("Dune Saga, Series") and what it holds; a person's says the name and what they have.
     private string DetailsActionAriaLabel => IsGroup
         ? GroupAccessibleLabel
-        : $"View details for {Item.Title}" + (Item.IsSettling ? ". Still being matched" : string.Empty);
+        : Item.IsPlaylist
+            ? L["MediaGroupTile_Label", Item.Title, L["MediaSquareTile_Playlist"]].Value
+            : $"View details for {Item.Title}" + (Item.IsSettling ? ". Still being matched" : string.Empty);
 
     private string GroupAccessibleLabel
     {
@@ -459,7 +476,30 @@ else if (!_removed)
             _ => L["MediaGroupTile_KindCollection"].Value,
         };
 
+    // Songs dragged out of a song table and dropped on a hand-made playlist's tile. A rule-based or built-in playlist's tile is never a drop target.
+    private EventCallback<DragEventArgs> DropHandler => Item.IsPlaylist ? EventCallback.Factory.Create<DragEventArgs>(this, DropSongsAsync) : default;
+
+    private async Task DropSongsAsync(DragEventArgs _)
+    {
+        if (Item.AcceptsSongDrops && Item.CollectionId is { } playlistId && Services.GetService<SongDragDropService>() is { } drops
+            && await drops.DropOnPlaylistAsync(playlistId, Item.Title) is not null)
+        {
+            await OnSongsDropped.InvokeAsync();
+        }
+    }
+
     private void OpenDetails()
+    {
+        // A playlist opens its own page, not a details page, so it leaves no preview behind.
+        if (!Item.IsPlaylist)
+        {
+            SetDetailPreview();
+        }
+
+        Nav.NavigateTo(DetailsNavigationUrl);
+    }
+
+    private void SetDetailPreview()
     {
         // The details page draws its hero from what this tile already knows instead of showing empty boxes.
         Services.GetService<MediaEngine.Web.Services.Navigation.DetailPreviewState>()?.Set(new MediaEngine.Web.Services.Navigation.DetailPreview(
@@ -468,6 +508,5 @@ else if (!_removed)
             Item.PreviewImageUrl ?? Item.TileImageUrl,
             Item.LogoUrl,
             Item.HeroBackgroundImageUrl));
-        Nav.NavigateTo(DetailsNavigationUrl);
     }
 }
