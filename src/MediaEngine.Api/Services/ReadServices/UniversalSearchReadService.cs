@@ -446,6 +446,14 @@ public sealed class UniversalSearchReadService(
                                          AND EXISTS (SELECT 1 FROM collection_profile_audience pa
                                                      WHERE pa.collection_id = child.id AND pa.profile_id = @ProfileId)))))))
             WHERE c.is_enabled = 1
+              -- Who may see the collection at all (the same rule as CollectionAccessPolicy.CanAccess): holding a work the caller
+              -- may see is not enough, or another person's private playlist would turn up in their search.
+              AND (c.owner_kind = 'Library' OR c.audience = 'Everyone'
+                   OR (lower(c.scope) = 'user' AND @ProfileId IS NOT NULL
+                       AND (c.profile_id = @ProfileId
+                            OR (c.audience = 'SelectedProfiles'
+                                AND EXISTS (SELECT 1 FROM collection_profile_audience pa
+                                            WHERE pa.collection_id = c.id AND pa.profile_id = @ProfileId)))))
               AND (COALESCE(c.display_name, title.value, '') LIKE @Like COLLATE NOCASE
                    OR COALESCE(c.description, '') LIKE @Like COLLATE NOCASE)
               AND (
