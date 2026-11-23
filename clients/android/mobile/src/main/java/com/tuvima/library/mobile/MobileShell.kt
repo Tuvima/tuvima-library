@@ -12,6 +12,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,6 +74,13 @@ internal fun MobileShell(
     val stack = remember { mutableStateListOf<Overlay>() }
     // The new person's saved titles are read again after a switch (a fresh holder per person).
     val saved = remember(client, epoch) { SavedItems(client, scope) }
+    // The music and audiobook players: the mini player above the dock and the full-screen Now playing. The media service owns the playback; this only
+    // joins it once something is playing and lets go when the screens go away.
+    val audio = application.audio
+    val playing by AudioBridge.now.collectAsState()
+    var nowPlayingOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(playing.assetId) { if (!playing.isNone) audio.connect() }
+    DisposableEffect(audio) { onDispose { audio.release() } }
     var profiles by remember { mutableStateOf<List<DeviceProfile>>(emptyList()) }
     // The files of this person that are on the phone and play, for the Downloaded mark on posters and Details (changes only when the set does).
     val downloadedAssets by remember(client, epoch) {
@@ -166,11 +174,14 @@ internal fun MobileShell(
                     )
                 },
                 bottomBar = {
-                    PhoneDock(selected = selectedDock) { tab ->
-                        when (tab) {
-                            PhoneDockTab.Home -> goTo(Destination.Home)
-                            PhoneDockTab.Search -> { searchOpen = true }
-                            PhoneDockTab.MyList -> goTo(Destination.MyList)
+                    Column {
+                        MiniPlayer(audio, client, onOpen = { nowPlayingOpen = true })
+                        PhoneDock(selected = selectedDock) { tab ->
+                            when (tab) {
+                                PhoneDockTab.Home -> goTo(Destination.Home)
+                                PhoneDockTab.Search -> { searchOpen = true }
+                                PhoneDockTab.MyList -> goTo(Destination.MyList)
+                            }
                         }
                     }
                 },
@@ -299,6 +310,10 @@ internal fun MobileShell(
                     },
                     onClose = { searchOpen = false },
                 )
+            }
+
+            if (nowPlayingOpen) {
+                NowPlayingScreen(audio, client, onCollapse = { nowPlayingOpen = false })
             }
 
             if (menuOpen) {

@@ -21,8 +21,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,17 +41,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.ListenLogic
+import com.tuvima.library.core.ListenPlay
 import com.tuvima.library.core.ListenTab
+import com.tuvima.library.core.PlayQueue
 import com.tuvima.library.core.SearchLogic
 import com.tuvima.library.core.SongSort
 import com.tuvima.library.core.TuvimaClient
-import com.tuvima.library.core.playableAssetId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -174,6 +178,8 @@ internal class SongsController(
 internal fun SongsPane(client: TuvimaClient, play: (PlayRequest) -> Unit, artist: String?) {
     val scope = rememberCoroutineScope()
     val controller = remember(client, artist) { SongsController(client, scope, artist) }
+    val audio = (LocalContext.current.applicationContext as TuvimaMobileApplication).audio
+    val source = artist ?: SONGS_SOURCE
     val saved = LocalSavedItems.current
     var text by remember { mutableStateOf("") }
     var applied by remember { mutableStateOf("") }
@@ -204,6 +210,19 @@ internal fun SongsPane(client: TuvimaClient, play: (PlayRequest) -> Unit, artist
         if (count.isNotEmpty()) {
             Text(count, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 12.dp))
         }
+        // Play plays the songs shown from the first, in order; Shuffle plays them in a random order (spec native-apps WP10c).
+        if (controller.cards.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { ListenPlay.fromCards(controller.cards, null, source)?.let { audio.playQueue(it) } },
+                    modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget),
+                ) { Text(PlayQueue.PLAY_LABEL) }
+                OutlinedButton(
+                    onClick = { ListenPlay.shuffled(controller.cards, source, kotlin.random.Random.Default)?.let { audio.playQueue(it) } },
+                    modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget),
+                ) { Text(PlayQueue.SHUFFLE_LABEL) }
+            }
+        }
         val failure = controller.error
         when {
             failure != null && controller.cards.isEmpty() -> ErrorBlock(failure) { controller.retry() }
@@ -220,7 +239,7 @@ internal fun SongsPane(client: TuvimaClient, play: (PlayRequest) -> Unit, artist
                     if (index >= controller.cards.size - 8) {
                         LaunchedEffect(controller.cards.size) { controller.loadMore() }
                     }
-                    SongRow(client, card, play)
+                    SongRow(client, card) { ListenPlay.fromCards(controller.cards, card, source)?.let { audio.playQueue(it) } }
                 }
                 if (controller.loading) {
                     item {
@@ -244,7 +263,7 @@ internal fun SongsPane(client: TuvimaClient, play: (PlayRequest) -> Unit, artist
 
 /** One song: its cover, title, artist and album, length and the Favorite heart. A press on the row plays it. */
 @Composable
-private fun SongRow(client: TuvimaClient, card: DisplayCard, play: (PlayRequest) -> Unit) {
+private fun SongRow(client: TuvimaClient, card: DisplayCard, onPlay: () -> Unit) {
     val saved = LocalSavedItems.current
     val hearted = ListenLogic.isHearted(card, saved?.titles)
     val line = ListenLogic.songLine(card)
@@ -253,9 +272,7 @@ private fun SongRow(client: TuvimaClient, card: DisplayCard, play: (PlayRequest)
         Modifier
             .fillMaxWidth()
             .heightIn(min = 60.dp)
-            .clickable(onClickLabel = "Play ${card.title}") {
-                card.playableAssetId()?.let { assetId -> play(PlayRequest(assetId, "music", card.title, line.ifEmpty { null })) }
-            }
+            .clickable(onClickLabel = "Play ${card.title}", onClick = onPlay)
             .padding(start = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -412,6 +429,7 @@ private fun ArtistsPane(client: TuvimaClient, openArtist: (String) -> Unit) {
 @Composable
 private fun FavoritesPane(client: TuvimaClient, play: (PlayRequest) -> Unit) {
     val saved = LocalSavedItems.current
+    val audio = (LocalContext.current.applicationContext as TuvimaMobileApplication).audio
     var attempt by remember { mutableIntStateOf(0) }
     var state by remember { mutableStateOf<Load<List<DisplayCard>>>(Load.Loading) }
     LaunchedEffect(saved) { saved?.ensureLoaded() }
@@ -433,8 +451,13 @@ private fun FavoritesPane(client: TuvimaClient, play: (PlayRequest) -> Unit) {
                 if (saved?.changeFailed == true) {
                     item { Text(ListenLogic.COULD_NOT_CHANGE, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp)) }
                 }
-                itemsIndexed(songs) { _, card -> SongRow(client, card, play) }
+                itemsIndexed(songs) { _, card ->
+                    SongRow(client, card) { ListenPlay.fromCards(songs, card, FAVORITES_SOURCE)?.let { audio.playQueue(it) } }
+                }
             }
         }
     }
 }
+
+private const val SONGS_SOURCE = "Songs"
+private const val FAVORITES_SOURCE = "Favorites"

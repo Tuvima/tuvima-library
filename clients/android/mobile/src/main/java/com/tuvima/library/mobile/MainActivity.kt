@@ -63,7 +63,12 @@ class MainActivity : ComponentActivity() {
             this,
             Intent(this, TuvimaMediaLibraryService::class.java)
                 .setAction(TuvimaMediaLibraryService.ACTION_PLAY_ASSET)
-                .putExtra(TuvimaMediaLibraryService.EXTRA_ASSET_ID, request.assetId),
+                .putExtra(TuvimaMediaLibraryService.EXTRA_ASSET_ID, request.assetId)
+                .putExtra(TuvimaMediaLibraryService.EXTRA_TITLE, request.title)
+                .putExtra(TuvimaMediaLibraryService.EXTRA_SUBTITLE, request.subtitle)
+                .putExtra(TuvimaMediaLibraryService.EXTRA_WORK_ID, request.workId)
+                .putExtra(TuvimaMediaLibraryService.EXTRA_ENTITY_TYPE, request.entityType)
+                .putExtra(TuvimaMediaLibraryService.EXTRA_ARTWORK_URL, request.artworkUrl),
         )
     }
 }

@@ -43,6 +43,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.DetailMenuAction
 import com.tuvima.library.core.DetailMenuLogic
+import com.tuvima.library.core.DetailPlay
+import com.tuvima.library.core.DetailPlayTarget
 import com.tuvima.library.core.DetailModel
 import com.tuvima.library.core.BatchScope
 import com.tuvima.library.core.DownloadBadgeLogic
@@ -52,6 +54,7 @@ import com.tuvima.library.core.EditInBrowser
 import com.tuvima.library.core.OfflineBatchLogic
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.PhonePlayerLogic
+import com.tuvima.library.core.PlayQueue
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.playShowId
 import com.tuvima.library.core.savedKeyForEntity
@@ -272,12 +275,43 @@ internal fun DetailScreen(
                     }
                 }
                 item {
-                    if (assetId != null) {
+                    // Play starts what the page can play: its own file, an album's songs as one queue (with Shuffle), or an audiobook's file.
+                    val target = DetailPlay.resolve(assetId, detail.children, detail.title, detail.subtitle, detail.artworkUrl)
+                    if (assetId != null || target !is DetailPlayTarget.Nothing) {
                       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val held = downloads.firstOrNull { it.assetId == assetId }
-                            Button(onClick = { play(PlayRequest(assetId, entityType, detail.title, detail.subtitle, showId = playShowId(entityType, id, detail.showId), workId = PhonePlayerLogic.workIdFor(entityType, id))) }) { Text(if (detail.isInProgress) "Resume" else "Play") }
-                            if (kind != DownloadKind.Excluded) {
+                            val held = assetId?.let { file -> downloads.firstOrNull { it.assetId == file } }
+                            if (target !is DetailPlayTarget.Nothing) {
+                                Button(
+                                    onClick = {
+                                        when (target) {
+                                            is DetailPlayTarget.Songs ->
+                                                DetailPlay.request(target, shuffle = false, random = kotlin.random.Random.Default)?.let { application.audio.playQueue(it) }
+                                            is DetailPlayTarget.OneFile -> play(
+                                                PlayRequest(
+                                                    target.assetId,
+                                                    // An audiobook found by search comes as a plain work; its file is still a book, not a video.
+                                                    if (assetId == null) "audiobook" else entityType,
+                                                    detail.title,
+                                                    detail.subtitle,
+                                                    showId = playShowId(entityType, id, detail.showId),
+                                                    workId = PhonePlayerLogic.workIdFor(entityType, id),
+                                                    artworkUrl = detail.artworkUrl,
+                                                ),
+                                            )
+                                            DetailPlayTarget.Nothing -> Unit
+                                        }
+                                    },
+                                ) { Text(if (target is DetailPlayTarget.OneFile && detail.isInProgress) "Resume" else "Play") }
+                            }
+                            if (DetailPlay.offersShuffle(target)) {
+                                OutlinedButton(
+                                    onClick = {
+                                        DetailPlay.request(target, shuffle = true, random = kotlin.random.Random.Default)?.let { application.audio.playQueue(it) }
+                                    },
+                                ) { Text(PlayQueue.SHUFFLE_LABEL) }
+                            }
+                            if (assetId != null && kind != DownloadKind.Excluded) {
                                 OutlinedButton(
                                     onClick = {
                                         if (held?.state == DownloadState.Failed) {
@@ -299,7 +333,7 @@ internal fun DetailScreen(
                                 }
                             }
                         }
-                        if (isShow && kind != DownloadKind.Excluded) {
+                        if (assetId != null && isShow && kind != DownloadKind.Excluded) {
                             OutlinedButton(onClick = { downloadNextEpisodes(assetId) }) { Text("Download next episodes") }
                         }
                         if (OfflineBatchLogic.offersBatch(detail.children)) {
