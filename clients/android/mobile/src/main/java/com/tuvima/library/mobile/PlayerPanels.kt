@@ -229,7 +229,14 @@ private fun PanelRow(client: TuvimaClient?, row: TvRow, onRow: (String, String?)
 
 /** The contract's Playback speed panel: the current speed, a slider from 0.5× to 3× in steps of 0.05, the presets, and Reset to 1×. */
 @Composable
-internal fun SpeedSheet(speed: Double, onSet: (Double) -> Unit, onClose: () -> Unit, onBack: (() -> Unit)?) {
+internal fun SpeedSheet(
+    speed: Double,
+    onSet: (Double) -> Unit,
+    onClose: () -> Unit,
+    onBack: (() -> Unit)?,
+    /** When given, dragging the slider only previews the speed through this and [onSet] (which also saves it) runs once on release. */
+    onPreview: ((Double) -> Unit)? = null,
+) {
     val current = TvPlayerLogic.clampSpeed(speed)
     PlayerSheet(
         title = TvPlayerWords.PLAYBACK_SPEED,
@@ -250,7 +257,8 @@ internal fun SpeedSheet(speed: Double, onSet: (Double) -> Unit, onClose: () -> U
         )
         Slider(
             value = current.toFloat(),
-            onValueChange = { onSet(TvPlayerLogic.clampSpeed(it.toDouble())) },
+            onValueChange = { (onPreview ?: onSet)(TvPlayerLogic.clampSpeed(it.toDouble())) },
+            onValueChangeFinished = { if (onPreview != null) onSet(current) },
             valueRange = TvPlayerLogic.SPEED_MIN.toFloat()..TvPlayerLogic.SPEED_MAX.toFloat(),
             steps = 49,
             modifier = Modifier.padding(horizontal = 16.dp).semantics { contentDescription = TvPlayerWords.PLAYBACK_SPEED },

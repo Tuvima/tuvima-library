@@ -12,6 +12,8 @@ data class PendingBookmark(
     val positionSeconds: Double,
     val durationSeconds: Double?,
     val recordedAtMs: Long,
+    /** The note typed with "Add a note…" (already trimmed, at most [PhoneBookmarks.MAX_TEXT] characters); sent with the bookmark. Empty for none. */
+    val note: String = "",
 )
 
 object OfflineBookmarkLogic {
@@ -46,27 +48,38 @@ object OfflineBookmarkLogic {
 
     /** The Engine's request body for a queued bookmark: the same one a bookmark made online sends. */
     fun body(entry: PendingBookmark) =
-        TvBookmarks.createBody(entry.assetId, entry.positionSeconds, entry.durationSeconds)
+        TvBookmarks.createBody(entry.assetId, entry.positionSeconds, entry.durationSeconds).also {
+            if (entry.note.isNotBlank()) it.put("note", entry.note.trim())
+        }
 
     /**
      * The list to show offline: the Engine's list as it was when last read, plus the bookmarks waiting to be sent for [workId] (they
      * are the person's own and say they are saved on this phone), by position.
      */
-    fun forDisplay(cached: List<TvBookmark>, pending: List<PendingBookmark>, workId: String): List<TvBookmark> {
-        val waiting = pending.filter { it.workId == workId }.map {
+    fun forDisplay(cached: List<TvBookmark>, pending: List<PendingBookmark>, workId: String): List<TvBookmark> =
+        (cached + waitingFor(pending, workId)).sortedBy { it.positionSeconds }
+
+    /** The bookmarks waiting to be sent for [workId], as list rows: the person's own, saved on this phone, with the note that was typed. */
+    fun waitingFor(pending: List<PendingBookmark>, workId: String): List<TvBookmark> =
+        pending.filter { it.workId == workId }.map {
             TvBookmark(
                 id = "offline-${it.localId}",
                 positionSeconds = it.positionSeconds,
                 label = SAVED_ON_PHONE_LABEL,
-                note = "",
+                note = it.note,
                 frameUrl = null,
                 ownerName = "",
                 isYours = true,
                 inEveryone = false,
             )
         }
-        return (cached + waiting).sortedBy { it.positionSeconds }
-    }
+
+    /**
+     * The Engine's list with the bookmarks still waiting to be sent added in, so one made offline does not vanish from the panel
+     * before the sync has sent it (the sync removes it from the queue as it is sent, so it is listed once).
+     */
+    fun mergeWaiting(online: List<TvBookmark>, pending: List<PendingBookmark>, workId: String): List<TvBookmark> =
+        (online + waitingFor(pending, workId)).sortedBy { it.positionSeconds }
 
     /** True when a bookmark id is one made offline that has not reached the Engine (it can be removed from the queue, not from the Engine). */
     fun isWaiting(bookmarkId: String): Boolean = bookmarkId.startsWith("offline-")

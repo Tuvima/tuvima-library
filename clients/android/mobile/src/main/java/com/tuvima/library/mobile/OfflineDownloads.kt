@@ -452,13 +452,13 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
      * Saves a bookmark at [positionSeconds] of a downloaded title while there may be no connection. It waits on the phone and the sync
      * sends it as soon as there is one. Returns false when the file is not a download of this person's, or its kind has no bookmarks.
      */
-    fun addBookmarkOffline(assetId: String, positionSeconds: Double, durationSeconds: Double?): Boolean {
+    fun addBookmarkOffline(assetId: String, positionSeconds: Double, durationSeconds: Double?, note: String = ""): Boolean {
         val store = store()
         val record = store.record(assetId) ?: return false
         val workId = record.workId ?: return false
         if (!record.isComplete || !OfflineBookmarkLogic.keepsBookmarks(record.entityType)) return false
         store.addPendingBookmark(
-            PendingBookmark(UUID.randomUUID().toString(), workId, assetId, positionSeconds, durationSeconds, System.currentTimeMillis()),
+            PendingBookmark(UUID.randomUUID().toString(), workId, assetId, positionSeconds, durationSeconds, System.currentTimeMillis(), note.trim()),
         )
         scheduleSync()
         return true

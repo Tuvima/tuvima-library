@@ -88,8 +88,9 @@ object PhoneBookmarks {
     }
 
     private fun rowOf(b: TvBookmark, tab: TvBookmarkTab): PhoneBookmarkRow {
-        val words = b.label.ifBlank { b.note.ifBlank { TvPanels.bookmarkAtLabel(b.positionSeconds) } }
         val waiting = OfflineBookmarkLogic.isWaiting(b.id)
+        // One saved on this phone reads with the note that was typed, else "Saved on this phone".
+        val words = if (waiting && b.note.isNotBlank()) b.note else b.label.ifBlank { b.note.ifBlank { TvPanels.bookmarkAtLabel(b.positionSeconds) } }
         return PhoneBookmarkRow(
             id = b.id,
             time = TvPlayerLogic.formatTime(b.positionSeconds),
