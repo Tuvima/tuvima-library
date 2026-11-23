@@ -44,6 +44,7 @@ internal fun HomeScreen(
     play: (PlayRequest) -> Unit,
     openCard: (DisplayCard) -> Unit,
     openMyList: () -> Unit,
+    openMusic: () -> Unit,
 ) {
     var attempt by remember { mutableIntStateOf(0) }
     var state by remember { mutableStateOf<Load<HomeLoad>>(Load.Loading) }
@@ -76,7 +77,7 @@ internal fun HomeScreen(
         } else {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 16.dp)) {
                 if (loaded.heroes.isNotEmpty()) {
-                    item { HomeHeroCard(client, loaded.heroes, openCard, play) }
+                    item { HomeHeroCard(client, loaded.heroes, openCard, play, openMusic) }
                 } else {
                     item {
                         Text(

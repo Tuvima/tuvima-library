@@ -32,6 +32,14 @@ class MyListSelection private constructor(val active: Boolean, private val ids: 
     /** Unticks everything but stays in Select mode. */
     fun clear(): MyListSelection = if (!active || ids.isEmpty()) this else MyListSelection(true, emptySet())
 
+    /** Drops ticks for cards that are no longer shown (a reload removed them), so the count and Remove never name a title that is gone. */
+    fun retain(cardIds: List<String>): MyListSelection {
+        if (!active || ids.isEmpty()) return this
+        val shown = cardIds.toSet()
+        val kept = ids.filterTo(LinkedHashSet()) { it in shown }
+        return if (kept.size == ids.size) this else MyListSelection(true, kept)
+    }
+
     /** True when every card shown is ticked (and there is at least one). */
     fun allSelected(cardIds: List<String>): Boolean = cardIds.isNotEmpty() && cardIds.all { it in ids }
 
@@ -57,6 +65,7 @@ class MyListSelection private constructor(val active: Boolean, private val ids: 
         const val CLEAR = "Clear"
         const val REMOVE = "Remove"
         const val PROMPT = "Select titles"
+        const val NOTHING_TO_REMOVE = "These titles can't be removed from here. Open one to change it."
         const val SELECTED_MARK = "Selected"
         const val NOT_SELECTED_MARK = "Not selected"
     }

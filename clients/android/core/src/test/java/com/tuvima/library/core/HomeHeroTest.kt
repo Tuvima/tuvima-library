@@ -119,4 +119,33 @@ class HomeHeroTest {
     }
 
     private fun playAction(label: String) = DisplayAction("playAsset", label, "w", "a", null, null)
+
+    @Test
+    fun theRecentlyAddedMusicSlideIsACollageThatOpensMusicNotOneAlbum() {
+        val json = JSONObject(
+            """
+            {"spotlights":[{"id":"alb-9","workId":"alb-9","title":"Recently added music","mediaType":"Music",
+              "collageUrls":["/stream/a/cover","/stream/b/cover"],
+              "actions":[{"type":"openRoute","label":"Open","webUrl":"/listen/music/playlists/system/recently-added"}]}]}
+            """,
+        )
+
+        val slide = HomeHeroLogic.parse(json, WireFixtures.absolute).single()
+        val primary = HomeHeroLogic.primary(slide)
+
+        assertTrue(slide.isCollage)
+        assertEquals(listOf("http://engine.test/stream/a/cover", "http://engine.test/stream/b/cover"), slide.collageUrls)
+        assertEquals("", slide.metaLine)
+        assertEquals("Open music", primary.label)
+        assertTrue(primary.opensMusic)
+        assertNull(primary.assetId)
+    }
+
+    @Test
+    fun anOrdinarySlideIsNotACollage() {
+        val slide = slides().first()
+
+        assertFalse(slide.isCollage)
+        assertFalse(HomeHeroLogic.primary(slide).opensMusic)
+    }
 }

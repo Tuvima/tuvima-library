@@ -200,4 +200,38 @@ class ListenLogicTest {
         assertEquals("1 song", ListenLogic.songCountText(1))
         assertEquals("1,204 songs", ListenLogic.songCountText(1204))
     }
+
+    private fun musicCard(id: String, artist: String?, grouping: String? = "work") = DisplayCard(
+        id = id, workId = id, assetId = null, collectionId = null, mediaType = "Music", title = "T $id", subtitle = null,
+        facts = emptyList(), description = null, artworkUrl = null, actions = emptyList(), progressPercent = null,
+        groupingType = grouping, artist = artist,
+    )
+
+    @Test
+    fun anArtistFilterKeepsOnlyThatExactArtistEvenWhenTheEngineMatchedASharedNamePart() {
+        val exact = musicCard("1", "Earth, Wind & Fire")
+        val nearMiss = musicCard("2", "Earth")
+
+        assertTrue(ListenLogic.isByArtist(exact, "earth, wind & fire "))
+        assertFalse(ListenLogic.isByArtist(nearMiss, "Earth, Wind & Fire"))
+        assertFalse(ListenLogic.isByArtist(musicCard("3", null), "Earth"))
+    }
+
+    @Test
+    fun aSavedAlbumThatArrivesAsAPlainMusicWorkCardKeepsItsMyListKey() {
+        val asWork = musicCard("alb-1", "Alpha Band")
+        val saved = SavedSet.of(listOf(SavedItem(SavedKey.of(SavedKind.Album, "alb-1"), "2026-11-01T10:00:00Z", 0)))
+
+        assertTrue(ListenLogic.isSong(asWork))
+        assertEquals(SavedKey.of(SavedKind.Album, "alb-1"), ListenLogic.savedAlbumKey(asWork, saved))
+    }
+
+    @Test
+    fun aSongHeartedFromListenIsNeverTakenForASavedAlbum() {
+        val song = musicCard("song-1", "Alpha Band")
+        val hearted = SavedSet.of(listOf(SavedItem(SavedKey.of(SavedKind.Song, "song-1"), "2026-11-01T10:00:00Z", 0)))
+
+        assertNull(ListenLogic.savedAlbumKey(song, hearted))
+        assertNull(ListenLogic.savedAlbumKey(song, null))
+    }
 }

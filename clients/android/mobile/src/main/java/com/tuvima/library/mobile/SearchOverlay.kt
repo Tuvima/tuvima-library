@@ -62,6 +62,8 @@ internal fun SearchOverlay(client: TuvimaClient, onOpen: (SearchHit) -> Unit, on
     val focus = remember { FocusRequester() }
     var text by remember { mutableStateOf("") }
     var attempt by remember { mutableIntStateOf(0) }
+    // The text the shown answer was asked for, so "No results for ..." never names what was typed since.
+    var sent by remember { mutableStateOf("") }
     var state by remember { mutableStateOf<Load<SearchResults>?>(null) }
 
     LaunchedEffect(Unit) { focus.requestFocus() }
@@ -72,6 +74,7 @@ internal fun SearchOverlay(client: TuvimaClient, onOpen: (SearchHit) -> Unit, on
             return@LaunchedEffect
         }
         delay(SearchLogic.DEBOUNCE_MS)
+        sent = query
         state = Load.Loading
         state = try {
             Load.Ready(client.searchResults(query))
@@ -122,7 +125,7 @@ internal fun SearchOverlay(client: TuvimaClient, onOpen: (SearchHit) -> Unit, on
                     val rows = remember(current.value) { SearchLogic.rows(current.value) }
                     if (rows.none { it is SearchRow.Hit }) {
                         Text(
-                            SearchLogic.noResults(text),
+                            SearchLogic.noResults(sent),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(16.dp),
                         )

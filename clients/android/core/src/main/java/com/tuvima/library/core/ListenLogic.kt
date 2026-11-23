@@ -13,7 +13,10 @@ enum class ListenTab(val label: String) {
     Favorites("Favorites"),
 }
 
-/** The sorts the Songs list offers (the browse route's own values); the Dashboard's song table sorts by title first. */
+/**
+ * The sorts the Songs list offers (the browse route's own values). The Dashboard's song table orders by artist, then album, then track
+ * number; the browse route has no such order, so the phone offers the three it has: title, newest, and artist name.
+ */
 enum class SongSort(val wire: String, val label: String) {
     Title("title", "A-Z"),
     Newest("newest", "Newest"),
@@ -69,6 +72,25 @@ object ListenLogic {
     /** True for a single song (a work of Music), as opposed to an album, artist or collection card. */
     fun isSong(card: DisplayCard): Boolean =
         card.mediaType.equals(MEDIA_TYPE, ignoreCase = true) && card.groupingType == "work"
+
+    /**
+     * True when the song is by exactly this artist. The Engine's creator filter splits names on commas, semicolons and bars (so "Earth,
+     * Wind & Fire" would also match a band called "Earth"), so the phone checks the card's own artist after the Engine has narrowed
+     * the list. The artist shelf groups by the full stored artist name, which is what a card carries.
+     */
+    fun isByArtist(card: DisplayCard, artist: String): Boolean =
+        (card.artist ?: card.subtitle)?.trim().equals(artist.trim(), ignoreCase = true)
+
+    /**
+     * The My List key of a Music card that looks like a single song. A saved album whose root work is itself a catalogue row arrives
+     * as a plain Music work card, so the grouping alone cannot tell it from a song. What decides is the saved list: the card is an album
+     * when the profile has saved it as one; otherwise it is a song (hearted from Listen, never saved to My List) and has no key.
+     */
+    fun savedAlbumKey(card: DisplayCard, saved: SavedSet?): SavedKey? {
+        val id = (card.workId ?: card.id).takeIf(String::isNotBlank) ?: return null
+        val key = SavedKey.of(SavedKind.Album, id)
+        return key.takeIf { saved != null && it in saved }
+    }
 
     /** The key a song is hearted under (Favorites share the saved list as the Song kind); null when the card names no work. */
     fun songKey(card: DisplayCard): SavedKey? =

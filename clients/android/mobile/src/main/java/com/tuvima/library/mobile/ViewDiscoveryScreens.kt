@@ -172,7 +172,7 @@ internal fun PeopleList(client: TuvimaClient, openPerson: (ViewPerson) -> Unit) 
             if (controller.loading || failure != null) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        if (failure != null && !denied) TextButton(onClick = { controller.retry() }) { Text("Try again") } else CircularProgressIndicator()
+                        if (failure != null && !denied) TextButton(onClick = { controller.retry() }, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) { Text("Try again") } else CircularProgressIndicator()
                     }
                 }
             }
@@ -240,7 +240,7 @@ internal fun PlacesList(client: TuvimaClient) {
             if (controller.loading || failure != null) {
                 item {
                     Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        if (failure != null && !denied) TextButton(onClick = { controller.retry() }) { Text("Try again") } else CircularProgressIndicator()
+                        if (failure != null && !denied) TextButton(onClick = { controller.retry() }, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) { Text("Try again") } else CircularProgressIndicator()
                     }
                 }
             }
@@ -279,7 +279,7 @@ internal fun PersonPhotosScreen(
     val failure = controller.error
     Column(Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("Back") }
+            TextButton(onClick = onBack, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) { Text("Back") }
             Text(
                 ViewDiscoveryLogic.personName(person),
                 style = MaterialTheme.typography.titleLarge,
@@ -302,7 +302,18 @@ internal fun PersonPhotosScreen(
                 keptPaths = keptPaths,
                 onNearEnd = { if (controller.error == null) controller.loadMore() },
                 onOpen = { item -> openViewer(items, items.indexOfFirst { it.id == item.id }.coerceAtLeast(0)) },
-                footer = { if (controller.loading) CircularProgressIndicator() },
+                footer = {
+                    if (controller.loading) CircularProgressIndicator()
+                    // A later page failed: the photos already loaded stay, with a way to ask again.
+                    if (failure != null && !controller.loading) {
+                        Text(failure, color = MaterialTheme.colorScheme.error)
+                        if (failure != PHOTO_ACCESS_DENIED_MESSAGE) {
+                            TextButton(onClick = { controller.retry() }, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) {
+                                Text("Try again")
+                            }
+                        }
+                    }
+                },
             )
         }
     }

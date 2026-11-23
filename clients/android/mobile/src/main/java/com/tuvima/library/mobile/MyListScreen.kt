@@ -186,6 +186,12 @@ internal fun MyListScreen(
     var pageMenu by remember { mutableStateOf(false) }
     var changeFailed by remember { mutableStateOf(false) }
     var selection by remember { mutableStateOf(MyListSelection.Off) }
+    var notRemovable by remember { mutableStateOf(false) }
+
+    // A read that drops cards (a change made elsewhere, a new sort) also drops their ticks, so Remove never names a title that is gone.
+    val shownIds = list.cards.map { it.id }
+    LaunchedEffect(shownIds) { selection = selection.retain(shownIds) }
+    LaunchedEffect(selection) { notRemovable = false }
 
     // Back leaves Select mode before it leaves the page.
     BackHandler(enabled = selection.active) { selection = selection.cancel() }
@@ -236,6 +242,11 @@ internal fun MyListScreen(
     // Takes every ticked title off in one go (each once), then leaves Select mode; Undo puts back exactly what the Engine took.
     fun removeSelected() {
         val keys = selection.keysToRemove(list.cards) { card -> saved.keyFor(card) }
+        if (keys.isEmpty()) {
+            // Nothing ticked has a saved key (for example a title that only appears here): say so and stay in Select mode.
+            notRemovable = true
+            return
+        }
         selection = selection.cancel()
         remove(keys)
     }
@@ -293,6 +304,7 @@ internal fun MyListScreen(
                     onClear = { selection = selection.clear() },
                     onRemove = { removeSelected() },
                     onCancel = { selection = selection.cancel() },
+                    note = if (notRemovable) MyListSelection.NOTHING_TO_REMOVE else null,
                 )
             } else {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -460,6 +472,7 @@ private fun SelectBar(
     onClear: () -> Unit,
     onRemove: () -> Unit,
     onCancel: () -> Unit,
+    note: String? = null,
 ) {
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -477,6 +490,9 @@ private fun SelectBar(
                 enabled = selection.canRemove,
                 modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget),
             ) { Text(MyListSelection.REMOVE) }
+        }
+        if (note != null) {
+            Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

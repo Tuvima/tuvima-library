@@ -70,6 +70,8 @@ object SearchLogic {
         val entityType = target?.first ?: json.optString("entityType", "work").ifBlank { "work" }
         val title = json.optString("title")
         if (id.isBlank() || title.isBlank()) return null
+        // Playlists are not on the phone in version 1 (no route reads them), and the details page refuses their route.
+        if (isPlaylist(json)) return null
         val first = json.optionalString("subtitle") ?: json.optionalString("creator")
         val creator = json.optionalString("creator")
         val line = listOfNotNull(first, creator, json.optionalString("year"))
@@ -83,6 +85,11 @@ object SearchLogic {
             artworkUrl = absolute(json.optionalString("artworkUrl")),
         )
     }
+
+    private fun isPlaylist(json: JSONObject): Boolean =
+        json.optString("entityType").contains("playlist", ignoreCase = true) ||
+            json.optString("mediaType").contains("playlist", ignoreCase = true) ||
+            json.optString("detailRoute").contains("/playlist", ignoreCase = true)
 
     /**
      * The rows to draw: the top result under its own heading, then each kind of result under its heading. A title that already

@@ -84,7 +84,7 @@ internal fun ListenScreen(
 internal fun ArtistSongsScreen(client: TuvimaClient, artist: String, play: (PlayRequest) -> Unit, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("Back") }
+            TextButton(onClick = onBack, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) { Text("Back") }
             Text(artist, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         }
         SongsPane(client, play, artist = artist)
@@ -110,32 +110,55 @@ internal class SongsController(
     private var sort = SongSort.Title
     private var generation = 0
 
+    // How many songs the Engine has handed over (before the exact artist check) and how many it says there are. Paging goes by these,
+    // not by the cards kept, so dropping a near-miss artist can neither repeat a page nor stop early.
+    private var fetched = 0
+    private var available = 0
+
     fun reload(search: String, sort: SongSort) {
         this.search = search
         this.sort = sort
         cards.clear()
         total = 0
+        fetched = 0
+        available = 0
         fetch(0)
     }
 
     fun loadMore() {
-        if (loading || error != null || cards.isEmpty() || cards.size >= total) return
-        fetch(cards.size)
+        if (loading || error != null || cards.isEmpty() || fetched >= available) return
+        fetch(fetched)
+    }
+
+    /** Tries the page that failed again (or the first page, when nothing has loaded). */
+    fun retry() {
+        if (loading) return
+        if (cards.isEmpty()) fetch(0) else fetch(fetched)
     }
 
     private fun fetch(offset: Int) {
         generation += 1
         val mine = generation
-        val query = ListenLogic.songsQuery(search, sort, artist, offset)
         loading = true
         error = null
         scope.launch {
             try {
-                val page = client.browsePage(query)
-                if (mine != generation) return@launch
-                val known = cards.mapTo(HashSet()) { it.id }
-                cards.addAll(page.cards.filter { known.add(it.id) })
-                total = page.totalCount
+                var next = offset
+                while (true) {
+                    val page = client.browsePage(ListenLogic.songsQuery(search, sort, artist, next))
+                    if (mine != generation) return@launch
+                    next += page.cards.size
+                    fetched = next
+                    available = page.totalCount
+                    // The Engine's creator filter also matches names that share a comma-separated part; keep only this artist's songs.
+                    val wanted = if (artist == null) page.cards else page.cards.filter { ListenLogic.isByArtist(it, artist) }
+                    val known = cards.mapTo(HashSet()) { it.id }
+                    val added = wanted.filter { known.add(it.id) }
+                    cards.addAll(added)
+                    // A page of only near-misses is skipped on to the next one, so the list never looks finished while songs remain.
+                    if (added.isNotEmpty() || page.cards.isEmpty() || next >= available) break
+                }
+                total = if (artist == null || fetched < available) available else cards.size
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
@@ -183,7 +206,7 @@ internal fun SongsPane(client: TuvimaClient, play: (PlayRequest) -> Unit, artist
         }
         val failure = controller.error
         when {
-            failure != null && controller.cards.isEmpty() -> ErrorBlock(failure) { controller.reload(applied, sort) }
+            failure != null && controller.cards.isEmpty() -> ErrorBlock(failure) { controller.retry() }
             controller.cards.isEmpty() && controller.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
@@ -202,6 +225,16 @@ internal fun SongsPane(client: TuvimaClient, play: (PlayRequest) -> Unit, artist
                 if (controller.loading) {
                     item {
                         Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    }
+                } else if (failure != null) {
+                    // A later page failed: the songs already loaded stay, with a way to ask again.
+                    item {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(failure, color = MaterialTheme.colorScheme.error)
+                            TextButton(onClick = { controller.retry() }, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) {
+                                Text("Try again")
+                            }
+                        }
                     }
                 }
             }

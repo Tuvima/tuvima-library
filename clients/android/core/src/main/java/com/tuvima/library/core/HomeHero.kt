@@ -7,10 +7,22 @@ import org.json.JSONObject
 // `GET /api/v1/display/home`. Pure wire reading and rules; nothing here draws anything.
 
 /** One slide. [card] is the same card shape every other screen opens, so a tap and the My List plus behave as they do on a poster. */
-data class HeroSlide(val card: DisplayCard, val eyebrow: String?, val metaLine: String)
+data class HeroSlide(
+    val card: DisplayCard,
+    val eyebrow: String?,
+    val metaLine: String,
+    /** Cover addresses of the "Recently added music" collage slide; empty for every other slide. */
+    val collageUrls: List<String> = emptyList(),
+) {
+    /**
+     * True for the "Recently added music" slide. The Engine builds it from the newest album's own card, so its id and work are one
+     * album's, but it stands for all the new music: it never opens, saves or plays that one album.
+     */
+    val isCollage: Boolean get() = collageUrls.isNotEmpty()
+}
 
-/** The main button: [assetId] is set when it plays something; otherwise it opens the title's details. */
-data class HeroPrimary(val label: String, val assetId: String?)
+/** The main button: [assetId] is set when it plays something; [opensMusic] when it opens the Listen section; otherwise it opens the details. */
+data class HeroPrimary(val label: String, val assetId: String?, val opensMusic: Boolean = false)
 
 /** What Home draws from one read: the shelves and the hero slides. */
 data class HomeContent(val page: DisplayPage, val heroes: List<HeroSlide>)
@@ -19,6 +31,7 @@ object HomeHeroLogic {
     /** The Dashboard rotates a handful of featured titles; more would only be a long swipe. */
     const val MAX_SLIDES = 5
 
+    const val OPEN_MUSIC = "Open music"
     const val OPEN_DETAILS = "Details"
     const val PLAY = "Play"
     const val RESUME = "Resume"
@@ -36,7 +49,8 @@ object HomeHeroLogic {
             val id = parsed.id.ifBlank { parsed.workId ?: parsed.collectionId ?: "" }
             if (id.isBlank() || parsed.title.isBlank() || !seen.add(id.lowercase())) return@mapNotNull null
             val card = parsed.copy(id = id)
-            HeroSlide(card, source.optionalString("eyebrow"), metaLine(card))
+            val collage = source.optJSONArray("collageUrls")?.strings().orEmpty().mapNotNull { absolute(it) }
+            HeroSlide(card, source.optionalString("eyebrow"), if (collage.isEmpty()) metaLine(card) else "", collage)
         }.take(MAX_SLIDES)
     }
 
@@ -50,6 +64,7 @@ object HomeHeroLogic {
      * file. Anything else (a book or comic, a show or group, a title with no file) opens its details: the phone has no reader yet.
      */
     fun primary(slide: HeroSlide): HeroPrimary {
+        if (slide.isCollage) return HeroPrimary(OPEN_MUSIC, null, opensMusic = true)
         val play = slide.card.actions.firstOrNull { it.type.lowercase() in playTypes && !it.assetId.isNullOrBlank() }
             ?: return HeroPrimary(OPEN_DETAILS, null)
         val percent = slide.card.progressPercent

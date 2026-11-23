@@ -49,13 +49,14 @@ internal fun HomeHeroCard(
     slides: List<HeroSlide>,
     openCard: (DisplayCard) -> Unit,
     play: (PlayRequest) -> Unit,
+    openMusic: () -> Unit,
 ) {
     if (slides.isEmpty()) return
     val pager = rememberPagerState(pageCount = { slides.size })
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxWidth()) {
         HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(HERO_HEIGHT)) { page ->
-            HeroSlideCard(client, slides[page], openCard, play)
+            HeroSlideCard(client, slides[page], openCard, play, openMusic)
         }
         if (slides.size > 1) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -86,7 +87,13 @@ internal fun HomeHeroCard(
 private val HERO_HEIGHT = 300.dp
 
 @Composable
-private fun HeroSlideCard(client: TuvimaClient, slide: HeroSlide, openCard: (DisplayCard) -> Unit, play: (PlayRequest) -> Unit) {
+private fun HeroSlideCard(
+    client: TuvimaClient,
+    slide: HeroSlide,
+    openCard: (DisplayCard) -> Unit,
+    play: (PlayRequest) -> Unit,
+    openMusic: () -> Unit,
+) {
     val card = slide.card
     val saved = LocalSavedItems.current
     val primary = HomeHeroLogic.primary(slide)
@@ -97,16 +104,24 @@ private fun HeroSlideCard(client: TuvimaClient, slide: HeroSlide, openCard: (Dis
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clip(shape)
             .background(TuvimaTokens.bgSurface)
-            .clickable(onClickLabel = HomeHeroLogic.OPEN_DETAILS) { openCard(card) },
+            .clickable(onClickLabel = if (slide.isCollage) HomeHeroLogic.OPEN_MUSIC else HomeHeroLogic.OPEN_DETAILS) {
+                // The "Recently added music" slide stands for all the new music, so it opens the music library, not one album.
+                if (slide.isCollage) openMusic() else openCard(card)
+            },
     ) {
-        RemoteImage(client, card.artworkUrl ?: card.posterUrl, Modifier.fillMaxSize())
+        if (slide.isCollage) {
+            CollageCovers(client, slide.collageUrls)
+        } else {
+            RemoteImage(client, card.artworkUrl ?: card.posterUrl, Modifier.fillMaxSize())
+        }
         // A dark fade from the middle down keeps the words readable over any picture.
         Box(
             Modifier
                 .fillMaxSize()
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.88f)), startY = 120f)),
         )
-        if (saved != null) SavedToggle(saved.keyFor(card), Modifier.align(Alignment.TopEnd))
+        // The collage is not one saveable title, so it carries no My List plus.
+        if (saved != null && !slide.isCollage) SavedToggle(saved.keyFor(card), Modifier.align(Alignment.TopEnd))
         Column(
             Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -139,7 +154,9 @@ private fun HeroSlideCard(client: TuvimaClient, slide: HeroSlide, openCard: (Dis
             Button(
                 onClick = {
                     val assetId = primary.assetId
-                    if (assetId == null) {
+                    if (primary.opensMusic) {
+                        openMusic()
+                    } else if (assetId == null) {
                         openCard(card)
                     } else {
                         val target = mobileCardDetailTarget(card)
@@ -156,6 +173,19 @@ private fun HeroSlideCard(client: TuvimaClient, slide: HeroSlide, openCard: (Dis
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = TuvimaTokens.controlHeightMain),
             ) { Text(primary.label) }
+        }
+    }
+}
+
+/** The newest covers as a two-by-two block (fewer when the Engine sent fewer), filling the card. */
+@Composable
+private fun CollageCovers(client: TuvimaClient, urls: List<String>) {
+    val covers = urls.take(4)
+    Column(Modifier.fillMaxSize()) {
+        covers.chunked(2).forEach { pair ->
+            Row(Modifier.fillMaxWidth().weight(1f)) {
+                pair.forEach { url -> RemoteImage(client, url, Modifier.weight(1f).fillMaxSize()) }
+            }
         }
     }
 }

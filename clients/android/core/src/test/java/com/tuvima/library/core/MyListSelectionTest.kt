@@ -115,4 +115,17 @@ class MyListSelectionTest {
         assertEquals("Remove", MyListSelection.REMOVE)
         assertEquals("Select all", MyListSelection.SELECT_ALL)
     }
+
+    @Test
+    fun reloadingTheListDropsTicksOnTitlesThatAreNoLongerShown() {
+        val ticked = MyListSelection.Off.start().toggle("a").toggle("c")
+
+        val after = ticked.retain(listOf("a", "b"))
+
+        assertEquals(1, after.count)
+        assertTrue("a" in after)
+        assertFalse("c" in after)
+        assertSame(after, after.retain(listOf("a", "b")))
+        assertSame(MyListSelection.Off, MyListSelection.Off.retain(emptyList()))
+    }
 }

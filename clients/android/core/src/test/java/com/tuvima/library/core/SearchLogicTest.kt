@@ -93,4 +93,22 @@ class SearchLogicTest {
         assertEquals("/api/v1/display/search?q=dune+part+two&limit=24", ClientRoutes.search(" dune part two "))
         assertEquals("/api/v1/display/search?q=a%26b&limit=5", ClientRoutes.search("a&b", 5))
     }
+
+    @Test
+    fun aPlaylistHitIsDroppedBecauseThePhoneHasNoPlaylistsInVersionOne() {
+        val json = JSONObject(
+            """
+            {"query":"road","totalCount":3,
+             "topResult":{"id":"p1","title":"Road trip","entityType":"playlist","detailRoute":"/listen/music/playlists/p1"},
+             "sections":[{"key":"music","title":"Music","totalCount":2,"results":[
+               {"id":"p2","title":"Road songs","mediaType":"Music","detailRoute":"/listen/music/playlists/p2"},
+               {"id":"a1","title":"Road Home","mediaType":"Music","detailRoute":"/details/musicalbum/a1"}]}]}
+            """,
+        )
+
+        val parsed = SearchLogic.parse(json, WireFixtures.absolute)
+
+        assertNull(parsed.topResult)
+        assertEquals(listOf("Road Home"), parsed.sections.single().hits.map { it.title })
+    }
 }

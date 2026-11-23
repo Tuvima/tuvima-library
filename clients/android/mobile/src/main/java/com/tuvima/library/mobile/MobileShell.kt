@@ -182,6 +182,7 @@ internal fun MobileShell(
                                     play = play,
                                     openCard = ::openCard,
                                     openMyList = { goTo(Destination.MyList) },
+                                    openMusic = { goTo(Destination.Section(PhoneSection.Listen)) },
                                 )
                                 Destination.MyList -> MyListScreen(
                                     client = client,
