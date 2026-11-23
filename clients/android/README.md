@@ -102,7 +102,7 @@ Retry; the check counts what the other moving downloads still have to write, so 
 movie, episode, audiobook or song card), and Details, of a title that is on the phone shows a small Downloaded mark (a show, season, album or playlist card gets none).
 Playing a download needs no connection; where it was left (position) and bookmarks added to a downloaded video or audiobook are kept on the phone and sent, oldest first,
 when a connection returns (`OfflineSyncWorker`); the Engine's own bookmark list for the title is kept when its download finishes, so it reads offline
-(`OfflineDownloads.bookmarksFor`, `addBookmarkOffline`). That plumbing exists and is tested, but no screen calls it yet: the video and audiobook players (WP10b) will. Signing out removes every download from the phone and says so; a Kids
+(`OfflineDownloads.bookmarksFor`, `addBookmarkOffline`). The phone video player's Bookmarks panel uses them (WP10b); the audiobook player's will. Signing out removes every download from the phone and says so; a Kids
 profile has only its own downloads and no download settings. What a press did is said in a line of text, never a toast. Rules are pure functions in `core`
 (`DetailChildren`, `OfflineBatch`, `OfflineStorage`, `DownloadsPageLogic`, `OfflineBookmarks`, `DownloadBadge`).
 
@@ -188,6 +188,22 @@ lock-screen fields and the music or audiobook actions (back 10, forward 30,
 Previous and Next chapter, Speed presets as extra buttons). The television side
 panels and the car list are a first definition, to be settled in their own
 threads (Unified player v2, D29 and section 9).
+
+**Android phone: video player and Edit in browser** (spec `native-apps`, WP10b). The phone's video overlay follows the contract's
+Phone section: a top line (close, the show or film title with its one line "S1 E1 · The First Wish · 22 min", and a "..." menu with
+**Playback settings** and, where the phone can, **Picture in picture**), the five transport buttons (Previous, Skip back, Play or Pause,
+Skip forward, Next; Previous and Next dimmed in place), and a tool row (**Audio & subtitles**, **Episodes**, **Bookmarks**; no Fullscreen,
+because the phone's video screen is already full screen). Each tool opens one bottom sheet (`PlayerPanels.kt`) built from the same
+`TvPanels` builders as the television, so every word is written once. Skip seconds, Autoplay, speed, subtitle appearance and "Show on
+timeline" stay on the phone per profile (`PhoneDeviceStore`, `PhoneDeviceChoices`) because the playback preferences have no write route.
+Subtitles start off and then follow what that person last chose (`SubtitleMemory`); a remembered language the next video does not carry
+means no subtitles. Bookmarks (Mine | Global, "Bookmark at {0}", Add a note, Edit through `PUT .../bookmarks/{id}`, Delete asks once, search
+above eight rows, ticks on the timeline) use the Engine's audiobook-bookmark routes and, for a download with no connection,
+`OfflineDownloads.addBookmarkOffline` / `bookmarksFor` / `removeWaitingBookmark`. With no connection the next episode is offered from the
+downloads (`DownloadedEpisodes`). The end card uses the contract's words. **Edit in browser:** the "..." menu on a title's page has **Edit**
+(not for a Kids profile) that opens the Dashboard in the phone's browser on the item's own page (`EditInBrowser`); the link never opens the
+editor, and signing in is the Dashboard's. The music queue, now-playing view, lock-screen card and audiobook sleep timer and chapters have
+their rules and tests in `core` (`PlayQueue`, `LockScreenCard`, `SleepTimerLogic`) but no screen yet.
 
 **Android phone: Find another** (spec "Find another on TV", WP8; Find another v1 D12). The video player's **Audio &
 subtitles** view (the Subtitles sheet) ends with a **Find subtitles…** row, drawn only when the same sources check as on

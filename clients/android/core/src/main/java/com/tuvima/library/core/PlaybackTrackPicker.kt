@@ -31,7 +31,8 @@ object PlaybackTrackPicker {
         return TrackChoice(audio?.index, subtitle?.index)
     }
 
-    private fun matches(track: String?, wanted: String?): Boolean {
+    /** True when a track's language (a code such as eng) and a wanted language (a code or a name such as English) are the same. */
+    internal fun matches(track: String?, wanted: String?): Boolean {
         if (track.isNullOrBlank() || wanted.isNullOrBlank()) return false
         return normalise(track) == normalise(wanted)
     }

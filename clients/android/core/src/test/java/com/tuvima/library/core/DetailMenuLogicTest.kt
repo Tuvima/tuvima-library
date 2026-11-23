@@ -14,14 +14,30 @@ class DetailMenuLogicTest {
         downloadEnabled: Boolean = true,
         canDownloadNextEpisodes: Boolean = false,
         canDownloadAll: Boolean = false,
-    ) = DetailMenuLogic.items(canSave, isSaved, canDownload, downloadLabel, downloadEnabled, canDownloadNextEpisodes, canDownloadAll)
+        canEdit: Boolean = false,
+    ) = DetailMenuLogic.items(canSave, isSaved, canDownload, downloadLabel, downloadEnabled, canDownloadNextEpisodes, canDownloadAll, canEdit)
 
     @Test
-    fun aMovieMenuHoldsMyListThenDownloadAndNeverEditOrAddToCollection() {
+    fun aMovieMenuHoldsMyListThenDownloadAndNeverAddToCollection() {
         val rows = items()
 
         assertEquals(listOf("Add to My List", "Download"), rows.map { it.label })
-        assertFalse(rows.any { it.label.contains("Edit") || it.label.contains("collection", ignoreCase = true) })
+        assertFalse(rows.any { it.label.contains("collection", ignoreCase = true) })
+    }
+
+    @Test
+    fun editIsTheLastRowAndOnlyWhenItIsOffered() {
+        assertFalse(items().any { it.action == DetailMenuAction.EditInBrowser })
+
+        val rows = items(canEdit = true, canDownloadAll = true)
+        assertEquals(DetailMenuAction.EditInBrowser, rows.last().action)
+        assertEquals("Edit", rows.last().label)
+        assertTrue(rows.last().enabled)
+    }
+
+    @Test
+    fun aTitleWithNothingElseToDoStillShowsTheMenuForEdit() {
+        assertTrue(DetailMenuLogic.showsButton(items(canSave = false, canDownload = false, canEdit = true)))
     }
 
     @Test

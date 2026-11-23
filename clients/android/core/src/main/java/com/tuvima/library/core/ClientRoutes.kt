@@ -164,7 +164,7 @@ object ClientRoutes {
     /** GET lists the profile's own bookmarks plus the title's Everyone list (each marked isYours and inEveryone); POST adds one of the person's own. */
     fun bookmarks(workId: String): String = "$API/player/audiobooks/${encode(workId)}/bookmarks"
 
-    /** DELETE removes one of the caller's own bookmarks (`204`, or `404` for anyone else's). */
+    /** PUT renames one of the caller's own bookmarks and changes its note; DELETE removes it (`204`). Anyone else's, or the Global set's, is `404`. */
     fun bookmark(bookmarkId: String): String = "$API/player/audiobooks/bookmarks/${encode(bookmarkId)}"
 
     // Find another (subtitles and lyrics). All four sit under the asset's text-tracks group; a blank language is left out.

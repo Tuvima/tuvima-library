@@ -34,30 +34,32 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,6 +70,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -75,10 +78,13 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -114,13 +120,38 @@ import com.tuvima.library.core.FindAnotherModel
 import com.tuvima.library.core.FindAnotherSheet
 import com.tuvima.library.core.FindAnotherState
 import com.tuvima.library.core.FindAnotherWording
+import com.tuvima.library.core.DownloadedEpisodes
 import com.tuvima.library.core.NextEpisode
 import com.tuvima.library.core.NextEpisodeLogic
 import com.tuvima.library.core.NextEpisodeMessages
 import com.tuvima.library.core.NextEpisodeOffer
+import com.tuvima.library.core.OfflineBookmarkLogic
 import com.tuvima.library.core.CloseStep
 import com.tuvima.library.core.OrientationPolicy
+import com.tuvima.library.core.PhoneBookmarks
+import com.tuvima.library.core.PhoneDeviceChoices
+import com.tuvima.library.core.PhoneMenuRow
+import com.tuvima.library.core.PhonePlayerLogic
+import com.tuvima.library.core.PhoneTool
 import com.tuvima.library.core.PictureInPicturePolicy
+import com.tuvima.library.core.SubtitleMemory
+import com.tuvima.library.core.TvAudioTrack
+import com.tuvima.library.core.TvBookmark
+import com.tuvima.library.core.TvControl
+import com.tuvima.library.core.TvDeviceChoices
+import com.tuvima.library.core.TvEpisode
+import com.tuvima.library.core.TvEpisodes
+import com.tuvima.library.core.TvMediaKind
+import com.tuvima.library.core.TvNote
+import com.tuvima.library.core.TvPanel
+import com.tuvima.library.core.TvPanels
+import com.tuvima.library.core.TvPlayerLogic
+import com.tuvima.library.core.TvPlayerWords
+import com.tuvima.library.core.TvPlayingNow
+import com.tuvima.library.core.TvSeason
+import com.tuvima.library.core.TvSkip
+import com.tuvima.library.core.TvSubtitleAppearance
+import com.tuvima.library.core.TvSubtitleTrack
 import com.tuvima.library.core.VideoAccessibility
 import com.tuvima.library.core.VideoKeyCommand
 import com.tuvima.library.core.VideoKeys
@@ -156,7 +187,8 @@ private sealed interface VideoUiState {
     data class Failed(val message: String, val canRetry: Boolean) : VideoUiState
 }
 
-private enum class Sheet { None, Audio, Subtitles, Speed, Chapters, Episodes }
+/** The one panel open over the video (the contract's Panels table); opening another closes the first. */
+private enum class Sheet { None, Episodes, AudioSubtitles, Appearance, Bookmarks, Settings, Speed, SkipBack, SkipForward, Info }
 
 /** One selectable audio or subtitle track the player reports. */
 private data class TrackOption(
@@ -200,6 +232,23 @@ class VideoPlayerActivity : ComponentActivity() {
     private var title: String? = null
     private var subtitle: String? = null
     private var showId: String? = null
+    private var workId: String? = null
+    private var showTitle by mutableStateOf<String?>(null)
+    private var kind by mutableStateOf(TvMediaKind.Film)
+
+    // What this phone keeps for the person playing (skip seconds, Autoplay, speed, subtitle look, the subtitle last chosen): the Engine has no write route for these.
+    private var device by mutableStateOf(PhoneDeviceChoices())
+    private var prefsFromEngine = false
+
+    // The show's seasons (Episodes panel, Previous and Next) and this title's bookmarks. Failures just hide the feature.
+    private var seasons by mutableStateOf<List<TvSeason>>(emptyList())
+    private var seasonsRequested = false
+    private var seasonShown by mutableIntStateOf(0)
+    private var bookmarks by mutableStateOf<List<TvBookmark>>(emptyList())
+    private var bookmarksLoaded by mutableStateOf(false)
+    private var bookmarkSaveFailed by mutableStateOf(false)
+    private var bookmarksRequested = false
+    private var sheet by mutableStateOf(Sheet.None)
 
     // Next episode: the list is asked for once, part way in, and kept for this screen. A failure just hides the feature.
     private var nextEpisodes by mutableStateOf<List<NextEpisode>>(emptyList())
@@ -301,10 +350,16 @@ class VideoPlayerActivity : ComponentActivity() {
         title = intent.getStringExtra(TuvimaMediaLibraryService.EXTRA_TITLE)
         subtitle = intent.getStringExtra(TuvimaMediaLibraryService.EXTRA_SUBTITLE)
         showId = intent.getStringExtra(EXTRA_SHOW_ID)?.takeIf(String::isNotBlank)
+        workId = intent.getStringExtra(EXTRA_WORK_ID)?.takeIf(String::isNotBlank)
+        kind = if (showId != null) TvMediaKind.Episode else TvMediaKind.Film
         if (assetId.isBlank()) {
             finish()
             return
         }
+        val app = application as TuvimaMobileApplication
+        device = app.playerChoices.load(app.client?.currentProfileId())
+        // A downloaded title knows its own work, so its bookmarks work with no help from the screen that started it.
+        if (workId == null) workId = app.offline.store().record(assetId)?.workId?.takeIf(String::isNotBlank)
         requestedOrientation = when (OrientationPolicy.ruleFor(ScreenKind.Video)) {
             OrientationRule.SensorLandscape -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             OrientationRule.Sensor -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
@@ -329,7 +384,10 @@ class VideoPlayerActivity : ComponentActivity() {
         // Preferences never hold playback up: wait a moment, then carry on with the defaults.
         lifecycleScope.launch {
             val client = (application as TuvimaMobileApplication).client
-            prefs = withTimeoutOrNull(PREFS_WAIT_MS) { client?.playbackPreferences() } ?: PlaybackPreferences.Default
+            val fetched = withTimeoutOrNull(PREFS_WAIT_MS) { client?.playbackPreferences() }
+            // Subtitles start off unless the profile's own preferences were read (or a choice was remembered on this phone).
+            prefsFromEngine = fetched != null
+            prefs = fetched ?: PlaybackPreferences.Default
             prefsLoaded = true
             applyInitialSelection()
             applyInitialSpeed()
@@ -375,6 +433,17 @@ class VideoPlayerActivity : ComponentActivity() {
         }
     }
 
+    /** The "..." menu's Picture in picture: floats the video like Home does, where the phone allows it. */
+    private fun enterPip() {
+        try {
+            enterPictureInPictureMode(pipParams())
+        } catch (unsupported: IllegalStateException) {
+            // The system refused (feature off for this window); the video stays full screen.
+        } catch (unsupported: IllegalArgumentException) {
+            // A bad parameter must never crash the screen; the video stays full screen.
+        }
+    }
+
     private fun pipParams(): PictureInPictureParams {
         val size = controller?.videoSize
         val (width, height) = PictureInPicturePolicy.aspectRatio(size?.width ?: 0, size?.height ?: 0)
@@ -416,8 +485,8 @@ class VideoPlayerActivity : ComponentActivity() {
         val duration = controller?.duration?.takeIf { it > 0 && it != C.TIME_UNSET } ?: 0L
         return when (VideoKeys.commandFor(keyCode)) {
             VideoKeyCommand.TogglePlay -> { controller?.let { if (it.isPlaying) it.pause() else it.play() }; true }
-            VideoKeyCommand.SeekBack -> { seekBy(-prefs.skipBackSeconds * 1000L, duration); true }
-            VideoKeyCommand.SeekForward -> { seekBy(prefs.skipForwardSeconds * 1000L, duration); true }
+            VideoKeyCommand.SeekBack -> { seekBy(-skip.back * 1000L, duration); true }
+            VideoKeyCommand.SeekForward -> { seekBy(skip.forward * 1000L, duration); true }
             VideoKeyCommand.Close ->
                 // Back is also handled by the back dispatcher; Escape comes here.
                 if (keyCode == VideoKeys.KEYCODE_ESCAPE) {
@@ -535,7 +604,8 @@ class VideoPlayerActivity : ComponentActivity() {
         val show = showId ?: return
         if (nextRequested) return
         nextRequested = true
-        val client = (application as TuvimaMobileApplication).client ?: return
+        val app = application as TuvimaMobileApplication
+        val client = app.client ?: return
         val current = assetId
         lifecycleScope.launch {
             try {
@@ -544,7 +614,230 @@ class VideoPlayerActivity : ComponentActivity() {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                // Optional extra: the video keeps playing without it.
+                // The Engine cannot be reached: the next episode is offered from the downloads on this phone, when there is one.
+                if (assetId == current) {
+                    nextEpisodes = DownloadedEpisodes.after(app.offline.store().snapshot(), show, current, System.currentTimeMillis())
+                }
+            }
+        }
+    }
+
+    /** Reads the show's seasons once: they feed the Episodes panel, Previous and Next, and the episode's own work for its bookmarks. */
+    private fun loadSeasons() {
+        val show = showId ?: return
+        if (seasonsRequested) return
+        seasonsRequested = true
+        val client = (application as TuvimaMobileApplication).client ?: return
+        lifecycleScope.launch {
+            try {
+                val json = client.details("tvShow", show)
+                seasons = TvEpisodes.seasons(json) { it }
+                json.optString("title").takeIf { it.isNotBlank() }?.let { showTitle = it }
+                seasonShown = TvEpisodes.seasonIndexOf(seasons, assetId)
+                TvEpisodes.find(seasons, assetId)?.workId?.takeIf { it.isNotBlank() }?.let { workId = it }
+                loadBookmarks()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // Offline or refused: no Episodes panel, Previous stays dimmed, and the video plays on.
+            }
+        }
+    }
+
+    private fun toNextEpisode(episode: TvEpisode) = NextEpisode(
+        workId = episode.workId.takeIf { it.isNotBlank() },
+        assetId = episode.assetId,
+        title = episode.title,
+        seasonNumber = episode.season,
+        episodeNumber = episode.number,
+        stillUrl = episode.stillUrl,
+    )
+
+    // ---- the phone's own choices ------------------------------------------------------------------------------------
+
+    private val skip: TvSkip get() = PhonePlayerLogic.skip(prefs, device, audio = false)
+
+    private fun updateDevice(change: (PhoneDeviceChoices) -> PhoneDeviceChoices) {
+        val app = application as TuvimaMobileApplication
+        device = app.playerChoices.update(app.client?.currentProfileId(), change)
+    }
+
+    /** Sets the speed now and remembers it for this person on this phone. */
+    private fun setSpeed(value: Double) {
+        val speedNow = TvPlayerLogic.clampSpeed(value)
+        controller?.setPlaybackSpeed(speedNow.toFloat())
+        updateDevice { it.copy(videoSpeed = speedNow) }
+    }
+
+    private fun positionSeconds(): Double = (controller?.currentPosition ?: 0L).coerceAtLeast(0L) / 1000.0
+
+    private fun durationSeconds(): Double? =
+        controller?.duration?.takeIf { it > 0 && it != C.TIME_UNSET }?.let { it / 1000.0 } ?: manifestDurationSeconds
+
+    private fun seekToSeconds(seconds: Double) {
+        controller?.seekTo((seconds * 1000).toLong())
+    }
+
+    // ---- what a tap on a panel row does -----------------------------------------------------------------------------
+
+    private fun onEpisodesRow(key: String) {
+        if (key == "season") {
+            if (seasons.size > 1) seasonShown = (seasonShown + 1) % seasons.size
+        } else if (key.startsWith("ep:")) {
+            val picked = TvEpisodes.find(seasons, key.removePrefix("ep:"))
+            sheet = Sheet.None
+            if (picked != null && !picked.assetId.equals(assetId, ignoreCase = true)) playEpisode(toNextEpisode(picked), previousEnded = false)
+        }
+    }
+
+    private fun onEpisodesSwitch(key: String, autoplayNow: Boolean) {
+        if (key == "autoplay") updateDevice { it.copy(autoplay = !autoplayNow) }
+    }
+
+    private fun onAudioSubtitlesRow(key: String, audioOptions: List<TrackOption>, textOptions: List<TrackOption>) {
+        when {
+            key.startsWith("audio:") ->
+                audioOptions.getOrNull(key.removePrefix("audio:").toIntOrNull() ?: -1)?.let { select(audio = it, subtitle = null, subtitlesOff = false) }
+            key == "sub:off" -> {
+                select(audio = null, subtitle = null, subtitlesOff = true)
+                updateDevice { it.copy(rememberedSubtitle = SubtitleMemory.remember(pickedOff = true, pickedLanguage = null)) }
+            }
+            key.startsWith("sub:") -> textOptions.getOrNull(key.removePrefix("sub:").toIntOrNull() ?: -1)?.let { option ->
+                select(audio = null, subtitle = option, subtitlesOff = false)
+                // The next video starts with this language; a track with no language keeps what was remembered before.
+                updateDevice {
+                    it.copy(rememberedSubtitle = SubtitleMemory.remember(pickedOff = false, pickedLanguage = option.language) ?: it.rememberedSubtitle)
+                }
+            }
+            key == "appearance" -> sheet = Sheet.Appearance
+            key == "find" -> {
+                sheet = Sheet.None
+                openFind()
+            }
+        }
+    }
+
+    private fun onAppearanceRow(key: String) {
+        when {
+            key.startsWith("style:") -> updateDevice { it.copy(subtitleStyle = key.removePrefix("style:")) }
+            key.startsWith("background:") -> updateDevice { it.copy(subtitleBackground = key.removePrefix("background:")) }
+            key == "reset-appearance" -> updateDevice { it.copy(subtitleStyle = null, subtitleBackground = null) }
+        }
+    }
+
+    private fun onSettingsRow(key: String) {
+        when (key) {
+            "speed" -> sheet = Sheet.Speed
+            "skip-back" -> sheet = Sheet.SkipBack
+            "skip-forward" -> sheet = Sheet.SkipForward
+            "info" -> sheet = Sheet.Info
+            "reset-preferences" -> {
+                updateDevice {
+                    it.copy(skipBack = null, skipForward = null, autoplay = null, videoSpeed = null, subtitleStyle = null, subtitleBackground = null)
+                }
+                controller?.setPlaybackSpeed(PhonePlayerLogic.startingSpeed(prefs, null, audiobook = false).toFloat())
+            }
+        }
+    }
+
+    private fun onSkipRow(forward: Boolean, key: String) {
+        val seconds = key.removePrefix("seconds:").toIntOrNull() ?: return
+        updateDevice { if (forward) it.copy(skipForward = seconds) else it.copy(skipBack = seconds) }
+        sheet = Sheet.Settings
+    }
+
+    private fun infoLines(): List<Pair<String, String>> {
+        val size = controller?.videoSize
+        return buildList {
+            if (size != null && size.width > 0 && size.height > 0) add("Video" to "${size.width} × ${size.height}")
+            add(TvPlayerWords.PLAYBACK_SPEED to TvPlayerLogic.speedLabel(speed.toDouble()))
+            add("Source" to if (playingDownload()) "Downloaded on this phone" else "Streamed from your Library")
+        }
+    }
+
+    // ---- bookmarks --------------------------------------------------------------------------------------------------
+
+    /** Reads this title's bookmarks once. With no connection a downloaded title shows what this phone kept for it. */
+    private fun loadBookmarks() {
+        val work = workId ?: return
+        if (bookmarksRequested) return
+        bookmarksRequested = true
+        val app = application as TuvimaMobileApplication
+        val client = app.client
+        lifecycleScope.launch {
+            bookmarks = try {
+                client?.bookmarks(work) ?: app.offline.bookmarksFor(work)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // No connection: show the bookmarks this phone holds for the title (an empty list when it is not a download).
+                app.offline.bookmarksFor(work)
+            }
+            bookmarksLoaded = true
+        }
+    }
+
+    /** "Bookmark at {0}": saved at the moment it was pressed, at once; on a download with no connection it waits on the phone. */
+    private fun addBookmark(note: String) {
+        val work = workId ?: return
+        val position = positionSeconds()
+        val duration = durationSeconds()
+        val body = PhoneBookmarks.createBody(assetId, position, duration, note) ?: return
+        val app = application as TuvimaMobileApplication
+        val client = app.client
+        val forAsset = assetId
+        bookmarkSaveFailed = false
+        lifecycleScope.launch {
+            try {
+                if (client == null) throw java.io.IOException("No connection")
+                bookmarks = PhoneBookmarks.withAdded(bookmarks, client.createBookmark(work, body))
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // Saved on the phone when this is a download (its note is not kept); otherwise the panel says it could not save.
+                if (playingDownload() && app.offline.addBookmarkOffline(forAsset, position, duration)) {
+                    bookmarks = app.offline.bookmarksFor(work)
+                } else {
+                    bookmarkSaveFailed = true
+                }
+            }
+        }
+    }
+
+    private fun renameBookmark(id: String, name: String, note: String) {
+        val body = PhoneBookmarks.updateBody(name, note) ?: return
+        val client = (application as TuvimaMobileApplication).client ?: return
+        bookmarkSaveFailed = false
+        lifecycleScope.launch {
+            try {
+                bookmarks = PhoneBookmarks.replace(bookmarks, client.updateBookmark(id, body))
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // The panel says it could not save; the list stays as it was.
+                bookmarkSaveFailed = true
+            }
+        }
+    }
+
+    private fun deleteBookmark(id: String) {
+        val app = application as TuvimaMobileApplication
+        bookmarkSaveFailed = false
+        if (OfflineBookmarkLogic.isWaiting(id)) {
+            // Made on this phone and not sent yet: nothing exists at the Engine to delete.
+            app.offline.removeWaitingBookmark(id)
+            bookmarks = PhoneBookmarks.without(bookmarks, id)
+            return
+        }
+        val client = app.client ?: return
+        lifecycleScope.launch {
+            try {
+                if (client.deleteBookmark(id) in 200..299) bookmarks = PhoneBookmarks.without(bookmarks, id) else bookmarkSaveFailed = true
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // The panel says it could not delete; the list stays as it was.
+                bookmarkSaveFailed = true
             }
         }
     }
@@ -561,6 +854,11 @@ class VideoPlayerActivity : ComponentActivity() {
         assetId = episode.assetId
         title = episode.title.ifBlank { title }
         subtitle = com.tuvima.library.core.OfflineLogic.episodeLabel(episode.seasonNumber, episode.episodeNumber)
+        workId = episode.workId?.takeIf { it.isNotBlank() }
+        bookmarks = emptyList()
+        bookmarksLoaded = false
+        bookmarkSaveFailed = false
+        bookmarksRequested = false
         chapters = emptyList()
         segments = emptyList()
         manifestDurationSeconds = null
@@ -588,6 +886,8 @@ class VideoPlayerActivity : ComponentActivity() {
         // "Find subtitles…" is offered only when a subtitle source is switched on; any failed answer keeps it hidden.
         val checked = assetId
         canFindSubtitles = false
+        loadSeasons()
+        loadBookmarks()
         lifecycleScope.launch {
             val sources = client.textTrackSources(checked, TextTrackKind.Subtitles)
             if (assetId == checked) canFindSubtitles = FindAnotherSheet.entryVisible(sources, playingDownload())
@@ -646,12 +946,13 @@ class VideoPlayerActivity : ComponentActivity() {
         val text = optionsFor(C.TRACK_TYPE_TEXT)
         if (audio.isEmpty() && active.currentTracks.groups.none { it.type == C.TRACK_TYPE_VIDEO }) return
         initialApplied = true
-        val choice = PlaybackTrackPicker.pick(
-            audioTracks = audio.mapIndexed { i, o -> AudioTrack(i, o.language, null, o.label, o.isDefault, null) },
-            subtitleTracks = text.mapIndexed { i, o -> SubtitleTrack(i, o.language, null, o.label, o.isDefault, o.isForced, null) },
-            audioLanguage = prefs.audioLanguage,
-            subtitleLanguage = prefs.subtitleLanguage,
-            showSubtitles = prefs.subtitleMode,
+        // Subtitles start off, then follow what this person last chose here (or, before any choice, their own profile's preference).
+        val choice = SubtitleMemory.choose(
+            remembered = device.rememberedSubtitle,
+            prefsFromEngine = prefsFromEngine,
+            prefs = prefs,
+            audio = audio.mapIndexed { i, o -> AudioTrack(i, o.language, null, o.label, o.isDefault, null) },
+            subtitles = text.mapIndexed { i, o -> SubtitleTrack(i, o.language, null, o.label, o.isDefault, o.isForced, null) },
         )
         select(
             audio = choice.audioIndex?.let { audio.getOrNull(it) },
@@ -774,7 +1075,8 @@ class VideoPlayerActivity : ComponentActivity() {
         val active = controller ?: return
         if (speedApplied || !prefsLoaded || uiState != VideoUiState.Ready) return
         speedApplied = true
-        val wanted = prefs.defaultPlaybackSpeed.toFloat()
+        // The speed this person last set on this phone, else their profile's default.
+        val wanted = PhonePlayerLogic.startingSpeed(prefs, device, audiobook = false).toFloat()
         if (wanted != 1f) active.setPlaybackSpeed(wanted)
     }
 
@@ -845,7 +1147,6 @@ class VideoPlayerActivity : ComponentActivity() {
         var positionMs by remember { mutableLongStateOf(0L) }
         var durationMs by remember { mutableLongStateOf(0L) }
         var dragging by remember { mutableStateOf<Float?>(null) }
-        var sheet by remember { mutableStateOf(Sheet.None) }
         var hint by remember { mutableStateOf<String?>(null) }
         var hintTick by remember { mutableIntStateOf(0) }
         val audioManager = remember { getSystemService(AUDIO_SERVICE) as AudioManager }
@@ -883,11 +1184,13 @@ class VideoPlayerActivity : ComponentActivity() {
 
         val durationSeconds = if (durationMs > 0) durationMs / 1000.0 else manifestDurationSeconds
         val next = NextEpisodeLogic.nextOf(nextEpisodes, assetId)
+        val neighbours = PhonePlayerLogic.videoNeighbours(seasons, assetId)
+        val autoplay = PhonePlayerLogic.autoplayOn(prefs, device)
         val nextOffer = if (next == null) NextEpisodeOffer.None else NextEpisodeLogic.nextEpisodeOffer(
             positionSeconds = positionMs / 1000.0,
             durationSeconds = durationSeconds,
             segments = segments,
-            autoplay = prefs.autoplayNextEpisode,
+            autoplay = autoplay,
             ended = finished,
             cancelled = cancelledFor == assetId,
         )
@@ -907,7 +1210,13 @@ class VideoPlayerActivity : ComponentActivity() {
                 },
                 update = { view ->
                     view.player = active
-                    val background = prefs.subtitleBackground
+                    // The look this person chose in Subtitle appearance on this phone, else what their profile implies.
+                    val appearance = TvSubtitleAppearance.of(
+                        prefs,
+                        TvDeviceChoices(subtitleStyle = device.subtitleStyle, subtitleBackground = device.subtitleBackground),
+                    )
+                    val contrast = appearance.style == TvPlayerWords.STYLE_CONTRAST
+                    val boxed = appearance.background == TvPlayerWords.BACKGROUND_BOX
                     val systemCaptions = view.context.getSystemService(CaptioningManager::class.java)
                     if (systemCaptions?.isEnabled == true) {
                         // The system's own caption style and size win over the profile's when the person turned them on.
@@ -916,13 +1225,21 @@ class VideoPlayerActivity : ComponentActivity() {
                         return@AndroidView
                     }
                     view.subtitleView?.apply {
-                        setFractionalTextSize(SubtitleStyleRules.sizeFraction(prefs.subtitleSize))
+                        setFractionalTextSize(TvSubtitleAppearance.sizeFraction(appearance, prefs.subtitleSize))
                         setStyle(
                             CaptionStyleCompat(
                                 AndroidColor.WHITE,
-                                if (background) 0x99000000.toInt() else AndroidColor.TRANSPARENT,
+                                when {
+                                    contrast -> AndroidColor.BLACK
+                                    boxed -> 0x99000000.toInt()
+                                    else -> AndroidColor.TRANSPARENT
+                                },
                                 AndroidColor.TRANSPARENT,
-                                if (background) CaptionStyleCompat.EDGE_TYPE_NONE else CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                                when {
+                                    boxed -> CaptionStyleCompat.EDGE_TYPE_NONE
+                                    appearance.background == TvPlayerWords.BACKGROUND_SHADOW -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                                    else -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                                },
                                 AndroidColor.BLACK,
                                 null,
                             ),
@@ -934,15 +1251,15 @@ class VideoPlayerActivity : ComponentActivity() {
             // One tap shows or hides the controls; a double tap on a half seeks; a vertical slide changes brightness or volume.
             Box(
                 Modifier.fillMaxSize()
-                    .pointerInput(prefs) {
+                    .pointerInput(skip) {
                         detectTapGestures(
                             onTap = { controlsVisible = !controlsVisible },
                             onDoubleTap = { offset ->
                                 val delta = VideoGestures.doubleTapSeekMs(
-                                    offset.x, size.width.toFloat(), prefs.skipBackSeconds, prefs.skipForwardSeconds,
+                                    offset.x, size.width.toFloat(), skip.back, skip.forward,
                                 )
                                 seekBy(delta, durationMs)
-                                showHint(if (delta < 0) "-${prefs.skipBackSeconds} s" else "+${prefs.skipForwardSeconds} s")
+                                showHint(if (delta < 0) "-${skip.back} s" else "+${skip.forward} s")
                             },
                         )
                     }
@@ -1012,106 +1329,163 @@ class VideoPlayerActivity : ComponentActivity() {
                             onPlay = { playEpisode(next, previousEnded = true) },
                             onCancel = { cancelledFor = assetId },
                         )
+                    } else if (!isPlaying && !buffering && !finished && sheet == Sheet.None) {
+                        PausedDetails(durationSeconds, raised = controlsVisible)
                     }
                     if (controlsVisible) {
+                        val previousEpisode = neighbours.previous
+                        val nextForButton = next ?: neighbours.next?.let(::toNextEpisode)
                         Controls(
                             positionMs = positionMs,
                             durationMs = durationMs,
                             dragging = dragging,
-                            hasChapters = chapters.isNotEmpty(),
-                            hasEpisodes = nextEpisodes.isNotEmpty(),
+                            ticks = PhonePlayerLogic.timelineTicks(bookmarks, durationSeconds, device.showBookmarksOnTimeline),
+                            transport = PhonePlayerLogic.transport(
+                                kind, skip, isPlaying, canPrevious = previousEpisode != null, canNext = nextForButton != null,
+                            ),
+                            tools = PhonePlayerLogic.tools(
+                                kind,
+                                hasEpisodes = seasons.isNotEmpty(),
+                                canBookmark = PhoneBookmarks.canBookmark(workId, isMusic = false),
+                            ),
+                            menu = PhonePlayerLogic.menu(
+                                kind,
+                                canPictureInPicture = packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE),
+                            ),
                             onDrag = { dragging = it; touch += 1 },
                             onDragEnd = {
                                 dragging?.let { active?.seekTo(it.toLong()) }
                                 dragging = null
                             },
-                            onSeekBy = { delta ->
-                                seekBy(delta, durationMs)
+                            onControl = { key ->
+                                when (key) {
+                                    "play-pause" -> active?.let { if (it.isPlaying) it.pause() else it.play() }
+                                    "skip-back" -> seekBy(-skip.back * 1000L, durationMs)
+                                    "skip-forward" -> seekBy(skip.forward * 1000L, durationMs)
+                                    "previous" -> previousEpisode?.let { playEpisode(toNextEpisode(it), previousEnded = false) }
+                                    "next" -> nextForButton?.let { playEpisode(it, previousEnded = false) }
+                                }
                                 touch += 1
                             },
-                            onTogglePlay = {
-                                active?.let { if (it.isPlaying) it.pause() else it.play() }
+                            onTool = { key ->
+                                if (key == "episodes") seasonShown = TvEpisodes.seasonIndexOf(seasons, assetId)
+                                sheet = when (key) {
+                                    "episodes" -> Sheet.Episodes
+                                    "audio-subtitles" -> Sheet.AudioSubtitles
+                                    "bookmarks" -> Sheet.Bookmarks
+                                    else -> Sheet.None
+                                }
                                 touch += 1
                             },
-                            onOpenSheet = {
-                                sheet = it
+                            onMenu = { key ->
+                                when (key) {
+                                    "playback-settings" -> sheet = Sheet.Settings
+                                    "picture-in-picture" -> enterPip()
+                                }
                                 touch += 1
                             },
                         )
                     }
                 }
             }
+            val sheetClient = (application as TuvimaMobileApplication).client
             when (sheet) {
                 Sheet.None -> Unit
-                Sheet.Audio -> {
-                    val options = optionsFor(C.TRACK_TYPE_AUDIO)
-                    PickerSheet("Audio", onDismiss = { sheet = Sheet.None }) {
-                        if (options.isEmpty()) Text("No audio choices for this video.", color = Color.White, modifier = Modifier.padding(16.dp))
-                        options.forEach { option ->
-                            OptionRow(option.label, option.selected) {
-                                select(audio = option, subtitle = null, subtitlesOff = false)
-                                sheet = Sheet.None
-                            }
-                        }
-                    }
+                Sheet.Episodes -> PanelSheet(
+                    client = sheetClient,
+                    panel = TvPanels.episodes(
+                        seasons, seasonShown, kind == TvMediaKind.Lesson,
+                        TvPlayingNow(assetId, isPlaying, positionMs / 1000.0, durationSeconds ?: 0.0, next?.assetId),
+                        autoplay,
+                    ),
+                    onClose = { sheet = Sheet.None },
+                    onBack = { sheet = Sheet.None },
+                    onRow = { key, _ -> onEpisodesRow(key) },
+                    onSwitch = { key -> onEpisodesSwitch(key, autoplay) },
+                )
+                Sheet.AudioSubtitles -> {
+                    val audioOptions = optionsFor(C.TRACK_TYPE_AUDIO)
+                    val textOptions = optionsFor(C.TRACK_TYPE_TEXT)
+                    val built = TvPanels.audioSubtitles(
+                        audio = audioOptions.mapIndexed { i, o -> TvAudioTrack(i.toString(), o.label, selected = o.selected) },
+                        subtitles = textOptions.mapIndexed { i, o ->
+                            TvSubtitleTrack(i.toString(), o.label, selected = !textDisabled && o.selected, forced = o.isForced)
+                        },
+                        canFind = canFindSubtitles,
+                    )
+                    // A downloaded copy keeps its first video and audio only (no sidecar or embedded subtitles): say so
+                    // rather than offer a list that cannot work.
+                    val shown = if (textOptions.isEmpty() && playingDownload()) built.copy(body = built.body + TvNote("Not included in this download.")) else built
+                    PanelSheet(
+                        client = sheetClient,
+                        panel = shown,
+                        onClose = { sheet = Sheet.None },
+                        onBack = { sheet = Sheet.None },
+                        onRow = { key, _ -> onAudioSubtitlesRow(key, audioOptions, textOptions) },
+                    )
                 }
-                Sheet.Subtitles -> {
-                    val options = optionsFor(C.TRACK_TYPE_TEXT)
-                    PickerSheet("Subtitles", onDismiss = { sheet = Sheet.None }) {
-                        // A downloaded copy keeps its first video and audio only (no sidecar or embedded subtitles): say so
-                        // rather than offer a picker that cannot work.
-                        if (options.isEmpty() && playingDownload()) {
-                            Text("Not included in this download.", color = Color.White, modifier = Modifier.padding(16.dp))
-                            return@PickerSheet
-                        }
-                        OptionRow("Off", textDisabled || options.none { it.selected }) {
-                            select(audio = null, subtitle = null, subtitlesOff = true)
-                            sheet = Sheet.None
-                        }
-                        options.forEach { option ->
-                            OptionRow(option.label, !textDisabled && option.selected) {
-                                select(audio = null, subtitle = option, subtitlesOff = false)
-                                sheet = Sheet.None
-                            }
-                        }
-                        // The footer row, hidden unless a subtitle source is switched on for this video.
-                        if (canFindSubtitles) {
-                            FindAnotherEntryRow(FindAnotherWording.entryLabel(TextTrackKind.Subtitles)) {
-                                sheet = Sheet.None
-                                openFind()
-                            }
-                        }
-                    }
+                Sheet.Appearance -> {
+                    val look = TvSubtitleAppearance.of(
+                        prefs,
+                        TvDeviceChoices(subtitleStyle = device.subtitleStyle, subtitleBackground = device.subtitleBackground),
+                    )
+                    PanelSheet(
+                        client = sheetClient,
+                        panel = TvPanels.subtitleAppearance(look.style, look.background),
+                        onClose = { sheet = Sheet.None },
+                        onBack = { sheet = Sheet.AudioSubtitles },
+                        onRow = { key, _ -> onAppearanceRow(key) },
+                    )
                 }
-                Sheet.Speed -> PickerSheet("Playback speed", onDismiss = { sheet = Sheet.None }) {
-                    SPEEDS.forEach { value ->
-                        OptionRow(speedLabel(value), kotlin.math.abs(speed - value) < 0.01f) {
-                            controller?.setPlaybackSpeed(value)
-                            sheet = Sheet.None
-                        }
-                    }
-                }
-                Sheet.Episodes -> PickerSheet("Episodes", onDismiss = { sheet = Sheet.None }) {
-                    OptionRow("Now playing: " + listOfNotNull(subtitle, title).joinToString(" · "), true) { sheet = Sheet.None }
-                    nextEpisodes.forEach { episode ->
-                        OptionRow(NextEpisodeLogic.cardLine(episode), false) {
-                            sheet = Sheet.None
-                            playEpisode(episode, previousEnded = false)
-                        }
-                    }
-                }
-                Sheet.Chapters -> PickerSheet("Chapters", onDismiss = { sheet = Sheet.None }) {
-                    val currentIndex = chapters.indexOfLast { it.startSeconds * 1000 <= positionMs }
-                    chapters.forEachIndexed { i, chapter ->
-                        OptionRow(
-                            "${ClockText.format((chapter.startSeconds * 1000).toLong())}  ${chapter.title.ifBlank { "Chapter ${chapter.index + 1}" }}",
-                            i == currentIndex,
-                        ) {
-                            controller?.seekTo((chapter.startSeconds * 1000).toLong())
-                            sheet = Sheet.None
-                        }
-                    }
-                }
+                Sheet.Settings -> PanelSheet(
+                    client = sheetClient,
+                    panel = TvPanels.playbackSettings(speed.toDouble(), skip),
+                    onClose = { sheet = Sheet.None },
+                    onBack = { sheet = Sheet.None },
+                    onRow = { key, _ -> onSettingsRow(key) },
+                )
+                Sheet.Speed -> SpeedSheet(
+                    speed = speed.toDouble(),
+                    onSet = { setSpeed(it) },
+                    onClose = { sheet = Sheet.None },
+                    onBack = { sheet = Sheet.Settings },
+                )
+                Sheet.SkipBack -> PanelSheet(
+                    client = sheetClient,
+                    panel = TvPanels.skipChoices(forward = false, current = skip.back),
+                    onClose = { sheet = Sheet.None },
+                    onBack = { sheet = Sheet.Settings },
+                    onRow = { key, _ -> onSkipRow(forward = false, key = key) },
+                )
+                Sheet.SkipForward -> PanelSheet(
+                    client = sheetClient,
+                    panel = TvPanels.skipChoices(forward = true, current = skip.forward),
+                    onClose = { sheet = Sheet.None },
+                    onBack = { sheet = Sheet.Settings },
+                    onRow = { key, _ -> onSkipRow(forward = true, key = key) },
+                )
+                Sheet.Info -> PanelSheet(
+                    client = sheetClient,
+                    panel = TvPanels.playbackInformation(infoLines()),
+                    onClose = { sheet = Sheet.None },
+                    onBack = { sheet = Sheet.Settings },
+                    onRow = { _, _ -> },
+                )
+                Sheet.Bookmarks -> BookmarksSheet(
+                    client = sheetClient,
+                    items = bookmarks,
+                    loaded = bookmarksLoaded,
+                    saveFailed = bookmarkSaveFailed,
+                    positionSeconds = positionMs / 1000.0,
+                    showOnTimeline = device.showBookmarksOnTimeline,
+                    coverUrl = null,
+                    onAdd = { note -> addBookmark(note) },
+                    onSeek = { seconds -> seekToSeconds(seconds) },
+                    onEdit = { id, name, note -> renameBookmark(id, name, note) },
+                    onDelete = { id -> deleteBookmark(id) },
+                    onToggleTimeline = { on -> updateDevice { it.copy(showBookmarksOnTimeline = on) } },
+                    onClose = { sheet = Sheet.None },
+                )
             }
             findState?.let { state ->
                 FindAnotherBottomSheet(
@@ -1126,33 +1500,6 @@ class VideoPlayerActivity : ComponentActivity() {
                 )
             }
             }
-        }
-    }
-
-    @kotlin.OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    private fun PickerSheet(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-        ModalBottomSheet(
-            onDismissRequest = onDismiss,
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = Color(0xFF1B1A22),
-        ) {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-                Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                content()
-            }
-        }
-    }
-
-    @Composable
-    private fun OptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
-        Row(
-            Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable(onClick = onClick).padding(horizontal = 16.dp)
-                .semantics { contentDescription = if (selected) "$label, selected" else label },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(if (selected) "✓" else "", color = Color.White, modifier = Modifier.size(28.dp))
-            Text(label, color = Color.White)
         }
     }
 
@@ -1190,21 +1537,39 @@ class VideoPlayerActivity : ComponentActivity() {
         }
     }
 
+    /** The one line under the title: "S1 E1 · The First Wish · 22 min" for an episode, "22 min" for a film (the year is not on this screen's answer). */
+    private fun detailLine(durationSeconds: Double?): String {
+        val episode = TvEpisodes.find(seasons, assetId)
+        if (episode == null && kind == TvMediaKind.Episode) {
+            // The show's episode list has not been read (or is not reachable): the label the screen was opened with, then the length.
+            return listOfNotNull(subtitle?.takeIf { it.isNotBlank() }, TvPlayerLogic.lengthText(durationSeconds).takeIf { it.isNotEmpty() })
+                .joinToString(TvPlayerWords.SEP)
+        }
+        return PhonePlayerLogic.detailLine(kind, episode, year = null, durationSeconds = durationSeconds)
+    }
+
+    /**
+     * The phone's video overlay: a top line (close, title and the one line, the "..." menu), the five transport buttons of the contract, one
+     * row of tools and the timeline with a tick for each bookmark when the person wants them shown.
+     */
     @Composable
     private fun Controls(
         positionMs: Long,
         durationMs: Long,
         dragging: Float?,
-        hasChapters: Boolean,
-        hasEpisodes: Boolean,
+        ticks: List<Double>,
+        transport: List<TvControl>,
+        tools: List<PhoneTool>,
+        menu: List<PhoneMenuRow>,
         onDrag: (Float) -> Unit,
         onDragEnd: () -> Unit,
-        onSeekBy: (Long) -> Unit,
-        onTogglePlay: () -> Unit,
-        onOpenSheet: (Sheet) -> Unit,
+        onControl: (String) -> Unit,
+        onTool: (String) -> Unit,
+        onMenu: (String) -> Unit,
     ) {
         // 70% black behind white text keeps at least 4.5:1 contrast over any picture.
         val scrim = Color(0xB3000000)
+        var menuOpen by remember { mutableStateOf(false) }
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(
                 Modifier.fillMaxWidth().background(scrim).align(Alignment.TopStart).padding(horizontal = 8.dp, vertical = 4.dp),
@@ -1214,40 +1579,54 @@ class VideoPlayerActivity : ComponentActivity() {
                     onClick = { finish() },
                     modifier = Modifier.size(48.dp).semantics { contentDescription = "Close video" },
                 ) { Text("✕", color = Color.White, fontSize = 20.sp) }
-                Text(
-                    title.orEmpty(),
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
+                Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(
+                        showTitle ?: title.orEmpty(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    val line = detailLine(if (durationMs > 0) durationMs / 1000.0 else manifestDurationSeconds)
+                    if (line.isNotBlank()) {
+                        Text(line, color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                if (menu.isNotEmpty()) {
+                    Box {
+                        IconButton(
+                            onClick = { menuOpen = true },
+                            modifier = Modifier.size(48.dp).semantics { contentDescription = "More options" },
+                        ) { Text("⋯", color = Color.White, fontSize = 22.sp) }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            menu.forEach { row ->
+                                DropdownMenuItem(
+                                    text = { Text(row.label) },
+                                    onClick = {
+                                        menuOpen = false
+                                        onMenu(row.key)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
             }
             Row(
                 Modifier.align(Alignment.Center),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(
-                    onClick = { onSeekBy(-prefs.skipBackSeconds * 1000L) },
-                    modifier = Modifier.size(56.dp).semantics { contentDescription = "Back ${prefs.skipBackSeconds} seconds" },
-                ) { Text("-${prefs.skipBackSeconds}", color = Color.White, fontSize = 18.sp) }
-                IconButton(
-                    onClick = onTogglePlay,
-                    modifier = Modifier.size(72.dp).background(scrim, CircleShape)
-                        .semantics { contentDescription = if (isPlaying) "Pause" else "Play" },
-                ) { Text(if (isPlaying) "❚❚" else "▶", color = Color.White, fontSize = 26.sp) }
-                IconButton(
-                    onClick = { onSeekBy(prefs.skipForwardSeconds * 1000L) },
-                    modifier = Modifier.size(56.dp).semantics { contentDescription = "Forward ${prefs.skipForwardSeconds} seconds" },
-                ) { Text("+${prefs.skipForwardSeconds}", color = Color.White, fontSize = 18.sp) }
+                transport.forEach { control -> TransportButton(control, scrim, onControl) }
             }
             Column(Modifier.fillMaxWidth().background(scrim).align(Alignment.BottomStart).padding(horizontal = 16.dp, vertical = 8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SheetButton("Audio", "Choose audio") { onOpenSheet(Sheet.Audio) }
-                    SheetButton("Subtitles", "Choose subtitles") { onOpenSheet(Sheet.Subtitles) }
-                    SheetButton(speedLabel(speed), "Playback speed") { onOpenSheet(Sheet.Speed) }
-                    if (hasChapters) SheetButton("Chapters", "Chapters") { onOpenSheet(Sheet.Chapters) }
-                    if (hasEpisodes) SheetButton("Episodes", "Episodes") { onOpenSheet(Sheet.Episodes) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    tools.forEach { tool ->
+                        TextButton(
+                            onClick = { onTool(tool.key) },
+                            modifier = Modifier.weight(1f).sizeMinimum().semantics { contentDescription = tool.label },
+                        ) { Text(tool.label, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    }
                 }
                 val shown = dragging ?: positionMs.toFloat()
                 Slider(
@@ -1261,11 +1640,12 @@ class VideoPlayerActivity : ComponentActivity() {
                         contentDescription = "Seek bar"
                         stateDescription = VideoAccessibility.positionAnnouncement(shown.toLong(), durationMs)
                         customActions = listOf(
-                            CustomAccessibilityAction("Back ${prefs.skipBackSeconds} seconds") { onSeekBy(-prefs.skipBackSeconds * 1000L); true },
-                            CustomAccessibilityAction("Forward ${prefs.skipForwardSeconds} seconds") { onSeekBy(prefs.skipForwardSeconds * 1000L); true },
+                            CustomAccessibilityAction("Back ${skip.back} seconds") { onControl("skip-back"); true },
+                            CustomAccessibilityAction("Forward ${skip.forward} seconds") { onControl("skip-forward"); true },
                         )
                     },
                 )
+                TickRow(ticks)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(ClockText.format(shown.toLong()), color = Color.White, style = MaterialTheme.typography.bodySmall)
                     Text(ClockText.format(durationMs), color = Color.White, style = MaterialTheme.typography.bodySmall)
@@ -1274,9 +1654,73 @@ class VideoPlayerActivity : ComponentActivity() {
         }
     }
 
+    /** A small tick under the timeline for each bookmark, where [ticks] are percentages of the length. */
+    @Composable
+    private fun TickRow(ticks: List<Double>) {
+        if (ticks.isEmpty()) return
+        BoxWithConstraints(Modifier.fillMaxWidth().height(6.dp)) {
+            val total = maxWidth
+            ticks.forEach { percent ->
+                Box(Modifier.offset(x = total * (percent / 100.0).toFloat()).width(3.dp).height(6.dp).background(Color(0xFFA46FFF)))
+            }
+        }
+    }
+
+    /** One button of the five-button transport. A button that cannot act now is dimmed in place and reads as unavailable. */
+    @Composable
+    private fun TransportButton(control: TvControl, scrim: Color, onClick: (String) -> Unit) {
+        val isPlay = control.key == "play-pause"
+        val tint = Color.White.copy(alpha = if (control.dimmed) 0.35f else 1f)
+        val glyph = when (control.key) {
+            "play-pause" -> if (control.label == TvPlayerWords.PAUSE) "❚❚" else "▶"
+            "previous" -> "⏮"
+            "next" -> "⏭"
+            "skip-back" -> "-${control.seconds ?: skip.back}"
+            "skip-forward" -> "+${control.seconds ?: skip.forward}"
+            else -> control.label
+        }
+        IconButton(
+            onClick = { if (!control.dimmed) onClick(control.key) },
+            modifier = Modifier.size(if (isPlay) 72.dp else 52.dp)
+                .then(if (isPlay) Modifier.background(scrim, CircleShape) else Modifier)
+                .semantics {
+                    contentDescription = control.label
+                    if (control.dimmed) disabled()
+                },
+        ) { Text(glyph, color = tint, fontSize = if (isPlay) 26.sp else 18.sp) }
+    }
+
     /**
-     * The next-episode card: the next title with its season and episode label. With autoplay on it counts down
-     * ([NextEpisodeLogic.COUNTDOWN_SECONDS] seconds) with Play now and Cancel; with it off, or after Cancel, just Play next.
+     * While the video is paused its details sit at the bottom left, above the controls, on a local gradient: the title, the one line, and a
+     * short description for an episode. They hide while a panel is open (the caller) and come back when it closes.
+     */
+    @Composable
+    private fun PausedDetails(durationSeconds: Double?, raised: Boolean) {
+        val description = if (kind == TvMediaKind.Episode) TvEpisodes.find(seasons, assetId)?.description.orEmpty() else ""
+        val line = detailLine(durationSeconds)
+        Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+            Column(
+                Modifier.align(Alignment.BottomStart).fillMaxWidth(0.6f)
+                    .padding(start = 16.dp, bottom = if (raised) 150.dp else 24.dp)
+                    .background(
+                        Brush.horizontalGradient(listOf(Color(0xCC000000), Color.Transparent)),
+                        androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    )
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(showTitle ?: title.orEmpty(), color = Color.White, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (line.isNotBlank()) Text(line, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                if (description.isNotBlank()) {
+                    Text(description, color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+
+    /**
+     * The end card, in the contract's words: "Up next", with autoplay on "Starts in {0} seconds", the next item's still and title with
+     * "Next episode" under it, and the buttons Cancel and Play now. With autoplay off, or after Cancel, the card stays and has no countdown.
      */
     @Composable
     private fun NextEpisodeCard(next: NextEpisode, countdown: Boolean, raised: Boolean, onPlay: () -> Unit, onCancel: () -> Unit) {
@@ -1290,34 +1734,36 @@ class VideoPlayerActivity : ComponentActivity() {
             }
             onPlay()
         }
+        val view = PhonePlayerLogic.endCard(NextEpisodeLogic.cardLine(next), kind, if (countdown) NextEpisodeLogic.secondsLeft(elapsed) else null)
         val scrim = Color(0xCC000000)
+        val imageClient = (application as TuvimaMobileApplication).client
         // Announced once and politely when the card appears; the countdown number changes are not read out second by second.
         val announcement = VideoAccessibility.nextEpisodeAnnouncement(NextEpisodeLogic.cardLine(next), if (countdown) NextEpisodeLogic.COUNTDOWN_SECONDS else null)
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
             Column(
                 Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = if (raised) 150.dp else 24.dp)
+                    .widthIn(max = 320.dp)
                     .background(scrim, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(16.dp)
                     .semantics { liveRegion = LiveRegionMode.Polite; contentDescription = announcement },
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Next episode", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                Text(NextEpisodeLogic.cardLine(next), color = Color.White, style = MaterialTheme.typography.titleSmall, maxLines = 2)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onPlay, modifier = Modifier.sizeMinimum().semantics { contentDescription = if (countdown) "Play now" else "Play next" }) {
-                        Text(if (countdown) "Play now (${NextEpisodeLogic.secondsLeft(elapsed)})" else "Play next", modifier = Modifier.clearAndSetSemantics { })
+                Text(view.heading, color = Color.White, style = MaterialTheme.typography.labelMedium)
+                if (view.countdown.isNotEmpty()) Text(view.countdown, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (imageClient != null) {
+                        RemoteImage(imageClient, next.stillUrl, Modifier.width(96.dp).height(54.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp)))
                     }
-                    if (countdown) OutlinedButton(onClick = onCancel, modifier = Modifier.sizeMinimum()) { Text("Cancel") }
+                    Column {
+                        Text(view.title, color = Color.White, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(view.kind, color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (countdown) OutlinedButton(onClick = onCancel, modifier = Modifier.sizeMinimum()) { Text(view.cancel) }
+                    Button(onClick = onPlay, modifier = Modifier.sizeMinimum()) { Text(view.playNow) }
                 }
             }
         }
-    }
-
-    @Composable
-    private fun SheetButton(label: String, description: String, onClick: () -> Unit) {
-        TextButton(
-            onClick = onClick,
-            modifier = Modifier.sizeMinimum().semantics { contentDescription = description },
-        ) { Text(label, color = Color.White) }
     }
 
     companion object {
@@ -1328,17 +1774,15 @@ class VideoPlayerActivity : ComponentActivity() {
         private const val NEXT_FETCH_AFTER_MS = 30_000L
         private const val NEXT_EPISODES_COUNT = 10
         private const val EXTRA_SHOW_ID = "show_id"
-        private val SPEEDS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+        private const val EXTRA_WORK_ID = "work_id"
 
-        private fun speedLabel(value: Float): String =
-            if (value == Math.round(value).toFloat()) "${Math.round(value)}x" else "${value}x"
-
-        fun intent(context: Context, assetId: String, title: String?, subtitle: String?, showId: String? = null): Intent =
+        fun intent(context: Context, assetId: String, title: String?, subtitle: String?, showId: String? = null, workId: String? = null): Intent =
             Intent(context, VideoPlayerActivity::class.java)
                 .putExtra(TuvimaMediaLibraryService.EXTRA_ASSET_ID, assetId)
                 .putExtra(TuvimaMediaLibraryService.EXTRA_TITLE, title)
                 .putExtra(TuvimaMediaLibraryService.EXTRA_SUBTITLE, subtitle)
                 .putExtra(EXTRA_SHOW_ID, showId)
+                .putExtra(EXTRA_WORK_ID, workId)
     }
 }
 

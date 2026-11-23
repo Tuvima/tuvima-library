@@ -189,7 +189,7 @@ internal fun DownloadsScreen(
                     record = record,
                     nowMs = now,
                     wifiOnly = wifiOnly,
-                    onPlay = { play(PlayRequest(record.assetId, record.entityType, record.title, record.subtitle, showId = record.showId)) },
+                    onPlay = { play(PlayRequest(record.assetId, record.entityType, record.title, record.subtitle, showId = record.showId, workId = record.workId)) },
                     onView = {
                         val kept = keptPhotoItems(records)
                         openPhotos(kept, kept.indexOfFirst { it.id == record.assetId }.coerceAtLeast(0))
