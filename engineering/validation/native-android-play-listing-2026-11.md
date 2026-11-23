@@ -101,8 +101,8 @@ Sizes are the ones I know; the console shows the exact rule beside each upload.
 
 | Picture | Size (pixels) | Phone app | TV app | Where it comes from |
 |---|---|---|---|---|
-| App icon | 512 x 512 PNG, up to 1 MB | Needed | Needed | **Not in the repository yet.** The phone app has no launcher icon at all (no `android:icon` in its manifest), so the phone app currently shows Android's plain default. A launcher icon and the 512 picture must be made from `assets/images/tuvima-icon.svg`; this is a separate small build step (see open questions). |
-| Feature graphic | 1024 x 500 | Needed | Needed | To make (the logo on the near-black background used for the Roku splash). |
+| App icon | 512 x 512 PNG, up to 1 MB | Built | Built | `clients/android/store/hi-res-icon-512x512.png` (the mark on #101115 with a faint purple glow). The launcher icon on the phone and the TV is an adaptive icon (background, foreground and monochrome layers) in each app's `res/`, named by `android:icon` and `android:roundIcon`. All of it is drawn from `assets/images/tuvima-icon.svg` by `node tools/Make-AndroidStoreImages.mjs`; `tests/build/android-store-pictures.test.mjs` checks sizes and that the files match the script. |
+| Feature graphic | 1024 x 500 | Built | Built | `clients/android/store/feature-graphic-1024x500.png` (the logo and the tagline "One library. Every story." on #101115, with a purple accent bar). Made by the same script. |
 | Phone screenshots | at least 2, up to 8; 16:9 or 9:16, each side 320 to 3840 | Needed | n/a | See the shot list. |
 | 7-inch and 10-inch tablet screenshots | same rules | Recommended (one listing covers phone and tablet, D15) | n/a | Emulator tablet profiles. |
 | TV banner | 1280 x 720 | n/a | Needed | The app already has a launcher banner drawable (`tv_banner.xml`); the store banner is a separate picture. |

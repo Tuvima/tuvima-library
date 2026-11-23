@@ -17,7 +17,7 @@ The cloud build made the signing setup, the version numbers, the release workflo
 2. **Same signature on GitHub and Play?** Recommended: let Google create and keep the app signing key (the default, safest: if you lose your own key Google can reset your upload key). Then the APK on GitHub (signed with your upload key) and the app from Play (signed by Google) have different signatures, so a phone cannot update from one to the other without uninstalling first; the release notes already say so. The alternative (upload your own app signing key at enrolment so both match) works but means you are the only holder of the key that can never be replaced.
 3. **How will Google's reviewer test it?** Same question as the TV stores: a reviewer cannot reach a server on a private network. Recommended: a small demo server on a public address with a test administrator, or video of a working pairing, whichever Play accepts.
 4. **Data safety answers** (listing text, "Privacy and data safety answers"): confirm the recommended "no data collected" answer and the "not always encrypted" answer.
-5. **A launcher icon for the phone app.** It has none yet. Ask me to add one (a small separate change that touches the phone app's manifest and resources) before the first bundle you upload; Play will accept the upload without it but the app would show a plain default icon on every phone.
+5. **A launcher icon for the phone app.** Done: the phone and TV apps now have an adaptive launcher icon built from the Library mark. Nothing to decide unless you want different artwork.
 6. **Support email** (a role address) and **category**.
 
 ## A. Make the upload key (about 15 minutes, once)
@@ -128,5 +128,5 @@ For the phone app first, then the TV app (the TV app is free, so no payments ste
 2. Same signature on GitHub and Play, or not (recommended: not).
 3. How Google's reviewer tests the app.
 4. Data safety answers (recommended: no data collected; not always encrypted).
-5. Whether to add a launcher icon before the first bundle.
+5. (Done) A launcher icon for the phone app.
 6. Support email, category, and the Play app name if "Library" is taken.
