@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.HeroSlide
 import com.tuvima.library.core.HomeHeroLogic
+import com.tuvima.library.core.PhonePlayerLogic
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.playShowId
 import kotlinx.coroutines.launch
@@ -167,6 +168,7 @@ private fun HeroSlideCard(
                                 title = card.title,
                                 subtitle = card.subtitle,
                                 showId = playShowId(target.first, target.second, null),
+                                workId = PhonePlayerLogic.workIdFor(target.first, target.second),
                             ),
                         )
                     }

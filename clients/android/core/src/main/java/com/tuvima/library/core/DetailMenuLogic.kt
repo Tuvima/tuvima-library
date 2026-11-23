@@ -1,9 +1,10 @@
 package com.tuvima.library.core
 
-// The "..." menu on a title's Details page. Version 1 of the phone has no Edit and no Add to collection (editing opens the Dashboard in
-// the phone's browser in a later packet, spec native-apps D7), so the menu holds what the phone can do itself. Pure rules.
+// The "..." menu on a title's Details page. Version 1 of the phone has no editor of its own and no Add to collection: Edit opens the Dashboard in
+// the phone's browser on the title's own page (spec native-apps D7, `EditInBrowser`), so the menu holds what the phone can do itself plus that
+// one row. Pure rules.
 
-enum class DetailMenuAction { ToggleMyList, Download, DownloadNextEpisodes, DownloadAll }
+enum class DetailMenuAction { ToggleMyList, Download, DownloadNextEpisodes, DownloadAll, EditInBrowser }
 
 /** One menu row. A row that cannot act now stays in place, dimmed ([enabled] false), never hidden. */
 data class DetailMenuItem(val action: DetailMenuAction, val label: String, val enabled: Boolean = true)
@@ -26,11 +27,14 @@ object DetailMenuLogic {
         canDownloadNextEpisodes: Boolean,
         /** True when the page lists more than one file of its own (a season or show, an album, a playlist, an audiobook of several parts). */
         canDownloadAll: Boolean = false,
+        /** True when Edit is offered: not a Kids profile, and the title has a Dashboard page to open (see [EditInBrowser]). */
+        canEdit: Boolean = false,
     ): List<DetailMenuItem> = buildList {
         if (canSave) add(DetailMenuItem(DetailMenuAction.ToggleMyList, if (isSaved) MyListLogic.REMOVE else MyListLogic.ADD))
         if (canDownload) add(DetailMenuItem(DetailMenuAction.Download, downloadLabel, downloadEnabled))
         if (canDownload && canDownloadNextEpisodes) add(DetailMenuItem(DetailMenuAction.DownloadNextEpisodes, "Download next episodes"))
         if (canDownloadAll) add(DetailMenuItem(DetailMenuAction.DownloadAll, DOWNLOAD_ALL_LABEL))
+        if (canEdit) add(DetailMenuItem(DetailMenuAction.EditInBrowser, EditInBrowser.LABEL))
     }
 
     /** The "..." button has nothing to open when no row applies, so it is not drawn. */

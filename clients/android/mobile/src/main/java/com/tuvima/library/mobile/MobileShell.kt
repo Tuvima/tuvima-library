@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.tuvima.library.core.DeviceProfile
 import com.tuvima.library.core.DisplayCard
+import com.tuvima.library.core.EditInBrowser
 import com.tuvima.library.core.PhoneDockTab
 import com.tuvima.library.core.PhoneMenuItem
 import com.tuvima.library.core.PhoneMenuTarget
@@ -245,6 +246,7 @@ internal fun MobileShell(
                                 assetId = top.assetId,
                                 onBack = { stack.removeAt(stack.lastIndex) },
                                 play = play,
+                                canEdit = EditInBrowser.isOffered(isKids),
                             )
                             is Overlay.CollectionOpen -> CollectionDetailScreen(
                                 client = client,
