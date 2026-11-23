@@ -57,9 +57,12 @@ import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.PHOTO_ACCESS_DENIED_MESSAGE
 import com.tuvima.library.core.TimelineRow
 import com.tuvima.library.core.TuvimaClient
+import com.tuvima.library.core.ViewDiscoveryLogic
 import com.tuvima.library.core.ViewGalleries
 import com.tuvima.library.core.ViewGallery
 import com.tuvima.library.core.ViewItem
+import com.tuvima.library.core.ViewPerson
+import com.tuvima.library.core.ViewTab
 import com.tuvima.library.core.ViewTimelineMonth
 import com.tuvima.library.core.buildFlatRows
 import com.tuvima.library.core.buildTimelineRows
@@ -73,29 +76,32 @@ import java.io.File
 
 /** The offline downloads of this phone: kept photos are read from here before the network is asked. */
 @Composable
-private fun offlineDownloads(): OfflineDownloads =
+internal fun offlineDownloads(): OfflineDownloads =
     (LocalContext.current.applicationContext as TuvimaMobileApplication).offline
 
 /** The kept photos that are finished and on disk, by View item id, as the file to read. */
-private fun keptPhotoPaths(records: List<DownloadRecord>): Map<String, String> =
+internal fun keptPhotoPaths(records: List<DownloadRecord>): Map<String, String> =
     records.filter { it.isPhoto && it.isComplete }
         .mapNotNull { record -> record.filePath?.let { record.assetId to it } }
         .toMap()
 
-/** View in Libraries: the photo and video timeline (month by month) and the person's galleries. */
+/** View in Libraries: the photo and video timeline (month by month), the person's galleries, the people in them and their places. */
 @Composable
 internal fun PhotosScreen(
     client: TuvimaClient,
     openViewer: (List<ViewItem>, Int) -> Unit,
     openGallery: (ViewGallery) -> Unit,
+    openPerson: (ViewPerson) -> Unit,
 ) {
-    var showGalleries by remember { mutableStateOf(false) }
+    var tab by remember { mutableStateOf(ViewTab.Timeline) }
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = !showGalleries, onClick = { showGalleries = false }, label = { Text("Timeline") })
-            FilterChip(selected = showGalleries, onClick = { showGalleries = true }, label = { Text("Galleries") })
+        TabChipRows(ViewDiscoveryLogic.tabs(), tab, { it.label }, { tab = it }, perRow = 2)
+        when (tab) {
+            ViewTab.Timeline -> TimelineGrid(client, openViewer)
+            ViewTab.Galleries -> GalleriesList(client, openGallery)
+            ViewTab.People -> PeopleList(client, openPerson)
+            ViewTab.Places -> PlacesList(client)
         }
-        if (showGalleries) GalleriesList(client, openGallery) else TimelineGrid(client, openViewer)
     }
 }
 
@@ -185,7 +191,7 @@ private fun TimelineGrid(client: TuvimaClient, openViewer: (List<ViewItem>, Int)
 }
 
 @Composable
-private fun photoColumns(): Int = (LocalConfiguration.current.screenWidthDp / 110).coerceIn(3, 8)
+internal fun photoColumns(): Int = (LocalConfiguration.current.screenWidthDp / 110).coerceIn(3, 8)
 
 /** What View shows when the server cannot be reached but photos were kept on this phone: those photos, from the phone. */
 @Composable
@@ -220,7 +226,7 @@ private fun KeptOnThisPhone(
 
 /** Month headings and rows of square thumbnails, as one scrolling list. */
 @Composable
-private fun PhotoRows(
+internal fun PhotoRows(
     client: TuvimaClient,
     rows: List<TimelineRow>,
     columns: Int,

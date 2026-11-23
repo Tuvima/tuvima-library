@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "key": "paris-france",
+      "name": "Paris, France",
+      "latitude": 48.8566,
+      "longitude": 2.3522,
+      "asset_count": 24,
+      "representative_library_id": "7a000000-0000-4000-8000-000000000001",
+      "representative_asset_id": "7a000000-0000-4000-8000-000000000021"
+    },
+    {
+      "key": "oslo-norway",
+      "name": "Oslo, Norway",
+      "latitude": 59.9139,
+      "longitude": 10.7522,
+      "asset_count": 1,
+      "representative_library_id": "7a000000-0000-4000-8000-000000000001",
+      "representative_asset_id": "7a000000-0000-4000-8000-000000000022"
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false,
+  "capability": {
+    "state": "available",
+    "has_indexed_data": true,
+    "automatic_processing_available": false,
+    "message": "Showing places from your photos.",
+    "evidence_kinds": [
+      "gps"
+    ]
+  }
+}

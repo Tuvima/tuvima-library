@@ -1,0 +1,218 @@
+{
+  "key": "home",
+  "title": "Home",
+  "subtitle": null,
+  "hero": {
+    "title": "Alpha One",
+    "subtitle": null,
+    "eyebrow": "Continue",
+    "artwork": {
+      "coverUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/cover",
+      "coverLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/cover?size=large",
+      "squareUrl": null,
+      "squareLargeUrl": null,
+      "backgroundUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/background",
+      "backgroundLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/background?size=large",
+      "logoUrl": null
+    },
+    "progress": {
+      "percent": 42.0,
+      "label": "1h 5m left",
+      "lastAccessed": "2026-11-22T20:00:00+00:00",
+      "resumeAction": null,
+      "positionSeconds": 2700.0,
+      "durationSeconds": 6720.0,
+      "remainingSeconds": 4020.0
+    },
+    "actions": [
+      {
+        "type": "playAsset",
+        "label": "Resume",
+        "workId": "6f0c2a3e-0000-4000-8000-000000000500",
+        "assetId": "6f0c2a3e-0000-4000-8000-000000000510",
+        "collectionId": null,
+        "webUrl": "/details/movie/6f0c2a3e-0000-4000-8000-000000000500?context=watch"
+      }
+    ],
+    "facts": [
+      "2024",
+      "PG",
+      "1h 52m"
+    ],
+    "id": "6f0c2a3e-0000-4000-8000-000000000500",
+    "workId": "6f0c2a3e-0000-4000-8000-000000000500",
+    "collectionId": null,
+    "mediaType": "Movie",
+    "presentation": "default",
+    "subject": "Work",
+    "continuationState": "InProgress",
+    "tagline": null,
+    "description": null,
+    "genres": [
+      "Drama"
+    ],
+    "previewItems": [],
+    "collageUrls": [],
+    "isContinued": true,
+    "suggestedByAi": false
+  },
+  "shelves": [
+    {
+      "key": "recently-added",
+      "title": "Recently added",
+      "subtitle": null,
+      "items": [
+        {
+          "id": "6f0c2a3e-0000-4000-8000-000000000700",
+          "workId": "6f0c2a3e-0000-4000-8000-000000000700",
+          "assetId": "6f0c2a3e-0000-4000-8000-000000000710",
+          "collectionId": null,
+          "mediaType": "Movie",
+          "groupingType": "work",
+          "title": "Beta Film",
+          "subtitle": null,
+          "facts": [
+            "2020"
+          ],
+          "artwork": {
+            "coverUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000710/cover",
+            "coverLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000710/cover?size=large",
+            "squareUrl": null,
+            "squareLargeUrl": null,
+            "backgroundUrl": null,
+            "backgroundLargeUrl": null,
+            "logoUrl": null
+          },
+          "preferredShape": "portrait",
+          "presentation": "Movie",
+          "tileTextMode": "caption",
+          "previewPlacement": "smart",
+          "progress": null,
+          "actions": [
+            {
+              "type": "playAsset",
+              "label": "Play",
+              "workId": "6f0c2a3e-0000-4000-8000-000000000700",
+              "assetId": "6f0c2a3e-0000-4000-8000-000000000710",
+              "collectionId": null,
+              "webUrl": "/details/movie/6f0c2a3e-0000-4000-8000-000000000700?context=watch"
+            }
+          ],
+          "flags": {
+            "isPlayable": true,
+            "isReadable": false,
+            "isCollection": false,
+            "isFavorite": false
+          },
+          "sortTimestamp": "2026-11-20T10:15:00+00:00",
+          "subject": "Work",
+          "continuationState": "Unstarted"
+        }
+      ],
+      "seeAllRoute": null
+    }
+  ],
+  "catalog": [],
+  "spotlights": [
+    {
+      "title": "Alpha One",
+      "subtitle": null,
+      "eyebrow": "Continue",
+      "artwork": {
+        "coverUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/cover",
+        "coverLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/cover?size=large",
+        "squareUrl": null,
+        "squareLargeUrl": null,
+        "backgroundUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/background",
+        "backgroundLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/background?size=large",
+        "logoUrl": null
+      },
+      "progress": {
+        "percent": 42.0,
+        "label": "1h 5m left",
+        "lastAccessed": "2026-11-22T20:00:00+00:00",
+        "resumeAction": null,
+        "positionSeconds": 2700.0,
+        "durationSeconds": 6720.0,
+        "remainingSeconds": 4020.0
+      },
+      "actions": [
+        {
+          "type": "playAsset",
+          "label": "Resume",
+          "workId": "6f0c2a3e-0000-4000-8000-000000000500",
+          "assetId": "6f0c2a3e-0000-4000-8000-000000000510",
+          "collectionId": null,
+          "webUrl": "/details/movie/6f0c2a3e-0000-4000-8000-000000000500?context=watch"
+        }
+      ],
+      "facts": [
+        "2024",
+        "PG",
+        "1h 52m"
+      ],
+      "id": "6f0c2a3e-0000-4000-8000-000000000500",
+      "workId": "6f0c2a3e-0000-4000-8000-000000000500",
+      "collectionId": null,
+      "mediaType": "Movie",
+      "presentation": "default",
+      "subject": "Work",
+      "continuationState": "InProgress",
+      "tagline": null,
+      "description": null,
+      "genres": [
+        "Drama"
+      ],
+      "previewItems": [],
+      "collageUrls": [],
+      "isContinued": true,
+      "suggestedByAi": false
+    },
+    {
+      "title": "Alpha Rising",
+      "subtitle": "Ben Author",
+      "eyebrow": "Recently added",
+      "artwork": {
+        "coverUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000610/cover",
+        "coverLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000610/cover?size=large",
+        "squareUrl": null,
+        "squareLargeUrl": null,
+        "backgroundUrl": null,
+        "backgroundLargeUrl": null,
+        "logoUrl": null
+      },
+      "progress": null,
+      "actions": [
+        {
+          "type": "readWork",
+          "label": "Read",
+          "workId": "6f0c2a3e-0000-4000-8000-000000000600",
+          "assetId": "6f0c2a3e-0000-4000-8000-000000000610",
+          "collectionId": null,
+          "webUrl": "/details/book/6f0c2a3e-0000-4000-8000-000000000600?context=read"
+        }
+      ],
+      "facts": [
+        "2019",
+        "320 pages"
+      ],
+      "id": "6f0c2a3e-0000-4000-8000-000000000600",
+      "workId": "6f0c2a3e-0000-4000-8000-000000000600",
+      "collectionId": null,
+      "mediaType": "Book",
+      "presentation": "default",
+      "subject": "Work",
+      "continuationState": "Unstarted",
+      "tagline": null,
+      "description": null,
+      "genres": [
+        "Drama"
+      ],
+      "previewItems": [],
+      "collageUrls": [],
+      "isContinued": false,
+      "suggestedByAi": false
+    }
+  ],
+  "totalCount": 0
+}
