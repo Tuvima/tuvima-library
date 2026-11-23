@@ -4,15 +4,8 @@ import com.tuvima.library.core.CollectionEntry
 import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.ViewGallery
 import com.tuvima.library.core.ViewItem
+import com.tuvima.library.core.ViewPerson
 import com.tuvima.library.core.detailTargetFromRoute
-import org.json.JSONObject
-
-internal data class MobileSearchResult(
-    val id: String,
-    val entityType: String,
-    val title: String,
-    val subtitle: String?,
-)
 
 /** What a Play button asks for. The type decides whether the video screen or the audio service handles it. */
 internal data class PlayRequest(
@@ -31,22 +24,12 @@ internal sealed interface Overlay {
     data class UniverseOpen(val qid: String) : Overlay
     data class GalleryOpen(val gallery: ViewGallery) : Overlay
     data class ViewerOpen(val items: List<ViewItem>, val index: Int) : Overlay
-}
 
-internal fun parseMobileSearch(json: JSONObject): List<MobileSearchResult> = buildList {
-    val seen = mutableSetOf<String>()
-    val sections = json.optJSONArray("sections") ?: return@buildList
-    for (sectionIndex in 0 until sections.length()) {
-        val results = sections.optJSONObject(sectionIndex)?.optJSONArray("results") ?: continue
-        for (resultIndex in 0 until results.length()) {
-            val value = results.optJSONObject(resultIndex) ?: continue
-            val target = detailTargetFromRoute(value.optString("detailRoute").takeIf(String::isNotBlank))
-            val id = target?.second ?: value.optString("id")
-            val entityType = target?.first ?: value.optString("entityType", "work")
-            if (id.isBlank() || !seen.add("$entityType:$id")) continue
-            add(MobileSearchResult(id, entityType, value.optString("title"), value.optString("subtitle").takeIf(String::isNotBlank)))
-        }
-    }
+    /** An artist's songs, opened from Listen's Artists tab. */
+    data class ArtistOpen(val name: String) : Overlay
+
+    /** One person's photos and videos, opened from View's People tab. */
+    data class PersonOpen(val person: ViewPerson) : Overlay
 }
 
 internal fun mobileDetailEntityType(mediaType: String): String {

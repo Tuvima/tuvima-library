@@ -1,0 +1,43 @@
+{
+  "items": [
+    {
+      "key": "ada-lovelace",
+      "display_name": "Ada Lovelace",
+      "asset_count": 12,
+      "representative_library_id": "7a000000-0000-4000-8000-000000000001",
+      "representative_asset_id": "7a000000-0000-4000-8000-000000000011",
+      "annotation_kinds": [
+        "person_name"
+      ],
+      "provenance_sources": [
+        "user"
+      ],
+      "has_reviewed_evidence": true
+    },
+    {
+      "key": "ben-author",
+      "display_name": "Ben Author",
+      "asset_count": 1,
+      "representative_library_id": "7a000000-0000-4000-8000-000000000001",
+      "representative_asset_id": "7a000000-0000-4000-8000-000000000012",
+      "annotation_kinds": [
+        "person_name"
+      ],
+      "provenance_sources": [
+        "user"
+      ],
+      "has_reviewed_evidence": false
+    }
+  ],
+  "next_cursor": "2",
+  "has_more": true,
+  "capability": {
+    "state": "available",
+    "has_indexed_data": true,
+    "automatic_processing_available": false,
+    "message": "Showing people you named or reviewed.",
+    "evidence_kinds": [
+      "user_annotation"
+    ]
+  }
+}

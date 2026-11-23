@@ -298,6 +298,71 @@ public sealed class NativeClientContractFixtureTests
     }
 
     [Fact]
+    public void ListenHomeAndViewDiscoveryFixtures_MatchThePublishedContractTypes()
+    {
+        var albums = Read<DisplayShelfPageDto>("display-shelf-page.json");
+        var songs = Read<DisplayPageDto>("display-songs.json");
+        var home = Read<DisplayPageDto>("display-home.json");
+        var people = Read<ViewPeoplePageDto>("view-people.json");
+        var places = Read<ViewPlacesPageDto>("view-places.json");
+
+        // GET /api/v1/display/shelves/albums?lane=listen&mediaType=Music&grouping=home: a page of album cards and the cursor for the next page.
+        Assert.Equal("albums", albums.Shelf.Key);
+        Assert.True(albums.HasMore);
+        Assert.NotNull(albums.NextCursor);
+        Assert.All(albums.Shelf.Items, album =>
+        {
+            Assert.Equal("album", album.GroupingType);
+            Assert.Equal(DisplaySubjectKind.Album, album.Subject);
+            Assert.NotEmpty(album.PreviewItems);
+            Assert.Contains(album.Actions, action => action.Type == "playAlbum"
+                && action.WebUrl!.StartsWith("/details/musicalbum/", StringComparison.Ordinal));
+        });
+
+        // GET /api/v1/display/browse?lane=listen&mediaType=Music: each song is a work card that carries its artist and album and its heart.
+        Assert.Equal(songs.TotalCount, songs.Catalog.Count);
+        Assert.All(songs.Catalog, song =>
+        {
+            Assert.Equal("work", song.GroupingType);
+            Assert.Equal("Music", song.MediaType);
+            Assert.NotNull(song.WorkId);
+            Assert.NotNull(song.AssetId);
+            Assert.False(string.IsNullOrWhiteSpace(song.ListMetadata?.Artist));
+            Assert.False(string.IsNullOrWhiteSpace(song.ListMetadata?.Album));
+        });
+        Assert.Single(songs.Catalog, song => song.Flags.IsFavorite);
+
+        // GET /api/v1/display/home?includeCatalog=false: the phone's hero card reads the spotlights.
+        Assert.NotNull(home.Hero);
+        Assert.Equal(2, home.Spotlights.Count);
+        Assert.Contains(home.Spotlights, slide => slide.Progress is { Percent: > 0 and < 100 });
+        Assert.Contains(home.Spotlights, slide => slide.Actions.Any(action => action.Type == "readWork"));
+        Assert.Empty(home.Catalog);
+
+        // GET /api/v1/view/people and /places: lists of the person's own photos, each with a photo to draw as its picture.
+        Assert.True(people.HasMore);
+        Assert.NotNull(people.NextCursor);
+        Assert.All(people.Items, person =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(person.Key));
+            Assert.NotEqual(Guid.Empty, person.RepresentativeAssetId);
+        });
+        Assert.Equal(ViewDiscoveryCapabilityStates.Available, people.Capability.State);
+        Assert.False(places.HasMore);
+        Assert.All(places.Items, place =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(place.Name));
+            Assert.NotEqual(Guid.Empty, place.RepresentativeAssetId);
+        });
+
+        AssertSameWireNames("display-shelf-page.json", albums);
+        AssertSameWireNames("display-songs.json", songs);
+        AssertSameWireNames("display-home.json", home);
+        AssertSameWireNames("view-people.json", people);
+        AssertSameWireNames("view-places.json", places);
+    }
+
+    [Fact]
     public void AudiobookBookmarkFixtures_MatchThePublishedContractTypes()
     {
         var bookmarks = Read<List<AudiobookBookmarkDto>>("audiobook-bookmarks.json");

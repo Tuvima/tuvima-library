@@ -40,6 +40,7 @@ import com.tuvima.library.core.PhoneSection
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.ViewGallery
 import com.tuvima.library.core.ViewItem
+import com.tuvima.library.core.ViewPerson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -52,31 +53,33 @@ import kotlinx.coroutines.launch
 internal fun LibrariesScreen(
     section: PhoneSection,
     client: TuvimaClient,
+    play: (PlayRequest) -> Unit,
     openCard: (DisplayCard) -> Unit,
     openCollection: (CollectionEntry) -> Unit,
     openViewer: (List<ViewItem>, Int) -> Unit,
     openGallery: (ViewGallery) -> Unit,
+    openArtist: (String) -> Unit,
+    openPerson: (ViewPerson) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
         key(section) {
             when (section) {
                 PhoneSection.Watch -> LaneBrowse(client, "watch", openCard)
                 PhoneSection.Read -> LaneBrowse(client, "read", openCard)
-                PhoneSection.Listen -> LaneBrowse(client, "listen", openCard)
-                PhoneSection.View -> PhotosScreen(client, openViewer, openGallery)
+                PhoneSection.Listen -> ListenScreen(client, play, openCard, openArtist)
+                PhoneSection.View -> PhotosScreen(client, openViewer, openGallery, openPerson)
                 PhoneSection.Collections -> CollectionsScreen(client, openCollection)
             }
         }
     }
 }
 
-private data class LaneTab(val label: String, val mediaType: String, val grouping: String? = null)
+internal data class LaneTab(val label: String, val mediaType: String, val grouping: String? = null)
 
-// Each lane's tabs are the Dashboard's: Movies and TV, Books and Comics, Music (albums) and Audiobooks.
+// Each lane's tabs are the Dashboard's: Movies and TV, Books and Comics. Listen has its own screen (songs, albums, artists, favorites).
 private fun laneTabs(lane: String): List<LaneTab> = when (lane) {
     "watch" -> listOf(LaneTab("Movies", "Movies"), LaneTab("TV", "TV", "shows"))
-    "read" -> listOf(LaneTab("Books", "Books"), LaneTab("Comics", "Comics"))
-    else -> listOf(LaneTab("Music", "Music", "timeline"), LaneTab("Audiobooks", "Audiobooks"))
+    else -> listOf(LaneTab("Books", "Books"), LaneTab("Comics", "Comics"))
 }
 
 // The Dashboard's sort choices for a card grid, and its narrower pair for the dated album timeline.
@@ -175,7 +178,7 @@ private fun LaneBrowse(client: TuvimaClient, lane: String, openCard: (DisplayCar
 }
 
 @Composable
-private fun BrowseGrid(client: TuvimaClient, lane: String, tab: LaneTab, openCard: (DisplayCard) -> Unit) {
+internal fun BrowseGrid(client: TuvimaClient, lane: String, tab: LaneTab, openCard: (DisplayCard) -> Unit) {
     val scope = rememberCoroutineScope()
     val browser = remember(lane, tab.mediaType) {
         BrowseController(

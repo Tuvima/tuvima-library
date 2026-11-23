@@ -497,6 +497,12 @@ class TuvimaClient(
     suspend fun homeShelves(): DisplayPage =
         parseDisplayPage(requestJson("GET", ClientRoutes.home(includeCatalog = false)))
 
+    /** Home's shelves and its hero slides from one read. */
+    suspend fun homeContent(): HomeContent {
+        val json = requestJson("GET", ClientRoutes.home(includeCatalog = false))
+        return HomeContent(parseDisplayPage(json), HomeHeroLogic.parse(json, ::absolute))
+    }
+
     /** Continue across every lane, most recent first. */
     suspend fun continueAll(limit: Int = 24): DisplayPage =
         parseDisplayPage(requestJson("GET", ClientRoutes.continueAll(limit)))
@@ -530,6 +536,43 @@ class TuvimaClient(
             years = facets?.optJSONArray("years")?.strings().orEmpty(),
         )
     }
+
+    /** One page of the Albums or Artists shelf of Listen (`display/shelves/{key}`). */
+    suspend fun listenShelfPage(key: String, cursor: String? = null, offset: Int = 0, limit: Int = ListenLogic.SHELF_PAGE): DisplayShelfPage =
+        parseDisplayShelfPage(requestJson("GET", ClientRoutes.listenShelf(key, cursor, offset, limit)), ::absolute)
+
+    /**
+     * Every song the profile has hearted, in the person's own order: the Engine's favourites filter gives the songs, and the saved list
+     * (read first) gives the order, as the Dashboard does.
+     */
+    suspend fun favoriteSongs(): List<DisplayCard> {
+        val saved = savedItems()
+        var cards = emptyList<DisplayCard>()
+        for (page in 0 until ListenLogic.FAVORITES_MAX_PAGES) {
+            val result = browsePage(ListenLogic.favoritesQuery(offset = cards.size))
+            val merged = ListenLogic.mergeCards(cards, result.cards)
+            val grew = merged.size > cards.size
+            cards = merged
+            if (!grew || cards.size >= result.totalCount) break
+        }
+        return ListenLogic.orderFavorites(cards, saved)
+    }
+
+    /** The search overlay's answer for [query], sectioned by kind. */
+    suspend fun searchResults(query: String): SearchResults =
+        SearchLogic.parse(requestJson("GET", ClientRoutes.search(query)), ::absolute)
+
+    /** People named in the signed-in person's own photos and videos. Throws [PhotoAccessDeniedException] when photos were not allowed. */
+    suspend fun viewPeoplePage(cursor: String? = null, limit: Int = ViewDiscoveryLogic.PAGE_SIZE): ViewPeoplePage =
+        photoCall { parseViewPeoplePage(requestJson("GET", ClientRoutes.viewPeople(cursor, limit))) }
+
+    /** The photos and videos that carry one person's name. */
+    suspend fun viewPersonItems(key: String, cursor: String? = null, limit: Int = 100): ViewItemPage =
+        photoCall { parseViewItemPage(requestJson("GET", ClientRoutes.viewPersonItems(key, cursor, limit))) }
+
+    /** Places the signed-in person's photos and videos cluster around. */
+    suspend fun viewPlacesPage(cursor: String? = null, limit: Int = ViewDiscoveryLogic.PAGE_SIZE): ViewPlacesPage =
+        photoCall { parseViewPlacesPage(requestJson("GET", ClientRoutes.viewPlaces(cursor, limit))) }
 
     // My List (`/api/v1/profile-state/saved`), the active profile's saved titles.
 

@@ -96,6 +96,17 @@ data class DisplayCard(
     val progressPercent: Double?,
     /** Portrait-first artwork for poster grids; [artworkUrl] stays landscape-first for hero tiles. */
     val posterUrl: String? = null,
+    /** Square-first artwork for albums, artists and songs. */
+    val squareArtUrl: String? = null,
+    /** What the Engine says this card is: "work", "album", "artist", "show", "series", "collection" ... (lower case as sent). */
+    val groupingType: String? = null,
+    /** The Engine's own flag that this song is one of the profile's Favorites. */
+    val isFavorite: Boolean = false,
+    /** A song's artist, album, length and track number, from the card's list metadata (all optional). */
+    val artist: String? = null,
+    val album: String? = null,
+    val duration: String? = null,
+    val trackNumber: String? = null,
 )
 
 data class DisplayAction(

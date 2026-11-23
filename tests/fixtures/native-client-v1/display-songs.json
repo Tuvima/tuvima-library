@@ -1,0 +1,208 @@
+{
+  "key": "listen",
+  "title": "Music",
+  "subtitle": null,
+  "hero": null,
+  "shelves": [],
+  "catalog": [
+    {
+      "id": "6f0c2a3e-0000-4000-8000-000000000001",
+      "workId": "6f0c2a3e-0000-4000-8000-000000000001",
+      "assetId": "6f0c2a3e-0000-4000-8000-000000000101",
+      "collectionId": null,
+      "mediaType": "Music",
+      "groupingType": "work",
+      "title": "Opening",
+      "subtitle": "Alpha Band",
+      "facts": [
+        "2021"
+      ],
+      "artwork": {
+        "coverUrl": null,
+        "coverLargeUrl": null,
+        "squareUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000101/cover",
+        "squareLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000101/cover?size=large",
+        "backgroundUrl": null,
+        "backgroundLargeUrl": null,
+        "logoUrl": null
+      },
+      "preferredShape": "square",
+      "presentation": "default",
+      "tileTextMode": "caption",
+      "previewPlacement": "smart",
+      "progress": null,
+      "actions": [
+        {
+          "type": "playAsset",
+          "label": "Play",
+          "workId": "6f0c2a3e-0000-4000-8000-000000000001",
+          "assetId": "6f0c2a3e-0000-4000-8000-000000000101",
+          "collectionId": null,
+          "webUrl": "/details/work/6f0c2a3e-0000-4000-8000-000000000001?context=listen"
+        }
+      ],
+      "flags": {
+        "isPlayable": true,
+        "isReadable": false,
+        "isCollection": false,
+        "isFavorite": true
+      },
+      "sortTimestamp": "2026-11-20T10:15:00+00:00",
+      "subject": "Work",
+      "continuationState": "Unstarted",
+      "listMetadata": {
+        "author": null,
+        "artist": "Alpha Band",
+        "director": null,
+        "narrator": null,
+        "album": "Alpha Songs",
+        "series": null,
+        "genre": "Rock",
+        "duration": "3:10",
+        "trackNumber": "1",
+        "year": "2021",
+        "showName": null,
+        "seasonNumber": null,
+        "episodeNumber": null
+      }
+    },
+    {
+      "id": "6f0c2a3e-0000-4000-8000-000000000002",
+      "workId": "6f0c2a3e-0000-4000-8000-000000000002",
+      "assetId": "6f0c2a3e-0000-4000-8000-000000000102",
+      "collectionId": null,
+      "mediaType": "Music",
+      "groupingType": "work",
+      "title": "Second Song",
+      "subtitle": "Alpha Band",
+      "facts": [
+        "2021"
+      ],
+      "artwork": {
+        "coverUrl": null,
+        "coverLargeUrl": null,
+        "squareUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000102/cover",
+        "squareLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000102/cover?size=large",
+        "backgroundUrl": null,
+        "backgroundLargeUrl": null,
+        "logoUrl": null
+      },
+      "preferredShape": "square",
+      "presentation": "default",
+      "tileTextMode": "caption",
+      "previewPlacement": "smart",
+      "progress": null,
+      "actions": [
+        {
+          "type": "playAsset",
+          "label": "Play",
+          "workId": "6f0c2a3e-0000-4000-8000-000000000002",
+          "assetId": "6f0c2a3e-0000-4000-8000-000000000102",
+          "collectionId": null,
+          "webUrl": "/details/work/6f0c2a3e-0000-4000-8000-000000000002?context=listen"
+        }
+      ],
+      "flags": {
+        "isPlayable": true,
+        "isReadable": false,
+        "isCollection": false,
+        "isFavorite": false
+      },
+      "sortTimestamp": "2026-11-20T10:15:00+00:00",
+      "subject": "Work",
+      "continuationState": "Unstarted",
+      "listMetadata": {
+        "author": null,
+        "artist": "Alpha Band",
+        "director": null,
+        "narrator": null,
+        "album": "Alpha Songs",
+        "series": null,
+        "genre": "Rock",
+        "duration": "4:02",
+        "trackNumber": "2",
+        "year": "2021",
+        "showName": null,
+        "seasonNumber": null,
+        "episodeNumber": null
+      }
+    },
+    {
+      "id": "6f0c2a3e-0000-4000-8000-000000000003",
+      "workId": "6f0c2a3e-0000-4000-8000-000000000003",
+      "assetId": "6f0c2a3e-0000-4000-8000-000000000103",
+      "collectionId": null,
+      "mediaType": "Music",
+      "groupingType": "work",
+      "title": "Slow Start",
+      "subtitle": "Beta Quartet",
+      "facts": [
+        "2021"
+      ],
+      "artwork": {
+        "coverUrl": null,
+        "coverLargeUrl": null,
+        "squareUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000103/cover",
+        "squareLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000103/cover?size=large",
+        "backgroundUrl": null,
+        "backgroundLargeUrl": null,
+        "logoUrl": null
+      },
+      "preferredShape": "square",
+      "presentation": "default",
+      "tileTextMode": "caption",
+      "previewPlacement": "smart",
+      "progress": null,
+      "actions": [
+        {
+          "type": "playAsset",
+          "label": "Play",
+          "workId": "6f0c2a3e-0000-4000-8000-000000000003",
+          "assetId": "6f0c2a3e-0000-4000-8000-000000000103",
+          "collectionId": null,
+          "webUrl": "/details/work/6f0c2a3e-0000-4000-8000-000000000003?context=listen"
+        }
+      ],
+      "flags": {
+        "isPlayable": true,
+        "isReadable": false,
+        "isCollection": false,
+        "isFavorite": false
+      },
+      "sortTimestamp": "2026-11-20T10:15:00+00:00",
+      "subject": "Work",
+      "continuationState": "Unstarted",
+      "listMetadata": {
+        "author": null,
+        "artist": "Beta Quartet",
+        "director": null,
+        "narrator": null,
+        "album": "Beta Hours",
+        "series": null,
+        "genre": "Rock",
+        "duration": "5:20",
+        "trackNumber": "1",
+        "year": "2021",
+        "showName": null,
+        "seasonNumber": null,
+        "episodeNumber": null
+      }
+    }
+  ],
+  "spotlights": [],
+  "totalCount": 3,
+  "facets": {
+    "genres": [
+      "Rock"
+    ],
+    "creators": [
+      "Alpha Band",
+      "Beta Quartet"
+    ],
+    "years": [
+      "2021"
+    ],
+    "vibes": [],
+    "themes": []
+  }
+}
