@@ -1,0 +1,20 @@
+[
+  {
+    "entityKind": 0,
+    "entityId": "6f0c2a3e-0000-0000-0000-000000000002",
+    "savedAt": "2026-11-01T09:30:00+00:00",
+    "position": null
+  },
+  {
+    "entityKind": 1,
+    "entityId": "6f0c2a3e-0000-0000-0000-000000000012",
+    "savedAt": "2026-10-20T18:00:00+00:00",
+    "position": null
+  },
+  {
+    "entityKind": 2,
+    "entityId": "6f0c2a3e-0000-0000-0000-000000000022",
+    "savedAt": "2026-10-02T07:15:00+00:00",
+    "position": null
+  }
+]

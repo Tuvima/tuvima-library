@@ -1,0 +1,106 @@
+{
+  "query": "alpha",
+  "topResult": {
+    "id": "6f0c2a3e-0000-0000-0000-000000000002",
+    "entityType": "movie",
+    "mediaType": "Movie",
+    "title": "Alpha One",
+    "subtitle": null,
+    "creator": "Ada Director",
+    "year": "2024",
+    "artworkUrl": "/stream/6f0c2a3e-0000-0000-0000-000000000002/cover",
+    "description": null,
+    "detailRoute": "/details/work/6f0c2a3e-0000-0000-0000-000000000002?context=watch",
+    "primaryActionLabel": "Watch",
+    "matchReason": "Matched title",
+    "relevance": 1.0,
+    "facts": [
+      "PG"
+    ],
+    "previewItems": [],
+    "supportingFile": null
+  },
+  "totalCount": 3,
+  "sections": [
+    {
+      "key": "books",
+      "title": "Books & Comics",
+      "results": [
+        {
+          "id": "6f0c2a3e-0000-0000-0000-000000000022",
+          "entityType": "book",
+          "mediaType": "Book",
+          "title": "Alpha Rising",
+          "subtitle": null,
+          "creator": "Ben Author",
+          "year": "2019",
+          "artworkUrl": "/stream/6f0c2a3e-0000-0000-0000-000000000022/cover",
+          "description": null,
+          "detailRoute": "/details/work/6f0c2a3e-0000-0000-0000-000000000022?context=read",
+          "primaryActionLabel": "Read",
+          "matchReason": "Matched title",
+          "relevance": 0.9,
+          "facts": [],
+          "previewItems": [],
+          "supportingFile": null
+        }
+      ],
+      "totalCount": 1,
+      "seeAllRoute": "/read/books?q=alpha"
+    },
+    {
+      "key": "watch",
+      "title": "Movies & TV",
+      "results": [
+        {
+          "id": "6f0c2a3e-0000-0000-0000-000000000002",
+          "entityType": "movie",
+          "mediaType": "Movie",
+          "title": "Alpha One",
+          "subtitle": null,
+          "creator": "Ada Director",
+          "year": "2024",
+          "artworkUrl": "/stream/6f0c2a3e-0000-0000-0000-000000000002/cover",
+          "description": null,
+          "detailRoute": "/details/work/6f0c2a3e-0000-0000-0000-000000000002?context=watch",
+          "primaryActionLabel": "Watch",
+          "matchReason": "Matched title",
+          "relevance": 1.0,
+          "facts": [
+            "PG"
+          ],
+          "previewItems": [],
+          "supportingFile": null
+        }
+      ],
+      "totalCount": 1,
+      "seeAllRoute": "/watch/movies?q=alpha"
+    },
+    {
+      "key": "music",
+      "title": "Music",
+      "results": [
+        {
+          "id": "6f0c2a3e-0000-0000-0000-000000000032",
+          "entityType": "album",
+          "mediaType": "Music",
+          "title": "Alpha Songs",
+          "subtitle": "Alpha Band",
+          "creator": "Alpha Band",
+          "year": "2021",
+          "artworkUrl": "/stream/6f0c2a3e-0000-0000-0000-000000000032/cover",
+          "description": null,
+          "detailRoute": "/details/work/6f0c2a3e-0000-0000-0000-000000000032?context=listen",
+          "primaryActionLabel": "Play",
+          "matchReason": "Matched title",
+          "relevance": 0.9,
+          "facts": [],
+          "previewItems": [],
+          "supportingFile": null
+        }
+      ],
+      "totalCount": 1,
+      "seeAllRoute": "/listen/music?q=alpha"
+    }
+  ]
+}
