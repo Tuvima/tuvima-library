@@ -73,6 +73,18 @@ Missing or unproven for the phone:
 5. Home hero card: A. Build it in WP9 (recommended once the shell is done), B. Skip for version 1.
 6. Add to collection on the phone Details menu: A. Leave out with editing (recommended), B. Include.
 
+## Decisions recorded (Shy, 2026-11-23)
+
+Shy replied "agreed to all" to the recommendations. Where the thread message and this audit's list differed, the audit's recommendations apply:
+1. Phone shell: A, the Dashboard's three-tab dock plus menu.
+2. Read on the phone: A, open the Dashboard reader in the browser; no new Read routes.
+3. Edit in browser: A, open the page and sign in there if asked; no one-time sign-in link (that would be a security change needing its own approval).
+4. Phone Settings: A, watching preferences (read-only) and Activity.
+5. Home hero card: A, build it in WP9.
+6. Add to collection: A, leave out of phone Details in version 1.
+
+Shy also stated that downloads on mobile devices matter: offline downloads and playback get their own packet and Local checks (WP10), not only a regression check.
+
 ## Plain English summary
 
 The Android phone app already does a lot well: pairing, profile switching, Watch lists, Collections, Universes, photos, video playback with subtitles and next-episode, downloads for offline use and Picture-in-Picture. The big holes are My List (nothing exists in the app, although the Engine fully supports it), a real Listen experience and music and audiobook player screens (today those play only through the system's notification), and the Dashboard's new three-tab phone layout. The Engine is mostly ready: Collections, Universe and View are not missing as older notes said. The only real Engine gaps are the Read routes (needed only if you want reading on the phone) and a way to sign in when "Edit in browser" opens the Dashboard. WP8 shrinks, WP9 should be split in two, and WP10 is the largest piece and should be split into music, audiobook and video-plus-edit.
