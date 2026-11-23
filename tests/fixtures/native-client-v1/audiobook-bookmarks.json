@@ -1,0 +1,42 @@
+[
+  {
+    "id": "6f0c2a3e-0000-0000-0000-000000000061",
+    "profileId": "33333333-3333-3333-3333-333333333333",
+    "workId": "6f0c2a3e-0000-0000-0000-000000000052",
+    "assetId": "6f0c2a3e-0000-0000-0000-000000000053",
+    "chapterIndex": 2,
+    "chapterTitle": "Chapter 3",
+    "positionSeconds": 1234.5,
+    "durationSeconds": 36000.0,
+    "endSeconds": null,
+    "label": "Where the sandworm appears",
+    "note": "Good bit",
+    "description": null,
+    "isGlobal": false,
+    "createdAt": "2026-11-10T20:00:00+00:00",
+    "ownerName": "Mary",
+    "isYours": true,
+    "inEveryone": true,
+    "frameUrl": null
+  },
+  {
+    "id": "6f0c2a3e-0000-0000-0000-000000000062",
+    "profileId": "33333333-3333-3333-3333-333333333333",
+    "workId": "6f0c2a3e-0000-0000-0000-000000000052",
+    "assetId": "6f0c2a3e-0000-0000-0000-000000000053",
+    "chapterIndex": 2,
+    "chapterTitle": "Chapter 3",
+    "positionSeconds": 5000.0,
+    "durationSeconds": 36000.0,
+    "endSeconds": null,
+    "label": "Start of Part Two",
+    "note": null,
+    "description": null,
+    "isGlobal": true,
+    "createdAt": "2026-11-10T20:00:00+00:00",
+    "ownerName": "Administrator",
+    "isYours": false,
+    "inEveryone": true,
+    "frameUrl": null
+  }
+]
