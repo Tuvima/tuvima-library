@@ -1,5 +1,9 @@
 package com.tuvima.library.mobile
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -35,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.DetailMenuAction
 import com.tuvima.library.core.DetailMenuLogic
@@ -43,8 +48,10 @@ import com.tuvima.library.core.BatchScope
 import com.tuvima.library.core.DownloadBadgeLogic
 import com.tuvima.library.core.DownloadKind
 import com.tuvima.library.core.DownloadState
+import com.tuvima.library.core.EditInBrowser
 import com.tuvima.library.core.OfflineBatchLogic
 import com.tuvima.library.core.OfflineLogic
+import com.tuvima.library.core.PhonePlayerLogic
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.playShowId
 import com.tuvima.library.core.savedKeyForEntity
@@ -68,7 +75,10 @@ internal fun DetailScreen(
     assetId: String?,
     onBack: () -> Unit,
     play: (PlayRequest) -> Unit,
+    /** True when Edit is offered: not a Kids profile (the shell fails closed to Kids until the profile is known). */
+    canEdit: Boolean = false,
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val offline = application.offline
     val downloads by offline.store().records.collectAsState()
@@ -160,6 +170,12 @@ internal fun DetailScreen(
     val canSave = savedKey != null && savedTitles != null
     val isSaved = canSave && savedKey != null && savedTitles != null && savedKey in savedTitles
     val heldCopy = assetId?.let { target -> downloads.firstOrNull { it.assetId == target } }
+    // Edit opens the Dashboard in the phone's browser on this title's own page (spec native-apps D7). The link is only the page: it never opens the editor.
+    val editUrl = if (canEdit) {
+        EditInBrowser.pageUrl(client.currentOrigin, entityType, id, showId = playShowId(entityType, id, loaded?.showId))
+    } else {
+        null
+    }
     val menuItems = DetailMenuLogic.items(
         canSave = canSave,
         isSaved = isSaved,
@@ -173,6 +189,7 @@ internal fun DetailScreen(
         downloadEnabled = heldCopy == null || heldCopy.state == DownloadState.Failed,
         canDownloadNextEpisodes = isShow,
         canDownloadAll = OfflineBatchLogic.offersBatch(loaded?.children.orEmpty()),
+        canEdit = editUrl != null,
     )
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -209,6 +226,9 @@ internal fun DetailScreen(
                                         }
                                         DetailMenuAction.DownloadAll -> {
                                             showAllPicker = true
+                                        }
+                                        DetailMenuAction.EditInBrowser -> {
+                                            downloadNote = editUrl?.let { openInBrowser(context, it) }
                                         }
                                     }
                                 },
@@ -256,7 +276,7 @@ internal fun DetailScreen(
                       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             val held = downloads.firstOrNull { it.assetId == assetId }
-                            Button(onClick = { play(PlayRequest(assetId, entityType, detail.title, detail.subtitle, showId = playShowId(entityType, id, detail.showId))) }) { Text(if (detail.isInProgress) "Resume" else "Play") }
+                            Button(onClick = { play(PlayRequest(assetId, entityType, detail.title, detail.subtitle, showId = playShowId(entityType, id, detail.showId), workId = PhonePlayerLogic.workIdFor(entityType, id))) }) { Text(if (detail.isInProgress) "Resume" else "Play") }
                             if (kind != DownloadKind.Excluded) {
                                 OutlinedButton(
                                     onClick = {
@@ -372,4 +392,12 @@ internal fun DetailScreen(
             dismissButton = { TextButton(onClick = { showQualityPicker = false }) { Text("Cancel") } },
         )
     }
+}
+
+/** Opens [url] in the phone's browser. Returns the words to show when no browser could be opened, or null when it was. */
+private fun openInBrowser(context: Context, url: String): String? = try {
+    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    null
+} catch (missing: ActivityNotFoundException) {
+    "No browser app was found on this phone to open the Dashboard."
 }

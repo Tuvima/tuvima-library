@@ -99,6 +99,9 @@ class TuvimaMobileApplication : Application() {
     /** Offline downloads: the queue, the local files and the reports back to the Engine. */
     internal val offline: OfflineDownloads by lazy { OfflineDownloads(this) }
 
+    /** What this phone keeps for each person while they play (skip seconds, Autoplay, speed, subtitles): the Engine has no write route for these. */
+    internal val playerChoices: PhoneDeviceStore by lazy { PhoneDeviceStore(this) }
+
     companion object {
         const val DEFAULT_DOWNLOAD_QUALITY = "mobile-standard"
     }

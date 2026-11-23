@@ -386,6 +386,18 @@ public sealed class NativeClientContractFixtureTests
     }
 
     [Fact]
+    public void AudiobookBookmarkUpdateFixture_MatchesThePublishedContractType()
+    {
+        var update = Read<UpdateAudiobookBookmarkRequestDto>("audiobook-bookmark-update-request.json");
+
+        // PUT /api/v1/player/audiobooks/bookmarks/{id}: Edit in the phone player renames a bookmark and sets its note.
+        Assert.Equal("The worm arrives", update.Label);
+        Assert.Equal("Watch this again", update.Note);
+
+        AssertSameWireNames("audiobook-bookmark-update-request.json", update);
+    }
+
+    [Fact]
     public void DetailPageFixtures_MatchThePublishedContractTypes()
     {
         var show = Read<DetailPageViewModel>("details-show-sequence.json");

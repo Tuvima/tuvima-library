@@ -15,6 +15,8 @@ internal data class PlayRequest(
     val subtitle: String?,
     /** The show this episode belongs to, when the screen it came from knows it; next-episode features need it. */
     val showId: String? = null,
+    /** The work a video's bookmarks hang on, when the screen it came from knows it (see `PhonePlayerLogic.workIdFor`). */
+    val workId: String? = null,
 )
 
 /** A full-screen page shown over the tabs. The back button or gesture removes the top one. */

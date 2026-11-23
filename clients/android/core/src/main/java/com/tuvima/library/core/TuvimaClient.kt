@@ -398,6 +398,10 @@ class TuvimaClient(
     suspend fun createBookmark(workId: String, body: JSONObject): TvBookmark =
         TvBookmarks.parseOne(requestJson("POST", ClientRoutes.bookmarks(workId), body), ::absolute)
 
+    /** Renames one of the person's own bookmarks and changes its note (the body is [PhoneBookmarks.updateBody]) and returns it. */
+    suspend fun updateBookmark(bookmarkId: String, body: JSONObject): TvBookmark =
+        TvBookmarks.parseOne(requestJson("PUT", ClientRoutes.bookmark(bookmarkId), body), ::absolute)
+
     /** Deletes one of the person's own bookmarks. Returns the HTTP status; 204 is success. */
     suspend fun deleteBookmark(bookmarkId: String): Int = requestStatus("DELETE", ClientRoutes.bookmark(bookmarkId), null)
 
