@@ -1,5 +1,6 @@
 package com.tuvima.library.mobile
 
+import android.util.Log
 import com.tuvima.library.core.DownloadRecord
 import com.tuvima.library.core.DownloadState
 import com.tuvima.library.core.OfflineKind
@@ -13,8 +14,12 @@ import com.tuvima.library.core.TvBookmark
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
+
+private const val LOG_TAG = "OfflineStore"
 
 /**
  * What one person's phone holds for offline use, kept in small JSON files under [root]: the downloads, the progress recorded
@@ -305,7 +310,7 @@ internal class OfflineStore(val root: File) {
     // Like the other files: a missing or unreadable cache reads as empty, and the next sync reads the Engine's lists again.
     private fun readBookmarkCache(): Map<String, List<TvBookmark>> {
         if (!bookmarkCacheFile.isFile) return emptyMap()
-        return runCatching {
+        return try {
             val all = JSONObject(bookmarkCacheFile.readText(Charsets.UTF_8))
             buildMap {
                 all.keys().forEach { workId ->
@@ -318,7 +323,13 @@ internal class OfflineStore(val root: File) {
                     )
                 }
             }
-        }.getOrDefault(emptyMap())
+        } catch (unreadable: JSONException) {
+            Log.w(LOG_TAG, "The saved bookmark lists could not be read; the next sync reads them from the Engine again.", unreadable)
+            emptyMap()
+        } catch (unreadable: IOException) {
+            Log.w(LOG_TAG, "The saved bookmark lists could not be read; the next sync reads them from the Engine again.", unreadable)
+            emptyMap()
+        }
     }
 
     private fun pendingBookmarkToJson(entry: PendingBookmark): JSONObject = JSONObject()

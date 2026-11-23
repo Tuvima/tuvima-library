@@ -86,6 +86,7 @@ internal data class NextEpisodesResult(
  */
 internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
     private val stores = mutableMapOf<String, OfflineStore>()
+    private val spaceLock = Any()
     private val workManager: WorkManager get() = WorkManager.getInstance(app)
 
     /** How many entries the Engine's list showed on the last read, used to plan against the device's limit. Null until read. */
@@ -193,7 +194,7 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
                     subtitle = name.subtitle,
                     artworkUrl = child.artworkUrl,
                     entityType = child.entityType,
-                    showId = if (child.entityType == "tvEpisode") showId else null,
+                    showId = if (child.entityType == "tvEpisode") child.showId ?: showId else null,
                     profileKey = qualityFor(child, quality),
                     workId = child.workId,
                 ),
@@ -406,7 +407,21 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
     }
 
     /** Free bytes on the storage downloads are written to, or null when it cannot be read. */
-    fun freeBytes(): Long? = runCatching { app.noBackupFilesDir.usableSpace }.getOrNull()?.takeIf { it > 0L }
+    fun freeBytes(): Long? = app.noBackupFilesDir.usableSpace.takeIf { it > 0L }
+
+    /**
+     * Lets a transfer start only if the phone keeps its reserve free after this one and the other moving downloads have written what
+     * they still have to. The check and [markMoving] (which makes this one count for the next caller) happen under one lock, so
+     * downloads that start together cannot each take the same room. Returns false when there is not enough room.
+     */
+    fun claimFreeSpace(store: OfflineStore, assetId: String, stillToWriteBytes: Long, markMoving: () -> Unit): Boolean =
+        synchronized(spaceLock) {
+            val free = freeBytes()
+            val others = OfflineStorageLogic.stillToCome(store.snapshot(), assetId)
+            if (free != null && !OfflineStorageLogic.fitsFreeSpace(free, stillToWriteBytes, others)) return false
+            markMoving()
+            true
+        }
 
     /**
      * The Wi-Fi-only choice changed: titles that are queued or moving start their work again so the new connection rule applies

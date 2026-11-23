@@ -321,6 +321,51 @@ public sealed class NativeClientContractFixtureTests
     }
 
     [Fact]
+    public void DetailPageFixtures_MatchThePublishedContractTypes()
+    {
+        var show = Read<DetailPageViewModel>("details-show-sequence.json");
+        var audiobook = Read<DetailPageViewModel>("details-audiobook-media-groups.json");
+        var album = Read<DetailPageViewModel>("details-album-media-groups.json");
+
+        // A show (and a season, which the Engine answers as its show) sends no mediaGroups: its episodes live in sequencePlacement.groups,
+        // each owned one carrying the episodeContext that names the file to download.
+        Assert.Equal(DetailEntityType.TvShow, show.EntityType);
+        Assert.Empty(show.MediaGroups);
+        var groups = Assert.IsAssignableFrom<SequencePlacementViewModel>(show.SequencePlacement).Groups;
+        Assert.Equal(new[] { "season-1", "season-2" }, groups.Select(group => group.Key).ToArray());
+        var owned = groups.SelectMany(group => group.Items).Where(item => item.IsOwned).ToList();
+        Assert.Equal(3, owned.Count);
+        Assert.All(owned, item =>
+        {
+            Assert.Equal(DetailEntityType.TvEpisode, item.EntityType);
+            var context = Assert.IsAssignableFrom<DisplayEpisodeContextDto>(item.EpisodeContext);
+            Assert.NotEqual(Guid.Empty, context.EpisodeAssetId);
+            Assert.Equal(Guid.Parse(show.Id), context.ShowWorkId);
+        });
+        var notOwned = Assert.Single(groups.SelectMany(group => group.Items), item => !item.IsOwned);
+        Assert.Null(notOwned.EpisodeContext);
+
+        // An audiobook lists one row per chapter, and chapters of one file name the same asset.
+        Assert.Equal(DetailEntityType.Audiobook, audiobook.EntityType);
+        var chapters = Assert.Single(audiobook.MediaGroups).Items;
+        Assert.Equal(3, chapters.Count);
+        Assert.Equal(2, chapters.Select(chapter => chapter.AssetId).Distinct().Count());
+        Assert.All(chapters, chapter => Assert.Equal(DetailEntityType.Audiobook, chapter.EntityType));
+
+        // An album's tracks are typed as plain Works; a track the Library does not hold has no file.
+        Assert.Equal(DetailEntityType.MusicAlbum, album.EntityType);
+        var tracks = Assert.Single(album.MediaGroups).Items;
+        Assert.All(tracks, track => Assert.Equal(DetailEntityType.Work, track.EntityType));
+        Assert.Equal(2, tracks.Count(track => track.IsOwned && track.AssetId is not null));
+        var missing = Assert.Single(tracks, track => !track.IsOwned);
+        Assert.Null(missing.AssetId);
+
+        AssertSameWireNames("details-show-sequence.json", show);
+        AssertSameWireNames("details-audiobook-media-groups.json", audiobook);
+        AssertSameWireNames("details-album-media-groups.json", album);
+    }
+
+    [Fact]
     public void CheckedInV1Fixtures_NeverContainSecretsOrServerPaths()
     {
         foreach (var path in Directory.EnumerateFiles(FixtureDirectory(), "*.json"))

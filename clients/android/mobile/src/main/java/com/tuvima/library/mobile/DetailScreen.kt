@@ -49,7 +49,9 @@ import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.playShowId
 import com.tuvima.library.core.savedKeyForEntity
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * A title's details: poster, title, year, length, synopsis, cast, editions, and Play or Resume with Download.
@@ -91,7 +93,8 @@ internal fun DetailScreen(
                 title = detail?.title ?: "Download",
                 subtitle = detail?.subtitle,
                 artworkUrl = detail?.artworkUrl,
-                entityType = entityType,
+                // A show page's play file is an episode and an album page's a song; keep it as that so it gets the Downloaded mark.
+                entityType = DownloadBadgeLogic.recordedType(entityType),
                 showId = if (isShow) id else null,
                 profileKey = quality,
                 // The Details id is the title's own work id only when this page is one file (not a show, season or album).
@@ -105,12 +108,24 @@ internal fun DetailScreen(
     fun startBatch(choice: BatchScope, quality: String) {
         val current = state
         val detail = if (current is Load.Ready) current.value else null
-        val outcome = offline.enqueueBatch(detail?.title, detail?.showId ?: if (isShow) id else null, choice.children, quality)
-        downloadNote = if (outcome.notPaired) {
-            enqueueMessage(EnqueueResult.NotPaired)
-        } else {
-            OfflineBatchLogic.message(outcome.plan, OfflineBatchLogic.noun(choice.children, outcome.plan.toQueue.size))
+        downloadNote = "Starting the downloads…"
+        // Queuing writes one record per file to disk, so it is done off the main thread.
+        scope.launch {
+            val outcome = withContext(Dispatchers.IO) {
+                offline.enqueueBatch(detail?.title, detail?.showId ?: if (isShow) id else null, choice.children, quality)
+            }
+            downloadNote = if (outcome.notPaired) {
+                enqueueMessage(EnqueueResult.NotPaired)
+            } else {
+                OfflineBatchLogic.message(outcome.plan, OfflineBatchLogic.noun(choice.children, outcome.plan.toQueue.size))
+            }
         }
+    }
+
+    // A download that failed keeps the part already on the phone, like Retry on the Downloads page: it continues instead of starting over.
+    fun retryDownload(target: String) {
+        offline.resume(target)
+        downloadNote = "Trying this download again. Track it under Downloads."
     }
 
     fun downloadNextEpisodes(after: String) {
@@ -183,7 +198,11 @@ internal fun DetailScreen(
                                             if (savedKey != null) savedItems?.toggle(savedKey)
                                         }
                                         DetailMenuAction.Download -> {
-                                            showQualityPicker = true
+                                            if (assetId != null && heldCopy?.state == DownloadState.Failed) {
+                                                retryDownload(assetId)
+                                            } else {
+                                                showQualityPicker = true
+                                            }
                                         }
                                         DetailMenuAction.DownloadNextEpisodes -> {
                                             if (assetId != null) downloadNextEpisodes(assetId)
@@ -199,7 +218,7 @@ internal fun DetailScreen(
                 }
             }
         }
-        if (DownloadBadgeLogic.showsBadge(entityType, assetId, LocalDownloadedAssets.current)) {
+        if (DownloadBadgeLogic.pageShowsBadge(entityType, assetId, heldCopy?.entityType, LocalDownloadedAssets.current)) {
             DownloadedBadge(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
         downloadNote?.let { note ->
@@ -240,7 +259,13 @@ internal fun DetailScreen(
                             Button(onClick = { play(PlayRequest(assetId, entityType, detail.title, detail.subtitle, showId = playShowId(entityType, id, detail.showId))) }) { Text(if (detail.isInProgress) "Resume" else "Play") }
                             if (kind != DownloadKind.Excluded) {
                                 OutlinedButton(
-                                    onClick = { showQualityPicker = true },
+                                    onClick = {
+                                        if (held?.state == DownloadState.Failed) {
+                                            retryDownload(assetId)
+                                        } else {
+                                            showQualityPicker = true
+                                        }
+                                    },
                                     enabled = held == null || held.state == DownloadState.Failed,
                                 ) {
                                     Text(

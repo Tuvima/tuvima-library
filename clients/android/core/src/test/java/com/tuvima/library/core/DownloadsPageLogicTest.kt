@@ -245,4 +245,59 @@ class DownloadsPageLogicTest {
         assertFalse(DownloadBadgeLogic.showsBadge("movie", "a2", held))
         assertFalse(DownloadBadgeLogic.showsBadge("movie", null, held))
     }
+
+    @Test
+    fun cardShowsBadge_UsesTheCardsOwnFileSoEpisodeAndSongCardsGetItButShowAndAlbumCardsDoNot() {
+        val held = setOf("episode-file", "song-file")
+
+        // An episode or song card names its own file even though it opens its show or album page.
+        assertTrue(DownloadBadgeLogic.cardShowsBadge("episode-file", held))
+        assertTrue(DownloadBadgeLogic.cardShowsBadge("song-file", held))
+        // A show or album card has no file of its own, however its Play button resolves.
+        assertFalse(DownloadBadgeLogic.cardShowsBadge(null, held))
+        assertFalse(DownloadBadgeLogic.cardShowsBadge("other-file", held))
+    }
+
+    @Test
+    fun recordedType_KeepsAShowPagesFileAsAnEpisodeAndAnAlbumPagesAsASong() {
+        assertEquals("tvEpisode", DownloadBadgeLogic.recordedType("tvshow"))
+        assertEquals("tvEpisode", DownloadBadgeLogic.recordedType("tvShow"))
+        assertEquals("musicTrack", DownloadBadgeLogic.recordedType("musicAlbum"))
+        assertEquals("movie", DownloadBadgeLogic.recordedType("movie"))
+        assertEquals("audiobook", DownloadBadgeLogic.recordedType("audiobook"))
+    }
+
+    @Test
+    fun pageShowsBadge_ShowsForAFileKeptFromAShowPageButNotForAShowPageWithNoSuchCopy() {
+        val held = setOf("a1")
+
+        assertTrue(DownloadBadgeLogic.pageShowsBadge("movie", "a1", null, held))
+        assertTrue(DownloadBadgeLogic.pageShowsBadge("tvshow", "a1", DownloadBadgeLogic.recordedType("tvshow"), held))
+        assertTrue(DownloadBadgeLogic.pageShowsBadge("musicAlbum", "a1", DownloadBadgeLogic.recordedType("musicAlbum"), held))
+        // A copy kept before the type was recorded as a file reads as the container, so no mark.
+        assertFalse(DownloadBadgeLogic.pageShowsBadge("tvshow", "a1", "tvshow", held))
+        assertFalse(DownloadBadgeLogic.pageShowsBadge("tvshow", "a1", null, held))
+        assertFalse(DownloadBadgeLogic.pageShowsBadge("movie", "a2", null, held))
+        assertFalse(DownloadBadgeLogic.pageShowsBadge("movie", null, null, held))
+    }
+
+    @Test
+    fun stillToCome_CountsOnlyOtherMovingDownloadsAndFitsFreeSpaceHoldsAcrossAParallelBatch() {
+        val reserve = OfflineStorageLogic.FREE_SPACE_RESERVE_BYTES
+        val others = listOf(
+            record("self", DownloadState.Downloading, bytesDone = 0L, totalBytes = 900L),
+            record("a", DownloadState.Downloading, bytesDone = 100L, totalBytes = 600L),
+            record("b", DownloadState.Downloading, bytesDone = 700L, totalBytes = 600L),
+            record("queued", DownloadState.Queued, bytesDone = 0L, totalBytes = 5_000L),
+            record("done", DownloadState.Complete, bytesDone = 400L, totalBytes = 400L),
+        )
+
+        // Only "a" still has bytes to write (500); "b" is past its size, "queued" has not started, "done" is finished, "self" is excluded.
+        assertEquals(500L, OfflineStorageLogic.stillToCome(others, "self"))
+
+        // Alone this 900 byte download fits; beside the 500 the others still write, it does not.
+        assertTrue(OfflineStorageLogic.fitsFreeSpace(reserve + 900L, 900L, 0L))
+        assertFalse(OfflineStorageLogic.fitsFreeSpace(reserve + 900L, 900L, 500L))
+        assertTrue(OfflineStorageLogic.fitsFreeSpace(reserve + 1_400L, 900L, 500L))
+    }
 }

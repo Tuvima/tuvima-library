@@ -23,4 +23,28 @@ object DownloadBadgeLogic {
     /** True when the mark belongs on a tile or page of [entityType] whose play file is [assetId]. */
     fun showsBadge(entityType: String, assetId: String?, held: Set<String>): Boolean =
         assetId != null && isSingleFile(entityType) && assetId in held
+
+    /**
+     * True when a card's own file is on the phone. The Engine gives a card an `assetId` of its own only when the card is one file (a
+     * movie, an episode, a song, an audiobook); a show, Series, album or collection card has none, however its Play button resolves.
+     * The route an episode or song card opens (its show or album) says nothing about that, so the route is not used.
+     */
+    fun cardShowsBadge(cardAssetId: String?, held: Set<String>): Boolean = cardAssetId != null && cardAssetId in held
+
+    /**
+     * The kind to keep a download under when it was asked for on a page of [routeType]: a show page's play file is an episode and an
+     * album page's is a song, so the download is recorded as that (and gets the Downloaded mark), not as the container.
+     */
+    fun recordedType(routeType: String): String = when (routeType.lowercase()) {
+        "tvshow", "show", "tv_show", "tv-show" -> "tvEpisode"
+        "musicalbum", "album" -> "musicTrack"
+        else -> routeType
+    }
+
+    /**
+     * True when the Details page of [routeType] should show the mark for [assetId]: the page is one file, or the copy on the phone
+     * was kept as one file ([heldType], the type the download is recorded under; see [recordedType]).
+     */
+    fun pageShowsBadge(routeType: String, assetId: String?, heldType: String?, held: Set<String>): Boolean =
+        assetId != null && assetId in held && (isSingleFile(routeType) || (heldType != null && isSingleFile(heldType)))
 }

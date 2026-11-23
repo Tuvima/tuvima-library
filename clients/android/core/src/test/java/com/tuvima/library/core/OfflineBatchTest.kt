@@ -22,57 +22,87 @@ class OfflineBatchTest {
 
     // ---- Reading a Details answer ----
 
-    private val showPage = """
-        {"title":"A Show","mediaGroups":[
-          {"key":"season-1","title":"Season 1","items":[
-            {"id":"w1","entityType":5,"title":"Pilot","assetId":"a1","trackNumber":"1","isOwned":true},
-            {"id":"w2","entityType":5,"title":"Second","assetId":"a2","trackNumber":"2","isOwned":true},
-            {"id":"w3","entityType":5,"title":"Not owned","assetId":null,"isOwned":false}]},
-          {"key":"season-2","title":"Season 2","items":[
-            {"id":"w4","entityType":"TvEpisode","title":"Back","assetId":"a4","trackNumber":"1","isOwned":true}]},
-          {"key":"also-in-this-world","title":"Also in this world","items":[
-            {"id":"w9","entityType":1,"title":"A Film","assetId":"a9","isOwned":true}]}
-        ]}
-    """.trimIndent()
+    // The real Details answers (`details-*.json` in tests/fixtures/native-client-v1, also checked against the Contracts types by the Engine's tests).
+    private val showPage: String get() = WireFixtures.text("details-show-sequence.json")
 
     @Test
-    fun parse_ListsOwnedEpisodesPerSeasonAndSkipsUnownedAndTheAlsoGroup() {
-        val groups = DetailChildren.parse(JSONObject(showPage), none)
+    fun parse_ListsOwnedEpisodesOfAShowFromSequencePlacementBecauseItsMediaGroupsAreEmpty() {
+        val groups = DetailChildren.parse(WireFixtures.json("details-show-sequence.json"), none)
 
         assertEquals(listOf("season-1", "season-2"), groups.map { it.key })
-        assertEquals(listOf("a1", "a2"), groups[0].children.map { it.assetId })
+        assertEquals(listOf("99999999-9999-9999-9999-999999999991", "99999999-9999-9999-9999-999999999992"), groups[0].children.map { it.assetId })
         assertEquals(1, groups[0].skipped)
-        assertEquals("tvEpisode", groups[1].children.single().entityType)
-        assertEquals("w4", groups[1].children.single().workId)
+        val back = groups[1].children.single()
+        assertEquals("tvEpisode", back.entityType)
+        assertEquals("88888888-8888-8888-8888-888888888884", back.workId)
+        assertEquals("11111111-1111-1111-1111-111111111111", back.showId)
+        assertEquals("Back Again", back.title)
+        assertEquals("1", back.trackNumber)
+        assertEquals("season-2", back.groupKey)
+    }
+
+    @Test
+    fun parse_NamesAShowEpisodeBySeasonAndNumberForTheDownloadsList() {
+        val first = DetailChildren.parse(WireFixtures.json("details-show-sequence.json"), none)[0].children[0]
+
+        val name = OfflineBatchLogic.nameFor("The Fixture Show", first, 0, 1)
+
+        assertEquals("The First Door", name.title)
+        assertEquals(OfflineLogic.episodeLabel(1, 1), name.subtitle)
+    }
+
+    @Test
+    fun parse_ReadsAShowFromItsOrderedItemsWhenNoGroupCarriesEpisodes() {
+        val json = WireFixtures.json("details-show-sequence.json")
+        val placement = json.getJSONObject("sequencePlacement")
+        val ordered = org.json.JSONArray()
+        val groups = placement.getJSONArray("groups")
+        for (g in 0 until groups.length()) {
+            val items = groups.getJSONObject(g).getJSONArray("items")
+            for (i in 0 until items.length()) ordered.put(items.getJSONObject(i))
+            groups.getJSONObject(g).put("items", org.json.JSONArray())
+        }
+        placement.put("orderedItems", ordered)
+
+        val read = DetailChildren.parse(json, none)
+
+        assertEquals(listOf("season-1", "season-2"), read.map { it.key })
+        assertEquals(3, OfflineBatchLogic.allChildren(read).size)
+    }
+
+    @Test
+    fun parse_SkipsAnEpisodeWithoutAnEpisodeContextBecauseItNamesNoFile() {
+        val json = WireFixtures.json("details-show-sequence.json")
+        val items = json.getJSONObject("sequencePlacement").getJSONArray("groups").getJSONObject(1).getJSONArray("items")
+        items.getJSONObject(0).put("episodeContext", org.json.JSONObject.NULL)
+
+        val read = DetailChildren.parse(json, none)
+
+        assertEquals(listOf("season-1", "season-2"), read.map { it.key })
+        assertTrue(read[1].children.isEmpty())
+        assertEquals(1, read[1].skipped)
     }
 
     @Test
     fun parse_ReadsAnAlbumsSongsFromPlainWorksAndKeepsTheirNumbers() {
-        val json = JSONObject(
-            """{"mediaGroups":[{"key":"tracks","title":"Tracks","items":[
-                {"id":"s1","entityType":0,"title":"One","assetId":"t1","trackNumber":"1","subtitle":"Artist","isOwned":true},
-                {"id":"s2","entityType":0,"title":"Two","assetId":"t2","trackNumber":"2","isOwned":true}]}]}""",
-        )
+        val group = DetailChildren.parse(WireFixtures.json("details-album-media-groups.json"), none).single()
 
-        val children = DetailChildren.parse(json, none).single().children
-
-        assertEquals(listOf("musicTrack", "musicTrack"), children.map { it.entityType })
-        assertEquals(listOf("1", "2"), children.map { it.trackNumber })
-        assertEquals("Artist", children[0].subtitle)
+        assertEquals(listOf("musicTrack", "musicTrack"), group.children.map { it.entityType })
+        assertEquals(listOf("1", "2"), group.children.map { it.trackNumber })
+        assertEquals("The Fixture Band", group.children[0].subtitle)
+        assertEquals("5a5a5a5a-0000-0000-0000-000000000011", group.children[0].workId)
+        // The song the Library does not hold has no file to keep.
+        assertEquals(1, group.skipped)
     }
 
     @Test
     fun parse_ListsAnAudiobookFileOnceHoweverManyChaptersNameIt() {
-        val json = JSONObject(
-            """{"mediaGroups":[{"key":"tracks","title":"Tracks","items":[
-                {"id":"b1","entityType":8,"title":"Chapter 1","assetId":"file-1","isOwned":true},
-                {"id":"b1","entityType":8,"title":"Chapter 2","assetId":"file-1","isOwned":true},
-                {"id":"b1","entityType":8,"title":"Chapter 3","assetId":"file-2","isOwned":true}]}]}""",
+        val children = DetailChildren.parse(WireFixtures.json("details-audiobook-media-groups.json"), none).single().children
+
+        assertEquals(
+            listOf("6f0c2a3e-0000-0000-0000-000000000053", "6f0c2a3e-0000-0000-0000-000000000054"),
+            children.map { it.assetId },
         )
-
-        val children = DetailChildren.parse(json, none).single().children
-
-        assertEquals(listOf("file-1", "file-2"), children.map { it.assetId })
         assertEquals(listOf("audiobook", "audiobook"), children.map { it.entityType })
     }
 
@@ -96,8 +126,27 @@ class OfflineBatchTest {
     fun parseDetailModel_CarriesTheListedFilesWithTheRestOfThePage() {
         val model = parseDetailModel(JSONObject(showPage), none)
 
-        assertEquals("A Show", model.title)
+        assertEquals("The Fixture Show", model.title)
         assertEquals(3, OfflineBatchLogic.allChildren(model.children).size)
+    }
+
+    @Test
+    fun wireName_DecodesEveryEntityTypeTheFixturesUseToTheKindTheyDownloadAs() {
+        val expected = mapOf(
+            "details-show-sequence.json" to Pair(3, "TvShow"),
+            "details-audiobook-media-groups.json" to Pair(8, "Audiobook"),
+            "details-album-media-groups.json" to Pair(11, "MusicAlbum"),
+        )
+        expected.forEach { (file, pair) ->
+            val page = WireFixtures.json(file)
+            assertEquals(file, pair.second, DetailChildren.wireName(page.opt("entityType")))
+        }
+        // The page's own kind (a show, an album) is a container, never a download; a book's audiobook is the one file.
+        assertNull(DetailChildren.downloadTypeFor("TvShow"))
+        assertNull(DetailChildren.downloadTypeFor("MusicAlbum"))
+        assertEquals("audiobook", DetailChildren.downloadTypeFor("Audiobook"))
+        assertEquals("tvEpisode", DetailChildren.downloadTypeFor(DetailChildren.wireName(5)))
+        assertEquals("musicTrack", DetailChildren.downloadTypeFor(DetailChildren.wireName(0)))
     }
 
     @Test
@@ -110,7 +159,9 @@ class OfflineBatchTest {
         assertEquals("Audiobook", DetailChildren.wireName(8))
         assertEquals("MusicAlbum", DetailChildren.wireName("11"))
         assertEquals("TvEpisode", DetailChildren.wireName("TvEpisode"))
+        assertEquals("TvEpisode", DetailChildren.wireName("tvepisode"))
         assertEquals("", DetailChildren.wireName(99))
+        assertEquals("", DetailChildren.wireName(null))
         assertNull(DetailChildren.downloadTypeFor("Person"))
     }
 

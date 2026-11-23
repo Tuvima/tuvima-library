@@ -148,24 +148,26 @@ class OfflineDownloadWorker(context: Context, parameters: WorkerParameters) : Co
             return fail(store, assetId, "Storage limit reached. Delete a download or raise the limit in Settings.")
         }
 
-        // The phone itself must keep some room free, whatever the storage limit says; the partial file stays for Retry.
-        val free = app.offline.freeBytes()
+        // The phone itself must keep some room free, whatever the storage limit says; the partial file stays for Retry. Downloads of a
+        // batch start together, so the check counts what the other moving downloads still have to write, and the claim (this check plus
+        // marking this one as moving) is made under one lock so two starting at once cannot both take the same room.
         val stillToCome = if (expected > 0L) (expected - onDisk).coerceAtLeast(0L) else 0L
-        if (free != null && !OfflineStorageLogic.fitsFreeSpace(free, stillToCome)) {
+        val started = app.offline.claimFreeSpace(store, assetId, stillToCome) {
+            store.update(assetId) {
+                it.copy(
+                    state = DownloadState.Downloading,
+                    variantId = ready.id,
+                    totalBytes = expected,
+                    bytesDone = onDisk,
+                    expiresAtMs = ready.expiresAtMs,
+                    filePath = file.absolutePath,
+                    error = null,
+                )
+            }
+        }
+        if (!started) {
             store.update(assetId) { it.copy(bytesDone = onDisk, totalBytes = expected) }
             return fail(store, assetId, OfflineStorageLogic.NOT_ENOUGH_SPACE)
-        }
-
-        store.update(assetId) {
-            it.copy(
-                state = DownloadState.Downloading,
-                variantId = ready.id,
-                totalBytes = expected,
-                bytesDone = onDisk,
-                expiresAtMs = ready.expiresAtMs,
-                filePath = file.absolutePath,
-                error = null,
-            )
         }
 
         if (expected <= 0L || onDisk < expected) {

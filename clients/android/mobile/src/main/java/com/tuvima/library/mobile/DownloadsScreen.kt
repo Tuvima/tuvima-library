@@ -246,8 +246,12 @@ internal fun DownloadsScreen(
                 Button(
                     onClick = {
                         confirmRemoveAll = false
-                        offline.deleteAll()
-                        note = "All downloads were removed from this phone."
+                        note = "Removing all downloads…"
+                        // Deleting files and saving the list is disk work, so it runs off the main thread.
+                        scope.launch {
+                            withContext(Dispatchers.IO) { offline.deleteAll() }
+                            note = "All downloads were removed from this phone."
+                        }
                     },
                     modifier = Modifier.heightIn(min = TuvimaTokens.controlHeight),
                 ) { Text("Remove all") }

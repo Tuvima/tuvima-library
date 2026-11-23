@@ -28,6 +28,18 @@ object OfflineStorageLogic {
     fun fitsFreeSpace(freeBytes: Long, remainingBytes: Long): Boolean =
         freeBytes - remainingBytes.coerceAtLeast(0L) >= FREE_SPACE_RESERVE_BYTES
 
+    /**
+     * What the other downloads that are moving right now still have to write. A new transfer counts it against the free space it
+     * sees, so several downloads started together cannot each think the whole free space is theirs.
+     */
+    fun stillToCome(records: List<DownloadRecord>, excludingAssetId: String): Long =
+        records.filter { it.assetId != excludingAssetId && it.state == DownloadState.Downloading && it.totalBytes > 0L }
+            .sumOf { (it.totalBytes - it.bytesDone).coerceAtLeast(0L) }
+
+    /** [fitsFreeSpace] for one transfer that starts while others ([othersRemainingBytes]) are still writing. */
+    fun fitsFreeSpace(freeBytes: Long, remainingBytes: Long, othersRemainingBytes: Long): Boolean =
+        fitsFreeSpace(freeBytes, remainingBytes.coerceAtLeast(0L) + othersRemainingBytes.coerceAtLeast(0L))
+
     /** True when a failure's own words say the disk is full (`ENOSPC`: "No space left on device"). */
     fun isOutOfSpace(message: String?): Boolean =
         message != null && message.contains("no space left", ignoreCase = true)

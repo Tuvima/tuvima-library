@@ -1,0 +1,51 @@
+{
+  "id": "6f0c2a3e-0000-0000-0000-000000000052",
+  "entityType": 8,
+  "title": "The Fixture Audiobook",
+  "mediaGroups": [
+    {
+      "key": "tracks",
+      "title": "Tracks",
+      "ownedCount": 3,
+      "totalCount": 3,
+      "items": [
+        {
+          "id": "6f0c2a3e-0000-0000-0000-000000000052",
+          "entityType": 8,
+          "title": "Chapter 1",
+          "subtitle": "A. Narrator",
+          "trackNumber": "1",
+          "assetId": "6f0c2a3e-0000-0000-0000-000000000053",
+          "chapterIndex": 0,
+          "startSeconds": 0.0,
+          "endSeconds": 600.0,
+          "isOwned": true
+        },
+        {
+          "id": "6f0c2a3e-0000-0000-0000-000000000052",
+          "entityType": 8,
+          "title": "Chapter 2",
+          "subtitle": "A. Narrator",
+          "trackNumber": "2",
+          "assetId": "6f0c2a3e-0000-0000-0000-000000000053",
+          "chapterIndex": 1,
+          "startSeconds": 600.0,
+          "endSeconds": 1200.0,
+          "isOwned": true
+        },
+        {
+          "id": "6f0c2a3e-0000-0000-0000-000000000052",
+          "entityType": 8,
+          "title": "Chapter 3",
+          "subtitle": "A. Narrator",
+          "trackNumber": "3",
+          "assetId": "6f0c2a3e-0000-0000-0000-000000000054",
+          "chapterIndex": 2,
+          "startSeconds": 0.0,
+          "endSeconds": 900.0,
+          "isOwned": true
+        }
+      ]
+    }
+  ]
+}

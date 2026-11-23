@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.tuvima.library.core.DeviceProfile
 import com.tuvima.library.core.DisplayCard
-import com.tuvima.library.core.DownloadBadgeLogic
 import com.tuvima.library.core.PhoneDockTab
 import com.tuvima.library.core.PhoneMenuItem
 import com.tuvima.library.core.PhoneMenuTarget
@@ -34,8 +33,6 @@ import com.tuvima.library.core.PhoneSection
 import com.tuvima.library.core.PhoneShellLogic
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.playableAssetId
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 
 /** Where the shell is: one of the three dock tabs, a section chip, or a page the menu or top bar opens. */
 private sealed interface Destination {
@@ -77,9 +74,7 @@ internal fun MobileShell(
     var profiles by remember { mutableStateOf<List<DeviceProfile>>(emptyList()) }
     // The files of this person that are on the phone and play, for the Downloaded mark on posters and Details (changes only when the set does).
     val downloadedAssets by remember(client, epoch) {
-        application.offline.store().records
-            .map { DownloadBadgeLogic.heldAssetIds(it, System.currentTimeMillis()) }
-            .distinctUntilChanged()
+        heldAssetsFlow(application.offline.store().records)
     }.collectAsState(initial = emptySet())
 
     LaunchedEffect(initialDetail) {
