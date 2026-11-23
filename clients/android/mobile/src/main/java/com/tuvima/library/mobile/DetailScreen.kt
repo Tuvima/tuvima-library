@@ -39,8 +39,11 @@ import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.DetailMenuAction
 import com.tuvima.library.core.DetailMenuLogic
 import com.tuvima.library.core.DetailModel
+import com.tuvima.library.core.BatchScope
+import com.tuvima.library.core.DownloadBadgeLogic
 import com.tuvima.library.core.DownloadKind
 import com.tuvima.library.core.DownloadState
+import com.tuvima.library.core.OfflineBatchLogic
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.playShowId
@@ -70,6 +73,7 @@ internal fun DetailScreen(
     val kind = remember(entityType) { OfflineLogic.downloadKindFor(entityType) }
     val isShow = remember(entityType) { OfflineLogic.isShowEntity(entityType) }
     var showQualityPicker by remember { mutableStateOf(false) }
+    var showAllPicker by remember { mutableStateOf(false) }
     // What the last Download press did, shown in words under the top line (no toast).
     var downloadNote by remember { mutableStateOf<String?>(null) }
     var selectedQuality by remember(kind) {
@@ -90,9 +94,23 @@ internal fun DetailScreen(
                 entityType = entityType,
                 showId = if (isShow) id else null,
                 profileKey = quality,
+                // The Details id is the title's own work id only when this page is one file (not a show, season or album).
+                workId = if (DownloadBadgeLogic.isSingleFile(entityType)) id else null,
             ),
         )
         downloadNote = enqueueMessage(result)
+    }
+
+    // A whole show, season, album, playlist or audiobook: the files this page lists, from the page itself (no new Engine route).
+    fun startBatch(choice: BatchScope, quality: String) {
+        val current = state
+        val detail = if (current is Load.Ready) current.value else null
+        val outcome = offline.enqueueBatch(detail?.title, detail?.showId ?: if (isShow) id else null, choice.children, quality)
+        downloadNote = if (outcome.notPaired) {
+            enqueueMessage(EnqueueResult.NotPaired)
+        } else {
+            OfflineBatchLogic.message(outcome.plan, OfflineBatchLogic.noun(choice.children, outcome.plan.toQueue.size))
+        }
     }
 
     fun downloadNextEpisodes(after: String) {
@@ -139,6 +157,7 @@ internal fun DetailScreen(
         },
         downloadEnabled = heldCopy == null || heldCopy.state == DownloadState.Failed,
         canDownloadNextEpisodes = isShow,
+        canDownloadAll = OfflineBatchLogic.offersBatch(loaded?.children.orEmpty()),
     )
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -169,6 +188,9 @@ internal fun DetailScreen(
                                         DetailMenuAction.DownloadNextEpisodes -> {
                                             if (assetId != null) downloadNextEpisodes(assetId)
                                         }
+                                        DetailMenuAction.DownloadAll -> {
+                                            showAllPicker = true
+                                        }
                                     }
                                 },
                             )
@@ -176,6 +198,9 @@ internal fun DetailScreen(
                     }
                 }
             }
+        }
+        if (DownloadBadgeLogic.showsBadge(entityType, assetId, LocalDownloadedAssets.current)) {
+            DownloadedBadge(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
         downloadNote?.let { note ->
             Text(
@@ -232,12 +257,19 @@ internal fun DetailScreen(
                         if (isShow && kind != DownloadKind.Excluded) {
                             OutlinedButton(onClick = { downloadNextEpisodes(assetId) }) { Text("Download next episodes") }
                         }
+                        if (OfflineBatchLogic.offersBatch(detail.children)) {
+                            OutlinedButton(onClick = { showAllPicker = true }) { Text(DetailMenuLogic.DOWNLOAD_ALL_LABEL) }
+                        }
                       }
                     } else {
-                        Text(
-                            "Play and Download appear when you open a title from Home, a Library or a Collection.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                        if (OfflineBatchLogic.offersBatch(detail.children)) {
+                            OutlinedButton(onClick = { showAllPicker = true }) { Text(DetailMenuLogic.DOWNLOAD_ALL_LABEL) }
+                        } else {
+                            Text(
+                                "Play and Download appear when you open a title from Home, a Library or a Collection.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
                 detail.tagline?.let { tagline -> item { Text(tagline, style = MaterialTheme.typography.titleSmall) } }
@@ -271,6 +303,18 @@ internal fun DetailScreen(
                 item { Row(Modifier.padding(bottom = 24.dp)) {} }
             }
         }
+    }
+
+    if (showAllPicker && loaded != null) {
+        DownloadAllDialog(
+            groups = loaded.children,
+            preferredQuality = application.downloadQuality(),
+            onStart = { choice, quality ->
+                showAllPicker = false
+                startBatch(choice, quality)
+            },
+            onDismiss = { showAllPicker = false },
+        )
     }
 
     if (showQualityPicker && assetId != null) {

@@ -3,6 +3,7 @@ package com.tuvima.library.mobile
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.tuvima.library.core.OfflineBookmarkLogic
 import com.tuvima.library.core.OfflineKind
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.ReportKind
@@ -24,6 +25,8 @@ import kotlinx.coroutines.withContext
  *    goes for a kept photo whose row is gone (the photo was deleted, or this person can no longer see it).
  * 3. Replays progress recorded while playing downloads offline, oldest first, with `offline: true` and the time it
  *    was recorded. When the Engine kept its own newer record, the phone adopts it.
+ * 4. Sends bookmarks added to downloaded videos and audiobooks while offline, in the order they were made, and reads the
+ *    Engine's bookmark list for any downloaded title that has none on the phone yet.
  *
  * Only the person using the phone is synced; another person's records wait until they are back. One run is bound to the
  * person who was using the phone when it started: if the profile changes mid-run, the run stops (and is scheduled again for
@@ -45,7 +48,9 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
             if (!guard.isBound()) return@withContext switched(app)
             val replayed = replayProgress(client, store, guard)
             if (!guard.isBound()) return@withContext switched(app)
-            if (reported && expiryChecked && replayed) Result.success() else Result.retry()
+            val bookmarked = flushBookmarks(client, app.offline, store, guard)
+            if (!guard.isBound()) return@withContext switched(app)
+            if (reported && expiryChecked && replayed && bookmarked) Result.success() else Result.retry()
         }
     }
 
@@ -144,6 +149,53 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
         return true
     }
 
+    /**
+     * Sends the bookmarks added offline, oldest first, then reads the Engine's list for downloaded titles that have none kept yet
+     * (a few per run, so a large library of downloads is not read all at once). True when every queued bookmark was answered.
+     */
+    private suspend fun flushBookmarks(
+        client: TuvimaClient,
+        offline: OfflineDownloads,
+        store: OfflineStore,
+        guard: SyncGuard,
+    ): Boolean {
+        val changedWorks = mutableSetOf<String>()
+        for (entry in OfflineBookmarkLogic.sendOrder(store.pendingBookmarks())) {
+            if (!guard.isBound()) return false
+            val status = try {
+                client.createBookmark(entry.workId, OfflineBookmarkLogic.body(entry))
+                200
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: TuvimaHttpException) {
+                failure.statusCode
+            } catch (failure: Exception) {
+                // No connection: keep it and try again later.
+                return false
+            }
+            if (!guard.isBound()) return false
+            when (OfflineBookmarkLogic.classify(status)) {
+                ReportOutcome.Done -> {
+                    store.removePendingBookmark(entry.localId)
+                    changedWorks.add(entry.workId)
+                }
+                ReportOutcome.Drop -> store.removePendingBookmark(entry.localId)
+                ReportOutcome.Retry -> return false
+            }
+        }
+        // A bookmark just sent changes the Engine's list, so those titles are read again; so are titles never read.
+        val toRead = store.snapshot()
+            .filter { it.isComplete && it.workId != null && OfflineBookmarkLogic.keepsBookmarks(it.entityType) }
+            .filter { it.workId in changedWorks || !store.hasBookmarkCache(it.workId.orEmpty()) }
+            .distinctBy { it.workId }
+            .take(MAX_BOOKMARK_READS)
+        for (record in toRead) {
+            if (!guard.isBound()) return false
+            offline.cacheBookmarksOf(client, store, record)
+        }
+        return true
+    }
+
     /** True when every pending entry was answered. */
     private suspend fun replayProgress(client: TuvimaClient, store: OfflineStore, guard: SyncGuard): Boolean {
         for (entry in OfflineLogic.replayOrder(store.progress())) {
@@ -173,5 +225,9 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
             store.completeReplay(entry, updated)
         }
         return true
+    }
+
+    private companion object {
+        const val MAX_BOOKMARK_READS = 10
     }
 }

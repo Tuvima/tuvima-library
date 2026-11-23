@@ -88,6 +88,14 @@ class TuvimaMobileApplication : Application() {
         getSharedPreferences("tuvima_mobile", MODE_PRIVATE).edit().putLong("storage_cap_bytes", bytes).apply()
     }
 
+    /** True when downloads wait for an unmetered connection (home Wi-Fi) instead of using mobile data. Off by default. */
+    fun wifiOnlyDownloads(): Boolean =
+        getSharedPreferences("tuvima_mobile", MODE_PRIVATE).getBoolean("downloads_wifi_only", false)
+
+    fun setWifiOnlyDownloads(value: Boolean) {
+        getSharedPreferences("tuvima_mobile", MODE_PRIVATE).edit().putBoolean("downloads_wifi_only", value).apply()
+    }
+
     /** Offline downloads: the queue, the local files and the reports back to the Engine. */
     internal val offline: OfflineDownloads by lazy { OfflineDownloads(this) }
 

@@ -84,6 +84,8 @@ private fun MobileRoot(
     val scope = rememberCoroutineScope()
     var stage: MobileStage by remember { mutableStateOf(MobileStage.Server) }
     var client: TuvimaClient? by remember { mutableStateOf(application.client) }
+    // Set when a paired phone could not reach the server: it opens on Downloads so what is saved on the phone still plays.
+    var startOffline by remember { mutableStateOf(false) }
 
     fun connect(address: String) {
         stage = MobileStage.Message("Connecting…")
@@ -91,6 +93,7 @@ private fun MobileRoot(
             runCatching {
                 application.connect(address).also {
                     client = it
+                    startOffline = false
                     it.discover()
                     stage = if (it.isPaired()) MobileStage.Ready
                     else MobileStage.Pairing(it.beginPairing(PhotoScopes.requested(MOBILE_SCOPES, application.photosOptIn())))
@@ -98,6 +101,7 @@ private fun MobileRoot(
             }.onFailure { failure ->
                 // A paired phone with no connection still opens, so Downloads can play what is saved on it.
                 stage = if (failure is java.io.IOException && application.client?.isPaired() == true) {
+                    startOffline = true
                     MobileStage.Ready
                 } else {
                     MobileStage.Message(failure.message ?: "Connection failed.")
@@ -140,6 +144,7 @@ private fun MobileRoot(
                     client = signedIn,
                     initialDetail = initialDetail,
                     play = play,
+                    startOffline = startOffline,
                     onChangeServer = { stage = MobileStage.Server },
                     onSignedOut = { note -> stage = if (note == null) MobileStage.Server else MobileStage.Message(note) },
                 )

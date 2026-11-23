@@ -98,6 +98,7 @@ internal fun PosterTile(
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp))) {
             RemoteImage(client, card.posterUrl ?: card.artworkUrl, Modifier.fillMaxSize())
             if (saved != null) SavedToggle(saved.keyFor(card), Modifier.align(Alignment.TopEnd), onSavedPress)
+            CardDownloadedBadge(card, Modifier.align(Alignment.BottomStart).padding(start = 4.dp, bottom = 6.dp))
             val percent = card.progressPercent
             if (percent != null && percent > 0.0) {
                 LinearProgressIndicator(

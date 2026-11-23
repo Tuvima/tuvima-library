@@ -314,7 +314,12 @@ internal fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { confirmSignOut = false },
             title = { Text("Sign out?") },
-            text = { Text("This removes this phone from your account. You will need to pair it again to use it.") },
+            text = {
+                Text(
+                    "This removes this phone from your account and removes every download from this phone. " +
+                        "You will need to pair it again to use it.",
+                )
+            },
             confirmButton = {
                 Button(onClick = {
                     confirmSignOut = false

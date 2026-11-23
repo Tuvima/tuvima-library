@@ -13,6 +13,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -25,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.tuvima.library.core.DeviceProfile
 import com.tuvima.library.core.DisplayCard
+import com.tuvima.library.core.DownloadBadgeLogic
 import com.tuvima.library.core.PhoneDockTab
 import com.tuvima.library.core.PhoneMenuItem
 import com.tuvima.library.core.PhoneMenuTarget
@@ -32,6 +34,8 @@ import com.tuvima.library.core.PhoneSection
 import com.tuvima.library.core.PhoneShellLogic
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.playableAssetId
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 /** Where the shell is: one of the three dock tabs, a section chip, or a page the menu or top bar opens. */
 private sealed interface Destination {
@@ -58,10 +62,12 @@ internal fun MobileShell(
     play: (PlayRequest) -> Unit,
     onChangeServer: () -> Unit,
     onSignedOut: (String?) -> Unit,
+    /** True when the phone opened with no connection to the server: it starts on Downloads, which plays what is saved on the phone. */
+    startOffline: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var destination by remember { mutableStateOf<Destination>(Destination.Home) }
+    var destination by remember { mutableStateOf<Destination>(if (startOffline) Destination.Downloads else Destination.Home) }
     var menuOpen by remember { mutableStateOf(false) }
     // Bumped after a profile switch so every screen reads again as the new person.
     var epoch by remember { mutableIntStateOf(0) }
@@ -69,6 +75,12 @@ internal fun MobileShell(
     // The new person's saved titles are read again after a switch (a fresh holder per person).
     val saved = remember(client, epoch) { SavedItems(client, scope) }
     var profiles by remember { mutableStateOf<List<DeviceProfile>>(emptyList()) }
+    // The files of this person that are on the phone and play, for the Downloaded mark on posters and Details (changes only when the set does).
+    val downloadedAssets by remember(client, epoch) {
+        application.offline.store().records
+            .map { DownloadBadgeLogic.heldAssetIds(it, System.currentTimeMillis()) }
+            .distinctUntilChanged()
+    }.collectAsState(initial = emptySet())
 
     LaunchedEffect(initialDetail) {
         initialDetail?.let { stack.add(Overlay.Detail(it.first, it.second, null)) }
@@ -140,7 +152,7 @@ internal fun MobileShell(
         else -> null
     }
 
-    CompositionLocalProvider(LocalSavedItems provides saved) {
+    CompositionLocalProvider(LocalSavedItems provides saved, LocalDownloadedAssets provides downloadedAssets) {
         Box(Modifier.fillMaxSize()) {
             Scaffold(
                 topBar = {
@@ -196,6 +208,7 @@ internal fun MobileShell(
                                     client = client,
                                     play = play,
                                     openPhotos = { items, index -> stack.add(Overlay.ViewerOpen(items, index)) },
+                                    limited = isKids,
                                 )
                                 is Destination.Section -> LibrariesScreen(
                                     section = current.section,
