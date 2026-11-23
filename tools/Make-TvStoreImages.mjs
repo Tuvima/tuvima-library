@@ -45,7 +45,7 @@ const chunk = (type, data) => {
     out.writeUInt32BE(crc32(body), body.length + 4);
     return out;
 };
-const encodePng = (width, height, rgb) => {
+export const encodePng = (width, height, rgb) => {
     const rows = [];
     for (let y = 0; y < height; y++) {
         const row = Buffer.alloc(1 + width * 3);
@@ -154,7 +154,7 @@ export const flattenPath = (d) => {
     return polygons;
 };
 
-const readSvg = (relativePath) => {
+export const readSvg = (relativePath) => {
     const text = readFileSync(join(repoRoot, relativePath), 'utf8');
     const viewBox = numbers(text.match(/viewBox="([^"]+)"/)[1]);
     const gradient = text.match(/<radialGradient[^>]*>/)[0];
@@ -189,7 +189,7 @@ const gradientColor = ({ cx, cy, r, stops }, x, y) => {
 // ---- Filling ------------------------------------------------------------------------------------------------------------
 // Coverage (0..1) of every pixel by the polygons, using the non-zero rule like SVG: four sub-scanlines per row and exact
 // horizontal coverage inside each.
-const coverage = (polygons, width, height) => {
+export const coverage = (polygons, width, height) => {
     const result = new Float32Array(width * height);
     const edges = [];
     for (const polygon of polygons) {
@@ -235,13 +235,13 @@ const coverage = (polygons, width, height) => {
     return result;
 };
 
-const fit = (svg, boxWidth, boxHeight) => {
+export const fit = (svg, boxWidth, boxHeight) => {
     const [, , vw, vh] = svg.viewBox;
     const scale = Math.min(boxWidth / vw, boxHeight / vh);
     return { scale, left: (boxWidth - vw * scale) / 2, top: (boxHeight - vh * scale) / 2 };
 };
 
-const draw = (rgb, width, height, svg, placement, wordsToo) => {
+export const draw = (rgb, width, height, svg, placement, wordsToo) => {
     const { scale, left, top } = placement;
     const move = ([x, y]) => [left + x * scale, top + y * scale];
     for (const group of [false, true]) {
