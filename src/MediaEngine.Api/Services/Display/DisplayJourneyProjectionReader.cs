@@ -206,10 +206,16 @@ public sealed class DisplayJourneyProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'square_url_l' LIMIT 1)
                 ) AS SquareLargeUrl,
                 COALESCE(
+                    (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('background_url', 'background') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('background_url', 'background') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('background_url', 'background') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
                     cv_background_a.value, cv_background_item.value, cv_background_w.value) AS BackgroundUrl,
                 COALESCE(
+                    (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('background_url_s') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('background_url_s') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('background_url_s') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('background_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1),
@@ -217,6 +223,9 @@ public sealed class DisplayJourneyProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('background_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1)
                 ) AS BackgroundSmallUrl,
                 COALESCE(
+                    (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('background_url_m') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('background_url_m') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('background_url_m') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url_m', 'still_url_m') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url_m', 'still_url_m') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('background_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1),
@@ -224,6 +233,9 @@ public sealed class DisplayJourneyProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('background_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1)
                 ) AS BackgroundMediumUrl,
                 COALESCE(
+                    (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('background_url_l') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('background_url_l') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('background_url_l') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url_l', 'still_url_l') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url_l', 'still_url_l') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('background_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1),

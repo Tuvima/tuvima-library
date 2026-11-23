@@ -64,6 +64,23 @@ public sealed class DisplayJourneyProjectionReaderTests : IDisposable
         Assert.Contains($"/stream/artwork/{frame.Id:D}", row.BackgroundUrl);
     }
 
+    /// <summary>Issue 1328: Continue where you left off shows the title's landscape cover art; the frame stands in only when there is none.</summary>
+    [Fact]
+    public async Task LoadAsync_ATitleWithLandscapeArt_CarriesItBeforeItsFrame()
+    {
+        var (workId, assetId) = SeedStartedMovie("Film.mkv");
+        SetValue(workId, "background_url", "/stream/artwork/landscape");
+        var frame = new MediaEngine.Domain.Entities.EntityAsset { Id = Guid.NewGuid(), AssetTypeValue = "EpisodeStill", LocalImagePath = string.Empty };
+        foreach (var value in MediaEngine.Domain.ArtworkCanonicalHelper.CreatePreferredAssetCanonicals(workId, frame, DateTimeOffset.UtcNow))
+        {
+            SetValue(workId, value.Key, value.Value);
+        }
+
+        var rows = await new DisplayJourneyProjectionReader(_db).LoadAsync(_profileId, lane: null, CancellationToken.None);
+
+        Assert.Equal("/stream/artwork/landscape", Assert.Single(rows, row => row.AssetId == assetId).BackgroundUrl);
+    }
+
     private (Guid WorkId, Guid AssetId) SeedStartedMovie(string fileName)
     {
         var workId = Guid.NewGuid();

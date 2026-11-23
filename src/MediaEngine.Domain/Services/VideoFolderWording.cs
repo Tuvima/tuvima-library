@@ -21,7 +21,7 @@ public static class VideoFolderWording
     public const string NewVideoLabel = "New video";
 
     /// <summary>The Watch tab that lists folders and loose videos (never "Series" or "Collections").</summary>
-    public const string TabLabel = "Folders and videos";
+    public const string TabLabel = "Videos";
 
     /// <summary>What the folder's tile and hero button says (a TV show says "Open Show").</summary>
     public const string OpenLabel = "Open folder";
