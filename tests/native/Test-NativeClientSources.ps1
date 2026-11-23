@@ -57,14 +57,25 @@ foreach ($forbiddenAutomotive in @('lane: "watch"', 'lane: "read"', 'admin', 'se
     }
 }
 
+$androidCar = Get-Content -LiteralPath (Join-Path $clientRoot 'android/core/src/main/java/com/tuvima/library/core/CarBrowse.kt') -Raw
+
 if (-not $carPlay.Contains('lane: "listen"', [StringComparison]::Ordinal) -or
-    -not $androidAuto.Contains('api.browse("listen"', [StringComparison]::Ordinal)) {
+    -not $androidAuto.Contains('ListenLogic.LANE', [StringComparison]::Ordinal) -or
+    -not $androidCar.Contains('lane = ListenLogic.LANE', [StringComparison]::Ordinal)) {
     throw 'Automotive clients must expose only the Listen lane.'
 }
 
+# CarPlay still lists the profile Listen queue. Android Auto follows the contract's car list (clients/contracts/v1/player-controls.md, "Cars"):
+# the service builds its root from CarList.rootEntries() and CarBrowse.kt names every entry of the contract's list.
 if (-not $carPlay.Contains('("Queue", "Queue")', [StringComparison]::Ordinal) -or
-    -not $androidAuto.Contains('"queue" to "Queue"', [StringComparison]::Ordinal)) {
-    throw 'Automotive clients must expose the profile Listen queue.'
+    -not $androidAuto.Contains('CarList.rootEntries()', [StringComparison]::Ordinal)) {
+    throw 'Automotive clients must expose the contract car list.'
+}
+
+foreach ($carEntry in @('"Continue"', '"The Listen shelves"', '"Audiobooks"', '"Playlists"', '"Recently played"')) {
+    if (-not $androidCar.Contains($carEntry, [StringComparison]::Ordinal)) {
+        throw "Android Auto car list is missing the contract entry $carEntry."
+    }
 }
 
 Write-Host 'Native-client source boundary gate passed.' -ForegroundColor Green

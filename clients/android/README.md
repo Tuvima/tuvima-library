@@ -256,8 +256,8 @@ The manifest already declares the Auto media app (`com.google.android.gms.car.ap
 is left out, which keeps the root at Auto's four tabs. With playlists the root has five entries, which Auto's tab bar cannot show, so the
 contract's list would need a fifth place (for example Recently played inside Listen). (2) **Speed presets** are one stepping button, not five
 buttons, for the reason above; the contract says "Speed presets as the template's extra buttons". (3) The old browse tree had a **Queue**
-entry; the contract's list has none, so it is gone, and `tests/native/Test-NativeClientSources.ps1` still asks for `"queue" to "Queue"` and
-`api.browse("listen"` in this service: that gate needs its two Android Auto checks changed to the contract's list.
+entry; the contract's list has none, so it is gone, and the source gate `tests/native/Test-NativeClientSources.ps1` now checks the contract's
+list instead (the service builds its root from `CarList.rootEntries()`, `CarBrowse.kt` names every contract entry and reads only the Listen lane).
 
 **Android phone: Find another** (spec "Find another on TV", WP8; Find another v1 D12). The video player's **Audio &
 subtitles** view (the Subtitles sheet) ends with a **Find subtitles…** row, drawn only when the same sources check as on
