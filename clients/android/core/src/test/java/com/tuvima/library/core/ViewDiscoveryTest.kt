@@ -94,6 +94,26 @@ class ViewDiscoveryTest {
     }
 
     @Test
+    fun aPlacesPhotosAreReadFromItsOwnRouteWithTheKeyEncodedAsOnePathSegment() {
+        // The key of a place has a comma, an at sign and often spaces; the Engine reads it back from one URL-encoded segment (never `+`).
+        assertEquals(
+            "/api/v1/view/places/paris%2C%20france%4048.9%2C2.4/items?limit=100",
+            ClientRoutes.viewPlaceItems(places().items.first().key),
+        )
+        assertEquals("/api/v1/view/places/paris%4048.9%2C2.4/items?limit=100", ClientRoutes.viewPlaceItems("paris@48.9,2.4"))
+        assertEquals("/api/v1/view/places/k/items?cursor=100&limit=200", ClientRoutes.viewPlaceItems("k", "100", 500))
+    }
+
+    @Test
+    fun thePlaceItemsFixtureReadsLikeAPersonsPhotosAndGivesTheCursorOfTheNextPage() {
+        val page = parseViewItemPage(WireFixtures.json("view-place-items.json"))
+
+        assertEquals(listOf("Eiffel Tower", "River walk"), page.items.map { it.title })
+        assertTrue(page.hasMore)
+        assertEquals("2", page.nextCursor)
+    }
+
+    @Test
     fun theViewRoutesStayInsideApiV1AndEncodeAPersonsKey() {
         assertEquals("/api/v1/view/people?limit=48", ClientRoutes.viewPeople())
         assertEquals("/api/v1/view/people?cursor=2&limit=48", ClientRoutes.viewPeople("2"))

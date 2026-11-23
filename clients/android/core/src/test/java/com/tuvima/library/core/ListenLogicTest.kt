@@ -19,9 +19,9 @@ class ListenLogicTest {
         ids.mapIndexed { index, id -> SavedItem(SavedKey.of(SavedKind.Song, id), "2026-11-0${index + 1}T10:00:00Z", index) }
 
     @Test
-    fun theListenTabsAreSongsAlbumsArtistsAudiobooksAndFavoritesWithNoPlaylists() {
+    fun theListenTabsAreSongsAlbumsArtistsAudiobooksPlaylistsAndFavorites() {
         assertEquals(
-            listOf("Songs", "Albums", "Artists", "Audiobooks", "Favorites"),
+            listOf("Songs", "Albums", "Artists", "Audiobooks", "Playlists", "Favorites"),
             ListenLogic.tabs().map { it.label },
         )
     }

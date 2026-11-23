@@ -51,6 +51,7 @@ import com.tuvima.library.core.ListenLogic
 import com.tuvima.library.core.ListenPlay
 import com.tuvima.library.core.ListenTab
 import com.tuvima.library.core.PlayQueue
+import com.tuvima.library.core.Playlist
 import com.tuvima.library.core.SearchLogic
 import com.tuvima.library.core.SongSort
 import com.tuvima.library.core.TuvimaClient
@@ -59,16 +60,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// The Listen section on the phone: Songs, Albums, Artists, Audiobooks and Favorites, built from the lanes the Engine already returns
-// (engineering/validation/native-listen-lanes-2026-11.md). There is no Playlists tab: the phone has no route for them yet.
+// The Listen section on the phone: Songs, Albums, Artists, Audiobooks, Playlists and Favorites, built from the lanes the Engine already returns
+// (engineering/validation/native-listen-lanes-2026-11.md) and, for Playlists, its read-only playlist routes (PlaylistScreens.kt).
 
-/** Listen: the five tabs as chips that wrap rather than scroll sideways, and the pane under the picked one. */
+/** Listen: the six tabs as chips that wrap rather than scroll sideways, and the pane under the picked one. */
 @Composable
 internal fun ListenScreen(
     client: TuvimaClient,
     play: (PlayRequest) -> Unit,
     openCard: (DisplayCard) -> Unit,
     openArtist: (String) -> Unit,
+    openPlaylist: (Playlist) -> Unit,
 ) {
     var tab by remember { mutableStateOf(ListenTab.Songs) }
     Column(Modifier.fillMaxSize()) {
@@ -78,6 +80,7 @@ internal fun ListenScreen(
             ListenTab.Albums -> AlbumsPane(client, openCard)
             ListenTab.Artists -> ArtistsPane(client, openArtist)
             ListenTab.Audiobooks -> BrowseGrid(client, "listen", LaneTab("Audiobooks", "Audiobooks"), openCard)
+            ListenTab.Playlists -> PlaylistsPane(client, openPlaylist)
             ListenTab.Favorites -> FavoritesPane(client, play)
         }
     }

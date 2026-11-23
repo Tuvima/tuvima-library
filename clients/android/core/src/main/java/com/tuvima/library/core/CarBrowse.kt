@@ -30,6 +30,9 @@ sealed interface CarNode {
     /** An album, opened by the Details page's own (type, id) pair; its songs are the list. */
     data class Album(val entityType: String, val id: String) : CarNode
 
+    /** One of the profile's playlists, opened by its id; its songs are the list. */
+    data class Playlist(val id: String) : CarNode
+
     /** A search result that plays: [audiobook] says which kind, so a voice request never starts the wrong thing. */
     data class Hit(val audiobook: Boolean, val entityType: String, val id: String) : CarNode
 
@@ -40,18 +43,21 @@ sealed interface CarNode {
 object CarList {
     const val ROOT_ID = "tuvima-root"
 
-    /** Android Auto shows the root's entries as tabs and has room for four. The shipped list is four (see [PLAYLISTS_AVAILABLE]). */
+    /**
+     * Android Auto shows the root's entries as tabs and has room for four. The contract's list has five once Playlists is in it, so the fifth
+     * entry ("Recently played", the last in the contract's order) sits beyond the tab bar; whether the car still reaches it is a check on the
+     * Desktop Head Unit (engineering/validation/batch.md) and a decision for Shy (clients/android/README.md, Android Auto).
+     */
     const val ROOT_TAB_LIMIT = 4
 
     /** A list in the car stays short: the first 50 are read, and the car pages through them by the size it asks for. */
     const val NODE_LIMIT = 50
 
     /**
-     * Playlists are in the contract's list, but the phone's connection has no route that reads them (the Engine's collection routes leave
-     * playlists out; see engineering/validation/native-listen-lanes-2026-11.md), so the row is left out until the Engine has one. Turning
-     * this on needs a decision about the four-tab root as well, because five entries do not fit it.
+     * Playlists are in the contract's list and the phone reads them now (`GET /api/v1/collections/playlists`, WP18 and WP19), so the row is on.
+     * The root takes the contract's order, so the flag stays the one switch the root list filters on.
      */
-    const val PLAYLISTS_AVAILABLE = false
+    const val PLAYLISTS_AVAILABLE = true
 
     /** The Engine's own shelf keys that the Listen entry does not repeat: Recently played is an entry of its own, and artists have no car list. */
     private val LISTEN_SHELVES_LEFT_OUT = setOf("recently-played", "artists")
@@ -63,6 +69,7 @@ object CarList {
     private const val PLAY = "car:play"
     private const val SHELF = "car:listen"
     private const val ALBUM = "car:album"
+    private const val PLAYLIST = "car:playlist"
     private const val HIT = "car:hit"
 
     /** The root's entries in the contract's order, without the ones the phone cannot read yet. */
@@ -72,6 +79,8 @@ object CarList {
     fun shelfId(key: String): String = "$SHELF$SEP$key"
 
     fun albumId(entityType: String, id: String): String = "$ALBUM$SEP$entityType$SEP$id"
+
+    fun playlistId(id: String): String = "$PLAYLIST$SEP$id"
 
     fun hitId(audiobook: Boolean, entityType: String, id: String): String = "$HIT$SEP${if (audiobook) "a" else "m"}$SEP$entityType$SEP$id"
 
@@ -97,6 +106,7 @@ object CarList {
                     val key = parts.getOrNull(3)?.takeIf(String::isNotBlank)
                     if (type != null && key != null) CarNode.Album(type, key) else null
                 }
+                "playlist" -> id.removePrefix("$PLAYLIST$SEP").takeIf { it.isNotBlank() && it != id }?.let { CarNode.Playlist(it) }
                 "hit" -> {
                     val rest = id.removePrefix("$HIT$SEP").split(SEP, limit = 3)
                     val kind = rest.getOrNull(0)
@@ -133,11 +143,11 @@ object CarList {
     }
 }
 
-enum class CarCardKind { Song, Album, Audiobook }
+enum class CarCardKind { Song, Album, Audiobook, Playlist }
 
 /**
  * One row of a car list. A song or audiobook has [assetId] (the file that plays); an album has [detailType] and [detailId] (the Details page
- * that lists its songs).
+ * that lists its songs); a playlist has its id in [detailId] (its songs are read from the playlist route).
  */
 data class CarCard(
     val kind: CarCardKind,
@@ -203,6 +213,27 @@ object CarCards {
             .take(CarList.NODE_LIMIT)
     }
 
+    /**
+     * The profile's playlists as folders, in the order the Engine gave (pinned first, then the profile's own order), at most [CarList.NODE_LIMIT].
+     * An empty playlist is left out: a folder with nothing to play is no use on the road.
+     */
+    fun playlists(playlists: List<Playlist>): List<CarCard> {
+        val seen = HashSet<String>()
+        return playlists
+            .filter { it.itemCount > 0 && it.name.isNotBlank() && seen.add(it.id) }
+            .take(CarList.NODE_LIMIT)
+            .map { CarCard(CarCardKind.Playlist, it.name.trim(), PlaylistsLogic.tileLine(it), detailType = PlaylistsLogic.SEARCH_TYPE, detailId = it.id) }
+    }
+
+    /** The songs of one playlist as rows, in the playlist's order; a song with no file is left out, and the list stops at [CarList.NODE_LIMIT]. */
+    fun playlistSongs(songs: List<PlaylistSong>): List<CarCard> =
+        songs.mapNotNull(PlaylistsLogic::trackOf).take(CarList.NODE_LIMIT).map { track ->
+            CarCard(
+                CarCardKind.Song, track.title, PlayQueue.secondLine(track),
+                assetId = track.assetId, workId = track.workId, artist = track.artist, album = track.album, artworkUrl = track.artworkUrl,
+            )
+        }
+
     /** The songs of an album's Details page as rows, in the page's order. */
     fun songsOf(tracks: List<QueueTrack>): List<CarCard> =
         tracks.filter { it.assetId.isNotBlank() }.take(CarList.NODE_LIMIT).map { track ->
@@ -214,6 +245,7 @@ object CarCards {
 
     private fun keyOf(card: CarCard): String = when (card.kind) {
         CarCardKind.Album -> "album:${card.detailType}:${card.detailId}"
+        CarCardKind.Playlist -> "playlist:${card.detailId}"
         else -> "file:${card.assetId}"
     }
 }
@@ -241,7 +273,7 @@ object CarPlayPlan {
                 val start = tracks.indexOfFirst { it.assetId == assetId }.takeIf { it >= 0 } ?: return null
                 CarPlan.Songs(PlayQueue.normalise(PlayQueueRequest(tracks, start, shuffle = false, sourceName = clean(source))))
             }
-            CarCardKind.Album -> null
+            CarCardKind.Album, CarCardKind.Playlist -> null
         }
     }
 
@@ -296,8 +328,9 @@ object CarSearch {
         return SearchLogic.queryToSend(text)?.let { CarQuery.Text(it) } ?: CarQuery.TooShort
     }
 
-    /** True for a result the car can play: a song, an album or an audiobook. Anything else (a film, a show, a book, a photo) is left out. */
-    fun isAudio(hit: SearchHit): Boolean = isAudiobook(hit) || hit.mediaType.equals(ListenLogic.MEDIA_TYPE, ignoreCase = true)
+    /** True for a result the car can play: a song, an album or an audiobook. Anything else (a film, a show, a book, a photo, a playlist) is left out. */
+    fun isAudio(hit: SearchHit): Boolean =
+        hit.entityType != PlaylistsLogic.SEARCH_TYPE && (isAudiobook(hit) || hit.mediaType.equals(ListenLogic.MEDIA_TYPE, ignoreCase = true))
 
     fun isAudiobook(hit: SearchHit): Boolean = "audiobook" in hit.mediaType.lowercase()
 

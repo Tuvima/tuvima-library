@@ -95,20 +95,24 @@ class SearchLogicTest {
     }
 
     @Test
-    fun aPlaylistHitIsDroppedBecauseThePhoneHasNoPlaylistsInVersionOne() {
+    fun aPlaylistHitOpensThePlaylistPageByItsIdAndABuiltInListIsDropped() {
         val json = JSONObject(
             """
-            {"query":"road","totalCount":3,
+            {"query":"road","totalCount":4,
              "topResult":{"id":"p1","title":"Road trip","entityType":"playlist","detailRoute":"/listen/music/playlists/p1"},
-             "sections":[{"key":"music","title":"Music","totalCount":2,"results":[
-               {"id":"p2","title":"Road songs","mediaType":"Music","detailRoute":"/listen/music/playlists/p2"},
+             "sections":[{"key":"music","title":"Music","totalCount":3,"results":[
+               {"id":"p2","title":"Road songs","mediaType":"Music","detailRoute":"/listen/music/playlists/p2?context=listen"},
+               {"id":"sys","title":"Favorite songs","mediaType":"Music","detailRoute":"/listen/music/playlists/system/favorite-songs"},
                {"id":"a1","title":"Road Home","mediaType":"Music","detailRoute":"/details/musicalbum/a1"}]}]}
             """,
         )
 
         val parsed = SearchLogic.parse(json, WireFixtures.absolute)
 
-        assertNull(parsed.topResult)
-        assertEquals(listOf("Road Home"), parsed.sections.single().hits.map { it.title })
+        assertEquals("playlist", parsed.topResult?.entityType)
+        assertEquals("p1", parsed.topResult?.id)
+        assertEquals(listOf("Road songs", "Road Home"), parsed.sections.single().hits.map { it.title })
+        assertEquals(listOf("playlist", "musicalbum"), parsed.sections.single().hits.map { it.entityType })
+        assertEquals("p2", parsed.sections.single().hits.first().id)
     }
 }

@@ -65,13 +65,15 @@ object SearchLogic {
     )
 
     private fun parseHit(json: JSONObject, absolute: (String?) -> String?): SearchHit? {
-        val target = detailTargetFromRoute(json.optionalString("detailRoute"))
-        val id = target?.second ?: json.optString("id")
-        val entityType = target?.first ?: json.optString("entityType", "work").ifBlank { "work" }
+        val route = json.optionalString("detailRoute")
+        val target = detailTargetFromRoute(route)
         val title = json.optString("title")
+        // A playlist opens its own page (the details page refuses its route). Only the profile's own playlists carry an id route; the
+        // built-in lists (Favorites, Recently added) live under `system` and are not opened from here.
+        val playlistId = if (isPlaylist(json)) PlaylistsLogic.idFromRoute(route) ?: return null else null
+        val id = playlistId ?: target?.second ?: json.optString("id")
+        val entityType = if (playlistId != null) PlaylistsLogic.SEARCH_TYPE else target?.first ?: json.optString("entityType", "work").ifBlank { "work" }
         if (id.isBlank() || title.isBlank()) return null
-        // Playlists are not on the phone in version 1 (no route reads them), and the details page refuses their route.
-        if (isPlaylist(json)) return null
         val first = json.optionalString("subtitle") ?: json.optionalString("creator")
         val creator = json.optionalString("creator")
         val line = listOfNotNull(first, creator, json.optionalString("year"))

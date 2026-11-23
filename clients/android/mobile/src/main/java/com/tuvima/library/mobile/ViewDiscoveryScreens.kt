@@ -44,6 +44,7 @@ import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.ViewDiscoveryCapability
 import com.tuvima.library.core.ViewDiscoveryLogic
 import com.tuvima.library.core.ViewItem
+import com.tuvima.library.core.ViewItemPage
 import com.tuvima.library.core.ViewPerson
 import com.tuvima.library.core.ViewPlace
 import com.tuvima.library.core.buildFlatRows
@@ -181,11 +182,11 @@ internal fun PeopleList(client: TuvimaClient, openPerson: (ViewPerson) -> Unit) 
 }
 
 /**
- * The places the photos cluster around: a picture, the place name and how many photos and videos. A place is shown, not opened: the
- * Engine has no read of one place's photos for the phone yet.
+ * The places the photos cluster around: a picture, the place name and how many photos and videos. A press opens that place's photos
+ * (`/view/places/{key}/items`).
  */
 @Composable
-internal fun PlacesList(client: TuvimaClient) {
+internal fun PlacesList(client: TuvimaClient, openPlace: (ViewPlace) -> Unit) {
     val scope = rememberCoroutineScope()
     val controller = remember(client) {
         CursorController<ViewPlace>(
@@ -213,7 +214,11 @@ internal fun PlacesList(client: TuvimaClient) {
                     LaunchedEffect(controller.items.size) { controller.loadMore() }
                 }
                 Row(
-                    Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 12.dp, vertical = 4.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 64.dp)
+                        .clickable(onClickLabel = "Open ${ViewDiscoveryLogic.placeName(place)}") { openPlace(place) }
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -255,13 +260,49 @@ internal fun PersonPhotosScreen(
     person: ViewPerson,
     openViewer: (List<ViewItem>, Int) -> Unit,
     onBack: () -> Unit,
+) = ViewItemsScreen(
+    client = client,
+    sourceKey = person.key,
+    title = ViewDiscoveryLogic.personName(person),
+    emptyText = ViewDiscoveryLogic.NO_ITEMS,
+    fetch = { cursor -> client.viewPersonItems(person.key, cursor) },
+    openViewer = openViewer,
+    onBack = onBack,
+)
+
+/** The photos and videos of one place, newest first, as a plain grid with a way back (the same page as one person's). */
+@Composable
+internal fun PlacePhotosScreen(
+    client: TuvimaClient,
+    place: ViewPlace,
+    openViewer: (List<ViewItem>, Int) -> Unit,
+    onBack: () -> Unit,
+) = ViewItemsScreen(
+    client = client,
+    sourceKey = place.key,
+    title = ViewDiscoveryLogic.placeName(place),
+    emptyText = ViewDiscoveryLogic.NO_PLACE_ITEMS,
+    fetch = { cursor -> client.viewPlaceItems(place.key, cursor) },
+    openViewer = openViewer,
+    onBack = onBack,
+)
+
+@Composable
+private fun ViewItemsScreen(
+    client: TuvimaClient,
+    sourceKey: String,
+    title: String,
+    emptyText: String,
+    fetch: suspend (String?) -> ViewItemPage,
+    openViewer: (List<ViewItem>, Int) -> Unit,
+    onBack: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val controller = remember(client, person.key) {
+    val controller = remember(client, sourceKey) {
         CursorController<ViewItem>(
             scope,
             fetch = { cursor ->
-                val page = client.viewPersonItems(person.key, cursor)
+                val page = fetch(cursor)
                 CursorPage(page.items, if (page.hasMore) page.nextCursor else null, null)
             },
             merge = { shown, incoming ->
@@ -281,7 +322,7 @@ internal fun PersonPhotosScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) { Text("Back") }
             Text(
-                ViewDiscoveryLogic.personName(person),
+                title,
                 style = MaterialTheme.typography.titleLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -294,7 +335,7 @@ internal fun PersonPhotosScreen(
             items.isEmpty() && !controller.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            items.isEmpty() -> ErrorBlock(ViewDiscoveryLogic.NO_ITEMS, null)
+            items.isEmpty() -> ErrorBlock(emptyText, null)
             else -> PhotoRows(
                 client = client,
                 rows = rows,

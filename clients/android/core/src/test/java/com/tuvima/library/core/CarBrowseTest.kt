@@ -77,18 +77,91 @@ class CarBrowseTest {
     }
 
     @Test
-    fun theRootHoldsTheContractEntriesInOrderWithoutPlaylistsWhileThePhoneCannotReadThem() {
+    fun theRootHoldsAllFiveContractEntriesInTheContractOrderNowThatThePhoneReadsPlaylists() {
         val root = CarList.rootEntries()
 
-        assertEquals(listOf("Continue", "The Listen shelves", "Audiobooks", "Recently played"), root.map { it.contractName })
-        assertFalse(CarList.PLAYLISTS_AVAILABLE)
-        assertTrue(root.size <= CarList.ROOT_TAB_LIMIT)
-        // With a playlist route the row returns at the contract's place; the order of the others does not change.
-        assertEquals(CarEntry.entries.toList(), CarList.rootEntries(playlistsAvailable = true))
+        assertTrue(CarList.PLAYLISTS_AVAILABLE)
+        assertEquals(listOf("Continue", "The Listen shelves", "Audiobooks", "Playlists", "Recently played"), root.map { it.contractName })
+        assertEquals(CarEntry.entries.toList(), root)
+        // The fifth entry sits beyond Auto's four tabs; the head-unit check in the validation batch settles whether the car still reaches it.
+        assertEquals(CarList.ROOT_TAB_LIMIT + 1, root.size)
+        // Turning the flag off is still the only way the row can go, and the others keep their order.
         assertEquals(
-            listOf("Continue", "The Listen shelves", "Audiobooks", "Playlists", "Recently played"),
-            CarList.rootEntries(playlistsAvailable = true).map { it.contractName },
+            listOf("Continue", "The Listen shelves", "Audiobooks", "Recently played"),
+            CarList.rootEntries(playlistsAvailable = false).map { it.contractName },
         )
+    }
+
+    // ---- Playlists in the car ----
+
+    private fun playlist(id: String, name: String, count: Int, smart: Boolean = false) = Playlist(
+        id = id, name = name, description = null, itemCount = count, totalDurationSeconds = 1800.0,
+        isPinned = false, isSmart = smart, coverMode = PlaylistCoverMode.Mosaic,
+    )
+
+    private fun playlistSong(order: Int, asset: String? = "asset-$order") = PlaylistSong(
+        id = "item-$order", workId = "work-$order", title = "Song $order", artist = "The Drivers", album = "Road Songs",
+        coverUrl = null, assetId = asset, durationSeconds = 200.0, sortOrder = order,
+    )
+
+    @Test
+    fun thePlaylistsEntryListsTheProfilesPlaylistsInTheEnginesOrderAndLeavesEmptyOnesOut() {
+        val rows = CarCards.playlists(
+            listOf(playlist("p1", "Road trip", 12), playlist("p2", "New ideas", 0), playlist("p3", "Recently played", 18, smart = true)),
+        )
+
+        assertEquals(listOf("Road trip", "Recently played"), rows.map { it.title })
+        assertEquals(listOf(CarCardKind.Playlist, CarCardKind.Playlist), rows.map { it.kind })
+        assertEquals(listOf("p1", "p3"), rows.map { it.detailId })
+        assertEquals("12 songs · 30 min", rows[0].line)
+        assertEquals("Smart playlist · 18 songs · 30 min", rows[1].line)
+    }
+
+    @Test
+    fun theCarListOfPlaylistsStaysShortAndShowsEachPlaylistOnce() {
+        val many = (1..120).map { playlist("p$it", "List $it", 3) }
+
+        assertEquals(CarList.NODE_LIMIT, CarCards.playlists(many).size)
+        assertEquals(1, CarCards.playlists(listOf(playlist("same", "A", 3), playlist("same", "A again", 3))).size)
+    }
+
+    @Test
+    fun aPlaylistOpensAsAFolderOfItsSongsAndItsIdReadsBack() {
+        assertEquals(CarNode.Playlist("6f0c-a1"), CarList.parse(CarList.playlistId("6f0c-a1")))
+        assertNull(CarList.parse("car:playlist"))
+        assertNull(CarList.parse("car:playlist:"))
+        assertEquals(CarNode.Entry(CarEntry.Playlists), CarList.parse(CarEntry.Playlists.nodeId))
+    }
+
+    @Test
+    fun aPlaylistsSongsAreTheListInPlaylistOrderWithoutSongsThatHaveNoFile() {
+        val rows = CarCards.playlistSongs(listOf(playlistSong(0), playlistSong(1, asset = null), playlistSong(2)))
+
+        assertEquals(listOf("Song 0", "Song 2"), rows.map { it.title })
+        assertEquals(listOf("asset-0", "asset-2"), rows.map { it.assetId })
+        assertEquals("The Drivers · Road Songs", rows.first().line)
+        assertEquals(CarList.NODE_LIMIT, CarCards.playlistSongs((0 until 80).map { playlistSong(it) }).size)
+    }
+
+    @Test
+    fun aPressOnAPlaylistSongPlaysThePlaylistFromThatSongUnderThePlaylistsName() {
+        val rows = CarCards.playlistSongs((0 until 4).map { playlistSong(it) })
+
+        val plan = CarPlayPlan.forPress(rows, "asset-2", "Road trip") as CarPlan.Songs
+
+        assertEquals(listOf("asset-0", "asset-1", "asset-2", "asset-3"), plan.request.tracks.map { it.assetId })
+        assertEquals(2, plan.request.startIndex)
+        assertEquals("Road trip", plan.request.sourceName)
+    }
+
+    @Test
+    fun aPlaylistFolderItselfNeverStartsPlayingAndAPlaylistSearchResultIsNotACarResult() {
+        val folder = CarCards.playlists(listOf(playlist("p1", "Road trip", 3))).single()
+        assertNull(CarPlayPlan.forPress(listOf(folder), "", null))
+
+        val hit = SearchHit("playlist", "p1", "Road trip", "Music", null, null)
+        assertFalse(CarSearch.isAudio(hit))
+        assertTrue(CarSearch.isAudio(hit.copy(entityType = "musicalbum")))
     }
 
     @Test

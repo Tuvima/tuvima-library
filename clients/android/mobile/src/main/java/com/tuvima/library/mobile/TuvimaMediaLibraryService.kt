@@ -750,12 +750,16 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
     private fun carFolder(id: String, title: String, line: String? = null): MediaItem = remember(folder(id, title, line))
 
-    /** One row of a list: an album opens its songs; a song or audiobook plays (its id says which list it was shown in). */
+    /** One row of a list: an album or playlist opens its songs; a song or audiobook plays (its id says which list it was shown in). */
     private fun carRow(card: CarCard, listId: String): MediaItem? {
         if (card.kind == CarCardKind.Album) {
             val type = card.detailType ?: return null
             val id = card.detailId ?: return null
             return carFolder(CarList.albumId(type, id), card.title, card.line)
+        }
+        if (card.kind == CarCardKind.Playlist) {
+            val id = card.detailId ?: return null
+            return carFolder(CarList.playlistId(id), card.title, card.line)
         }
         val assetId = card.assetId ?: return null
         return remember(
@@ -802,8 +806,9 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 }
                 CarEntry.Audiobooks ->
                     carListing(parentId, node.entry.title, CarCards.items(api.browsePage(CarList.audiobooksQuery()).cards))
-                // No route reads playlists for the phone yet, so there is nothing to list (CarList.PLAYLISTS_AVAILABLE).
-                CarEntry.Playlists -> emptyList()
+                // The profile's own playlists (read only), pinned first, at most 50; each opens as a list of its songs.
+                CarEntry.Playlists ->
+                    CarCards.playlists(api.playlistsPage(limit = CarList.NODE_LIMIT).items).mapNotNull { carRow(it, parentId) }
                 CarEntry.RecentlyPlayed -> carListing(
                     parentId,
                     node.entry.title,
@@ -814,6 +819,11 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 // A shelf is normally read when the Listen entry was opened; reading it again covers a car that asks for a shelf directly.
                 if (carLists[parentId] == null) carChildren(CarEntry.ListenShelves.nodeId, refresh = true)
                 carLists[parentId]?.cards?.mapNotNull { carRow(it, parentId) }.orEmpty()
+            }
+            is CarNode.Playlist -> {
+                val songs = api.playlistSongsPage(node.id, null, CarList.NODE_LIMIT).items
+                val name = carIndex[parentId]?.mediaMetadata?.title?.toString()?.takeIf { it.isNotBlank() } ?: "Playlist"
+                carListing(parentId, name, CarCards.playlistSongs(songs))
             }
             is CarNode.Album -> {
                 val detail = api.detailPage(node.entityType, node.id)

@@ -144,6 +144,18 @@ object ClientRoutes {
     fun viewPlaces(cursor: String? = null, limit: Int = ViewDiscoveryLogic.PAGE_SIZE): String =
         paged("$API/view/places", cursor, limit.coerceIn(1, 100))
 
+    /** The photos and videos of one place cluster, newest first. [key] is a place's `key` from `/view/places` (it looks like `paris@48.9,2.4`), sent URL-encoded. */
+    fun viewPlaceItems(key: String, cursor: String? = null, limit: Int = 100): String =
+        paged("$API/view/places/${encodePathSegment(key)}/items", cursor, limit.coerceIn(1, 200))
+
+    /** The profile's own playlists, pinned first and then in the profile's saved order, a page at a time (the Engine's default is 50, its largest 100). */
+    fun playlists(cursor: String? = null, limit: Int = PlaylistsLogic.LIST_PAGE): String =
+        paged("$API/collections/playlists", cursor, limit.coerceIn(1, 100))
+
+    /** The songs of one of the profile's own playlists in the order it was saved (the Engine's default page is 100, its largest 200). */
+    fun playlistItems(id: String, cursor: String? = null, limit: Int = PlaylistsLogic.SONGS_PAGE): String =
+        paged("$API/collections/${encode(id)}/items", cursor, limit.coerceIn(1, 200))
+
     fun details(entityType: String, id: String): String =
         "$API/details/${encode(entityType)}/${encode(id)}"
 
