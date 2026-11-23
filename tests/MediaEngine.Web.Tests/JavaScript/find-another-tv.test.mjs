@@ -524,11 +524,12 @@ test('the player wires the Lyrics panel: music only, the lyrics source check, an
   const clients = path.join(here, '..', '..', '..', 'clients', 'tv-web');
   const player = readFileSync(path.join(clients, 'player.js'), 'utf8');
   const api = readFileSync(path.join(clients, 'api.js'), 'utf8');
-  assert.match(player, /lyricsButton\.hidden = !TV\.findAnother\.isMusic\(manifest && manifest\.mediaType\)/);
+  const logic = readFileSync(path.join(clients, 'player-logic.js'), 'utf8');
+  assert.match(logic, /if \(kind === 'music'\) \{ return \[\{ key: 'lyrics', label: WORDS\.lyrics \}\]; \}/);
   assert.match(player, /TV\.api\.textTrackSources\(assetId, 'lyrics'\)/);
   assert.match(player, /kind: lyrics \? 'lyrics' : 'subtitles'/);
   assert.match(player, /activeLyricIndex\(state\.lyrics\.parsed\.lines, video\.currentTime/);
-  assert.match(player, /if \(state\.panelOpen && state\.panelMode === 'lyrics'\) \{ paintLyricsActive\(\); \}/);
+  assert.match(player, /if \(state\.panel\.open === 'lyrics'\) \{ paintLyricsActive\(\); \}/);
   assert.match(api, /textTrackText: function \(assetId, trackId\)/);
   // The window sends no language for lyrics.
   const window = readFileSync(path.join(clients, 'find-another.js'), 'utf8');
