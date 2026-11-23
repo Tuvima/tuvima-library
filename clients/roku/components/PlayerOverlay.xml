@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Roku player's controls (spec native-apps WP6, mock-up tv-player-panels.html pictures 1, 2 and 7), drawn from a model made in
+     PlayerLogic.brs on a 1920 x 1080 screen: the title and one line at the bottom left on a local gradient, the timeline, the
+     five transport buttons with Play the largest, the tool row, the paused description and the End card. It does not take
+     focus: MainScene reads the remote and tells this node where focus is. -->
+<component name="PlayerOverlay" extends="Group">
+    <interface>
+        <!-- { areaWidth, title, line, description, showDescription, zone, index, selectedTool, transport, tools, ticks, endCard } -->
+        <field id="model" type="assocarray" alwaysNotify="true" onChange="onModel" />
+        <!-- { position, duration }: the timeline and the two times, once a second. -->
+        <field id="progress" type="assocarray" alwaysNotify="true" onChange="onProgress" />
+    </interface>
+    <children>
+        <Rectangle id="shade1" translation="[0,540]" width="1920" height="130" color="#000000" opacity="0.22" />
+        <Rectangle id="shade2" translation="[0,670]" width="1920" height="130" color="#000000" opacity="0.42" />
+        <Rectangle id="shade3" translation="[0,800]" width="1920" height="140" color="#000000" opacity="0.62" />
+        <Rectangle id="shade4" translation="[0,940]" width="1920" height="140" color="#000000" opacity="0.84" />
+
+        <Label id="titleLabel" translation="[96,632]" width="1000" height="56" color="#FFFFFF" vertAlign="center" />
+        <Label id="lineLabel" translation="[96,690]" width="1000" height="40" color="#B6C2D6" vertAlign="center" />
+        <Label id="descLabel" translation="[96,670]" width="820" height="66" color="#94A3B8" wrap="true" numLines="2" visible="false" />
+
+        <Label id="playedLabel" translation="[96,752]" width="110" height="40" color="#B6C2D6" vertAlign="center" />
+        <Rectangle id="barRing" translation="[216,763]" width="1488" height="18" color="#FFFFFF" visible="false" />
+        <Rectangle id="barTrack" translation="[220,767]" width="1480" height="10" color="#4A4C55" />
+        <Rectangle id="barFill" translation="[220,767]" width="0" height="10" color="#8852FC" />
+        <Group id="tickGroup" />
+        <Poster id="barKnob" translation="[207,759]" width="26" height="26" uri="pkg:/images/circle.png" blendColor="#FFFFFF" />
+        <Label id="leftLabel" translation="[1714,752]" width="110" height="40" color="#B6C2D6" horizAlign="right" vertAlign="center" />
+
+        <TransportButton id="tb0" translation="[680,864]" />
+        <TransportButton id="tb1" translation="[820,864]" />
+        <TransportButton id="tb2" translation="[960,864]" />
+        <TransportButton id="tb3" translation="[1100,864]" />
+        <TransportButton id="tb4" translation="[1240,864]" />
+
+        <ToolPill id="tool0" translation="[400,948]" visible="false" />
+        <ToolPill id="tool1" translation="[700,948]" visible="false" />
+        <ToolPill id="tool2" translation="[1000,948]" visible="false" />
+        <ToolPill id="tool3" translation="[1300,948]" visible="false" />
+
+        <Group id="endCard" visible="false">
+            <Rectangle translation="[1124,420]" width="700" height="330" color="#1A1B21" opacity="0.96" />
+            <Label id="endHeading" translation="[1154,440]" width="640" height="50" color="#FFFFFF" vertAlign="center" />
+            <Label id="endCountdown" translation="[1154,490]" width="640" height="40" color="#B6C2D6" vertAlign="center" />
+            <Label id="endTitle" translation="[1154,548]" width="640" height="44" color="#FFFFFF" vertAlign="center" />
+            <Label id="endKind" translation="[1154,594]" width="640" height="36" color="#94A3B8" vertAlign="center" />
+            <Rectangle id="cancelRing" translation="[1150,656]" width="318" height="72" color="#FFFFFF" visible="false" />
+            <Rectangle id="cancelFill" translation="[1154,660]" width="310" height="64" color="#2F3039" />
+            <Label id="cancelLabel" translation="[1154,660]" width="310" height="64" color="#F5F7FB" horizAlign="center" vertAlign="center" />
+            <Rectangle id="playNowRing" translation="[1480,656]" width="318" height="72" color="#FFFFFF" visible="false" />
+            <Rectangle id="playNowFill" translation="[1484,660]" width="310" height="64" color="#8852FC" />
+            <Label id="playNowLabel" translation="[1484,660]" width="310" height="64" color="#FFFFFF" horizAlign="center" vertAlign="center" />
+        </Group>
+    </children>
+    <script type="text/brightscript" uri="pkg:/components/PlayerLogic.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PlayerOverlay.brs" />
+</component>

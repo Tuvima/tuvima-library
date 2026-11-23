@@ -48,14 +48,19 @@
             <Poster id="photoViewer" width="1920" height="1080" loadDisplayMode="scaleToFit" />
         </Group>
         <Video id="video" width="1920" height="1080" visible="false" enableUI="true" />
+        <PlayerOverlay id="overlay" visible="false" />
         <Label id="status" translation="[80,1010]" color="#FFCC80" width="1760" height="44" />
         <Timer id="pairingTimer" duration="5" repeat="true" />
         <Timer id="heartbeatTimer" duration="15" repeat="true" />
+        <Timer id="overlayTimer" duration="5" repeat="false" />
         <ApiTask id="api" />
+        <SidePanel id="sidePanel" visible="false" />
         <AudioSubtitlesPanel id="panel" visible="false" />
         <LyricsPanel id="lyricsPanel" visible="false" />
         <FindAnotherWindow id="findWindow" visible="false" />
     </children>
     <script type="text/brightscript" uri="pkg:/components/FindAnotherLogic.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PlayerLogic.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PlayerControls.brs" />
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
 </component>

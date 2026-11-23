@@ -94,6 +94,14 @@ object ClientRoutes {
     fun nextEpisodes(showId: String, afterAssetId: String, count: Int = 3): String =
         "$API/details/show/${encode(showId)}/next-episodes?after=${encode(afterAssetId)}&count=${count.coerceIn(1, 10)}"
 
+    // Bookmarks of a title (videos and audiobooks share the player's audiobook-bookmark routes; the Engine decides who sees what).
+
+    /** GET lists the profile's own bookmarks plus the title's Everyone list (each marked isYours and inEveryone); POST adds one of the person's own. */
+    fun bookmarks(workId: String): String = "$API/player/audiobooks/${encode(workId)}/bookmarks"
+
+    /** DELETE removes one of the caller's own bookmarks (`204`, or `404` for anyone else's). */
+    fun bookmark(bookmarkId: String): String = "$API/player/audiobooks/bookmarks/${encode(bookmarkId)}"
+
     // Find another (subtitles and lyrics). All four sit under the asset's text-tracks group; a blank language is left out.
 
     /** Whether a source is switched on for the item (settings only, no source is contacted). */

@@ -1,0 +1,178 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>People inside Match</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"><style>
+:root{color-scheme:dark;--page:#101115;--nav:#14151A;--card:#1A1B21;--raised:#1F2027;--hover:#272830;--menu:#2F3039;
+--text:#F5F7FB;--text2:#B6C2D6;--muted:#94A3B8;--line:rgba(148,163,184,.16);--hair:rgba(148,163,184,.10);
+--accent:#8852FC;--accent-hi:#A46FFF;--accent-soft:rgba(136,82,252,.16);--accent-line:rgba(136,82,252,.42);
+--ok:#22C55E;--warn:#F59E0B;--bad:#FF8A8A;--bad-line:rgba(239,68,68,.5);--ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.45;padding:32px max(16px,env(safe-area-inset-right,0px)) 64px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+.intro h1{font-size:24px;font-weight:700;margin:0 0 8px}.intro p{color:var(--text2);max-width:70ch;margin:0 0 8px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.toc a{color:var(--text2);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px}
+.toc a:hover,.toc a:focus-visible{background:var(--hover);color:var(--text);outline:none}
+section>h2{font-size:20px;font-weight:600;margin:0 0 4px}section>.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.scroller{overflow-x:auto;padding-bottom:8px}
+.notes{margin:16px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 32px;max-width:1280px}
+.notes li{display:flex;gap:10px;color:var(--text2);font-size:13px;min-width:0}.notes b{color:var(--text);font-weight:600}
+.n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:#F5F7FB;color:#101115;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.mk{position:absolute;z-index:9;box-shadow:0 0 0 2px var(--page)}
+.win{position:relative;width:1280px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.hdfull{display:flex;gap:20px;padding:20px 24px;background:linear-gradient(90deg,#2b2440 0%,#1f2033 30%,var(--card) 75%);position:relative}
+.hs{flex:0 0 auto;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:600;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.hs.a{background:linear-gradient(160deg,#5b7fc7,#1d2a4a)}.hs.b{background:linear-gradient(160deg,#c77f5b,#4a2a1d)}.hs.c{background:linear-gradient(160deg,#5bc7a0,#1d4a3a)}.hs.d{background:linear-gradient(160deg,#a35bc7,#341d4a)}
+.hdfull .hs{width:96px;height:96px;font-size:28px}
+.lab{font-size:13px;color:var(--text2)}.hdfull h3{font-size:20px;font-weight:600;margin:2px 0 4px}.facts{font-size:13px;color:var(--text2)}
+.hdr{flex:1 1 auto;min-width:0}.hdtop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.badges{display:flex;gap:8px;align-items:center}
+.bdg{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;font-weight:600;color:var(--text2)}
+.close{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 10px;color:var(--text2);font-weight:500}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line);height:48px;align-items:stretch}
+.tab{display:inline-flex;align-items:center;gap:8px;padding:0 14px;color:var(--text2);font-weight:500;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--text);border-bottom-color:var(--accent)}
+.body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:16px;position:relative}
+.ft{display:flex;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid var(--line);background:var(--raised)}.ft .wb{color:var(--muted);font-size:13px}
+.grow{flex:1 1 auto}
+.btn{height:44px;padding:0 18px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:500;font-size:14px;border:1px solid var(--line);color:var(--text);background:transparent;white-space:nowrap;flex-shrink:0}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}.btn.red{border-color:var(--bad-line);color:var(--bad)}.btn.txt{border-color:transparent;color:var(--text2)}.btn.off{opacity:.45}
+.row{display:grid;gap:6px 12px;align-items:end}.row .lb{font-size:13px;font-weight:500;color:var(--text2)}.row .msg{grid-column:1/-1;font-size:13px;color:var(--muted);min-height:18px}
+.fld{height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--page);color:var(--text);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}.fld.hint{color:var(--muted)}
+.filebar{display:flex;align-items:center;gap:16px;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:var(--raised);min-width:0}
+.filebar .cap{font-size:12px;font-weight:600;color:var(--muted);padding-left:16px;border-left:1px solid var(--line);white-space:nowrap}.t1{font-weight:500}.t2{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:24px;align-items:start}
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}.sh h4{font-size:16px;font-weight:600;margin:0}.sh span{font-size:13px;color:var(--muted)}
+.list{display:flex;flex-direction:column}
+.rw{display:flex;align-items:center;gap:14px;min-height:64px;padding:8px 12px;border-bottom:1px solid var(--hair);border-left:3px solid transparent;min-width:0;position:relative}
+.rw.on{background:var(--accent-soft);border:1px solid var(--accent-line);border-left:3px solid var(--accent);border-radius:8px}
+.rw .hs{width:44px;height:44px;font-size:14px}.rw .tx{flex:1 1 auto;min-width:0}
+.rw .a{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rw .m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:5px;font-size:11px;font-weight:600;border:1px solid var(--line);color:var(--text2);flex:0 0 auto}
+.tag.cur{border-color:var(--accent-line);color:var(--accent-hi)}
+.tick{color:var(--accent-hi);flex:0 0 auto;width:20px}
+.cardx{border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px;background:var(--card);min-width:0;position:relative}
+.top{display:flex;gap:20px;min-width:0}.top .hs{width:140px;height:140px;font-size:36px}
+.top h4{font-size:16px;font-weight:600;margin:0 0 4px}.top .m{font-size:13px;color:var(--text2)}
+.lnk{color:var(--accent-hi);font-weight:500;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+.desc{color:var(--text2);margin:8px 0 2px}
+.verdict{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ok);padding-top:12px;border-top:1px solid var(--line)}.verdict.poss{color:var(--warn)}
+table.cmp{width:100%;border-collapse:collapse;font-size:14px}
+table.cmp th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.cmp td{padding:9px 8px;border-bottom:1px solid var(--hair)}table.cmp td:first-child{color:var(--text2)}table.cmp td:last-child{width:28px;text-align:right}
+.yes{color:var(--ok)}.no{color:var(--bad)}.na{color:var(--muted)}
+.apply{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}.sm{font-size:13px;color:var(--muted)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.amber{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid rgba(245,158,11,.45);border-radius:8px;color:var(--warn);font-size:13px;background:rgba(245,158,11,.07)}
+.panel{position:relative;width:560px;max-width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.panel h4{font-size:20px;font-weight:600;margin:0}.panel p{margin:0;color:var(--text2)}
+.rv{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px}
+.rv div{display:flex;justify-content:space-between;gap:16px;padding:10px 14px;border-bottom:1px solid var(--hair);font-size:13px}.rv div:last-child{border-bottom:0}.rv span:first-child{color:var(--text2)}.rv b{font-weight:500;text-align:right}
+.pair{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.phones{display:flex;gap:28px;align-items:flex-start;padding:4px}
+.ph{position:relative;width:360px;height:760px;background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;flex:0 0 auto}
+.ph .h1{display:flex;align-items:center;gap:10px;height:56px;padding:0 12px;background:linear-gradient(90deg,#2b2440,var(--card));border-bottom:1px solid var(--line)}
+.ph .h1 .hs{width:32px;height:32px;font-size:11px}.ph .h1 b{font-weight:600;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph .tabs{padding:0 8px;overflow-x:auto;height:44px}.ph .tab{padding:0 10px;white-space:nowrap}
+.ph .pb{flex:1 1 auto;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px;position:relative}
+.ph .ft{padding:10px 12px}
+.ph .fld{font-size:16px}.ph .btn{height:44px}.ph .full{width:100%}
+.ph .rw{padding:8px 4px}
+.ph .sheet{flex:1 1 auto;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px;position:relative}
+.ph .top{flex-direction:column;align-items:flex-start;gap:12px}.ph .top .hs{width:96px;height:96px}
+.tiles{display:flex;gap:16px;flex-wrap:wrap}
+.pt{width:120px;position:relative;display:flex;flex-direction:column;gap:6px}
+.pt .hs{width:120px;height:120px;font-size:30px}.pt .nm{font-weight:500;font-size:13px}.pt .rl{font-size:12px;color:var(--muted)}
+.pt .dots{position:absolute;right:6px;top:6px;width:32px;height:32px;border-radius:6px;background:rgba(16,17,21,.75);display:flex;align-items:center;justify-content:center;color:var(--text)}
+.menu{position:absolute;left:70px;top:44px;width:230px;background:var(--menu);border:1px solid var(--line);border-radius:10px;padding:6px;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.menu div{height:44px;display:flex;align-items:center;padding:0 12px;border-radius:6px;font-size:14px}.menu div.on{background:var(--accent-soft)}.menu div.red{color:var(--bad)}
+.pg{width:760px;background:var(--page);border:1px solid var(--line);border-radius:12px;padding:20px 24px;position:relative;min-height:330px}
+.pg h4{margin:0 0 12px;font-size:16px;font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:5px;font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--text2);flex:0 0 auto}
+.chip.ok{color:var(--ok);border-color:rgba(34,197,94,.4)}.chip.chk{color:var(--warn);border-color:rgba(245,158,11,.45)}
+.rw .c1{flex:1 1 0;min-width:0}.rw .c2{flex:1 1 0;min-width:0}.rw .c3{flex:0 0 120px;display:flex;align-items:center}.rw .c4{flex:0 0 140px;display:flex;justify-content:flex-end}.rw .c4 .btn{width:140px}
+.cv{border-radius:4px;background:linear-gradient(160deg,#5c7a9a,#1f2f5a 55%,#c9a23a);flex:0 0 auto}
+.hdfull .cv{width:64px;height:96px}.ph .h1 .cv{width:26px;height:38px}
+.sw{display:flex;gap:4px;border:1px solid var(--line);border-radius:8px;padding:3px;align-self:flex-start;background:var(--page)}
+.sw span{height:36px;padding:0 16px;display:inline-flex;align-items:center;border-radius:6px;font-weight:500;color:var(--text2)}
+.sw span.on{background:var(--accent-soft);color:var(--text);box-shadow:inset 0 0 0 1px var(--accent-line)}
+.pgh{display:flex;gap:20px;align-items:center;margin-bottom:12px}.pgh .hs{width:96px;height:96px;font-size:28px}
+.pgh h4{margin:0;font-size:20px}.flt{max-width:340px}
+</style></head><body><div class="wrap">
+<div class="intro"><h1>People inside the Match tab</h1>
+<p>Draft mock-ups for <b>Editor v9, version 2</b> (issue #1244). Change from version 1: <b>People becomes a third switch inside Match</b>, after Media providers and Wikidata, which both stay instead of its own tab, it works on titles that have no Wikidata page of their own (example: a MasterClass video folder), it copes with long lists, and the person's own page has no "More" button. Dark only. Example: the video folder "MasterClass: Stephen Curry" whose host was matched to the wrong Stephen Curry.</p>
+<div class="toc"><a href="#a">A. Doors</a><a href="#b">B. Match, People</a><a href="#c">C. Change person</a><a href="#d">D. Staged and Review</a><a href="#e">E. Phone</a></div></div>
+
+<section id="a"><h2>A. Ways in, and the person page</h2><p class="sub">Left: the title's Cast and crew, unchanged. Right: a person's page.</p>
+<div class="pair"><div class="scroller"><div class="pg" id="pgA" style="width:600px"></div></div><div class="scroller"><div class="pg" id="pgA2" style="width:520px"></div></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Cast and crew stays exactly as it is today:</b> no new buttons or menu entries. You spot the wrong person here, then edit the title.</span></li>
+<li><span class="n">2</span><span><b>Edit in the title's "..." menu</b> (not drawn) opens the editor; Match, then People is the only way in.</span></li>
+<li><span class="n">3</span><span><b>The person's own page has no "More" button and no edit entry.</b> Looked-up people are treated as right; fixes happen on the title.</span></li>
+</ol></section>
+
+<section id="b"><h2>B. Match tab, People switch</h2><p class="sub">Desktop 1280. A video folder with no Wikidata page: the Match switch keeps Media providers and Wikidata and adds People.</p>
+<div class="scroller"><div class="win" id="winB"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>Match switch:</b> Media providers and Wikidata stay as they are; People is added after them. It is shown for any title with people, whether or not the title itself is matched.</span></li>
+<li><span class="n">2</span><span><b>Find a person</b> filters the list by name or role, so a long cast is quick to scan.</span></li>
+<li><span class="n">3</span><span><b>Rows</b>: headshot, name from the file or provider, role, who it is matched to, and a chip. "Check" is a hint only, here because a basketball class lists a person Wikidata knows as a politician.</span></li>
+<li><span class="n">4</span><span><b>Change person</b> on a row opens screen C. <b>Show all 41</b> reveals the rest, a page at a time.</span></li>
+</ol></section>
+
+<section id="c"><h2>C. Change person</h2><p class="sub">Same step as before. With no Wikidata page for the title, results are judged by name, role and description instead of "lists this title".</p>
+<div class="scroller"><div class="win" id="winC"></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span><b>"This title" bar</b> names the video folder and the credit being changed.</span></li>
+<li><span class="n">2</span><span><b>Results</b> carry Wikidata's one-line description so you can pick the basketball player yourself. Current is tagged.</span></li>
+<li><span class="n">3</span><span><b>The card compares name and role.</b> The "lists this title" row says the title has no Wikidata page, and the verdict is honest: "Could not confirm".</span></li>
+<li><span class="n">4</span><span><b>Use this person</b> stages it. Roles stay as pulled from the retail listing (a person can have several, e.g. Guest · Writer) and are not edited here. Only this title changes. Links to the person's Wikidata and Wikipedia pages are on the card and on every row; search finds people only.</span></li>
+</ol></section>
+
+<section id="d"><h2>D. Staged, then Review changes</h2><p class="sub">Unchanged from version 1.</p>
+<div class="pair"><div class="scroller" style="max-width:100%"><div class="win" id="winD" style="width:760px"></div></div><div id="rvD"></div></div>
+<ol class="notes"><li><span class="n">1</span><span><b>Row shows the new person</b> with "Not saved yet" and Undo.</span></li><li><span class="n">2</span><span><b>Review changes</b> says this title only, and the choice is kept through refreshes.</span></li></ol></section>
+
+<section id="e"><h2>E. On a phone</h2><p class="sub">360 wide. Match shows the three switches as a scrolling row.</p>
+<div class="scroller"><div class="phones" id="phones"></div></div>
+<ol class="notes"><li><span class="n">1</span><span><b>People switch</b> in Match; filter box above the rows.</span></li><li><span class="n">2</span><span><b>Change person</b> is full width under a flagged row.</span></li><li><span class="n">3</span><span><b>The result card</b> is a full-height sheet with Use this person at the bottom.</span></li></ol></section>
+</div>
+<script>
+const I={dots:'<circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/>',check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',okc:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',warn:'<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2v.3"/>',out:'<path d="M9 7h8v8"/><path d="M17 7L7 17"/>',back:'<path d="M14 6l-6 6 6 6"/>',srch:'<circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/>',x:'<path d="M6 6l12 12M18 6L6 18"/>'};
+const ic=(k,s)=>`<svg class="i" viewBox="0 0 24 24" ${s?`style="${s}"`:''}>${I[k]}</svg>`;
+const mk=(n,st)=>`<span class="n mk" style="${st}">${n}</span>`;
+const hs=(c,t)=>`<div class="hs ${c}">${t}</div>`;
+const tabs=(on)=>`<div class="tabs">${['Details','Artwork','Match','History'].map(t=>`<span class="tab${t==on?' on':''}">${t}</span>`).join('')}</div>`;
+const sw=`<div class="sw"><span>Media providers</span><span>Wikidata</span><span class="on">People</span></div>`;
+const header=`<div class="hdfull"><div class="cv"></div><div class="hdr"><div class="hdtop"><div><div class="lab">Video folder</div><h3>MasterClass: Stephen Curry Teaches Shooting</h3><div class="facts">2020 · 18 videos · 41 people credited</div></div><div class="badges"><span class="bdg">Retail <span class="no">${ic('x','width:14px;height:14px')}</span></span></div></div></div></div>`;
+const foot=(off)=>`<div class="ft"><span class="btn red">Delete</span><span class="grow"></span><span class="wb">File write-back off</span><span class="btn txt${off?' off':''}">Discard</span><span class="btn pri${off?' off':''}">Save changes</span></div>`;
+const CH=`<span class="chip chk">${ic('warn','width:14px;height:14px')} Check</span>`,OK=`<span class="chip ok">${ic('check','width:14px;height:14px')} Matched</span>`;
+const credit=(c,ini,name,role,match,state,btn)=>`<div class="rw">${hs(c,ini)}<div class="tx c1"><div class="a">${name}</div><div class="m">${role}</div></div><div class="tx c2"><div class="a" style="font-weight:400">${match}</div><div class="m"><a class="lnk">Wikidata</a> &nbsp; <a class="lnk">Wikipedia</a></div></div><div class="c3">${state}</div><div class="c4">${btn}</div></div>`;
+const chg=`<span class="btn" style="height:36px">Change person</span>`;
+const rows=[credit('b','SC','Stephen Curry','Host','American politician · born 1957',CH,chg),credit('c','DC','Dell Curry','Guest','American basketball player · born 1964',OK,chg),credit('d','SK','Steve Kerr','Guest · Writer','American basketball coach · born 1965',OK,chg),credit('a','KT','Klay Thompson','Guest','American basketball player · born 1990',OK,chg)];
+const fld=`<div class="fld flt">${ic('srch','width:18px;height:18px;margin-right:8px')}Find a person or role</div>`;
+// A
+document.getElementById('pgA').innerHTML=`<h4>Cast and crew</h4><div class="tiles">${[['b','SC','Stephen Curry','Host'],['c','DC','Dell Curry','Guest'],['d','SK','Steve Kerr','Guest']].map((p,i)=>`<div class="pt">${hs(p[0],p[1])}<div class="nm">${p[2]}</div><div class="rl">${p[3]}</div></div>`).join('')}</div>`+`<div class="sm" style="margin-top:210px"></div>`;
+document.getElementById('pgA2').innerHTML=`<div class="pgh">${hs('b','SC')}<div><h4>Stephen Curry</h4><div class="m" style="color:var(--text2)">American basketball player · born 1988</div></div></div><div class="tiles"><span class="btn pri">Play</span><span class="btn">Add to My List</span></div>`+mk(3,'right:14px;top:14px');
+// B
+document.getElementById('winB').innerHTML=header+tabs('Match')+`<div class="body">${sw}${fld}<div class="list">${rows.join('')}</div><div style="color:var(--accent-hi);height:44px;display:flex;align-items:center">Show all 41</div></div>`+foot(true)+mk(1,'left:30px;top:188px')+mk(2,'left:380px;top:236px')+mk(3,'left:600px;top:300px')+mk(4,'left:1090px;top:300px');
+// C
+const res=[['b','SC','Stephen Curry','American politician · born 1957','Current'],['a','SC','Stephen Curry','American basketball player · born 1988',''],['c','SC','Steph Curry (musician)','Canadian singer-songwriter',''],['d','SC','Stephen Currie','English footballer · born 1971','']];
+const bar=`<div class="filebar"><div><div class="t1">MasterClass: Stephen Curry Teaches Shooting (video folder)</div><div class="t2">Credit: Stephen Curry, host</div></div><span class="cap">THIS TITLE</span></div>`;
+document.getElementById('winC').innerHTML=header+tabs('Match')+`<div class="body">${sw}<div class="row" style="grid-template-columns:minmax(12rem,1.6fr) minmax(12rem,1.6fr) auto"><span class="lb">Search Wikidata</span><span class="lb">Paste a Wikidata link or ID</span><span></span><div class="fld">Stephen Curry</div><div class="fld">https://www.wikidata.org/wiki/Q…</div><span class="btn pri">Search</span></div>${bar}<div class="two"><div><div class="sh"><h4>Results</h4><span>4 found</span></div><div class="list">${res.map((r,i)=>`<div class="rw${i==1?' on':''}">${hs(r[0],r[1])}<div class="tx"><div class="a">${r[2]}</div><div class="m">${r[3]}</div></div>${r[4]?`<span class="tag cur">${r[4]}</span>`:''}</div>`).join('')}</div></div>
+<div class="cardx"><div class="top">${hs('a','SC')}<div><h4>Stephen Curry</h4><div class="m">American basketball player · born 1988</div><a class="lnk">Open on Wikidata ${ic('out','width:14px;height:14px')}</a> &nbsp; <a class="lnk">Open on Wikipedia ${ic('out','width:14px;height:14px')}</a></div></div>
+<table class="cmp"><tr><th></th><th>This title</th><th>Wikidata</th><th></th></tr><tr><td>Name</td><td>Stephen Curry</td><td>Stephen Curry</td><td class="yes">${ic('check')}</td></tr><tr><td>This title</td><td>Video folder</td><td>No Wikidata page</td><td class="na">–</td></tr><tr><td>Role</td><td>Host</td><td>Basketball player</td><td class="na">–</td></tr></table>
+<div class="verdict poss">${ic('warn')} Could not confirm: this title has no Wikidata page. Check the description.</div><div class="apply"><span class="sm">Only this title changes. The person page and other titles keep their match.</span><span class="btn pri">Use this person</span></div></div></div></div>`+foot(true)+mk(1,'left:30px;top:290px')+mk(2,'left:30px;top:380px')+mk(3,'left:640px;top:470px')+mk(4,'left:1220px;top:600px');
+// D
+document.getElementById('winD').innerHTML=header+tabs('Match')+`<div class="body">${sw}<div class="list">${credit('a','SC','Stephen Curry','Host','American basketball player · born 1988',`<span class="chip chk">Not saved yet</span>`,`<span class="btn txt" style="height:36px">Undo</span>`)}${rows.slice(1,3).join('')}</div></div>`+foot(false)+mk(1,'left:3px;top:240px');
+document.getElementById('winD').style.width='1000px';
+document.getElementById('rvD').innerHTML=`<div class="panel" style="width:520px;margin-left:16px"><h4>Review changes</h4><p>MasterClass: Stephen Curry Teaches Shooting · 1 change</p><div class="rv"><div><span>Host</span><b>Stephen Curry (politician) → Stephen Curry (basketball player)</b></div><div><span>Reach</span><b>This title only. Other titles are not changed.</b></div><div><span>Kept after a refresh</span><b>Yes</b></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><span class="btn txt">Back</span><span class="btn pri">Save changes</span></div>${mk(2,'left:-8px;top:-8px')}</div>`;
+// E
+const ph=(inner)=>`<div class="ph"><div class="h1"><div class="cv"></div><b>MasterClass: Stephen Curry Teaches Shooting</b><span style="color:var(--text2)">${ic('dots')}</span></div><div class="tabs">${['Details','Artwork','Match','History'].map(t=>`<span class="tab${t=='Match'?' on':''}">${t}</span>`).join('')}</div>${inner}<div class="ft"><span class="wb" style="flex:1">File write-back off</span><span class="btn txt off">Discard</span><span class="btn pri off">Save changes</span></div></div>`;
+document.getElementById('phones').innerHTML=
+ph(`<div class="pb">${sw}<div class="fld">${ic('srch','width:18px;height:18px;margin-right:8px')}Find a person or role</div><div class="list"><div class="rw" style="flex-wrap:wrap">${hs('b','SC')}<div class="tx"><div class="a">Stephen Curry</div><div class="m">Host · matched to American politician</div></div>${CH}<span class="btn full">Change person</span></div><div class="rw">${hs('c','DC')}<div class="tx"><div class="a">Dell Curry</div><div class="m">Guest · basketball player</div></div>${OK}</div></div></div>`)+
+ph(`<div class="pb"><div class="sm">Credit: Stephen Curry, host</div><div class="fld">Stephen Curry</div><span class="btn pri full">Search</span><div class="list">${res.map((r,i)=>`<div class="rw${i==1?' on':''}">${hs(r[0],r[1])}<div class="tx"><div class="a">${r[2]}</div><div class="m">${r[3]}</div></div>${r[4]?`<span class="tag cur">${r[4]}</span>`:''}</div>`).join('')}</div></div>`)+
+`<div class="ph"><div class="h1"><span style="color:var(--text2)">${ic('back')}</span><b>Stephen Curry · basketball player</b></div><div class="sheet"><div class="top">${hs('a','SC')}<div><h4 style="margin:0 0 4px;font-size:16px">Stephen Curry</h4><div class="m">American basketball player · born 1988</div></div></div><div class="verdict poss">${ic('warn')} Could not confirm: no Wikidata page for this title.</div><div class="sm">Only this title changes.</div><span class="grow"></span><span class="btn pri full">Use this person</span></div></div>`;
+document.getElementById('phones').children[0].insertAdjacentHTML('beforeend',mk(1,'left:16px;top:112px'));
+document.getElementById('phones').children[0].insertAdjacentHTML('beforeend',mk(2,'left:300px;top:250px'));
+document.getElementById('phones').children[2].insertAdjacentHTML('beforeend',mk(3,'left:300px;bottom:70px'));
+</script></body></html>

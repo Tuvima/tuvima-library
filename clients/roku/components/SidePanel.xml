@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The right-hand panel of the Roku player (spec native-apps WP6, mock-up tv-player-panels.html): 700 px of the 1920 px screen,
+     full height, a fixed header (the tool's name and Close), a middle that scrolls and a fixed footer. Used by Episodes,
+     Bookmarks and Playback settings. -->
+<component name="SidePanel" extends="Group">
+    <interface>
+        <!-- { title, back, rows: [{ kind, title, second, chip, check, on, value, adjustable }], footer: [...], focus } from PlayerLogic.brs. -->
+        <field id="model" type="assocarray" alwaysNotify="true" onChange="onModel" />
+        <!-- Takes the focus (the tool row hands it over with Right, or a panel just opened). -->
+        <field id="focusNow" type="boolean" alwaysNotify="true" onChange="onFocusNow" />
+        <!-- { kind, value, row }: Select on a row; kind "options" is the Options key on a row. -->
+        <field id="selection" type="assocarray" alwaysNotify="true" />
+        <!-- { direction: -1 | 1, value, kind }: Left or Right on a row that can be adjusted (Season, Mine | Global). -->
+        <field id="adjust" type="assocarray" alwaysNotify="true" />
+        <field id="leaveRequested" type="boolean" alwaysNotify="true" />
+        <field id="closeRequested" type="boolean" alwaysNotify="true" />
+    </interface>
+    <children>
+        <Rectangle id="panelBack" translation="[1220,0]" width="700" height="1080" color="#14151A" />
+        <Rectangle id="panelEdge" translation="[1220,0]" width="2" height="1080" color="#2B2D36" />
+        <Label id="panelTitle" translation="[1256,24]" width="440" height="56" color="#F5F7FB" vertAlign="center" />
+        <Rectangle id="closeRing" translation="[1728,26]" width="156" height="52" color="#FFFFFF" visible="false" />
+        <Rectangle id="closeFill" translation="[1730,28]" width="152" height="48" color="#272830" />
+        <Label id="closeLabel" translation="[1730,28]" width="152" height="48" horizAlign="center" vertAlign="center" color="#B6C2D6" text="Close" />
+        <Rectangle id="headerLine" translation="[1220,104]" width="700" height="2" color="#2B2D36" />
+        <MarkupList id="bodyList" translation="[1248,124]" itemComponentName="PanelRow" itemSize="[644,92]" numRows="9" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <Rectangle id="footerLine" translation="[1220,976]" width="700" height="2" color="#2B2D36" />
+        <MarkupList id="footerList" translation="[1248,982]" itemComponentName="PanelRow" itemSize="[644,92]" numRows="1" drawFocusFeedback="false" />
+    </children>
+    <script type="text/brightscript" uri="pkg:/components/PlayerLogic.brs" />
+    <script type="text/brightscript" uri="pkg:/components/SidePanel.brs" />
+</component>

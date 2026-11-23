@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The small Audio & subtitles side panel of the Roku player (spec find-another-on-tv D4, D8): right edge, dark, 5 percent safe margins. -->
+<!-- The Audio & subtitles panel of the Roku player (spec find-another-on-tv D4, D8; spec native-apps WP6): the right-hand SidePanel
+     (700 px, header with Close, rows, a footer with Find subtitles…) filled with the audio and subtitle rows. -->
 <component name="AudioSubtitlesPanel" extends="Group">
     <interface>
-        <!-- { rows: [{ kind, title, value }] } from faPanelRows; opens the panel and takes focus. -->
+        <!-- { rows: [{ kind, title, value, on }] } from faPanelRows; opens the panel and takes focus. -->
         <field id="openWith" type="assocarray" alwaysNotify="true" onChange="onOpen" />
         <!-- { kind: "audio" | "off" | "subtitle" | "find", value } when a row is chosen. -->
         <field id="selection" type="assocarray" alwaysNotify="true" />
         <field id="closeRequested" type="boolean" alwaysNotify="true" />
+        <!-- Left on a row: focus goes back to the controls (the tool row). -->
+        <field id="leaveRequested" type="boolean" alwaysNotify="true" />
+        <!-- Right from the tool row: focus goes into the panel. -->
+        <field id="focusNow" type="boolean" alwaysNotify="true" onChange="onFocusNow" />
     </interface>
     <children>
-        <Rectangle id="panelBack" translation="[1320,0]" width="600" height="1080" color="#14111C" />
-        <Label id="panelTitle" translation="[1368,54]" width="504" height="50" color="#FFFFFF" font="font:MediumBoldSystemFont" text="Audio &amp; subtitles" />
-        <LabelList id="panelList" translation="[1368,130]" itemSize="[504,64]" numRows="12" />
+        <SidePanel id="inner" visible="true" />
     </children>
     <script type="text/brightscript" uri="pkg:/components/FindAnotherLogic.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PlayerLogic.brs" />
     <script type="text/brightscript" uri="pkg:/components/AudioSubtitlesPanel.brs" />
 </component>

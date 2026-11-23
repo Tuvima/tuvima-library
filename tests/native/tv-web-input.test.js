@@ -17,6 +17,7 @@ globalThis.document = { addEventListener() {}, createElement() { return {}; } };
 const root = path.join(__dirname, '..', '..', 'clients', 'tv-web');
 require(path.join(root, 'api.js'));
 require(path.join(root, 'nav.js'));
+require(path.join(root, 'player-logic.js'));
 require(path.join(root, 'player.js'));
 const { nav, player } = window.TV;
 

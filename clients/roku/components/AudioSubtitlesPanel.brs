@@ -1,53 +1,66 @@
+' Audio & subtitles: the rows are made by faPanelRows (FindAnotherLogic.brs); this file puts them in the shared right-hand panel.
+' Audio and subtitle rows go in the middle with a check on the one in use; "Find subtitles…" is the fixed footer row.
+
 sub init()
-    m.list = m.top.findNode("panelList")
-    m.rows = []
-    m.lastIndex = -1
-    m.list.observeField("itemFocused", "onRowFocused")
-    m.list.observeField("itemSelected", "onRowSelected")
+    m.inner = m.top.findNode("inner")
+    m.origin = []
+    m.inner.observeField("selection", "onInnerSelection")
+    m.inner.observeField("closeRequested", "onInnerClose")
+    m.inner.observeField("leaveRequested", "onInnerLeave")
 end sub
 
 sub onOpen()
     args = m.top.openWith
     if args = invalid then return
-    m.rows = args.rows
-    root = CreateObject("roSGNode", "ContentNode")
-    for each row in m.rows
-        entry = root.CreateChild("ContentNode")
-        entry.title = row.title
+    body = []
+    footer = []
+    m.origin = []
+    focus = -1
+    firstChoice = -1
+    for each row in args.rows
+        if row.kind = "find"
+            footer.Push({ kind: "value", title: row.title, second: "", value: "find" })
+        else if row.kind = "header"
+            body.Push({ kind: "header", title: row.title })
+            m.origin.Push(row)
+        else
+            if firstChoice < 0 then firstChoice = body.Count()
+            if focus < 0 and plIsTrue(row.on) then focus = body.Count()
+            body.Push({ kind: "plain", title: row.title, second: "", check: plIsTrue(row.on), value: row.value })
+            m.origin.Push(row)
+        end if
     end for
-    m.lastIndex = -1
-    m.list.content = root
+    if focus < 0 then focus = firstChoice
+    if focus < 0 then focus = 0
     m.top.visible = true
-    first = faNextSelectable(m.rows, 0, 1)
-    if first < 0 then first = 0
-    m.list.jumpToItem = first
-    m.lastIndex = first
-    m.list.setFocus(true)
+    m.inner.model = { title: "Audio & subtitles", back: false, rows: body, footer: footer, focus: focus }
+    m.inner.focusNow = true
 end sub
 
-' Section headings are not choices: focus steps over them in the direction of travel.
-sub onRowFocused()
-    index = m.list.itemFocused
-    if index < 0 or index >= m.rows.Count() then return
-    if m.rows[index].kind = "header"
-        direction = 1
-        if m.lastIndex >= 0 and index < m.lastIndex then direction = -1
-        target = faNextSelectable(m.rows, index, direction)
-        if target < 0 then target = m.lastIndex
-        if target < 0 then return
-        m.list.jumpToItem = target
-        m.lastIndex = target
-    else
-        m.lastIndex = index
+sub onFocusNow()
+    m.inner.focusNow = true
+end sub
+
+sub onInnerSelection()
+    selection = m.inner.selection
+    if selection = invalid then return
+    ' The Options key means nothing here (it is for a bookmark row); only Select applies a row.
+    if selection.kind = "options" then return
+    if selection.index < 0
+        ' The footer row.
+        m.top.selection = { kind: "find", value: "" }
+    else if selection.index < m.origin.Count()
+        row = m.origin[selection.index]
+        m.top.selection = { kind: row.kind, value: row.value }
     end if
 end sub
 
-sub onRowSelected()
-    index = m.list.itemSelected
-    if index < 0 or index >= m.rows.Count() then return
-    row = m.rows[index]
-    if row.kind = "header" then return
-    m.top.selection = { kind: row.kind, value: row.value }
+sub onInnerClose()
+    m.top.closeRequested = true
+end sub
+
+sub onInnerLeave()
+    m.top.leaveRequested = true
 end sub
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
@@ -57,6 +70,8 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         m.top.closeRequested = true
         return true
     end if
-    ' The panel is modal: arrows and Select are handled by the list; every other key is kept from the player.
+    ' Play/Pause, Rewind and Fast-forward still work while the panel is open (the contract's tv-keys table).
+    if key = "play" or key = "rev" or key = "fwd" then return false
+    ' The panel is modal: the rows handle their own keys; every other key is kept from the player.
     return true
 end function

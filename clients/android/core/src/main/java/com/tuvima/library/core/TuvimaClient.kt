@@ -390,6 +390,17 @@ class TuvimaClient(
     suspend fun chooseTextTrackAlternative(assetId: String, request: ChooseTextTrackRequest): TextTrackChoiceResult =
         parseTextTrackChoice(requestJson("POST", ClientRoutes.chooseTextTrackAlternative(assetId), request.toJson()))
 
+    /** The title's bookmarks as the Engine lists them for this profile: Mine are `isYours`, Global are `inEveryone`. */
+    suspend fun bookmarks(workId: String): List<TvBookmark> =
+        TvBookmarks.parse(requestArray("GET", ClientRoutes.bookmarks(workId)), ::absolute)
+
+    /** Saves one of the person's own bookmarks (the body is [TvBookmarks.createBody]) and returns it. */
+    suspend fun createBookmark(workId: String, body: JSONObject): TvBookmark =
+        TvBookmarks.parseOne(requestJson("POST", ClientRoutes.bookmarks(workId), body), ::absolute)
+
+    /** Deletes one of the person's own bookmarks. Returns the HTTP status; 204 is success. */
+    suspend fun deleteBookmark(bookmarkId: String): Int = requestStatus("DELETE", ClientRoutes.bookmark(bookmarkId), null)
+
     suspend fun heartbeat(payload: JSONObject): JSONObject =
         requestJson("POST", "/api/v1/player/heartbeat", payload)
 

@@ -1,6 +1,6 @@
 # Spec: Native apps (TVs, phones and tablets, cars)
 
-> **Status:** Locked (Shy, 2026-11-22 22:51Z; all answers Q210 to Q218 accepted as recommended) · **Version:** 1 · **Last updated:** 2026-11-22 · **Related docs:** [Product overview](../product/overview.md) · [Player controls v1 (the shared contract)](../../clients/contracts/v1/player-controls.md) · [Unified player v2 (archived)](archive/unified-player-v2.md) · [Remote access](remote-access.md) · [Tuvima ID sign-in](tuvima-id-sign-in.md) · [Native Client Delivery](../../docs/product/native-clients.md) · Issues #782 (Roku), #783 (Android TV), #784 (Apple TV), #785 (TV web), #786 (CarPlay), #787 (Android Auto) · Plan: "Testing and building the TV and phone apps" (2026-11-22)
+> **Status:** In progress (Shy, 2026-11-22 22:51Z; all answers Q210 to Q218 accepted as recommended) · **Version:** 1 · **Last updated:** 2026-11-22 · **Related docs:** [Product overview](../product/overview.md) · [Player controls v1 (the shared contract)](../../clients/contracts/v1/player-controls.md) · [Unified player v2 (archived)](archive/unified-player-v2.md) · [Remote access](remote-access.md) · [Tuvima ID sign-in](tuvima-id-sign-in.md) · [Native Client Delivery](../../docs/product/native-clients.md) · Issues #782 (Roku), #783 (Android TV), #784 (Apple TV), #785 (TV web), #786 (CarPlay), #787 (Android Auto) · Plan: "Testing and building the TV and phone apps" (2026-11-22)
 
 ## 1. Goal
 
