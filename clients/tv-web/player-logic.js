@@ -431,13 +431,13 @@
   function bookmarkAtLabel(position) { return fill(WORDS.bookmarkAt, formatTime(position)); }
 
   /**
-   * Mine | Global. The Engine decides who sees what (isYours, isGlobal); the choice shows only when a Global set exists.
+   * Mine | Global. The Engine decides who sees what: Mine is isYours and Global is inEveryone, as in the Dashboard; the choice shows only when a Global set exists.
    * Mine is first and the default.
    */
   function bookmarkTabs(items) {
     var all = list(items);
-    var mine = all.filter(function (b) { return b.isYours && !b.isGlobal; });
-    var global = all.filter(function (b) { return b.isGlobal; });
+    var mine = all.filter(function (b) { return b.isYours; });
+    var global = all.filter(function (b) { return b.inEveryone; });
     return {
       showChoice: global.length > 0,
       mine: mine,

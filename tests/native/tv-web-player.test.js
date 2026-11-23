@@ -362,7 +362,7 @@ const marks = [
   { id: 'b2', positionSeconds: 331, label: 'Funny wish', isYours: true, isGlobal: false },
   { id: 'b1', positionSeconds: 130, label: '', note: 'Genie bottle opens', isYours: true, isGlobal: false, frameUrl: '/f1' },
   { id: 'b3', positionSeconds: 415, isYours: true, isGlobal: false },
-  { id: 'g1', positionSeconds: 60, label: 'Great start', isYours: false, isGlobal: true, ownerName: 'Maya' }
+  { id: 'g1', positionSeconds: 60, label: 'Great start', isYours: false, isGlobal: true, inEveryone: true, ownerName: 'Maya' }
 ];
 
 test('Mine is the default and the choice shows only when a Global set exists', () => {
@@ -373,10 +373,17 @@ test('Mine is the default and the choice shows only when a Global set exists', (
   assert.strictEqual(L.bookmarkTabs([]).showChoice, false);
 });
 
-test('a bookmark made by the person who is also an administrator never lands in Mine when it is Global', () => {
-  const both = [{ id: 'x', positionSeconds: 5, isYours: true, isGlobal: true }];
+test('an administrator\'s own Global bookmark shows in both Mine and Global, as in the Dashboard', () => {
+  const both = [{ id: 'x', positionSeconds: 5, isYours: true, isGlobal: true, inEveryone: true }];
   const tabs = L.bookmarkTabs(both);
-  assert.strictEqual(tabs.mine.length, 0);
+  assert.strictEqual(tabs.mine.length, 1);
+  assert.strictEqual(tabs.global.length, 1);
+});
+
+test('the Everyone set is what the Engine says is in it, even when no administrator made a Global set', () => {
+  const pooled = [{ id: 'p', positionSeconds: 9, isYours: false, isGlobal: false, inEveryone: true }];
+  const tabs = L.bookmarkTabs(pooled);
+  assert.strictEqual(tabs.showChoice, true);
   assert.strictEqual(tabs.global.length, 1);
 });
 

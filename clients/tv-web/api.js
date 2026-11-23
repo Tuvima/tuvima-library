@@ -442,7 +442,7 @@
     },
     playbackPreferences: function () { return get('/api/v1/devices/current/playback-preferences'); },
 
-    /* Bookmarks of a video (the Engine's player routes; the Engine decides who sees what: isYours, isGlobal). */
+    /* Bookmarks of a video (the Engine's player routes; the Engine decides who sees what: isYours, inEveryone). */
     bookmarks: function (workId) { return get('/api/v1/player/audiobooks/' + enc(workId) + '/bookmarks'); },
     createBookmark: function (workId, body) { return request('POST', '/api/v1/player/audiobooks/' + enc(workId) + '/bookmarks', body); },
     updateBookmark: function (bookmarkId, body) { return request('PUT', '/api/v1/player/audiobooks/bookmarks/' + enc(bookmarkId), body); },
