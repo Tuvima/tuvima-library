@@ -481,7 +481,10 @@ assistant. Nothing visual and no video appears.
 | 2 | The Listen shelves |
 | 3 | Audiobooks |
 | 4 | Playlists |
-| 5 | Recently played |
+
+Recently played is not a fifth entry: the car's top level holds four tabs, so
+**Recently played is the first shelf inside The Listen shelves**, followed by the
+Engine's other shelves.
 
 **The Now playing card** carries the fields of the lock screen above. Its
 buttons:

@@ -5,6 +5,7 @@ import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.ViewGallery
 import com.tuvima.library.core.ViewItem
 import com.tuvima.library.core.ViewPerson
+import com.tuvima.library.core.ViewPlace
 import com.tuvima.library.core.detailTargetFromRoute
 
 /** What a Play button asks for. The type decides whether the video screen or the audio service handles it. */
@@ -34,6 +35,12 @@ internal sealed interface Overlay {
 
     /** One person's photos and videos, opened from View's People tab. */
     data class PersonOpen(val person: ViewPerson) : Overlay
+
+    /** One place's photos and videos, opened from View's Places tab. */
+    data class PlaceOpen(val place: ViewPlace) : Overlay
+
+    /** One of the profile's playlists, opened from Listen's Playlists tab or from a search result. [smart] is only known when it came from the list. */
+    data class PlaylistOpen(val id: String, val name: String, val smart: Boolean = false) : Overlay
 }
 
 internal fun mobileDetailEntityType(mediaType: String): String {

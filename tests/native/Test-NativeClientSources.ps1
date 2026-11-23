@@ -72,11 +72,19 @@ if (-not $carPlay.Contains('("Queue", "Queue")', [StringComparison]::Ordinal) -o
     throw 'Automotive clients must expose the contract car list.'
 }
 
-# Playlists is in the contract's list but no route reads playlists for the apps yet, so the only way it may be missing from the car's root is the
-# documented flag (CarList.PLAYLISTS_AVAILABLE) that the root list filters on; the service takes the root as it comes, with no list of its own.
-foreach ($playlistRule in @('const val PLAYLISTS_AVAILABLE', 'playlistsAvailable || it != CarEntry.Playlists')) {
+# Playlists is in the contract's list and the phone reads the profile's playlists (GET /api/v1/collections/playlists, WP19), so Android Auto must
+# carry the entry: the flag is on, the root list still filters on it, and the service lists the playlists and opens one as a list of its songs.
+# The service takes the root as it comes, with no list of its own.
+# The root keeps Auto's four tabs: the contract puts Recently played inside Listen as its first shelf, so the Listen shelves sort it first.
+foreach ($playlistRule in @('const val PLAYLISTS_AVAILABLE = true', 'playlistsAvailable || it != CarEntry.Playlists', 'sortedBy { if (it.key == RECENTLY_PLAYED_SHELF) 0 else 1 }', 'class Playlist(val id: String)')) {
     if (-not $androidCar.Contains($playlistRule, [StringComparison]::Ordinal)) {
-        throw "Android Auto car list must leave Playlists out only through the documented flag ($playlistRule)."
+        throw "Android Auto car list must carry the Playlists entry ($playlistRule)."
+    }
+}
+
+foreach ($playlistRead in @('CarEntry.Playlists ->', 'playlistsPage(', 'is CarNode.Playlist ->', 'playlistSongsPage(')) {
+    if (-not $androidAuto.Contains($playlistRead, [StringComparison]::Ordinal)) {
+        throw "Android Auto service must list the playlists and open one as a list of its songs ($playlistRead)."
     }
 }
 
@@ -85,7 +93,7 @@ if ($androidAuto.Contains('rootEntries(playlistsAvailable', [StringComparison]::
     throw 'Android Auto service must not decide on its own whether the Playlists entry is in the root.'
 }
 
-foreach ($carEntry in @('"Continue"', '"The Listen shelves"', '"Audiobooks"', '"Playlists"', '"Recently played"')) {
+foreach ($carEntry in @('"Continue"', '"The Listen shelves"', '"Audiobooks"', '"Playlists"')) {
     if (-not $androidCar.Contains($carEntry, [StringComparison]::Ordinal)) {
         throw "Android Auto car list is missing the contract entry $carEntry."
     }

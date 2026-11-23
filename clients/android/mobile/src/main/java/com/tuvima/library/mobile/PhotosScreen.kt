@@ -62,6 +62,7 @@ import com.tuvima.library.core.ViewGalleries
 import com.tuvima.library.core.ViewGallery
 import com.tuvima.library.core.ViewItem
 import com.tuvima.library.core.ViewPerson
+import com.tuvima.library.core.ViewPlace
 import com.tuvima.library.core.ViewTab
 import com.tuvima.library.core.ViewTimelineMonth
 import com.tuvima.library.core.buildFlatRows
@@ -92,6 +93,7 @@ internal fun PhotosScreen(
     openViewer: (List<ViewItem>, Int) -> Unit,
     openGallery: (ViewGallery) -> Unit,
     openPerson: (ViewPerson) -> Unit,
+    openPlace: (ViewPlace) -> Unit,
 ) {
     var tab by remember { mutableStateOf(ViewTab.Timeline) }
     Column(Modifier.fillMaxSize()) {
@@ -100,7 +102,7 @@ internal fun PhotosScreen(
             ViewTab.Timeline -> TimelineGrid(client, openViewer)
             ViewTab.Galleries -> GalleriesList(client, openGallery)
             ViewTab.People -> PeopleList(client, openPerson)
-            ViewTab.Places -> PlacesList(client)
+            ViewTab.Places -> PlacesList(client, openPlace)
         }
     }
 }

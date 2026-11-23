@@ -33,6 +33,7 @@ import com.tuvima.library.core.PhoneMenuItem
 import com.tuvima.library.core.PhoneMenuTarget
 import com.tuvima.library.core.PhoneSection
 import com.tuvima.library.core.PhoneShellLogic
+import com.tuvima.library.core.PlaylistsLogic
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.playableAssetId
 
@@ -227,6 +228,8 @@ internal fun MobileShell(
                                     openGallery = { stack.add(Overlay.GalleryOpen(it)) },
                                     openArtist = { stack.add(Overlay.ArtistOpen(it)) },
                                     openPerson = { stack.add(Overlay.PersonOpen(it)) },
+                                    openPlace = { stack.add(Overlay.PlaceOpen(it)) },
+                                    openPlaylist = { stack.add(Overlay.PlaylistOpen(it.id, it.name, it.isSmart)) },
                                 )
                                 is Destination.Settings -> SettingsScreen(
                                     application = application,
@@ -290,6 +293,20 @@ internal fun MobileShell(
                                 openViewer = { items, index -> stack.add(Overlay.ViewerOpen(items, index)) },
                                 onBack = { stack.removeAt(stack.lastIndex) },
                             )
+                            is Overlay.PlaceOpen -> PlacePhotosScreen(
+                                client = client,
+                                place = top.place,
+                                openViewer = { items, index -> stack.add(Overlay.ViewerOpen(items, index)) },
+                                onBack = { stack.removeAt(stack.lastIndex) },
+                            )
+                            is Overlay.PlaylistOpen -> PlaylistScreen(
+                                application = application,
+                                client = client,
+                                playlistId = top.id,
+                                name = top.name,
+                                smart = top.smart,
+                                onBack = { stack.removeAt(stack.lastIndex) },
+                            )
                             is Overlay.ViewerOpen -> PhotoViewerScreen(
                                 client = client,
                                 items = top.items,
@@ -306,7 +323,11 @@ internal fun MobileShell(
                     client = client,
                     onOpen = { hit ->
                         searchOpen = false
-                        stack.add(Overlay.Detail(hit.entityType, hit.id, null))
+                        // A playlist has its own page; the details page does not open one.
+                        stack.add(
+                            if (hit.entityType == PlaylistsLogic.SEARCH_TYPE) Overlay.PlaylistOpen(hit.id, hit.title)
+                            else Overlay.Detail(hit.entityType, hit.id, null),
+                        )
                     },
                     onClose = { searchOpen = false },
                 )

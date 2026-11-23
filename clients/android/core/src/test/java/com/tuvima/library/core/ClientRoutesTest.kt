@@ -136,6 +136,7 @@ class ClientRoutesTest {
             ClientRoutes.viewOriginal(id), ClientRoutes.viewPlayback(id), ClientRoutes.collections(), ClientRoutes.collection(id),
             ClientRoutes.collectionItems(id), ClientRoutes.universe("Q1"), ClientRoutes.DEVICE_PROFILES,
             ClientRoutes.SWITCH_PROFILE, ClientRoutes.encodeJob(id), ClientRoutes.revokeDevice(id),
+            ClientRoutes.playlists(), ClientRoutes.playlistItems(id), ClientRoutes.viewPlaceItems("paris@48.9,2.4"),
         )
         paths.forEach { assertTrue("$it is outside /api/v1", it.startsWith("/api/v1/")) }
     }

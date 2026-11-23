@@ -37,10 +37,12 @@ import com.tuvima.library.core.BrowseQuery
 import com.tuvima.library.core.CollectionEntry
 import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.PhoneSection
+import com.tuvima.library.core.Playlist
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.ViewGallery
 import com.tuvima.library.core.ViewItem
 import com.tuvima.library.core.ViewPerson
+import com.tuvima.library.core.ViewPlace
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -60,14 +62,16 @@ internal fun LibrariesScreen(
     openGallery: (ViewGallery) -> Unit,
     openArtist: (String) -> Unit,
     openPerson: (ViewPerson) -> Unit,
+    openPlace: (ViewPlace) -> Unit,
+    openPlaylist: (Playlist) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
         key(section) {
             when (section) {
                 PhoneSection.Watch -> LaneBrowse(client, "watch", openCard)
                 PhoneSection.Read -> LaneBrowse(client, "read", openCard)
-                PhoneSection.Listen -> ListenScreen(client, play, openCard, openArtist)
-                PhoneSection.View -> PhotosScreen(client, openViewer, openGallery, openPerson)
+                PhoneSection.Listen -> ListenScreen(client, play, openCard, openArtist, openPlaylist)
+                PhoneSection.View -> PhotosScreen(client, openViewer, openGallery, openPerson, openPlace)
                 PhoneSection.Collections -> CollectionsScreen(client, openCollection)
             }
         }

@@ -552,9 +552,9 @@ public sealed class PlayerControlsContractTests
         }
 
         var cars = Tables.Value["car-list"].Rows.Select(row => row[1]).ToList();
-        if (!cars.SequenceEqual(["Continue", "The Listen shelves", "Audiobooks", "Playlists", "Recently played"]))
+        if (!cars.SequenceEqual(["Continue", "The Listen shelves", "Audiobooks", "Playlists"]))
         {
-            problems.Add($"car-list: expected Continue, The Listen shelves, Audiobooks, Playlists, Recently played in that order but found {string.Join(", ", cars)}.");
+            problems.Add($"car-list: expected Continue, The Listen shelves, Audiobooks, Playlists in that order but found {string.Join(", ", cars)}.");
         }
 
         AssertNone(problems);

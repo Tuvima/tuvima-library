@@ -1,15 +1,16 @@
 package com.tuvima.library.core
 
-// The phone's Listen section: Songs, Albums, Artists, Audiobooks and Favorites, built from what the Engine already returns (see
-// engineering/validation/native-listen-lanes-2026-11.md). Playlists have no phone route yet, so there is no Playlists tab. Pure rules;
-// nothing here draws anything or touches the network.
+// The phone's Listen section: Songs, Albums, Artists, Audiobooks, Playlists and Favorites, built from what the Engine returns (see
+// engineering/validation/native-listen-lanes-2026-11.md; the Playlists tab reads the read-only playlist routes, see PlaylistsLogic). Pure
+// rules; nothing here draws anything or touches the network.
 
-/** The Listen section's tabs, in the Dashboard's order without Playlists. */
+/** The Listen section's tabs, in the Dashboard's order. */
 enum class ListenTab(val label: String) {
     Songs("Songs"),
     Albums("Albums"),
     Artists("Artists"),
     Audiobooks("Audiobooks"),
+    Playlists("Playlists"),
     Favorites("Favorites"),
 }
 

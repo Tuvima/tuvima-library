@@ -100,8 +100,8 @@ Next dimmed in place, skips of 10 seconds back and 30 forward by default, the
 tool row (Episodes, Audio & subtitles, Bookmarks, Playback settings) with side
 panels on the right, Everyone | Mine bookmarks, paused details, the end card and
 the Autoplay switch. Gaps for **CarPlay**: it lists Listen and opens the system
-Now playing template; it should list Continue, the Listen shelves, Audiobooks,
-Playlists and Recently played, and the card should carry the contract's
+Now playing template; it should list Continue, the Listen shelves (Recently played is
+their first shelf), Audiobooks and Playlists, and the card should carry the contract's
 lock-screen fields and actions (music: Previous, Play, Next, Shuffle and Repeat;
 audiobooks: back 10, forward 30, Previous and Next chapter, Speed presets). The
 television side panels and the car list are a first definition, to be settled in

@@ -2,7 +2,7 @@ package com.tuvima.library.core
 
 import org.json.JSONObject
 
-// View's People and Places on the phone (`GET /api/v1/view/people`, `/people/{key}/items`, `/places`). Both lists are the signed-in
+// View's People and Places on the phone (`GET /api/v1/view/people`, `/people/{key}/items`, `/places`, `/places/{key}/items`). Both lists are the signed-in
 // person's own photos and videos only. Pure wire reading and wording; nothing here draws anything.
 
 /** Whether the Engine has anything to show for People or Places, with its own explanation when it does not. */
@@ -91,6 +91,7 @@ object ViewDiscoveryLogic {
     const val EMPTY_PEOPLE = "No people yet. Names you add or review in your photos show up here."
     const val EMPTY_PLACES = "No places yet. Photos with a location show up here."
     const val NO_ITEMS = "No photos or videos for this person yet."
+    const val NO_PLACE_ITEMS = "No photos or videos for this place yet."
 
     fun tabs(): List<ViewTab> = ViewTab.entries.toList()
 

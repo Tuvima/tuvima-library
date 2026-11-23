@@ -94,6 +94,39 @@ class ViewDiscoveryTest {
     }
 
     @Test
+    fun aPlacesPhotosAreReadFromItsOwnRouteWithTheKeyEncodedAsOnePathSegment() {
+        // The key of a place has a comma, an at sign and often spaces; the Engine reads it back from one URL-encoded segment (never `+`).
+        assertEquals(
+            "/api/v1/view/places/paris%2C%20france%4048.9%2C2.4/items?limit=100",
+            ClientRoutes.viewPlaceItems(places().items.first().key),
+        )
+        assertEquals("/api/v1/view/places/paris%4048.9%2C2.4/items?limit=100", ClientRoutes.viewPlaceItems("paris@48.9,2.4"))
+        assertEquals("/api/v1/view/places/k/items?cursor=100&limit=200", ClientRoutes.viewPlaceItems("k", "100", 500))
+    }
+
+    @Test
+    fun aPlaceKeyWithSlashPercentQuestionHashOrPlusStaysOneSegmentAndNeverReachesTheQuery() {
+        assertEquals("/api/v1/view/places/a%2Fb%4048.9%2C2.4/items?limit=100", ClientRoutes.viewPlaceItems("a/b@48.9,2.4"))
+        assertEquals("/api/v1/view/places/100%25%404%2C5/items?limit=100", ClientRoutes.viewPlaceItems("100%@4,5"))
+        assertEquals("/api/v1/view/places/what%3F%404%2C5/items?limit=100", ClientRoutes.viewPlaceItems("what?@4,5"))
+        assertEquals("/api/v1/view/places/c%23%404%2C5/items?limit=100", ClientRoutes.viewPlaceItems("c#@4,5"))
+        // A plus sign stays a plus sign (%2B); only a space becomes %20.
+        assertEquals("/api/v1/view/places/a%2Bb%20c%404%2C5/items?limit=100", ClientRoutes.viewPlaceItems("a+b c@4,5"))
+        // Whatever the key holds, the path has exactly the segments of the route: view, places, one key, items.
+        val path = ClientRoutes.viewPlaceItems("x/y?z#w+v %", "7").substringBefore('?')
+        assertEquals(listOf("api", "v1", "view", "places", "x%2Fy%3Fz%23w%2Bv%20%25", "items"), path.split('/').filter { it.isNotEmpty() })
+    }
+
+    @Test
+    fun thePlaceItemsFixtureReadsLikeAPersonsPhotosAndGivesTheCursorOfTheNextPage() {
+        val page = parseViewItemPage(WireFixtures.json("view-place-items.json"))
+
+        assertEquals(listOf("Eiffel Tower", "River walk"), page.items.map { it.title })
+        assertTrue(page.hasMore)
+        assertEquals("2", page.nextCursor)
+    }
+
+    @Test
     fun theViewRoutesStayInsideApiV1AndEncodeAPersonsKey() {
         assertEquals("/api/v1/view/people?limit=48", ClientRoutes.viewPeople())
         assertEquals("/api/v1/view/people?cursor=2&limit=48", ClientRoutes.viewPeople("2"))

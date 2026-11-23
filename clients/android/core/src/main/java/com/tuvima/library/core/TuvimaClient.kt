@@ -581,6 +581,18 @@ class TuvimaClient(
     suspend fun viewPlacesPage(cursor: String? = null, limit: Int = ViewDiscoveryLogic.PAGE_SIZE): ViewPlacesPage =
         photoCall { parseViewPlacesPage(requestJson("GET", ClientRoutes.viewPlaces(cursor, limit))) }
 
+    /** The photos and videos of one place cluster, newest first ([key] is a place's `key`). Throws [PhotoAccessDeniedException] when photos were not allowed. */
+    suspend fun viewPlaceItems(key: String, cursor: String? = null, limit: Int = 100): ViewItemPage =
+        photoCall { parseViewItemPage(requestJson("GET", ClientRoutes.viewPlaceItems(key, cursor, limit))) }
+
+    /** The profile's own playlists, pinned first and then in the profile's saved order (read only). */
+    suspend fun playlistsPage(cursor: String? = null, limit: Int = PlaylistsLogic.LIST_PAGE): PlaylistsPage =
+        parsePlaylistsPage(requestJson("GET", ClientRoutes.playlists(cursor, limit)))
+
+    /** One page of a playlist's songs in the order it was saved. A playlist that is not the profile's own answers 404. */
+    suspend fun playlistSongsPage(id: String, cursor: String? = null, limit: Int = PlaylistsLogic.SONGS_PAGE): PlaylistSongsPage =
+        parsePlaylistSongsPage(requestJson("GET", ClientRoutes.playlistItems(id, cursor, limit)), ::absolute)
+
     // My List (`/api/v1/profile-state/saved`), the active profile's saved titles.
 
     /** Everything the profile has saved (My List titles; songs hearted as Favorites share the list). */
