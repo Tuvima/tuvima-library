@@ -69,6 +69,12 @@ object ClientRoutes {
         return "$API/display/browse?${parameters.joinToString("&")}"
     }
 
+    /** GET reads the active profile's reaction to one title (`204` when none), DELETE takes it away; the kind is [SavedKind.route]. */
+    fun profileReaction(kind: SavedKind, id: String): String = "$API/profile-state/reactions/${kind.route}/${encode(id)}"
+
+    /** PUT sets the reaction (`like` or `dislike`) and answers the new state. */
+    fun profileReactionSet(kind: SavedKind, id: String, reaction: SongReaction): String = "${profileReaction(kind, id)}/${reaction.route}"
+
     /** My List: the saved titles of the active profile. GET lists them; `/finished` lists the ones already finished. */
     const val PROFILE_SAVED = "$API/profile-state/saved"
     const val PROFILE_SAVED_FINISHED = "$API/profile-state/saved/finished"

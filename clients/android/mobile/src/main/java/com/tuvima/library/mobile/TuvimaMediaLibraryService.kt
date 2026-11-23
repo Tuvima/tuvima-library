@@ -9,6 +9,7 @@ import androidx.annotation.OptIn
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -30,8 +31,22 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
+import com.tuvima.library.core.AudioNow
 import com.tuvima.library.core.HeartbeatRules
+import com.tuvima.library.core.ListenQueue
+import com.tuvima.library.core.LockAction
+import com.tuvima.library.core.LockScreen
+import com.tuvima.library.core.NowPlayingLogic
+import com.tuvima.library.core.PhonePlayerLogic
+import com.tuvima.library.core.PlayQueue
+import com.tuvima.library.core.PlayQueueRequest
 import com.tuvima.library.core.PlaybackManifest
+import com.tuvima.library.core.QueueShuffle
+import com.tuvima.library.core.QueueTrack
+import com.tuvima.library.core.SleepTimer
+import com.tuvima.library.core.SleepTimerLogic
+import com.tuvima.library.core.TransportStep
+import com.tuvima.library.core.TvMediaKind
 import com.tuvima.library.core.PreparingPoll
 import com.tuvima.library.core.PreparingStep
 import com.tuvima.library.core.StreamRecovery
@@ -52,6 +67,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -68,6 +84,18 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
     private var progressJob: Job? = null
     private var heartbeatJob: Job? = null
     private var videoJob: Job? = null
+
+    // The music and audiobook players (spec native-apps WP10c). The session shows the player through [AudioCardPlayer], so the lock screen's
+    // buttons are the contract's; [audioInfo] says what each queued file is, [originalOrder] is what Shuffle off returns to.
+    private lateinit var sessionPlayer: AudioCardPlayer
+    // The item the screens were last told about; an End of chapter timer is dropped only when this changes (see publishNow).
+    private var publishedAssetId: String? = null
+    private var queueJob: Job? = null
+    private var audioTickJob: Job? = null
+    private var originalOrder: List<String> = emptyList()
+    private val audioInfo = mutableMapOf<String, AudioNow>()
+    private val artCache = LinkedHashMap<String, ByteArray>()
+    private var shownChapter: String? = null
     // Controllers that belong to an open video screen; with none attached a paused video can never be started from outside.
     private val videoScreens = mutableSetOf<MediaSession.ControllerInfo>()
     private var streamedResumeMs = 0L
@@ -86,14 +114,13 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 // A new network may be home or away: settle on the address that answers before asking for the stream.
                 client?.refreshServerAddress()
                 resolvePlayable(assetId)?.let { resolved ->
-                    // A video keeps its type and title so the video screen and the notification stay as they were.
-                    val item = if (current?.mediaMetadata?.mediaType == MediaMetadata.MEDIA_TYPE_VIDEO) {
+                    // A video or a queued song or book keeps its type, title and cover so the screens and the notification stay as they were.
+                    val item = if (current != null) {
                         resolved.buildUpon().setMediaMetadata(current.mediaMetadata).build()
                     } else {
                         resolved
                     }
-                    player.setMediaItem(item, position)
-                    player.prepare()
+                    swapCurrent(item, position)
                     // A video the person paused or left stays paused; it must not start playing in the background.
                     if (wasPlaying || item.mediaMetadata.mediaType != MediaMetadata.MEDIA_TYPE_VIDEO) player.play()
                 }
@@ -140,6 +167,17 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
             override fun onPlayerError(error: PlaybackException) = onStreamError(error)
 
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                mediaItem?.mediaId?.let { activeAssetId = it }
+                publishNow(mediaItem)
+            }
+
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+                // A song that ran to its end and moved on to the next one in the queue is reported as finished (the end of the whole queue is
+                // reported by STATE_ENDED below).
+                if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) oldPosition.mediaItem?.let { reportFinished(it, oldPosition.positionMs) }
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 // Playing again: the next failure of this item (if any) gets its own recovery attempt.
                 if (playbackState == Player.STATE_READY) recoveryAttempts.clear()
@@ -151,9 +189,397 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 }
             }
         })
-        session = MediaLibrarySession.Builder(this, player, LibraryCallback()).build()
+        sessionPlayer = AudioCardPlayer(player)
+        session = MediaLibrarySession.Builder(this, sessionPlayer, LibraryCallback()).build()
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkCallback)
+        // The Sleep timer ticks here, where the player is, so it works with the screen off: a timed one pauses when its time is up and an end-of-chapter
+        // one at the chapter's end. Setting it back to Off (or starting another) restarts the watch.
+        scope.launch {
+            AudioBridge.sleepTimer.collectLatest { timer -> if (timer != SleepTimer.Off) watchSleepTimer(timer) }
+        }
         refreshLibrary()
+    }
+
+    // ---- the music and audiobook players (spec native-apps WP10c) ----
+
+    /**
+     * Makes the card the system draws (title, second line, buttons) follow the contract's lock-screen table: the player the session shows is this
+     * one. Music has previous and next track and no skip buttons; an audiobook has the profile's skip seconds and, with chapters, Previous and Next
+     * chapter; a video is left as the media player has it.
+     */
+    private inner class AudioCardPlayer(wrapped: Player) : ForwardingPlayer(wrapped) {
+        private fun audio(): AudioNow? =
+            AudioBridge.now.value.takeIf { !it.isNone && !isVideoItem(wrappedPlayer.currentMediaItem) }
+
+        private fun skip() = AudioBridge.skip.value
+
+        // The session reads the commands again only when the player says they changed, and the wrapped player knows nothing of what this card
+        // allows, so the listeners are kept here and told when a different song or book (or its chapters) takes over.
+        private val listeners = mutableSetOf<Player.Listener>()
+
+        override fun addListener(listener: Player.Listener) {
+            listeners += listener
+            super.addListener(listener)
+        }
+
+        override fun removeListener(listener: Player.Listener) {
+            listeners -= listener
+            super.removeListener(listener)
+        }
+
+        fun commandsChanged() {
+            val commands = availableCommands
+            listeners.toList().forEach { it.onAvailableCommandsChanged(commands) }
+        }
+
+        override fun getAvailableCommands(): Player.Commands {
+            val base = super.getAvailableCommands()
+            val now = audio() ?: return base
+            val actions = LockScreen.card(NowPlayingLogic.factsFor(now, 0.0, hasNext = false)).actions
+            val builder = base.buildUpon()
+            fun allow(action: String, vararg commands: Int) {
+                if (action in actions) commands.forEach { builder.add(it) } else commands.forEach { builder.remove(it) }
+            }
+            allow(LockAction.SEEK_BACKWARD, Player.COMMAND_SEEK_BACK)
+            allow(LockAction.SEEK_FORWARD, Player.COMMAND_SEEK_FORWARD)
+            allow(LockAction.PREVIOUS_TRACK, Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+            allow(LockAction.NEXT_TRACK, Player.COMMAND_SEEK_TO_NEXT, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+            return builder.build()
+        }
+
+        override fun isCommandAvailable(command: Int): Boolean = availableCommands.contains(command)
+
+        override fun getSeekBackIncrement(): Long = if (audio() != null) skip().back * 1000L else super.getSeekBackIncrement()
+
+        override fun getSeekForwardIncrement(): Long = if (audio() != null) skip().forward * 1000L else super.getSeekForwardIncrement()
+
+        override fun seekBack() {
+            if (audio() == null) return super.seekBack()
+            stepAudio(NowPlayingLogic.skip(positionSeconds(), -skip().back, durationSeconds()))
+        }
+
+        override fun seekForward() {
+            if (audio() == null) return super.seekForward()
+            stepAudio(NowPlayingLogic.skip(positionSeconds(), skip().forward, durationSeconds()))
+        }
+
+        // An audiobook goes by chapter; a song keeps the player's own rule (a restart after 3 seconds, otherwise the song before).
+        override fun seekToPrevious() {
+            val now = audio()
+            if (now == null || !now.isAudiobook) return super.seekToPrevious()
+            stepAudio(NowPlayingLogic.previous(now.kind, positionSeconds(), false, now.chapters))
+        }
+
+        override fun seekToPreviousMediaItem() {
+            val now = audio()
+            if (now == null || !now.isAudiobook) return super.seekToPreviousMediaItem()
+            stepAudio(NowPlayingLogic.previous(now.kind, positionSeconds(), false, now.chapters))
+        }
+
+        override fun seekToNext() {
+            val now = audio()
+            if (now == null || !now.isAudiobook) return super.seekToNext()
+            stepAudio(NowPlayingLogic.next(now.kind, positionSeconds(), false, now.chapters))
+        }
+
+        override fun seekToNextMediaItem() {
+            val now = audio()
+            if (now == null || !now.isAudiobook) return super.seekToNextMediaItem()
+            stepAudio(NowPlayingLogic.next(now.kind, positionSeconds(), false, now.chapters))
+        }
+
+        private fun positionSeconds(): Double = wrappedPlayer.currentPosition / 1000.0
+
+        private fun durationSeconds(): Double? = wrappedPlayer.duration.takeIf { it > 0 && it != C.TIME_UNSET }?.let { it / 1000.0 }
+
+        private fun stepAudio(step: TransportStep) {
+            if (step is TransportStep.SeekTo) wrappedPlayer.seekTo((step.seconds * 1000).toLong())
+        }
+    }
+
+    /**
+     * Tells the screens what is playing now (nothing, for a video or an empty player), tells the session which buttons the card now has, and drops an
+     * end-of-chapter timer that belonged to another item. The same item put back in place (a network change, a fresh stream address) keeps its timer.
+     */
+    private fun publishNow(item: MediaItem?) {
+        val info = if (item == null || isVideoItem(item)) null else audioInfo[item.mediaId]
+        AudioBridge.now.value = info?.copy(isDownload = isLocalItem(item)) ?: AudioNow.None
+        shownChapter = null
+        AudioBridge.sleepTimer.value = NowPlayingLogic.timerAfterItemChange(AudioBridge.sleepTimer.value, publishedAssetId, item?.mediaId)
+        publishedAssetId = item?.mediaId
+        audioTickJob?.cancel()
+        if (info != null && info.isAudiobook && info.chapters.isNotEmpty()) startAudioTick()
+        if (::sessionPlayer.isInitialized) sessionPlayer.commandsChanged()
+    }
+
+    /** While a book with chapters plays, the card's second line follows the chapter (author · chapter name). */
+    private fun startAudioTick() {
+        audioTickJob?.cancel()
+        audioTickJob = scope.launch {
+            while (true) {
+                delay(CHAPTER_TICK_MS)
+                refreshChapterLine()
+            }
+        }
+    }
+
+    private fun refreshChapterLine() {
+        val item = player.currentMediaItem ?: return
+        val now = AudioBridge.now.value
+        if (now.isNone || !now.isAudiobook || now.assetId != item.mediaId) return
+        val name = NowPlayingLogic.chapterName(now.chapters, player.currentPosition / 1000.0) ?: return
+        if (name == shownChapter) return
+        val first = shownChapter == null
+        shownChapter = name
+        // The first read only records the chapter the card was built for; later ones replace the line the system draws.
+        if (first) return
+        val card = LockScreen.card(NowPlayingLogic.factsFor(now, player.currentPosition / 1000.0, hasNext = false))
+        val metadata = item.mediaMetadata.buildUpon().setArtist(card.line2).setSubtitle(card.line2).build()
+        player.replaceMediaItem(player.currentMediaItemIndex, item.buildUpon().setMediaMetadata(metadata).build())
+    }
+
+    private suspend fun watchSleepTimer(timer: SleepTimer) {
+        while (true) {
+            delay(if (timer is SleepTimer.EndOfChapter) 250L else 1_000L)
+            if (AudioBridge.sleepTimer.value != timer) return
+            if (SleepTimerLogic.isDue(timer, System.currentTimeMillis(), player.currentPosition / 1000.0)) {
+                player.pause()
+                AudioBridge.sleepTimer.value = SleepTimer.Off
+                return
+            }
+        }
+    }
+
+    /**
+     * Puts a freshly resolved copy of the item in play back in its place without throwing the queue away: a single item is simply replaced, one in a
+     * queue is swapped where it stands and the position is put back.
+     */
+    private fun swapCurrent(item: MediaItem, positionMs: Long) {
+        if (player.mediaItemCount > 1) {
+            val index = player.currentMediaItemIndex
+            player.replaceMediaItem(index, item)
+            player.seekTo(index, positionMs)
+        } else {
+            player.setMediaItem(item, positionMs)
+        }
+        player.prepare()
+    }
+
+    /** A song that finished and moved on is reported to the Engine as finished (a downloaded one keeps its on-phone progress). */
+    private fun reportFinished(item: MediaItem, positionMs: Long) {
+        if (!HeartbeatRules.shouldSend(isLocalItem(item), item.mediaId)) return
+        val api = client ?: return
+        val report = HeartbeatRules.report(
+            assetId = item.mediaId,
+            isPlaying = false,
+            positionMs = positionMs,
+            durationMs = positionMs.takeIf { it > 0 },
+            playbackRate = player.playbackParameters.speed.toDouble(),
+            ended = true,
+        )
+        scope.launch {
+            try {
+                api.heartbeat(
+                    JSONObject()
+                        .put("assetId", report.assetId)
+                        .put("isPlaying", report.isPlaying)
+                        .put("positionSeconds", report.positionSeconds)
+                        .put("durationSeconds", report.durationSeconds ?: JSONObject.NULL)
+                        .put("playbackRate", report.playbackRate),
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // Best effort, like every heartbeat: the next song's beats carry on and playback never waits on this.
+            }
+        }
+    }
+
+    /** Shuffle on mixes the songs after the one in play; off puts them back as the queue started. Only moves are used, so the song in play never stops. */
+    private fun setShuffle(on: Boolean) {
+        val count = player.mediaItemCount
+        if (count > 1) {
+            val ids = (0 until count).map { player.getMediaItemAt(it).mediaId }
+            // While the queue is still filling the list is partial; the request's full order (kept when it started) is what Shuffle off returns to.
+            if (on && !AudioBridge.shuffle.value && queueJob?.isActive != true) originalOrder = ids
+            val target = if (on) {
+                QueueShuffle.shuffledOrder(ids, player.currentMediaItemIndex, kotlin.random.Random.Default)
+            } else {
+                QueueShuffle.restoredOrder(ids, player.currentMediaItemIndex, originalOrder)
+            }
+            QueueShuffle.moves(ids, target).forEach { player.moveMediaItem(it.from, it.to) }
+        }
+        AudioBridge.shuffle.value = on
+    }
+
+    /** The cover of a song or book as bytes for the lock screen (the Engine wants the device's own sign-in, so the system cannot fetch it). */
+    private suspend fun artworkBytes(url: String?): ByteArray? {
+        if (url.isNullOrBlank()) return null
+        artCache[url]?.let { return it }
+        val api = client ?: return null
+        val bytes = try {
+            kotlinx.coroutines.withTimeoutOrNull(ART_WAIT_MS) { api.authenticatedBytes(url) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            // No cover on the lock screen is better than no song.
+            null
+        }
+        if (bytes != null) {
+            artCache[url] = bytes
+            while (artCache.size > ART_CACHE_SIZE) artCache.remove(artCache.keys.first())
+        }
+        return bytes
+    }
+
+    /** The metadata of a song or book: the contract's two lines, the cover bytes and the facts the screens read back. */
+    private suspend fun audioMetadata(now: AudioNow, positionSeconds: Double, hasNext: Boolean): MediaMetadata {
+        val card = LockScreen.card(NowPlayingLogic.factsFor(now, positionSeconds, hasNext))
+        val extras = Bundle().apply { putString(KEY_ART, now.artworkUrl) }
+        val builder = MediaMetadata.Builder()
+            .setIsPlayable(true)
+            .setIsBrowsable(false)
+            .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+            .setExtras(extras)
+        if (card.visible) {
+            builder.setTitle(card.title).setDisplayTitle(card.title).setArtist(card.line2).setSubtitle(card.line2)
+            artworkBytes(now.artworkUrl)?.let { builder.setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER) }
+        }
+        return builder.build()
+    }
+
+    /**
+     * Resolves one file of a queue into a playable item with its card, or null when the Engine cannot give a stream for it (it is then left out of
+     * the queue). A downloaded copy plays from the phone.
+     */
+    private suspend fun queueItem(track: QueueTrack, source: String?, hasNext: Boolean): MediaItem? {
+        val now = AudioNow(
+            assetId = track.assetId,
+            kind = TvMediaKind.Music,
+            title = track.title,
+            artist = track.artist,
+            album = track.album,
+            workId = track.workId,
+            artworkUrl = track.artworkUrl,
+            sourceName = source,
+        )
+        val metadata = audioMetadata(now, 0.0, hasNext)
+        audioInfo[track.assetId] = now
+        localItem(track.assetId)?.let { return it.buildUpon().setMediaMetadata(metadata).build() }
+        val api = client ?: return null
+        val path: String? = try {
+            api.playbackManifest(track.assetId, "local").playablePath()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            // This song cannot be reached now; the rest of the queue carries on without it.
+            null
+        }
+        if (path == null) return null
+        return MediaItem.Builder().setMediaId(track.assetId).setUri(path).setMediaMetadata(metadata).build()
+    }
+
+    /**
+     * Starts a queue: the song the person picked plays as soon as it is ready, then the songs after it and before it are added one by one as the
+     * Engine prepares them, so a long list never makes the first song wait.
+     */
+    private fun startQueue(request: PlayQueueRequest) {
+        queueJob?.cancel()
+        queueJob = scope.launch {
+            val arranged = QueueShuffle.arranged(request, kotlin.random.Random.Default)
+            originalOrder = ListenQueue.originalIds(request)
+            AudioBridge.shuffle.value = request.shuffle
+            AudioBridge.sleepTimer.value = SleepTimer.Off
+            AudioBridge.problem.value = null
+            player.setAudioAttributes(mediaAudioAttributes(C.AUDIO_CONTENT_TYPE_MUSIC), true)
+            player.setPlaybackSpeed(1f)
+            val tracks = arranged.tracks
+            val start = arranged.startIndex.coerceIn(0, (tracks.size - 1).coerceAtLeast(0))
+            val order = (start until tracks.size) + (0 until start)
+            var started = false
+            var before = 0
+            for (index in order) {
+                val item = queueItem(tracks[index], request.sourceName, hasNext = index < tracks.size - 1) ?: continue
+                if (!started) {
+                    started = true
+                    activeAssetId = item.mediaId
+                    player.setMediaItem(item, 0L)
+                    player.prepare()
+                    player.play()
+                } else if (index > start) {
+                    player.addMediaItem(item)
+                } else {
+                    // A song before the picked one goes in front of it, in its own order.
+                    player.addMediaItem(before, item)
+                    before += 1
+                }
+            }
+            if (!started) AudioBridge.problem.value = SONG_NOT_READY
+        }
+    }
+
+    /**
+     * Starts one song or audiobook (a press on a Play with no queue). A book resumes where the Engine (or, for a download, this phone) left off and
+     * starts at the speed the phone last used for books; its chapters come from the playback manifest.
+     */
+    private suspend fun startAudioAsset(assetId: String, title: String?, subtitle: String?, workId: String?, entityType: String?, artworkUrl: String?) {
+        AudioBridge.shuffle.value = false
+        AudioBridge.sleepTimer.value = SleepTimer.Off
+        AudioBridge.problem.value = null
+        activeAssetId = assetId
+        val api = client
+        val local = localItem(assetId)
+        // A download plays from the phone, but its chapters and kind still come from the manifest when the Engine can be reached (briefly asked,
+        // so a phone with no connection starts the file at once and shows no chapters).
+        val manifest = if (api != null) {
+            try {
+                if (local == null) api.playbackManifest(assetId, "local")
+                else kotlinx.coroutines.withTimeoutOrNull(MANIFEST_WAIT_MS) { api.playbackManifest(assetId, "local") }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                // The Engine could not be reached: a download still plays (without chapters); a stream is reported below.
+                null
+            }
+        } else {
+            null
+        }
+        val kind = NowPlayingLogic.kindOf(manifest?.mediaType, entityType ?: offline.store().record(assetId)?.entityType)
+        val now = AudioNow(
+            assetId = assetId,
+            kind = kind,
+            title = title ?: local?.mediaMetadata?.title?.toString().orEmpty().ifEmpty { "Library" },
+            artist = if (kind == TvMediaKind.Music) subtitle else null,
+            author = if (kind == TvMediaKind.Audiobook) subtitle else null,
+            workId = workId ?: offline.store().record(assetId)?.workId,
+            artworkUrl = artworkUrl ?: offline.store().record(assetId)?.artworkUrl,
+            chapters = manifest?.chapters.orEmpty(),
+        )
+        audioInfo[assetId] = now
+        val metadata = audioMetadata(now, 0.0, hasNext = false)
+        val item: MediaItem
+        val startMs: Long
+        if (local != null) {
+            item = local.buildUpon().setMediaMetadata(metadata).build()
+            startMs = OfflineLogic.resumeStartMs(offline.store().progress(assetId))
+        } else {
+            val path = manifest?.playablePath()
+            if (manifest == null || path == null) {
+                AudioBridge.problem.value = SONG_NOT_READY
+                return
+            }
+            item = MediaItem.Builder().setMediaId(assetId).setUri(path).setMediaMetadata(metadata).build()
+            startMs = StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds)
+        }
+        // Speed and skip seconds belong to this phone and this person (the profile's preferences have no write route for apps).
+        val prefs = kotlinx.coroutines.withTimeoutOrNull(PREFS_WAIT_MS) { api?.playbackPreferences() }
+        val device = (application as TuvimaMobileApplication).playerChoices.load(api?.currentProfileId())
+        AudioBridge.skip.value = PhonePlayerLogic.skip(prefs, device, audio = true)
+        player.setAudioAttributes(mediaAudioAttributes(C.AUDIO_CONTENT_TYPE_MUSIC), true)
+        player.setPlaybackSpeed(NowPlayingLogic.startSpeed(kind, prefs, device).toFloat())
+        player.setMediaItem(item, startMs)
+        player.prepare()
+        player.play()
     }
 
     // Recovery attempts per item id since it last reached the ready state; cleared when playback is ready again.
@@ -179,8 +605,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 val wasPlaying = player.playWhenReady
                 // The title, type and subtitle configurations stay as they were; only the stream address is new.
                 val swapped = item.buildUpon().setUri(Uri.parse(path)).build()
-                player.setMediaItem(swapped, position)
-                player.prepare()
+                swapCurrent(swapped, position)
                 player.playWhenReady = StreamRecovery.resumePlaying(wasPlaying, isVideoItem(item))
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -206,18 +631,26 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         val result = super.onStartCommand(intent, flags, startId)
         if (intent?.action == ACTION_PLAY_ASSET) {
             intent.getStringExtra(EXTRA_ASSET_ID)?.let { assetId ->
-                activeAssetId = assetId
-                scope.launch {
-                    resolvePlayable(assetId)?.let {
-                        // A downloaded copy resumes where this phone (or the Engine, once synced) left off.
-                        val start = if (isLocalItem(it)) OfflineLogic.resumeStartMs(offline.store().progress(assetId)) else streamedResumeMs
-                        streamedResumeMs = 0L
-                        player.setMediaItem(it, start)
-                        player.prepare()
-                        player.play()
+                val title = intent.getStringExtra(EXTRA_TITLE)
+                val subtitle = intent.getStringExtra(EXTRA_SUBTITLE)
+                val workId = intent.getStringExtra(EXTRA_WORK_ID)
+                val entityType = intent.getStringExtra(EXTRA_ENTITY_TYPE)
+                val art = intent.getStringExtra(EXTRA_ARTWORK_URL)
+                queueJob?.cancel()
+                queueJob = scope.launch {
+                    try {
+                        startAudioAsset(assetId, title, subtitle, workId, entityType, art)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        // The Engine could not be asked: the screen says the title could not be played, and nothing else changes.
+                        AudioBridge.problem.value = SONG_NOT_READY
                     }
                 }
             }
+        }
+        if (intent?.action == ACTION_PLAY_QUEUE) {
+            PlayQueue.fromJson(intent.getStringExtra(EXTRA_QUEUE))?.let { request -> startQueue(request) }
         }
         return result
     }
@@ -285,6 +718,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 .add(SessionCommand(COMMAND_CANCEL_VIDEO, Bundle.EMPTY))
                 .add(SessionCommand(COMMAND_CLOSE_VIDEO, Bundle.EMPTY))
                 .add(SessionCommand(COMMAND_RELOAD_SUBTITLES, Bundle.EMPTY))
+                .add(SessionCommand(COMMAND_SET_SHUFFLE, Bundle.EMPTY))
                 .build()
             if (controller.connectionHints.getBoolean(HINT_VIDEO_SCREEN)) videoScreens.add(controller)
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
@@ -333,6 +767,10 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             COMMAND_RELOAD_SUBTITLES -> reloadSubtitles(args.getString(EXTRA_ASSET_ID).orEmpty())
+            COMMAND_SET_SHUFFLE -> {
+                setShuffle(args.getBoolean(EXTRA_SHUFFLE))
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             else -> Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
         }
 
@@ -491,6 +929,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
     }
 
     private suspend fun startVideo(assetId: String, title: String?, subtitle: String?, previousEnded: Boolean) {
+        // A song queue still filling in must not add songs behind a video that is starting.
+        queueJob?.cancel()
         leavePreviousVideo(assetId, previousEnded)
         // Video is film audio, not music, for the system's mixing and focus rules; clearVideo puts the music setting back.
         player.setAudioAttributes(mediaAudioAttributes(C.AUDIO_CONTENT_TYPE_MOVIE), true)
@@ -704,6 +1144,9 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         progressJob?.cancel()
         heartbeatJob?.cancel()
         videoJob?.cancel()
+        queueJob?.cancel()
+        audioTickJob?.cancel()
+        AudioBridge.now.value = AudioNow.None
         saveLocalProgress(ended = false, sync = true)
         getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
         session.release()
@@ -714,6 +1157,24 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
     companion object {
         const val ACTION_PLAY_ASSET = "com.tuvima.library.PLAY_ASSET"
+
+        /** Starts a queue of songs (extra: [EXTRA_QUEUE], a `PlayQueue.toJson` text). */
+        const val ACTION_PLAY_QUEUE = "com.tuvima.library.PLAY_QUEUE"
+        const val EXTRA_QUEUE = "queue"
+        const val EXTRA_WORK_ID = "work_id"
+        const val EXTRA_ENTITY_TYPE = "entity_type"
+        const val EXTRA_ARTWORK_URL = "artwork_url"
+        const val EXTRA_SHUFFLE = "shuffle"
+
+        /** Sent by the Now playing screen: Shuffle on or off for the queue (extra: [EXTRA_SHUFFLE]). */
+        const val COMMAND_SET_SHUFFLE = "com.tuvima.library.SET_SHUFFLE"
+
+        /** Where a song's cover lives, kept in its metadata extras for the Queue panel. */
+        const val KEY_ART = "art"
+        const val SONG_NOT_READY = "This title could not be played."
+        private const val CHAPTER_TICK_MS = 1_000L
+        private const val ART_WAIT_MS = 3_000L
+        private const val ART_CACHE_SIZE = 8
         const val EXTRA_ASSET_ID = "asset_id"
         const val EXTRA_TITLE = "title"
         const val EXTRA_SUBTITLE = "subtitle"
@@ -738,5 +1199,6 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         private const val PROGRESS_SAVE_MS = 10_000L
         private const val MIN_RECORDED_SECONDS = 5.0
         private const val PREFS_WAIT_MS = 2_000L
+        private const val MANIFEST_WAIT_MS = 2_500L
     }
 }

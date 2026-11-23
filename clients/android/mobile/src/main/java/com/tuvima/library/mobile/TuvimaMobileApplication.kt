@@ -102,6 +102,9 @@ class TuvimaMobileApplication : Application() {
     /** What this phone keeps for each person while they play (skip seconds, Autoplay, speed, subtitles): the Engine has no write route for these. */
     internal val playerChoices: PhoneDeviceStore by lazy { PhoneDeviceStore(this) }
 
+    /** The music and audiobook screens' hold on the media service: the mini player, the Now playing screen and every Play on a song or book. */
+    internal val audio: AudioPlayerHost by lazy { AudioPlayerHost(this) }
+
     companion object {
         const val DEFAULT_DOWNLOAD_QUALITY = "mobile-standard"
     }
