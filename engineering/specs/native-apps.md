@@ -240,6 +240,12 @@ Waves run one after another; inside a wave, at most two packets at once on diffe
 - **Size:** Standard
 - **Done when:** the docs site build and link checks pass and each device has a "get started" page.
 
+### WP18 — Playlist and Place connection points (added 2026-11-23, Shy approved; built)
+- **What it did:** read-only Engine routes for paired apps: the profile's own playlists (`GET /api/v1/collections/playlists`), a playlist's songs on the existing items route (`asset_id`, `album`, `duration_seconds`), and one place's photos (`GET /api/v1/view/places/{key}/items`), with fixtures and tests. Status: built and merged (PR 1347).
+
+### WP19 — Playlists on the Android phone, Place photos and the car Playlists entry (added 2026-11-23, Shy approved; built)
+- **What it did:** the phone's Listen has a Playlists tab and a playlist page (Play, Shuffle, Download all, offline songs), search hits for playlists open it, View's Places open their photos, and Android Auto lists Playlists as a top-level tab with Recently played as the first shelf inside Listen (the contract's car list now has four rows). Status: built in PR 1348; Local checks are in `engineering/validation/batch.md`. Other apps' playlists (Apple, Roku, TV) are not part of this packet.
+
 ## 7. Local checks
 
 Each is appended to `engineering/validation/batch.md` with its tag. The cloud can prove builds, unit tests and the contract tests, not the feel of a remote or a real screen.

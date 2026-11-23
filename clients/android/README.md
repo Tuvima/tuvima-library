@@ -247,13 +247,13 @@ media service's browse tree, its search and the card's buttons; nothing is added
 (no video, no pictures to browse). The pure rules are in `core` (`CarBrowse.kt`: `CarEntry`, `CarList`, `CarCards`, `CarPlayPlan`,
 `CarSearch`, `CarNowPlaying`, `CarListings`) with JVM tests in `CarBrowseTest`; `TuvimaMediaLibraryService` turns them into Media3.
 **The list** is the contract's (`car-list` table, compared by a test): **Continue** (`GET /display/continue?lane=listen`), **Listen** (the
-Music home's shelves with the Engine's own titles, `GET /display/browse?lane=listen&mediaType=Music&grouping=home`, each shelf a list; the
-Recently played shelf and the artists shelf are left out of it, and an album opens its songs from its Details page), **Audiobooks**
-(`browse?lane=listen&mediaType=Audiobook`) and **Recently played** (the Listen entry's first shelf, see below). **Playlists** is in the contract's list
+Music home's shelves with the Engine's own titles, `GET /display/browse?lane=listen&mediaType=Music&grouping=home`, each shelf a list; Recently played
+is the first shelf, the artists shelf is left out, and an album opens its songs from its Details page) and **Audiobooks**
+(`browse?lane=listen&mediaType=Audiobook`). **Playlists** is in the contract's list
 and is on since WP19 (`CarList.PLAYLISTS_AVAILABLE`): it lists the profile's playlists (`GET /collections/playlists`, audio only, pinned first, at
 most 50, an empty one left out), and a playlist opens as a list of its songs (`GET /collections/{id}/items`, at most 50, a song with no file and a
 file repeated left out) that plays from the pressed song under the playlist's name. The root keeps Auto's four tabs (Continue, Listen,
-Audiobooks, Playlists): Recently played is the first shelf inside Listen instead of a fifth tab, and the service slices the root by the page size
+Audiobooks, Playlists): Recently played is the first shelf inside Listen (the contract says so) instead of a fifth tab, and the service slices the root by the page size
 the car asks for. Each list is audio only (songs, albums, audiobooks), at most
 50 rows, and is paged by the size the car asks for. A press on a song plays its list from that song under the list's name; a press on an
 audiobook plays the book from where it was left. Lists are read when they are opened, for the signed-in profile only (the Engine decides what
@@ -268,9 +268,8 @@ The manifest already declares the Auto media app (`com.google.android.gms.car.ap
 `MediaBrowserService` action on the service; `CarBrowseTest` checks both.
 
 *Decisions for Shy (WP11).* (1) **Playlists** in the car list is on since WP19 (the Engine's read-only playlist routes exist). The contract's
-list has five rows and Auto's tab bar shows four, so Playlists stays a top-level tab and Recently played, the fifth row in the contract's order, is
-the first shelf inside Listen (`CarList.rootEntries`, `CarList.listenShelves`). The contract file still lists it as its own row; the contract's
-wording needs the same change when Shy confirms this. (2) **Speed presets** are one stepping button, not five
+list has five rows and Auto's tab bar shows four, so Playlists stays a top-level tab and Recently played is the first shelf inside Listen
+(`CarList.listenShelves`); `clients/contracts/v1/player-controls.md` now says so and its car-list table has four rows. (2) **Speed presets** are one stepping button, not five
 buttons, for the reason above; the contract says "Speed presets as the template's extra buttons". (3) The old browse tree had a **Queue**
 entry; the contract's list has none, so it is gone, and the source gate `tests/native/Test-NativeClientSources.ps1` now checks the contract's
 list instead (the service builds its root from `CarList.rootEntries()`, `CarBrowse.kt` names every contract entry and reads only the Listen lane). (4) **The extra buttons are not limited to the car.** Media3 gives the session one custom layout, which Android Auto and the phone's own

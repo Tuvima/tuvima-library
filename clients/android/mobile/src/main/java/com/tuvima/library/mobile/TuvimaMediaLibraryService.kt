@@ -809,11 +809,6 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 // The profile's own playlists (read only), pinned first, at most 50; each opens as a list of its songs.
                 CarEntry.Playlists ->
                     CarCards.playlists(api.playlistsPage(limit = CarList.NODE_LIMIT).items).mapNotNull { carRow(it, parentId) }
-                CarEntry.RecentlyPlayed -> carListing(
-                    parentId,
-                    node.entry.title,
-                    CarCards.items(api.listenShelfPage(CarList.RECENTLY_PLAYED_SHELF, limit = CarList.NODE_LIMIT).shelf.items),
-                )
             }
             is CarNode.ListenShelf -> {
                 // A shelf is normally read when the Listen entry was opened; reading it again covers a car that asks for a shelf directly.

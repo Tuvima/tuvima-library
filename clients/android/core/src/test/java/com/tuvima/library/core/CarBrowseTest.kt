@@ -83,9 +83,7 @@ class CarBrowseTest {
         assertTrue(CarList.PLAYLISTS_AVAILABLE)
         assertEquals(listOf("Continue", "The Listen shelves", "Audiobooks", "Playlists"), root.map { it.contractName })
         assertTrue(root.size <= CarList.ROOT_TAB_LIMIT)
-        // Recently played is still a row of the contract's list; it is the first shelf of Listen rather than a tab.
-        assertTrue(CarEntry.RecentlyPlayed in CarEntry.entries)
-        assertFalse(CarEntry.RecentlyPlayed in root)
+        assertEquals(CarEntry.entries.toList(), root)
         // Turning the flag off is still the only way the Playlists tab can go, and the others keep their order.
         assertEquals(
             listOf("Continue", "The Listen shelves", "Audiobooks"),

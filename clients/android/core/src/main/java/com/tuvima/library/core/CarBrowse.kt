@@ -16,7 +16,6 @@ enum class CarEntry(val contractName: String, val title: String, val nodeId: Str
     ListenShelves("The Listen shelves", "Listen", "car:listen"),
     Audiobooks("Audiobooks", "Audiobooks", "car:audiobooks"),
     Playlists("Playlists", "Playlists", "car:playlists"),
-    RecentlyPlayed("Recently played", "Recently played", "car:recent"),
 }
 
 /** A place in the car's browse tree, read back from the id the media service gave it. */
@@ -73,11 +72,11 @@ object CarList {
     private const val HIT = "car:hit"
 
     /**
-     * The root's tabs in the contract's order, at most [ROOT_TAB_LIMIT]: Recently played is not a tab but the first shelf of Listen, so the
-     * contract's other four stay top level and Playlists, which Shy requires at the top, is one of them.
+     * The root's tabs in the contract's order, at most [ROOT_TAB_LIMIT]. Recently played is not a tab but the first shelf of Listen (the
+     * contract says so), so the four tabs are Continue, Listen, Audiobooks and Playlists.
      */
     fun rootEntries(playlistsAvailable: Boolean = PLAYLISTS_AVAILABLE): List<CarEntry> =
-        CarEntry.entries.filter { (playlistsAvailable || it != CarEntry.Playlists) && it != CarEntry.RecentlyPlayed }
+        CarEntry.entries.filter { playlistsAvailable || it != CarEntry.Playlists }
 
     fun shelfId(key: String): String = "$SHELF$SEP$key"
 
