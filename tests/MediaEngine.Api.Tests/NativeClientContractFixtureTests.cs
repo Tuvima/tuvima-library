@@ -6,8 +6,8 @@ using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
-using MediaEngine.Contracts.Progress;
 using MediaEngine.Contracts.ProfileState;
+using MediaEngine.Contracts.Progress;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain.Enums;
 
