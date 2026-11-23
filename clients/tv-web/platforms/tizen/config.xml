@@ -6,7 +6,9 @@
   <feature name="http://tizen.org/feature/screen.size.all"/>
   <icon src="icon.png"/>
   <name>Library</name>
-  <description>Your own library, presented on the TV.</description>
+  <description>Your own library, presented on the TV. Needs a Library server on your network.</description>
+  <author href="https://docs.tuvima.com/">Tuvima</author>
+  <license href="https://www.mozilla.org/MPL/2.0/">MPL-2.0</license>
   <tizen:profile name="tv"/>
   <tizen:privilege name="http://tizen.org/privilege/internet"/>
   <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>

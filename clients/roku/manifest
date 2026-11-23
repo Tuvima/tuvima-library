@@ -1,7 +1,15 @@
+# Library for Roku. Fields are described in clients/roku/README.md and engineering/validation/native-tv-store-listing-2026-11.md.
+# Image sizes are listed in tools/Make-TvStoreImages.mjs; tests/build/tv-store-packages.test.mjs checks them.
 title=Library
 major_version=0
 minor_version=1
 build_version=0
+rsg_version=1.2
 ui_resolutions=hd,fhd
 supports_input_launch=1
+mm_icon_focus_hd=pkg:/images/channel-poster-hd.png
+mm_icon_focus_fhd=pkg:/images/channel-poster-fhd.png
+splash_screen_hd=pkg:/images/splash-hd.png
+splash_screen_fhd=pkg:/images/splash-fhd.png
 splash_color=#09080D
+splash_min_time=1500

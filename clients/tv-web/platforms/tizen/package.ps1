@@ -37,7 +37,7 @@ Write-Host 'Run these from Tizen Studio''s command line (tizen, sdb on PATH). No
 Write-Host ''
 Write-Host "tizen build-web -- `"$build`""
 Write-Host "tizen package -t wgt -s $Certificate -- `"$build/.buildResult`""
-Write-Host "tizen install -n Tuvima.wgt -t $Tv -- `"$build/.buildResult`""
+Write-Host "tizen install -n Library.wgt -t $Tv -- `"$build/.buildResult`""
 Write-Host "tizen run -p TuvimaLib0.TuvimaLibrary -t $Tv"
 Write-Host ''
 Write-Host 'Before first launch, turn on native_app_access.allow_browser_apps in config/network.json.'

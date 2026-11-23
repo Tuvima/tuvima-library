@@ -20,7 +20,7 @@ foreach ($file in Get-ChildItem -LiteralPath $client -File | Where-Object { $_.E
 }
 Copy-Item -LiteralPath (Join-Path $client 'assets') -Destination $BuildDir -Recurse
 Copy-Item -LiteralPath (Join-Path $client 'vendor') -Destination $BuildDir -Recurse
-foreach ($name in @('appinfo.json', 'icon.png', 'largeIcon.png', 'webos-keys.js')) {
+foreach ($name in @('appinfo.json', 'icon.png', 'largeIcon.png', 'splash.png', 'webos-keys.js')) {
     Copy-Item -LiteralPath (Join-Path $here $name) -Destination $BuildDir
 }
 
