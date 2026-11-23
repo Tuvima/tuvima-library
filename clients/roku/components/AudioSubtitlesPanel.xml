@@ -17,5 +17,6 @@
         <SidePanel id="inner" visible="true" />
     </children>
     <script type="text/brightscript" uri="pkg:/components/FindAnotherLogic.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PlayerLogic.brs" />
     <script type="text/brightscript" uri="pkg:/components/AudioSubtitlesPanel.brs" />
 </component>

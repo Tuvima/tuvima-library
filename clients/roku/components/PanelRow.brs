@@ -94,7 +94,7 @@ sub onContent()
         m.titleLabel.width = 480
         m.switchTrack.visible = true
         m.switchKnob.visible = true
-        showSwitch(content.on = true)
+        showSwitch(plIsTrue(content.on))
     else if kind = "value"
         m.titleLabel.visible = true
         m.titleLabel.text = content.title
@@ -122,7 +122,7 @@ sub onContent()
             m.chipLabel.visible = true
             m.chipLabel.text = content.chip
         end if
-        if content.check = true then m.checkMark.visible = true
+        if plIsTrue(content.check) then m.checkMark.visible = true
     end if
     onFocusChange()
 end sub

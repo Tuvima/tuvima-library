@@ -50,10 +50,10 @@ function rowNode(parent as Object, row as Object) as Object
         kind: textOf(row.kind),
         second: textOf(row.second),
         chip: textOf(row.chip),
-        check: row.check = true,
-        on: row.on = true,
+        check: plIsTrue(row.check),
+        on: plIsTrue(row.on),
         value: textOf(row.value),
-        adjustable: row.adjustable = true
+        adjustable: plIsTrue(row.adjustable)
     })
     return entry
 end function
@@ -64,7 +64,7 @@ sub onModel()
     hadFocus = m.top.isInFocusChain()
     zone = m.zone
     heading = textOf(model.title)
-    if model.back = true then heading = "‹  " + heading
+    if plIsTrue(model.back) then heading = "‹  " + heading
     m.title.text = heading
     m.bodyRows = model.rows
     m.footerRows = model.footer
@@ -154,7 +154,7 @@ sub onBodySelected()
     if index < 0 or index >= m.bodyRows.Count() then return
     row = m.bodyRows[index]
     if not isFocusable(row) then return
-    if row.adjustable = true
+    if plIsTrue(row.adjustable)
         ' Select on Season or Mine | Global moves on to the next choice.
         m.top.adjust = { direction: 1, value: textOf(row.value), kind: textOf(row.kind), viaSelect: true }
         return
@@ -183,6 +183,8 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     if not m.top.visible then return false
     if not press then return true
     if key = "back" then return false
+    ' Play/Pause, Rewind and Fast-forward still work while a panel is open (the contract's tv-keys table).
+    if key = "play" or key = "rev" or key = "fwd" then return false
     if m.zone = "header"
         if key = "OK"
             m.top.closeRequested = true
@@ -195,7 +197,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     end if
     if key = "left" or key = "right"
         row = focusedRow()
-        if row <> invalid and row.adjustable = true
+        if row <> invalid and plIsTrue(row.adjustable)
             direction = 1
             if key = "left" then direction = -1
             m.top.adjust = { direction: direction, value: textOf(row.value), kind: textOf(row.kind) }
@@ -208,7 +210,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         goBody()
     else if key = "down" and m.zone = "body" and m.footerRows.Count() > 0
         goFooter()
-    else if key = "options"
+    else if key = "options" and m.zone = "body"
         row = focusedRow()
         if row <> invalid then m.top.selection = { kind: "options", value: textOf(row.value), index: m.lastBody, row: row }
     end if

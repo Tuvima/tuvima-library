@@ -15,5 +15,6 @@
         <Poster id="icon" uri="pkg:/images/play.png" />
         <Label id="seconds" color="#FFFFFF" horizAlign="center" vertAlign="center" visible="false" />
     </children>
+    <script type="text/brightscript" uri="pkg:/components/PlayerLogic.brs" />
     <script type="text/brightscript" uri="pkg:/components/TransportButton.brs" />
 </component>

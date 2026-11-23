@@ -68,13 +68,13 @@ sub onModel()
     m.areaWidth = area
 
     ' While a panel is open only the transport and the tool row stay (mock-up pictures 3 to 6): no title, no timeline.
-    compact = model.compact = true
+    compact = plIsTrue(model.compact)
     for each node in [m.titleLabel, m.lineLabel, m.playedLabel, m.leftLabel, m.barTrack, m.barFill, m.barKnob, m.tickGroup]
         node.visible = not compact
     end for
 
     ' Title and the one line; with a description (paused episodes and lessons) they move up to make room.
-    showDescription = model.showDescription = true
+    showDescription = plIsTrue(model.showDescription)
     m.titleLabel.text = model.title
     m.lineLabel.text = model.line
     m.descLabel.visible = showDescription

@@ -25,8 +25,8 @@ sub onOpen()
             m.origin.Push(row)
         else
             if firstChoice < 0 then firstChoice = body.Count()
-            if focus < 0 and row.on = true then focus = body.Count()
-            body.Push({ kind: "plain", title: row.title, second: "", check: row.on = true, value: row.value })
+            if focus < 0 and plIsTrue(row.on) then focus = body.Count()
+            body.Push({ kind: "plain", title: row.title, second: "", check: plIsTrue(row.on), value: row.value })
             m.origin.Push(row)
         end if
     end for
@@ -44,6 +44,8 @@ end sub
 sub onInnerSelection()
     selection = m.inner.selection
     if selection = invalid then return
+    ' The Options key means nothing here (it is for a bookmark row); only Select applies a row.
+    if selection.kind = "options" then return
     if selection.index < 0
         ' The footer row.
         m.top.selection = { kind: "find", value: "" }
@@ -68,6 +70,8 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         m.top.closeRequested = true
         return true
     end if
+    ' Play/Pause, Rewind and Fast-forward still work while the panel is open (the contract's tv-keys table).
+    if key = "play" or key = "rev" or key = "fwd" then return false
     ' The panel is modal: the rows handle their own keys; every other key is kept from the player.
     return true
 end function

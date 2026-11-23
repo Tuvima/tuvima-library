@@ -71,6 +71,8 @@ sub beginPlayer(manifest as Object, kind as String, meta as Object)
         bookmarks: [],
         bmTab: "mine",
         bmFailed: false,
+        bmLoadError: "",
+        keepTopRow: false,
         ticks: false,
         panel: "",
         panelView: "root",
@@ -356,7 +358,7 @@ sub activate()
     end if
     if p.zone = "transport"
         spec = currentTransport()[p.index]
-        if spec.dimmed = true then return
+        if plIsTrue(spec.dimmed) then return
         if spec.key = "skip-back" or spec.key = "skip-forward"
             skipBy(spec.key)
         else if spec.key = "previous"
@@ -404,6 +406,8 @@ end sub
 sub playEpisode(item as Dynamic)
     p = m.p
     if p = invalid or item = invalid then return
+    ' The position reached in this episode is saved before another one starts.
+    sendHeartbeat()
     meta = emptyMeta()
     meta.workId = item.workId
     meta.showId = p.showId
@@ -486,10 +490,10 @@ sub drawPanel()
         nextId = ""
         if p.following <> invalid then nextId = p.following.assetId
         model = plEpisodesModel(p.seasons, { assetId: p.assetId, playing: m.video.state = "playing", position: m.video.position, duration: m.video.duration, nextAssetId: nextId, seasonIndex: p.seasonIndex, autoplay: plAutoplayOn(p.prefs, p.device) })
-        if p.keepTopRow = true then model.focus = 0
+        if plIsTrue(p.keepTopRow) then model.focus = 0
     else if p.panel = "bookmarks"
-        model = plBookmarksModel({ items: p.bookmarks, tab: p.bmTab, position: m.video.position, ticks: p.ticks, failed: p.bmFailed })
-        if p.keepTopRow = true then model.focus = 0
+        model = plBookmarksModel({ items: p.bookmarks, choice: p.bmTab, position: m.video.position, ticks: p.ticks, failed: p.bmFailed, loadError: p.bmLoadError })
+        if plIsTrue(p.keepTopRow) then model.focus = 0
     else if p.panel = "playback-settings"
         if p.panelView = "skip-back" or p.panelView = "skip-forward"
             model = plSkipChoicesModel(p.panelView, skip)
@@ -509,7 +513,7 @@ sub onSideSelection()
     if selection = invalid or p = invalid then return
     kind = selection.kind
     if kind = "options"
-        if p.panel = "bookmarks" and selection.row.kind = "bookmark" and selection.row.canChange = true then bookmarkMenu(selection.row)
+        if p.panel = "bookmarks" and selection.row.kind = "bookmark" and plIsTrue(selection.row.canChange) then bookmarkMenu(selection.row)
         return
     end if
     if p.panel = "episodes"
@@ -565,7 +569,7 @@ sub onSideAdjust()
         end if
     else if adjust.kind = "segment"
         if adjust.direction < 0 then p.bmTab = "mine" else p.bmTab = "global"
-        if adjust.viaSelect = true
+        if plIsTrue(adjust.viaSelect)
             if adjust.value = "global" then p.bmTab = "mine" else p.bmTab = "global"
         end if
     end if
@@ -711,6 +715,7 @@ function handlePlayerResult(operation as String, value as Dynamic, payload as Dy
         return true
     else if operation = "bookmarks"
         p.bookmarks = plList(value)
+        p.bmLoadError = ""
         refreshPlayer()
         return true
     else if operation = "bookmarkCreate" or operation = "bookmarkUpdate" or operation = "bookmarkDelete"
@@ -734,7 +739,12 @@ function handlePlayerError(operation as String, error as Dynamic) as Boolean
         return true
     end if
     if operation = "bookmarks"
-        if p <> invalid then p.bookmarks = []
+        if p <> invalid
+            ' An error line, never the empty state: the list could not be read.
+            p.bookmarks = []
+            p.bmLoadError = "Bookmarks could not be read."
+            if error <> invalid and faStr(error.description) <> "" then p.bmLoadError = error.description
+        end if
         refreshPlayer()
         return true
     end if

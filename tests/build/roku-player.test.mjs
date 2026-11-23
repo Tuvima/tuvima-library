@@ -133,8 +133,8 @@ test('transport: five buttons in the contract\'s order, Previous and Next dimmed
     const body = /function plTransport[\s\S]*?end function/.exec(logic)[0];
     const order = [...body.matchAll(/key: "([a-z-]+)"/g)].map((match) => match[1]);
     assert.deepEqual(order, ['previous', 'skip-back', 'play-pause', 'skip-forward', 'next']);
-    assert.match(body, /key: "previous"[^\n]*dimmed: ctx\.canPrevious <> true/);
-    assert.match(body, /key: "next"[^\n]*dimmed: ctx\.canNext <> true/);
+    assert.match(body, /key: "previous"[^\n]*dimmed: not plIsTrue\(ctx\.canPrevious\)/);
+    assert.match(body, /key: "next"[^\n]*dimmed: not plIsTrue\(ctx\.canNext\)/);
     assert.match(body, /key: "skip-back"[^\n]*dimmed: false/);
     assert.match(body, /key: "skip-forward"[^\n]*dimmed: false/);
 });
@@ -143,8 +143,8 @@ test('tools: Episodes, Audio & subtitles, Bookmarks, Playback settings, with no 
     const body = /function plTools[\s\S]*?end function/.exec(logic)[0];
     const order = [...body.matchAll(/key: "([a-z-]+)"/g)].map((match) => match[1]);
     assert.deepEqual(order, ['episodes', 'audio-subtitles', 'bookmarks', 'playback-settings']);
-    assert.match(body, /if kind = "episode" and caps\.hasEpisodes = true/, 'Episodes only for a show that lists episodes');
-    assert.match(body, /if caps\.canBookmark = true/);
+    assert.match(body, /if kind = "episode" and plIsTrue\(caps\.hasEpisodes\)/, 'Episodes only for a show that lists episodes');
+    assert.match(body, /if plIsTrue\(caps\.canBookmark\)/);
     for (const absent of [/volume/i, /fullscreen/i, /picture/i]) assert.doesNotMatch(body, absent);
 });
 
@@ -156,7 +156,7 @@ test('keys follow the tv-keys table', () => {
     // Back: the open panel first (a nested view goes to its root first), then the overlay.
     assert.match(body, /if key = "back"[\s\S]*?"panel-root"[\s\S]*?"close-panel"[\s\S]*?"hide-overlay"/);
     // Left and Right skip only with the timeline focused; any other key shows the overlay first.
-    assert.match(body, /if state\.overlayVisible <> true then return "show-overlay"[\s\S]*?state\.zone = "timeline"/);
+    assert.match(body, /if not plIsTrue\(state\.overlayVisible\) then return "show-overlay"[\s\S]*?state\.zone = "timeline"/);
     assert.match(body, /if key = "left" then return "skip-back"/);
     assert.match(body, /if key = "right" then return "skip-forward"|return "skip-forward"/);
     // The contract table itself still says the same.
@@ -180,8 +180,8 @@ test('the scene gives the remote to the player first while a video plays', () =>
 });
 
 test('Bookmarks use the Engine\'s own Mine and Everyone flags and its audiobook-and-video routes', () => {
-    assert.match(logic, /if item\.isYours = true then mine\.Push\(item\)/);
-    assert.match(logic, /if item\.inEveryone = true then everyone\.Push\(item\)/);
+    assert.match(logic, /if plIsTrue\(item\.isYours\) then mine\.Push\(item\)/);
+    assert.match(logic, /if plIsTrue\(item\.inEveryone\) then everyone\.Push\(item\)/);
     assert.match(logic, /showChoice: everyone\.Count\(\) > 0/, 'Mine | Global shows only when a Global set exists');
     const api = read(join(components, 'ApiTask.brs'));
     assert.match(api, /"\/api\/v1\/player\/audiobooks\/" \+ encode\(workId\) \+ "\/bookmarks"/);
@@ -210,7 +210,7 @@ test('Playback settings: skip seconds and Autoplay stay on this Roku, there is n
 test('End card: Up next, the countdown, the next episode, Cancel and Play now with Play now focused and Back cancelling', () => {
     assert.match(logic, /function plEndCardSeconds\(\) as Integer\s+return 10/);
     assert.match(logic, /if remaining >= 0 then countdown = plFill\(words\.endCountdown/);
-    assert.match(logic, /if state\.endCard = true[\s\S]*?if key = "back" then return "cancel-end-card"/);
+    assert.match(logic, /if plIsTrue\(state\.endCard\)[\s\S]*?if key = "back" then return "cancel-end-card"/);
     assert.match(controls, /p\.endFocus = 1/);
     assert.match(controls, /if p\.endFocus = 1 then playEpisode\(p\.following\) else cancelEndCard\(\)/);
     assert.match(controls, /p\.endRemaining = -1\s+if plAutoplayOn\(p\.prefs, p\.device\) then p\.endRemaining = Int\(remaining \+ 0\.99\)/, 'with autoplay off the card has no countdown');
@@ -236,7 +236,71 @@ test('the Roku README lists the Player gaps and no longer claims the old ones', 
     const readme = read(join(roku, 'README.md'));
     assert.match(readme, /### Player controls/);
     assert.doesNotMatch(readme, /it has no\s+skip buttons or Previous\/Next row/);
-    for (const gap of ['Playback speed', 'Subtitle appearance', 'Lessons', 'stills']) {
+    for (const gap of ['Playback speed', 'Subtitle appearance', 'Lessons', 'stills', 'bookmark frames not drawn']) {
         assert.ok(readme.includes(gap), `the README does not record the gap: ${gap}`);
     }
+});
+
+// ---- Static guards for mistakes that only show on a device (nothing here can be compiled in CI) ----
+
+const GUARDED = ['PlayerLogic', 'PlayerControls', 'PlayerOverlay', 'SidePanel', 'PanelRow', 'TransportButton', 'ToolPill', 'AudioSubtitlesPanel'];
+const codeLines = (file) => read(join(components, `${file}.brs`)).split(/\r?\n/).map((raw, index) => ({
+    index: index + 1,
+    code: raw.replace(/"[^"]*"/g, '""').split("'")[0].trim(),
+}));
+
+test('no BrightScript reserved word is used as a variable, parameter or key name', () => {
+    const reserved = 'and as box dim each else elseif end endfor endfunction endif endsub endwhile eval exit exitfor false for function goto if invalid let next not or pos print rem return run step stop sub tab then to true type while'.split(' ');
+    const name = `(${reserved.join('|')})`;
+    const patterns = [
+        new RegExp(`^${name}\\s*=(?!=)`, 'i'),
+        new RegExp(`[(,]\\s*${name}\\s+as\\b`, 'i'),
+        new RegExp(`\\bfor\\s+each\\s+${name}\\s+in\\b`, 'i'),
+        new RegExp(`\\bfor\\s+${name}\\s*=`, 'i'),
+        new RegExp(`[{,]\\s*${name}\\s*:`, 'i'),
+    ];
+    for (const file of GUARDED) {
+        for (const { index, code } of codeLines(file)) {
+            for (const pattern of patterns) {
+                assert.doesNotMatch(code, pattern, `${file}.brs:${index}: a reserved word is used as a name: ${code}`);
+            }
+        }
+    }
+});
+
+test('an optional key is never compared with true or false directly (a missing value is a type error); plIsTrue is used', () => {
+    for (const file of GUARDED) {
+        for (const { index, code } of codeLines(file)) {
+            // A plain assignment ("m.p.endCard = true") is not a comparison, so the assignment target is removed first.
+            const rest = code
+                .replace(/^[A-Za-z_][\w.[\]]*\s*=(?!=)\s*/, '')
+                .replace(/\b(then|else)\s+[A-Za-z_][\w.[\]]*\s*=(?!=)\s*/g, '$1 ');
+            assert.doesNotMatch(rest, /(?:\.\w+|\])\s*(?:=|<>)\s*(?:true|false)\b/, `${file}.brs:${index}: compare with plIsTrue(...), not = or <> true/false: ${code}`);
+        }
+    }
+    assert.match(logic, /function plIsTrue\(value as Dynamic\) as Boolean\s+if value = invalid then return false/);
+    for (const file of ['SidePanel', 'PanelRow', 'TransportButton', 'AudioSubtitlesPanel', 'PlayerOverlay']) {
+        assert.match(component(file).xml, /pkg:\/components\/PlayerLogic\.brs/, `${file} uses plIsTrue, so it must include PlayerLogic.brs`);
+    }
+});
+
+test('the Options key and the footer of Audio & subtitles never apply a track by mistake', () => {
+    assert.match(component('AudioSubtitlesPanel').brs, /if selection\.kind = "options" then return\s+if selection\.index < 0/);
+    assert.match(component('SidePanel').brs, /else if key = "options" and m\.zone = "body"/);
+});
+
+test('Play/Pause, Rewind and Fast-forward reach the player while a panel is open', () => {
+    for (const file of ['SidePanel', 'AudioSubtitlesPanel']) {
+        assert.match(component(file).brs, /if key = "play" or key = "rev" or key = "fwd" then return false/, `${file} swallows the transport keys`);
+    }
+});
+
+test('a Global or not-your-own bookmark cannot be edited, and a failed list shows an error line, not the empty state', () => {
+    assert.match(logic, /canChange: whichTab <> "global" and plIsTrue\(item\.isYours\) and not plIsTrue\(item\.isGlobal\)/);
+    assert.match(logic, /loadError/);
+    assert.match(controls, /p\.bmLoadError = "Bookmarks could not be read\."/);
+});
+
+test('another episode starts only after the position reached is saved', () => {
+    assert.match(controls, /sub playEpisode\(item as Dynamic\)[\s\S]*?sendHeartbeat\(\)[\s\S]*?meta = emptyMeta\(\)/);
 });

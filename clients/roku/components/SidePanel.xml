@@ -27,5 +27,6 @@
         <Rectangle id="footerLine" translation="[1220,976]" width="700" height="2" color="#2B2D36" />
         <MarkupList id="footerList" translation="[1248,982]" itemComponentName="PanelRow" itemSize="[644,92]" numRows="1" drawFocusFeedback="false" />
     </children>
+    <script type="text/brightscript" uri="pkg:/components/PlayerLogic.brs" />
     <script type="text/brightscript" uri="pkg:/components/SidePanel.brs" />
 </component>

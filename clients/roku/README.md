@@ -128,8 +128,9 @@ words, the order, the keys and the package.
 - **Lessons and Homework**: a folder video gets a film's controls and the line "title
   · length". There is no Lessons panel, no "Next lesson" end card and no Homework
   block, because the Engine has no route for them yet.
-- **Stills and frames**: episode stills, bookmark frames and the End card's still are
-  not drawn. A Roku `Poster` cannot send the bearer header, so each picture would
+- **Stills and frames**: episode stills, bookmark frames not drawn (the frame from
+  the bookmark's moment, which the contract shows on each row) and the End card's
+  still are not drawn either. A Roku `Poster` cannot send the bearer header, so each picture would
   have to be downloaded to `tmp:/` first, as photos are. The rating card at the top
   left is not shown either (the item answers carry no rating).
 - **Bookmarks**: the label "Bookmark at {time}" shows the time when the panel last

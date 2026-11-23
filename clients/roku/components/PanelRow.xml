@@ -25,5 +25,6 @@
         <Rectangle id="switchTrack" translation="[540,23]" width="84" height="46" color="#3A3B45" visible="false" />
         <Rectangle id="switchKnob" translation="[544,27]" width="36" height="38" color="#FFFFFF" visible="false" />
     </children>
+    <script type="text/brightscript" uri="pkg:/components/PlayerLogic.brs" />
     <script type="text/brightscript" uri="pkg:/components/PanelRow.brs" />
 </component>

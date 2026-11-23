@@ -44,7 +44,7 @@ sub onSpec()
         m.seconds.translation = [-size / 2, -size / 2 + 6]
         m.icon.blendColor = "#8E96A8"
     end if
-    if spec.dimmed = true then m.top.opacity = 0.35 else m.top.opacity = 1.0
+    if plIsTrue(spec.dimmed) then m.top.opacity = 0.35 else m.top.opacity = 1.0
     onFocus()
 end sub
 

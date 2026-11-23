@@ -61,6 +61,14 @@ end function
 
 ' ---- Small readers over parsed JSON --------------------------------------------------------------------------------
 
+' True only for a real Boolean true: a missing key, or any other type, is false (comparing a missing value to true is an error).
+function plIsTrue(value as Dynamic) as Boolean
+    if value = invalid then return false
+    kind = Type(value)
+    if kind = "roBoolean" or kind = "Boolean" then return value = true
+    return false
+end function
+
 function plStr(value as Dynamic) as String
     if value = invalid then return ""
     kind = Type(value)
@@ -204,8 +212,8 @@ end function
 
 ' Autoplay next episode: this Roku's own choice, else the profile's preference, else on.
 function plAutoplayOn(prefs as Dynamic, device as Dynamic) as Boolean
-    if device <> invalid and device.autoplay <> invalid then return device.autoplay = true
-    if prefs <> invalid and prefs.autoplayNextEpisode <> invalid then return prefs.autoplayNextEpisode = true
+    if device <> invalid and device.autoplay <> invalid then return plIsTrue(device.autoplay)
+    if prefs <> invalid and prefs.autoplayNextEpisode <> invalid then return plIsTrue(prefs.autoplayNextEpisode)
     return true
 end function
 
@@ -223,7 +231,7 @@ end function
 ' ctx: { playing, canPrevious, canNext }
 function plTransport(kind as String, skip as Object, ctx as Object) as Object
     playLabel = plWords().play
-    if ctx.playing = true then playLabel = plWords().pause
+    if plIsTrue(ctx.playing) then playLabel = plWords().pause
     previousLabel = "Previous"
     nextLabel = "Next"
     if kind = "episode"
@@ -231,11 +239,11 @@ function plTransport(kind as String, skip as Object, ctx as Object) as Object
         nextLabel = "Next episode"
     end if
     return [
-        { key: "previous", label: previousLabel, dimmed: ctx.canPrevious <> true, seconds: 0 },
+        { key: "previous", label: previousLabel, dimmed: not plIsTrue(ctx.canPrevious), seconds: 0 },
         { key: "skip-back", label: "Skip back " + skip.back.ToStr() + " s", dimmed: false, seconds: skip.back },
         { key: "play-pause", label: playLabel, dimmed: false, seconds: 0 },
         { key: "skip-forward", label: "Skip forward " + skip.forward.ToStr() + " s", dimmed: false, seconds: skip.forward },
-        { key: "next", label: nextLabel, dimmed: ctx.canNext <> true, seconds: 0 }
+        { key: "next", label: nextLabel, dimmed: not plIsTrue(ctx.canNext), seconds: 0 }
     ]
 end function
 
@@ -245,9 +253,9 @@ end function
 function plTools(kind as String, caps as Object) as Object
     words = plWords()
     tools = []
-    if kind = "episode" and caps.hasEpisodes = true then tools.Push({ key: "episodes", label: words.episodes })
+    if kind = "episode" and plIsTrue(caps.hasEpisodes) then tools.Push({ key: "episodes", label: words.episodes })
     tools.Push({ key: "audio-subtitles", label: words.audioSubtitles })
-    if caps.canBookmark = true then tools.Push({ key: "bookmarks", label: words.bookmarks })
+    if plIsTrue(caps.canBookmark) then tools.Push({ key: "bookmarks", label: words.bookmarks })
     tools.Push({ key: "playback-settings", label: words.playbackSettings })
     return tools
 end function
@@ -259,24 +267,24 @@ end function
 '   show-overlay, hide-overlay, close-panel, panel-root, close-player, cancel-end-card, skip-back, skip-forward, toggle-play,
 '   options, left, right, up, down, select, none
 function plKeyEffect(state as Object, key as String) as String
-    if state.endCard = true
+    if plIsTrue(state.endCard)
         if key = "back" then return "cancel-end-card"
         if key = "left" or key = "right" then return key
         if key = "OK" then return "select"
     end if
     if key = "back"
-        if state.panelOpen = true
+        if plIsTrue(state.panelOpen)
             if state.panelView <> "root" then return "panel-root"
             return "close-panel"
         end if
-        if state.overlayVisible = true then return "hide-overlay"
+        if plIsTrue(state.overlayVisible) then return "hide-overlay"
         return "close-player"
     end if
     if key = "rev" then return "skip-back"
     if key = "fwd" then return "skip-forward"
     if key = "play" then return "toggle-play"
     if key = "options" then return "options"
-    if state.overlayVisible <> true then return "show-overlay"
+    if not plIsTrue(state.overlayVisible) then return "show-overlay"
     if (key = "left" or key = "right") and state.zone = "timeline"
         if key = "left" then return "skip-back"
         return "skip-forward"
@@ -316,7 +324,7 @@ function plMoveFocus(zone as String, index as Integer, key as String, transport 
             if key = "left" then delta = -1
             target = index + delta
             while target >= 0 and target < transport.Count()
-                if transport[target].dimmed <> true then
+                if not plIsTrue(transport[target].dimmed) then
                     result.index = target
                     exit while
                 end if
@@ -364,7 +372,7 @@ function plEpisodeSeasons(detail as Dynamic) as Object
         items = []
         for each item in plList(group.items)
             context = item.episodeContext
-            if context <> invalid and plStr(context.episodeAssetId) <> "" and item.isOwned <> false
+            if context <> invalid and plStr(context.episodeAssetId) <> "" and (item.isOwned = invalid or plIsTrue(item.isOwned))
                 items.Push({
                     assetId: plStr(context.episodeAssetId),
                     workId: plStr(context.episodeWorkId),
@@ -443,7 +451,7 @@ function plEpisodesModel(seasons as Object, ctx as Object) as Object
         second = ""
         if current
             state = words.paused
-            if ctx.playing = true then state = words.playing
+            if plIsTrue(ctx.playing) then state = words.playing
             second = state + plSep() + plFormatTime(ctx.position) + " of " + plFormatTime(ctx.duration)
             focus = rows.Count()
         else if item.state = "InProgress" and item.positionSeconds > 0 and item.durationSeconds > 0
@@ -459,7 +467,7 @@ function plEpisodesModel(seasons as Object, ctx as Object) as Object
         if not current and ctx.nextAssetId <> "" and LCase(ctx.nextAssetId) = LCase(item.assetId) then chip = words.upNext
         rows.Push({ kind: "episode", title: title, second: second, chip: chip, value: item.assetId })
     end for
-    footer = [{ kind: "switch", title: words.autoplay, on: ctx.autoplay = true, value: "autoplay" }]
+    footer = [{ kind: "switch", title: words.autoplay, on: plIsTrue(ctx.autoplay), value: "autoplay" }]
     return { title: words.episodes, back: false, rows: rows, footer: footer, focus: focus }
 end function
 
@@ -475,14 +483,14 @@ function plBookmarkSets(items as Object) as Object
     mine = []
     everyone = []
     for each item in plList(items)
-        if item.isYours = true then mine.Push(item)
-        if item.inEveryone = true then everyone.Push(item)
+        if plIsTrue(item.isYours) then mine.Push(item)
+        if plIsTrue(item.inEveryone) then everyone.Push(item)
     end for
     return { showChoice: everyone.Count() > 0, mine: mine, everyone: everyone }
 end function
 
 ' The rows of one tab in time order: the time, then the name or note (the maker's name on Global).
-function plBookmarkRows(items as Object, tab as String) as Object
+function plBookmarkRows(items as Object, whichTab as String) as Object
     sorted = []
     for each item in plList(items)
         sorted.Push(item)
@@ -501,7 +509,7 @@ function plBookmarkRows(items as Object, tab as String) as Object
         words = plStr(item.label)
         if words = "" then words = plStr(item.note)
         if words = "" then words = plBookmarkAtLabel(item.positionSeconds)
-        if tab = "global" and plStr(item.ownerName) <> "" then words = words + plSep() + plStr(item.ownerName)
+        if whichTab = "global" and plStr(item.ownerName) <> "" then words = words + plSep() + plStr(item.ownerName)
         rows.Push({
             kind: "bookmark",
             title: plFormatTime(item.positionSeconds),
@@ -510,48 +518,51 @@ function plBookmarkRows(items as Object, tab as String) as Object
             seconds: plNum(item.positionSeconds),
             name: plStr(item.label),
             note: plStr(item.note),
-            canChange: tab <> "global" and item.isYours = true
+            canChange: whichTab <> "global" and plIsTrue(item.isYours) and not plIsTrue(item.isGlobal)
         })
     end for
     return rows
 end function
 
-function plBookmarkEmpty(tab as String) as String
-    if tab = "global" then return plWords().noGlobal
+function plBookmarkEmpty(whichTab as String) as String
+    if whichTab = "global" then return plWords().noGlobal
     return plWords().noMine
 end function
 
 ' The Bookmarks panel's model. A television has no note field and no search box (a remote cannot type): Mine | Global,
 ' "Bookmark at {0}", the rows, and Show on timeline. Select on a row jumps to it; Options on a row of Mine reaches Edit and Delete.
-' ctx: { items, tab, position, ticks, failed }
+' ctx: { items, choice, position, ticks, failed, loadError }
 function plBookmarksModel(ctx as Object) as Object
     words = plWords()
     sets = plBookmarkSets(ctx.items)
-    tab = ctx.tab
-    if not sets.showChoice then tab = "mine"
+    chosenTab = ctx.choice
+    if not sets.showChoice then chosenTab = "mine"
     rows = []
     if sets.showChoice
-        rows.Push({ kind: "segment", title: words.mine + plSep() + sets.mine.Count().ToStr(), second: words.globalName + plSep() + sets.everyone.Count().ToStr(), value: tab, adjustable: true })
+        rows.Push({ kind: "segment", title: words.mine + plSep() + sets.mine.Count().ToStr(), second: words.globalName + plSep() + sets.everyone.Count().ToStr(), value: chosenTab, adjustable: true })
     end if
     rows.Push({ kind: "add", title: plBookmarkAtLabel(ctx.position), value: "add" })
-    if ctx.failed = true then rows.Push({ kind: "note", title: words.couldNotSave })
+    if plIsTrue(ctx.failed) then rows.Push({ kind: "note", title: words.couldNotSave })
     chosen = sets.mine
-    if tab = "global" then chosen = sets.everyone
-    list = plBookmarkRows(chosen, tab)
-    if list.Count() = 0
-        rows.Push({ kind: "note", title: plBookmarkEmpty(tab) })
+    if chosenTab = "global" then chosen = sets.everyone
+    list = plBookmarkRows(chosen, chosenTab)
+    if plStr(ctx.loadError) <> ""
+        ' The list could not be read: say so, never the empty state.
+        rows.Push({ kind: "note", title: plStr(ctx.loadError) })
+    else if list.Count() = 0
+        rows.Push({ kind: "note", title: plBookmarkEmpty(chosenTab) })
     else
         for each row in list
             rows.Push(row)
         end for
         rows.Push({ kind: "note", title: words.selectBookmark })
     end if
-    footer = [{ kind: "switch", title: words.showOnTimeline, on: ctx.ticks = true, value: "ticks" }]
+    footer = [{ kind: "switch", title: words.showOnTimeline, on: plIsTrue(ctx.ticks), value: "ticks" }]
     focus = 0
     for i = 0 to rows.Count() - 1
         if rows[i].kind = "add" then focus = i
     end for
-    return { title: words.bookmarks, back: false, rows: rows, footer: footer, focus: focus, tab: tab }
+    return { title: words.bookmarks, back: false, rows: rows, footer: footer, focus: focus, choice: chosenTab }
 end function
 
 ' The body of "Bookmark at {0}": saved at the moment it was pressed, at once, with no note.
