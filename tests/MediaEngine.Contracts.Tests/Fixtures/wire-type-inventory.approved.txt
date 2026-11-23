@@ -1994,7 +1994,10 @@
   DetailRoute: System.String | json=detail_route | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MembershipScope: System.String | json=membership_scope | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PositionLabel: System.String | json=position_label | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","work_id":"11111111-2222-3333-4444-555555555555","title":"sample","creator":"sample","media_type":"sample","cover_url":"sample","sort_order":7,"detail_route":"sample","membership_scope":"sample","position_label":"sample"}
+  AssetId: System.Guid? | json=asset_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Album: System.String | json=album | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  DurationSeconds: System.Double? | json=duration_seconds | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","work_id":"11111111-2222-3333-4444-555555555555","title":"sample","creator":"sample","media_type":"sample","cover_url":"sample","sort_order":7,"detail_route":"sample","membership_scope":"sample","position_label":"sample","asset_id":"11111111-2222-3333-4444-555555555555","album":"sample","duration_seconds":7}
 
 [contracts] MediaEngine.Contracts.Collections.CollectionItemMoveRequest
   kind=class | converter=default | number-handling=default | unmapped=default

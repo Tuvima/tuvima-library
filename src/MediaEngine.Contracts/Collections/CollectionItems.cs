@@ -40,6 +40,25 @@ public sealed class CollectionItemDto
     /// <summary>The position as the source gives it, decimals intact ("1.5"); null when the source gives none.</summary>
     [JsonPropertyName("position_label")]
     public string? PositionLabel { get; set; }
+
+    /// <summary>
+    /// The item's representative media asset, set by the shared item read for the items of every collection. The paired-app
+    /// items route sends it only for a playlist's songs (the file that plays the song); a row that stands for a whole album or
+    /// show has none. Null when there is none, and left out of the answer when null.
+    /// </summary>
+    [JsonPropertyName("asset_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? AssetId { get; set; }
+
+    /// <summary>The album a song belongs to. Read only for a playlist's items; left out of the answer when null.</summary>
+    [JsonPropertyName("album")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Album { get; set; }
+
+    /// <summary>The stored length of a song in seconds. Read only for a playlist's items; left out of the answer when null.</summary>
+    [JsonPropertyName("duration_seconds")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? DurationSeconds { get; set; }
 }
 
 public sealed class CollectionResolvedItemDto

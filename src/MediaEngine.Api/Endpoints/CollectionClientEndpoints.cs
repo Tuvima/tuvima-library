@@ -2,6 +2,7 @@ using System.Globalization;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Authentication;
@@ -71,6 +72,48 @@ public static class CollectionClientEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .RequireClientScope(ClientApiScopes.LibraryRead);
 
+        // The paired profile's own playlists, listed the way the Dashboard's Listen page lists them (pinned first, then the
+        // profile's saved order). The Collections catalogue above leaves playlists out on purpose, so this is their own route.
+        collections.MapGet("/playlists", async (
+            string? cursor,
+            int? limit,
+            HttpContext http,
+            IProfileRepository profiles,
+            CollectionCatalogReadService catalog,
+            IDisplayProjectionReadService display,
+            CancellationToken ct) =>
+        {
+            if (!TryParseCursor(cursor, out var offset))
+            {
+                return ApiErrors.BadRequest("The cursor is not valid.");
+            }
+
+            var page = PagedRequest.From(offset, limit, defaultLimit: 50, maxLimit: 100);
+            var profile = await ResolveActiveProfileAsync(http, profiles, ct);
+            var ordered = new List<ManagedCollectionDto>();
+            if (profile is not null)
+            {
+                // The same read the Dashboard makes (counts limited to what this profile may see), kept to the profile's own
+                // playlists: a list someone else made, or the Library or an administrator shared, is not part of this one.
+                var allowedWorkIds = await LoadAllowedWorkIdsAsync(display, ct);
+                var own = (await catalog.GetManagedAsync(profile, ct, allowedWorkIds))
+                    .Where(playlist => playlist.ProfileId == profile.Id && PlaylistListOrder.IsUserVisiblePlaylist(playlist));
+                ordered = PlaylistListOrder.Order(own, profile.NavigationConfig);
+            }
+
+            var window = ordered
+                .Skip(page.Offset)
+                .Take(page.Limit + 1)
+                .Select(ManagedCollectionMapper.ForNativePlaylist)
+                .ToList();
+            return Results.Ok(PagedResponse<ManagedCollectionDto>.FromPage(window, page, ordered.Count));
+        })
+            .WithName("GetClientPlaylists")
+            .WithSummary("Returns the paired profile's own playlists, pinned first, then in the profile's saved order.")
+            .Produces<PagedResponse<ManagedCollectionDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .RequireClientScope(ClientApiScopes.LibraryRead);
+
         collections.MapGet("/{id:guid}", async (
             Guid id,
             HttpContext http,
@@ -108,7 +151,11 @@ public static class CollectionClientEndpoints
                 return ApiErrors.BadRequest("The cursor is not valid.");
             }
 
-            var page = PagedRequest.From(offset, limit, defaultLimit: 24);
+            // A playlist is read in larger pages (100, up to 200) so a long one is paged through in a few reads; every
+            // other collection keeps 24 and the usual largest page.
+            var page = await catalog.IsPlaylistAsync(id, ct)
+                ? PagedRequest.From(offset, limit, defaultLimit: 100, maxLimit: 200)
+                : PagedRequest.From(offset, limit, defaultLimit: 24);
             var profile = await ResolveActiveProfileAsync(http, profiles, ct);
             var allowedWorkIds = await LoadAllowedWorkIdsAsync(display, ct);
             // The read lists shows, comic series and albums as their root work and authorises those roots itself.
@@ -116,7 +163,9 @@ public static class CollectionClientEndpoints
                 id, profile, page.Offset, page.Limit, allowedWorkIds, ct);
             // A collection the catalogue would not list, or with nothing this profile may see, is answered like an
             // unknown one at every offset; only a cursor past the end of a collection that has items gives an empty page.
-            if (!result.Found || result.Forbidden || result.TotalCount == 0)
+            // The paired profile's own playlist is the exception: an empty list is still the profile's list, so it answers
+            // with an empty page rather than as if it did not exist.
+            if (!result.Found || result.Forbidden || (result.TotalCount == 0 && !result.IsPlaylist))
             {
                 return ApiErrors.NotFound(NotFoundDetail);
             }
@@ -124,7 +173,7 @@ public static class CollectionClientEndpoints
             return Results.Ok(PagedResponse<CollectionItemDto>.FromPage(result.Items, page, result.TotalCount));
         })
             .WithName("GetClientCollectionItems")
-            .WithSummary("Returns one page of the items of a collection visible to the paired profile.")
+            .WithSummary("Returns one page of the items of a collection visible to the paired profile, or of one of the profile's own playlists.")
             .Produces<PagedResponse<CollectionItemDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)

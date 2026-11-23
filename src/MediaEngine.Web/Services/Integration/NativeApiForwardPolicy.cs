@@ -76,15 +76,16 @@ public static class NativeApiForwardPolicy
         Of(Read, "details/.*"),
 
         // Collections and Universes: the catalogue page, one collection and its item pages, and one Universe by QID. Read only.
-        Of(Read, $"collections(?:/{Guid}(?:/items)?)?"),
+        // collections/playlists is the paired profile's own playlist list (the Engine takes the profile from the token).
+        Of(Read, $"collections(?:/playlists|/{Guid}(?:/items)?)?"),
         Of(Read, "universe/Q[0-9]{1,15}"),
         // Blocked paths match on "any single segment", not GUID shape, so a dash-less or braced ID can't slip by.
         Of(Read, "persons/(?![^/]+/editor$).*"),
         Of(Read, "library/portraits/.*"),
 
         // Photos and personal videos (the person's own, read-only; the Engine still needs the photo consent on the device token).
-        // Exactly the eleven GET routes of /api/v1/view, nothing else under view/ and no write verb, no HEAD. The person key is any one segment.
-        Of(["GET"], $"view/(?:timeline|galleries|people|places|galleries/{Guid}/items|people/[^/]+/items|items/{Guid}(?:/(?:thumbnail|preview|original|playback))?)"),
+        // Exactly the twelve GET routes of /api/v1/view, nothing else under view/ and no write verb, no HEAD. The person and place keys are any one segment.
+        Of(["GET"], $"view/(?:timeline|galleries|people|places|galleries/{Guid}/items|people/[^/]+/items|places/[^/]+/items|items/{Guid}(?:/(?:thumbnail|preview|original|playback))?)"),
 
         // Streaming and subtitles: read, plus choosing the preferred subtitle track.
         Of(Read, "stream/.*"),

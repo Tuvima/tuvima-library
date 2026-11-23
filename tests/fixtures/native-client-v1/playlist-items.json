@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "id": "6f0c2a3e-0000-0000-0000-000000000011",
+      "work_id": "6f0c2a3e-0000-0000-0000-000000000012",
+      "title": "Open Road",
+      "creator": "The Drivers",
+      "media_type": "Music",
+      "cover_url": "/stream/6f0c2a3e-0000-0000-0000-000000000013/cover",
+      "sort_order": 0,
+      "detail_route": "/details/work/6f0c2a3e-0000-0000-0000-000000000012?context=listen",
+      "membership_scope": "MainSequence",
+      "position_label": null,
+      "asset_id": "6f0c2a3e-0000-0000-0000-000000000013",
+      "album": "Road Songs",
+      "duration_seconds": 200.5
+    },
+    {
+      "id": "6f0c2a3e-0000-0000-0000-000000000014",
+      "work_id": "6f0c2a3e-0000-0000-0000-000000000015",
+      "title": "Night Lights",
+      "creator": "Skyline",
+      "media_type": "Music",
+      "cover_url": "/stream/6f0c2a3e-0000-0000-0000-000000000016/cover",
+      "sort_order": 1,
+      "detail_route": "/details/work/6f0c2a3e-0000-0000-0000-000000000015?context=listen",
+      "membership_scope": "MainSequence",
+      "position_label": null,
+      "asset_id": "6f0c2a3e-0000-0000-0000-000000000016",
+      "album": "City Songs",
+      "duration_seconds": 181
+    }
+  ],
+  "offset": 0,
+  "limit": 100,
+  "has_more": false,
+  "total_count": 2,
+  "next_cursor": null
+}

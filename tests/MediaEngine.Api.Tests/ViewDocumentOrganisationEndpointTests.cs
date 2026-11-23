@@ -1864,6 +1864,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["GET /api/v1/view/people"] = Covers(ClientDocuments, "/api/v1/view/people\""),
         ["GET /api/v1/view/people/{key}/items"] = Covers(ClientDocuments, "/api/v1/view/people/passport%20person/items"),
         ["GET /api/v1/view/places"] = Covers(ClientDocuments, "/api/v1/view/places\""),
+        ["GET /api/v1/view/places/{key}/items"] = Covers(ClientDocuments, "/api/v1/view/places/oslo%4059.9%2C10.8/items"),
         ["GET /api/v1/view/timeline"] = Covers(ClientDocuments, "/api/v1/view/timeline\""),
     };
 
