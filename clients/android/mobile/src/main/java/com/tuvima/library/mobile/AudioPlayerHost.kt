@@ -336,16 +336,22 @@ internal class AudioBookmarks(private val app: TuvimaMobileApplication, private 
     var saveFailed by mutableStateOf(false)
         private set
     private var forAsset: String? = null
+    private var readFailed = false
 
     /** The work the bookmarks hang on, or null (a song, or a title the Engine named no work for). */
     fun workOf(now: AudioNow): String? = now.workId?.takeIf { PhoneBookmarks.canBookmark(it, isMusic = !now.isAudiobook) }
 
-    /** Reads this title's bookmarks once; with no connection a downloaded title shows what this phone kept. */
+    /**
+     * Reads this title's bookmarks once; with no connection a downloaded title shows what this phone kept. A read that could not reach the Engine
+     * is tried again the next time this is called (the Bookmarks panel calls it when it opens).
+     */
     fun load(now: AudioNow) {
         val work = workOf(now) ?: return
-        if (forAsset == now.assetId) return
+        if (forAsset == now.assetId && !readFailed) return
+        // A new title starts from an empty list; a second read of the same title keeps what is shown until the answer comes.
+        if (forAsset != now.assetId) items = emptyList()
         forAsset = now.assetId
-        items = emptyList()
+        readFailed = false
         loaded = false
         saveFailed = false
         val client = app.client
@@ -355,7 +361,8 @@ internal class AudioBookmarks(private val app: TuvimaMobileApplication, private 
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                // No connection: show the bookmarks this phone holds for the title (an empty list when it is not a download).
+                // No connection: show the bookmarks this phone holds for the title (an empty list when it is not a download), and read again later.
+                if (forAsset == now.assetId) readFailed = true
                 app.offline.bookmarksFor(work)
             }
             if (forAsset == now.assetId) {
@@ -378,8 +385,8 @@ internal class AudioBookmarks(private val app: TuvimaMobileApplication, private 
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                // Kept on the phone when this is a download (its note is not kept); otherwise the panel says it could not save.
-                if (now.isDownload && app.offline.addBookmarkOffline(now.assetId, positionSeconds, durationSeconds)) {
+                // Kept on the phone (with its note) when this is a download and sent later; otherwise the panel says it could not save.
+                if (now.isDownload && app.offline.addBookmarkOffline(now.assetId, positionSeconds, durationSeconds, note)) {
                     items = app.offline.bookmarksFor(work)
                 } else {
                     saveFailed = true

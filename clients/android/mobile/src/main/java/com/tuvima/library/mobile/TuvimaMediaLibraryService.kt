@@ -87,7 +87,9 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
     // The music and audiobook players (spec native-apps WP10c). The session shows the player through [AudioCardPlayer], so the lock screen's
     // buttons are the contract's; [audioInfo] says what each queued file is, [originalOrder] is what Shuffle off returns to.
-    private lateinit var sessionPlayer: Player
+    private lateinit var sessionPlayer: AudioCardPlayer
+    // The item the screens were last told about; an End of chapter timer is dropped only when this changes (see publishNow).
+    private var publishedAssetId: String? = null
     private var queueJob: Job? = null
     private var audioTickJob: Job? = null
     private var originalOrder: List<String> = emptyList()
@@ -211,6 +213,25 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
         private fun skip() = AudioBridge.skip.value
 
+        // The session reads the commands again only when the player says they changed, and the wrapped player knows nothing of what this card
+        // allows, so the listeners are kept here and told when a different song or book (or its chapters) takes over.
+        private val listeners = mutableSetOf<Player.Listener>()
+
+        override fun addListener(listener: Player.Listener) {
+            listeners += listener
+            super.addListener(listener)
+        }
+
+        override fun removeListener(listener: Player.Listener) {
+            listeners -= listener
+            super.removeListener(listener)
+        }
+
+        fun commandsChanged() {
+            val commands = availableCommands
+            listeners.toList().forEach { it.onAvailableCommandsChanged(commands) }
+        }
+
         override fun getAvailableCommands(): Player.Commands {
             val base = super.getAvailableCommands()
             val now = audio() ?: return base
@@ -276,14 +297,19 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         }
     }
 
-    /** Tells the screens what is playing now (nothing, for a video or an empty player) and drops an end-of-chapter timer that belonged to the last item. */
+    /**
+     * Tells the screens what is playing now (nothing, for a video or an empty player), tells the session which buttons the card now has, and drops an
+     * end-of-chapter timer that belonged to another item. The same item put back in place (a network change, a fresh stream address) keeps its timer.
+     */
     private fun publishNow(item: MediaItem?) {
         val info = if (item == null || isVideoItem(item)) null else audioInfo[item.mediaId]
         AudioBridge.now.value = info?.copy(isDownload = isLocalItem(item)) ?: AudioNow.None
         shownChapter = null
-        if (AudioBridge.sleepTimer.value is SleepTimer.EndOfChapter) AudioBridge.sleepTimer.value = SleepTimer.Off
+        AudioBridge.sleepTimer.value = NowPlayingLogic.timerAfterItemChange(AudioBridge.sleepTimer.value, publishedAssetId, item?.mediaId)
+        publishedAssetId = item?.mediaId
         audioTickJob?.cancel()
         if (info != null && info.isAudiobook && info.chapters.isNotEmpty()) startAudioTick()
+        if (::sessionPlayer.isInitialized) sessionPlayer.commandsChanged()
     }
 
     /** While a book with chapters plays, the card's second line follows the chapter (author · chapter name). */
@@ -374,7 +400,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         val count = player.mediaItemCount
         if (count > 1) {
             val ids = (0 until count).map { player.getMediaItemAt(it).mediaId }
-            if (on && !AudioBridge.shuffle.value) originalOrder = ids
+            // While the queue is still filling the list is partial; the request's full order (kept when it started) is what Shuffle off returns to.
+            if (on && !AudioBridge.shuffle.value && queueJob?.isActive != true) originalOrder = ids
             val target = if (on) {
                 QueueShuffle.shuffledOrder(ids, player.currentMediaItemIndex, kotlin.random.Random.Default)
             } else {
@@ -502,12 +529,16 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         activeAssetId = assetId
         val api = client
         val local = localItem(assetId)
-        val manifest = if (local == null && api != null) {
+        // A download plays from the phone, but its chapters and kind still come from the manifest when the Engine can be reached (briefly asked,
+        // so a phone with no connection starts the file at once and shows no chapters).
+        val manifest = if (api != null) {
             try {
-                api.playbackManifest(assetId, "local")
+                if (local == null) api.playbackManifest(assetId, "local")
+                else kotlinx.coroutines.withTimeoutOrNull(MANIFEST_WAIT_MS) { api.playbackManifest(assetId, "local") }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
+                // The Engine could not be reached: a download still plays (without chapters); a stream is reported below.
                 null
             }
         } else {
@@ -1168,5 +1199,6 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         private const val PROGRESS_SAVE_MS = 10_000L
         private const val MIN_RECORDED_SECONDS = 5.0
         private const val PREFS_WAIT_MS = 2_000L
+        private const val MANIFEST_WAIT_MS = 2_500L
     }
 }

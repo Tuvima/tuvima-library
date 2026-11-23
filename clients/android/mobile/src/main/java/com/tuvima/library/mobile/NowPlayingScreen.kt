@@ -34,6 +34,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,9 +54,11 @@ import com.tuvima.library.core.NowPlayingLogic
 import com.tuvima.library.core.PhoneBookmarks
 import com.tuvima.library.core.PhonePlayerLogic
 import com.tuvima.library.core.PhoneTool
+import com.tuvima.library.core.ReactionLogic
 import com.tuvima.library.core.RepeatCycle
 import com.tuvima.library.core.SavedKey
 import com.tuvima.library.core.SavedKind
+import com.tuvima.library.core.SongReaction
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.TvControl
 import com.tuvima.library.core.TvMediaKind
@@ -64,7 +67,9 @@ import com.tuvima.library.core.TvPlayerLogic
 import com.tuvima.library.core.TvPlayerWords
 import com.tuvima.library.core.TvRepeatMode
 import com.tuvima.library.core.TvRow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // The phone's music and audiobook players (spec native-apps WP10c, the contract's Phone section): the collapsed 56 dp bar above the dock, and the
 // full-screen Now playing view with a top line (collapse, "Playing from ...", the "..." menu), the cover, the title line (with the Favorite heart for a
@@ -205,6 +210,37 @@ internal fun NowPlayingScreen(host: AudioPlayerHost, client: TuvimaClient, onCol
     }
     LaunchedEffect(now.assetId, now.workId) { host.bookmarks.load(now) }
 
+    // Like and Dislike on a song use the profile's reactions the Engine already keeps; a press shows at once and goes back if the Engine said no.
+    val scope = rememberCoroutineScope()
+    var reaction by remember(now.workId) { mutableStateOf<SongReaction?>(null) }
+    LaunchedEffect(now.workId) {
+        val songId = now.workId?.takeIf { it.isNotBlank() && now.kind == TvMediaKind.Music } ?: return@LaunchedEffect
+        reaction = try {
+            client.songReaction(songId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            // The state could not be read now: both buttons show as not chosen, and a press still works.
+            null
+        }
+    }
+    fun pressReaction(pressed: SongReaction) {
+        val songId = now.workId?.takeIf { it.isNotBlank() } ?: return
+        val before = reaction
+        val after = ReactionLogic.after(before, pressed)
+        reaction = after
+        scope.launch {
+            val saved = try {
+                client.setSongReaction(songId, after)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                false
+            }
+            if (!saved) reaction = before
+        }
+    }
+
     val positionSeconds = host.positionSeconds()
     val durationSeconds = host.durationSeconds()
     val device = host.device
@@ -286,6 +322,15 @@ internal fun NowPlayingScreen(host: AudioPlayerHost, client: TuvimaClient, onCol
                 Text(now.title, color = TuvimaTokens.textPrimary, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 NowPlayingLogic.secondLine(now, positionSeconds)?.let {
                     Text(it, color = MutedText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (now.kind == TvMediaKind.Music && !now.workId.isNullOrBlank()) {
+                for (choice in SongReaction.entries) {
+                    val on = reaction == choice
+                    val glyph = if (choice == SongReaction.Like) (if (on) "▲" else "△") else (if (on) "▼" else "▽")
+                    BareIconButton(if (on) "${choice.label}d" else choice.label, { pressReaction(choice) }) {
+                        Text(glyph, color = if (on) Accent else TuvimaTokens.textPrimary, fontSize = 20.sp)
+                    }
                 }
             }
             val heartKey = if (now.kind == TvMediaKind.Music) now.workId?.takeIf(String::isNotBlank)?.let { SavedKey.of(SavedKind.Song, it) } else null
@@ -468,21 +513,25 @@ private fun AudioSheets(
             onSet = { AudioBridge.sleepTimer.value = it },
             onClose = close,
         )
-        AudioSheet.Bookmarks -> BookmarksSheet(
-            client = client,
-            items = host.bookmarks.items,
-            loaded = host.bookmarks.loaded,
-            saveFailed = host.bookmarks.saveFailed,
-            positionSeconds = host.positionSeconds(),
-            showOnTimeline = device.showBookmarksOnTimeline,
-            coverUrl = now.artworkUrl,
-            onAdd = { note -> host.bookmarks.add(now, note, host.positionSeconds(), host.durationSeconds()) },
-            onSeek = { host.seekToSeconds(it) },
-            onEdit = { id, name, note -> host.bookmarks.rename(id, name, note) },
-            onDelete = { id -> host.bookmarks.delete(id) },
-            onToggleTimeline = { on -> host.updateDevice { it.copy(showBookmarksOnTimeline = on) } },
-            onClose = close,
-        )
+        AudioSheet.Bookmarks -> {
+            // A read that could not reach the Engine earlier is tried again as the panel opens.
+            LaunchedEffect(Unit) { host.bookmarks.load(now) }
+            BookmarksSheet(
+                client = client,
+                items = host.bookmarks.items,
+                loaded = host.bookmarks.loaded,
+                saveFailed = host.bookmarks.saveFailed,
+                positionSeconds = host.positionSeconds(),
+                showOnTimeline = device.showBookmarksOnTimeline,
+                coverUrl = now.artworkUrl,
+                onAdd = { note -> host.bookmarks.add(now, note, host.positionSeconds(), host.durationSeconds()) },
+                onSeek = { host.seekToSeconds(it) },
+                onEdit = { id, name, note -> host.bookmarks.rename(id, name, note) },
+                onDelete = { id -> host.bookmarks.delete(id) },
+                onToggleTimeline = { on -> host.updateDevice { it.copy(showBookmarksOnTimeline = on) } },
+                onClose = close,
+            )
+        }
         AudioSheet.Settings -> PanelSheet(
             client = client,
             // Playback information is a video panel; an audiobook's settings are its speed and skips.

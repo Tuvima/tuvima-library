@@ -153,6 +153,13 @@ object NowPlayingLogic {
         else -> choiceKey.toIntOrNull()?.let { SleepTimerLogic.after(it, nowMs) }
     }
 
+    /**
+     * The timer after the item in play changed. An End of chapter timer belongs to one book and one chapter, so it is dropped when another item
+     * takes over; the same item put back in place (a network change, a token refresh) keeps it. A timed timer is never dropped by an item change.
+     */
+    fun timerAfterItemChange(timer: SleepTimer, previousAssetId: String?, newAssetId: String?): SleepTimer =
+        if (timer is SleepTimer.EndOfChapter && previousAssetId != newAssetId) SleepTimer.Off else timer
+
     /** The Sleep timer panel's rows with the one that is running ticked (an End of chapter timer ticks its row; a timed one ticks none). */
     fun sleepChoiceChecked(choice: SleepChoice, timer: SleepTimer): Boolean =
         timer is SleepTimer.EndOfChapter && choice.key == SleepTimerLogic.END_OF_CHAPTER_KEY

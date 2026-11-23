@@ -166,6 +166,23 @@ class NowPlayingLogicTest {
     }
 
     @Test
+    fun anEndOfChapterTimerSurvivesTheSameBookBeingPutBackInPlaceButNotAnotherBook() {
+        val timer = SleepTimer.EndOfChapter(2, 1_500.0)
+
+        assertEquals(timer, NowPlayingLogic.timerAfterItemChange(timer, "book-1", "book-1"))
+        assertEquals(SleepTimer.Off, NowPlayingLogic.timerAfterItemChange(timer, "book-1", "book-2"))
+        assertEquals(SleepTimer.Off, NowPlayingLogic.timerAfterItemChange(timer, "book-1", null))
+    }
+
+    @Test
+    fun aTimedSleepTimerAndAnOffTimerAreNeverChangedByAnItemChange() {
+        val timed = SleepTimerLogic.after(15, 1_000L)
+
+        assertEquals(timed, NowPlayingLogic.timerAfterItemChange(timed, "a", "b"))
+        assertEquals(SleepTimer.Off, NowPlayingLogic.timerAfterItemChange(SleepTimer.Off, "a", "b"))
+    }
+
+    @Test
     fun anEndOfChapterTimerTicksItsOwnRowAndAMinuteTimerTicksNone() {
         val rows = SleepTimerLogic.choices(hasChapters = true)
         val endRow = rows.first { it.key == SleepTimerLogic.END_OF_CHAPTER_KEY }

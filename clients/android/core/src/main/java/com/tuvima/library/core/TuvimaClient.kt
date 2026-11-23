@@ -584,6 +584,21 @@ class TuvimaClient(
     suspend fun savedItems(): List<SavedItem> =
         parseSavedItems(requestArray("GET", ClientRoutes.PROFILE_SAVED))
 
+    /** The active profile's Like or Dislike on a song, or null when it has neither. */
+    suspend fun songReaction(songId: String): SongReaction? {
+        val text = requestText("GET", ClientRoutes.profileReaction(SavedKind.Song, songId), null, authenticated = true)
+        if (text.isBlank()) return null
+        return SongReaction.fromWire(JSONObject(text).opt("reaction"))
+    }
+
+    /** Sets (or, with null, takes away) the profile's Like or Dislike on a song. True when the Engine accepted it. */
+    suspend fun setSongReaction(songId: String, reaction: SongReaction?): Boolean =
+        if (reaction == null) {
+            requestStatus("DELETE", ClientRoutes.profileReaction(SavedKind.Song, songId), null) in 200..299
+        } else {
+            requestStatus("PUT", ClientRoutes.profileReactionSet(SavedKind.Song, songId, reaction), JSONObject()) in 200..299
+        }
+
     /** The saved titles the profile has finished, which Remove finished would take. */
     suspend fun finishedSavedItems(): List<SavedItem> =
         parseSavedItems(requestArray("GET", ClientRoutes.PROFILE_SAVED_FINISHED))

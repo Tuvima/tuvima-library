@@ -221,7 +221,17 @@ routes and, for a download with no connection, the offline functions the video p
 The lock-screen and notification card are written from `LockScreen.card` (title, artist and album or author, chapter line, cover, and
 the contract's actions), and a downloaded song or audiobook plays with no connection. A Play on an album's page, a song in Songs, an
 artist's songs or Favorites play the list from that song (`ListenPlay`, `DetailPlay`); the Songs page has a **Play** and **Shuffle**
-header. The pure rules (`QueueOrder.kt`, `DetailPlayTarget.kt`, `NowPlayingLogic.kt`) have tests in `core`; the screens and the service
+header.
+Like and Dislike on a song's title line use the Engine's existing profile reactions (`PUT/DELETE /api/v1/profile-state/reactions/song/{id}`,
+`SongReaction`); no new wire shape.
+
+*Decisions for Shy (contract phone rows not built in WP10c).* (1) **Go to album** and **Go to artist** on a Queue row: the queue holds a
+song's album and artist as text only, and the phone has no album or artist page it can open from a name, so they need the Engine to
+return an album and artist id with a song. Recommendation: have the Engine return those ids in the song's display card in a later packet.
+(2) **Music Bookmarks** in the "..." menu: the Engine's bookmark routes are the audiobook ones and the phone keeps music out of Bookmarks
+(`OfflineBookmarkLogic.keepsBookmarks`). Recommendation: leave music without Bookmarks and change the contract line. (3) **Playback
+settings** for music in the "..." menu: music has no speed or skip choices today, so the menu would hold nothing. Recommendation: leave the
+music menu empty until a music setting exists, and change the contract line. The pure rules (`QueueOrder.kt`, `DetailPlayTarget.kt`, `NowPlayingLogic.kt`) have tests in `core`; the screens and the service
 need a device check (see the spec's Local checks).
 
 **Android phone: Find another** (spec "Find another on TV", WP8; Find another v1 D12). The video player's **Audio &
