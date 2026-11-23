@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tuvima.library.core.DisplayCard
+import com.tuvima.library.core.ListenLogic
 import com.tuvima.library.core.MyListLogic
 import com.tuvima.library.core.SavedItem
 import com.tuvima.library.core.SavedKey
@@ -73,6 +74,9 @@ internal class SavedItems(private val client: TuvimaClient, private val scope: C
 
     /** The key a card is saved under: from what it is, or, for a group saved on the Dashboard, from the saved list itself. */
     fun keyFor(card: DisplayCard): SavedKey? {
+        // A song is hearted (Favorites) from the Listen lists, never saved to My List, so it gets no plus or tick. A saved album whose root
+        // work is a catalogue row looks the same (a Music work card), so it is told apart by the saved list: saved as an Album, it keeps its tick.
+        if (ListenLogic.isSong(card)) return ListenLogic.savedAlbumKey(card, titles)
         val target = mobileCardDetailTarget(card)
         return savedKeyForEntity(target.first, target.second)
             ?: titles?.keyForId(card.collectionId ?: card.workId ?: card.id)

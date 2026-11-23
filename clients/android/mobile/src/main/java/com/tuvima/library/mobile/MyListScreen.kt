@@ -1,12 +1,15 @@
 package com.tuvima.library.mobile
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -38,6 +41,7 @@ import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.DisplayShelf
 import com.tuvima.library.core.MyListKind
 import com.tuvima.library.core.MyListLogic
+import com.tuvima.library.core.MyListSelection
 import com.tuvima.library.core.MyListSort
 import com.tuvima.library.core.SavedKey
 import com.tuvima.library.core.TuvimaClient
@@ -163,8 +167,9 @@ internal class MyListController(private val client: TuvimaClient, private val sc
 
 /**
  * My List: the person's saved titles as a poster grid, with Continue above, kind chips, a sort, Remove finished in the "..." menu and an
- * Undo line after any removal. A tick on a poster takes the title off the list. Left out of this version: Select (the tick covers one
- * title at a time), the profile links and the Downloads card (Downloads is in the top bar).
+ * Undo line after any removal. A tick on a poster takes the title off the list. Select (in the "..." menu) ticks many posters and
+ * Remove takes them all off at once, with the same Undo. Left out of this version: the profile links and the Downloads card
+ * (Downloads is in the top bar).
  */
 @Composable
 internal fun MyListScreen(
@@ -180,6 +185,16 @@ internal fun MyListScreen(
     var sortMenu by remember { mutableStateOf(false) }
     var pageMenu by remember { mutableStateOf(false) }
     var changeFailed by remember { mutableStateOf(false) }
+    var selection by remember { mutableStateOf(MyListSelection.Off) }
+    var notRemovable by remember { mutableStateOf(false) }
+
+    // A read that drops cards (a change made elsewhere, a new sort) also drops their ticks, so Remove never names a title that is gone.
+    val shownIds = list.cards.map { it.id }
+    LaunchedEffect(shownIds) { selection = selection.retain(shownIds) }
+    LaunchedEffect(selection) { notRemovable = false }
+
+    // Back leaves Select mode before it leaves the page.
+    BackHandler(enabled = selection.active) { selection = selection.cancel() }
 
     LaunchedEffect(list) {
         saved.load()
@@ -222,6 +237,18 @@ internal fun MyListScreen(
                 changeFailed = true
             }
         }
+    }
+
+    // Takes every ticked title off in one go (each once), then leaves Select mode; Undo puts back exactly what the Engine took.
+    fun removeSelected() {
+        val keys = selection.keysToRemove(list.cards) { card -> saved.keyFor(card) }
+        if (keys.isEmpty()) {
+            // Nothing ticked has a saved key (for example a title that only appears here): say so and stay in Select mode.
+            notRemovable = true
+            return
+        }
+        selection = selection.cancel()
+        remove(keys)
     }
 
     fun removeFinished() {
@@ -269,39 +296,62 @@ internal fun MyListScreen(
         modifier = Modifier.fillMaxSize(),
     ) {
         item(span = full) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(MyListLogic.TITLE, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-                Box {
-                    TextButton(onClick = { sortMenu = true }) { Text("${MyListLogic.SORT_BY}: ${list.shownSort.label}") }
-                    DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
-                        MyListSort.entries.forEach { choice ->
-                            DropdownMenuItem(
-                                text = { Text(if (choice == list.shownSort) "✓ ${choice.label}" else choice.label) },
-                                onClick = {
-                                    sortMenu = false
-                                    list.pickSort(choice)
-                                },
-                            )
+            if (selection.active) {
+                SelectBar(
+                    selection = selection,
+                    cardIds = list.cards.map { it.id },
+                    onSelectAll = { selection = selection.selectAll(list.cards.map { it.id }) },
+                    onClear = { selection = selection.clear() },
+                    onRemove = { removeSelected() },
+                    onCancel = { selection = selection.cancel() },
+                    note = if (notRemovable) MyListSelection.NOTHING_TO_REMOVE else null,
+                )
+            } else {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(MyListLogic.TITLE, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+                    Box {
+                        TextButton(onClick = { sortMenu = true }) { Text("${MyListLogic.SORT_BY}: ${list.shownSort.label}") }
+                        DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
+                            MyListSort.entries.forEach { choice ->
+                                DropdownMenuItem(
+                                    text = { Text(if (choice == list.shownSort) "✓ ${choice.label}" else choice.label) },
+                                    onClick = {
+                                        sortMenu = false
+                                        list.pickSort(choice)
+                                    },
+                                )
+                            }
                         }
                     }
-                }
-                Box {
-                    BareIconButton("More actions for My List", { pageMenu = true }) {
-                        Text("⋯", color = TuvimaTokens.textPrimary, style = MaterialTheme.typography.titleLarge)
-                    }
-                    DropdownMenu(expanded = pageMenu, onDismissRequest = { pageMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text(if (list.finished == 0) MyListLogic.NOTHING_FINISHED else MyListLogic.REMOVE_FINISHED) },
-                            enabled = list.finished != 0,
-                            onClick = { removeFinished() },
-                        )
+                    Box {
+                        BareIconButton("More actions for My List", { pageMenu = true }) {
+                            Text("⋯", color = TuvimaTokens.textPrimary, style = MaterialTheme.typography.titleLarge)
+                        }
+                        DropdownMenu(expanded = pageMenu, onDismissRequest = { pageMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(MyListSelection.SELECT) },
+                                enabled = list.cards.isNotEmpty(),
+                                onClick = {
+                                    pageMenu = false
+                                    undo = null
+                                    selection = selection.start()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (list.finished == 0) MyListLogic.NOTHING_FINISHED else MyListLogic.REMOVE_FINISHED) },
+                                enabled = list.finished != 0,
+                                onClick = { removeFinished() },
+                            )
+                        }
                     }
                 }
             }
         }
 
-        continueShelf?.let { shelf ->
-            item(span = full) { ShelfRow(client, shelf, openCard) }
+        if (!selection.active) {
+            continueShelf?.let { shelf ->
+                item(span = full) { ShelfRow(client, shelf, openCard) }
+            }
         }
 
         if (MyListLogic.showsChips(list.kinds)) {
@@ -312,13 +362,19 @@ internal fun MyListScreen(
                 ) {
                     FilterChip(
                         selected = list.kind == null,
-                        onClick = { list.pickKind(null) },
+                        onClick = {
+                            selection = selection.clear()
+                            list.pickKind(null)
+                        },
                         label = { Text("${MyListLogic.ALL} ${MyListLogic.allCount(list.kinds, list.total)}") },
                     )
                     MyListLogic.visibleKinds(list.kinds).forEach { kind ->
                         FilterChip(
                             selected = list.kind.equals(kind.value, ignoreCase = true),
-                            onClick = { list.pickKind(kind.value) },
+                            onClick = {
+                                selection = selection.clear()
+                                list.pickKind(kind.value)
+                            },
                             label = { Text("${kind.label} ${kind.count}") },
                         )
                     }
@@ -361,7 +417,7 @@ internal fun MyListScreen(
                 Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             }
             list.cards.isEmpty() -> item(span = full) {
-                androidx.compose.foundation.layout.Column(
+                Column(
                     Modifier.fillMaxWidth().padding(vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -377,10 +433,20 @@ internal fun MyListScreen(
             if (index >= list.cards.size - 6) {
                 LaunchedEffect(list.cards.size) { list.loadMore() }
             }
-            PosterTile(client, card, Modifier.fillMaxWidth(), onSavedPress = { key ->
-                // A tick removes (with Undo); a plus, on a card that is no longer saved, adds it back.
-                if (saved.titles?.contains(key) == true) remove(listOf(key)) else saved.toggle(key)
-            }) { openCard(card) }
+            if (selection.active) {
+                // In Select mode a press ticks or unticks the poster instead of opening it.
+                PosterTile(
+                    client,
+                    card,
+                    Modifier.fillMaxWidth(),
+                    selection = card.id in selection,
+                ) { selection = selection.toggle(card.id) }
+            } else {
+                PosterTile(client, card, Modifier.fillMaxWidth(), onSavedPress = { key ->
+                    // A tick removes (with Undo); a plus, on a card that is no longer saved, adds it back.
+                    if (saved.titles?.contains(key) == true) remove(listOf(key)) else saved.toggle(key)
+                }) { openCard(card) }
+            }
         }
 
         if (list.loadingMore || list.moreFailed) {
@@ -393,6 +459,40 @@ internal fun MyListScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Select mode's top line: how many are ticked, Select all (or Clear), Remove and Cancel. Text buttons with 44 dp targets. */
+@Composable
+private fun SelectBar(
+    selection: MyListSelection,
+    cardIds: List<String>,
+    onSelectAll: () -> Unit,
+    onClear: () -> Unit,
+    onRemove: () -> Unit,
+    onCancel: () -> Unit,
+    note: String? = null,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(selection.label(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            TextButton(onClick = onCancel, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) { Text(MyListSelection.CANCEL) }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (selection.allSelected(cardIds)) {
+                TextButton(onClick = onClear, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) { Text(MyListSelection.CLEAR) }
+            } else {
+                TextButton(onClick = onSelectAll, modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget)) { Text(MyListSelection.SELECT_ALL) }
+            }
+            Button(
+                onClick = onRemove,
+                enabled = selection.canRemove,
+                modifier = Modifier.heightIn(min = TuvimaTokens.tapTarget),
+            ) { Text(MyListSelection.REMOVE) }
+        }
+        if (note != null) {
+            Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

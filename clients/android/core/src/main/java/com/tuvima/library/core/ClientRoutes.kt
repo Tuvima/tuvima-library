@@ -103,6 +103,37 @@ object ClientRoutes {
         return "$API/display/recent?${parameters.joinToString("&")}"
     }
 
+    /**
+     * One page of a Listen shelf (`albums` or `artists`, built from the Music home). The first page sends neither a cursor nor an
+     * offset; later pages follow the cursor the Engine gave, or fall back to the offset when it gave none.
+     */
+    fun listenShelf(key: String, cursor: String? = null, offset: Int = 0, limit: Int = ListenLogic.SHELF_PAGE): String {
+        val parameters = buildList {
+            add("lane=${ListenLogic.LANE}")
+            add("mediaType=${ListenLogic.MEDIA_TYPE}")
+            add("grouping=home")
+            if (!cursor.isNullOrBlank()) add("cursor=${encode(cursor)}") else if (offset > 0) add("offset=$offset")
+            add("limit=${limit.coerceIn(1, 100)}")
+        }
+        return "$API/display/shelves/${encode(key)}?${parameters.joinToString("&")}"
+    }
+
+    /** Universal search: ranked results in sections (the search overlay). */
+    fun search(query: String, limit: Int = SearchLogic.RESULT_LIMIT): String =
+        "$API/display/search?q=${encode(query.trim())}&limit=${limit.coerceIn(1, 100)}"
+
+    /** Named or reviewed people in the signed-in person's own photos and videos. */
+    fun viewPeople(cursor: String? = null, limit: Int = ViewDiscoveryLogic.PAGE_SIZE): String =
+        paged("$API/view/people", cursor, limit.coerceIn(1, 100))
+
+    /** The photos and videos that carry one person's name, newest first. */
+    fun viewPersonItems(key: String, cursor: String? = null, limit: Int = 100): String =
+        paged("$API/view/people/${encodePathSegment(key)}/items", cursor, limit.coerceIn(1, 200))
+
+    /** Place clusters from the signed-in person's own photos and videos. */
+    fun viewPlaces(cursor: String? = null, limit: Int = ViewDiscoveryLogic.PAGE_SIZE): String =
+        paged("$API/view/places", cursor, limit.coerceIn(1, 100))
+
     fun details(entityType: String, id: String): String =
         "$API/details/${encode(entityType)}/${encode(id)}"
 
@@ -223,6 +254,9 @@ object ClientRoutes {
         }
         return "$path?${parameters.joinToString("&")}"
     }
+
+    /** For a value that is a path segment but not an id (a person's key can hold spaces): a space is `%20` here, never `+`. */
+    internal fun encodePathSegment(value: String): String = encode(value).replace("+", "%20")
 
     internal fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.toString())
 }

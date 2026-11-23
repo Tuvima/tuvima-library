@@ -36,7 +36,6 @@ import com.tuvima.library.core.playableAssetId
 /** Where the shell is: one of the three dock tabs, a section chip, or a page the menu or top bar opens. */
 private sealed interface Destination {
     data object Home : Destination
-    data object Search : Destination
     data object MyList : Destination
     data object RecentlyAdded : Destination
     data object Downloads : Destination
@@ -46,9 +45,10 @@ private sealed interface Destination {
 
 /**
  * The signed-in app, laid out as the Dashboard is on a phone: a top bar (menu, logo, Downloads, My List, avatar), the section chips
- * (Read, Watch, Listen, View, Collections), the page, and a floating dock of three tabs (Home, Search, My List). The menu lists Home,
- * My List, Recently added, the lanes, Settings, Switch profile and Sign out. Full-screen pages (details, a collection, a Universe, a gallery, the
- * photo viewer) are shown over all of it; Back removes the top one, then returns to Home.
+ * (Read, Watch, Listen, View, Collections), the page, and a floating dock of three tabs (Home, Search, My List). The Search tab opens a
+ * full-screen search over everything rather than a page. The menu lists Home, My List, Recently added, the lanes, Settings, Switch
+ * profile and Sign out. Full-screen pages (details, a collection, a Universe, a gallery, an artist, a person, the photo viewer) are shown
+ * over all of it; Back removes the top one, then returns to Home.
  */
 @Composable
 internal fun MobileShell(
@@ -63,6 +63,7 @@ internal fun MobileShell(
     val scope = rememberCoroutineScope()
     var destination by remember { mutableStateOf<Destination>(Destination.Home) }
     var menuOpen by remember { mutableStateOf(false) }
+    var searchOpen by remember { mutableStateOf(false) }
     // Bumped after a profile switch so every screen reads again as the new person.
     var epoch by remember { mutableIntStateOf(0) }
     val stack = remember { mutableStateListOf<Overlay>() }
@@ -103,6 +104,7 @@ internal fun MobileShell(
 
     fun profileSwitched() {
         stack.clear()
+        searchOpen = false
         destination = Destination.Home
         epoch += 1
         // The new person has their own downloads; start their queue and sync their offline progress.
@@ -135,7 +137,6 @@ internal fun MobileShell(
 
     val selectedDock: PhoneDockTab? = when (destination) {
         Destination.Home -> PhoneDockTab.Home
-        Destination.Search -> PhoneDockTab.Search
         Destination.MyList -> PhoneDockTab.MyList
         else -> null
     }
@@ -160,7 +161,7 @@ internal fun MobileShell(
                     PhoneDock(selected = selectedDock) { tab ->
                         when (tab) {
                             PhoneDockTab.Home -> goTo(Destination.Home)
-                            PhoneDockTab.Search -> goTo(Destination.Search)
+                            PhoneDockTab.Search -> { searchOpen = true }
                             PhoneDockTab.MyList -> goTo(Destination.MyList)
                         }
                     }
@@ -178,12 +179,11 @@ internal fun MobileShell(
                                 Destination.Home -> HomeScreen(
                                     client = client,
                                     saved = saved,
+                                    play = play,
                                     openCard = ::openCard,
                                     openMyList = { goTo(Destination.MyList) },
+                                    openMusic = { goTo(Destination.Section(PhoneSection.Listen)) },
                                 )
-                                Destination.Search -> SearchScreen(client) { entityType, id ->
-                                    stack.add(Overlay.Detail(entityType, id, null))
-                                }
                                 Destination.MyList -> MyListScreen(
                                     client = client,
                                     saved = saved,
@@ -200,10 +200,13 @@ internal fun MobileShell(
                                 is Destination.Section -> LibrariesScreen(
                                     section = current.section,
                                     client = client,
+                                    play = play,
                                     openCard = ::openCard,
                                     openCollection = { stack.add(Overlay.CollectionOpen(it)) },
                                     openViewer = { items, index -> stack.add(Overlay.ViewerOpen(items, index)) },
                                     openGallery = { stack.add(Overlay.GalleryOpen(it)) },
+                                    openArtist = { stack.add(Overlay.ArtistOpen(it)) },
+                                    openPerson = { stack.add(Overlay.PersonOpen(it)) },
                                 )
                                 is Destination.Settings -> SettingsScreen(
                                     application = application,
@@ -254,6 +257,18 @@ internal fun MobileShell(
                                 openViewer = { items, index -> stack.add(Overlay.ViewerOpen(items, index)) },
                                 onBack = { stack.removeAt(stack.lastIndex) },
                             )
+                            is Overlay.ArtistOpen -> ArtistSongsScreen(
+                                client = client,
+                                artist = top.name,
+                                play = play,
+                                onBack = { stack.removeAt(stack.lastIndex) },
+                            )
+                            is Overlay.PersonOpen -> PersonPhotosScreen(
+                                client = client,
+                                person = top.person,
+                                openViewer = { items, index -> stack.add(Overlay.ViewerOpen(items, index)) },
+                                onBack = { stack.removeAt(stack.lastIndex) },
+                            )
                             is Overlay.ViewerOpen -> PhotoViewerScreen(
                                 client = client,
                                 items = top.items,
@@ -263,6 +278,17 @@ internal fun MobileShell(
                         }
                     }
                 }
+            }
+
+            if (searchOpen) {
+                SearchOverlay(
+                    client = client,
+                    onOpen = { hit ->
+                        searchOpen = false
+                        stack.add(Overlay.Detail(hit.entityType, hit.id, null))
+                    },
+                    onClose = { searchOpen = false },
+                )
             }
 
             if (menuOpen) {

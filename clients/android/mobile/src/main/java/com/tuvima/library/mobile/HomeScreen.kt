@@ -24,18 +24,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.DisplayShelf
+import com.tuvima.library.core.HeroSlide
 import com.tuvima.library.core.MyListLogic
 import com.tuvima.library.core.TuvimaClient
 import kotlinx.coroutines.CancellationException
 
+/** What Home draws: the hero card's slides, then the rows. */
+private data class HomeLoad(val heroes: List<HeroSlide>, val shelves: List<DisplayShelf>)
+
 /**
- * Home: the Continue row first (from /display/continue), then a My List row (when the profile has saved titles), then the shelves of
- * /display/home. The My List row reads again after any plus or tick, so it never shows a title that was just removed.
+ * Home: the hero card first (the featured titles of /display/home), then the Continue row (from /display/continue), a My List row (when
+ * the profile has saved titles) and the shelves of /display/home. The My List row reads again after any plus or tick, so it never
+ * shows a title that was just removed.
  */
 @Composable
-internal fun HomeScreen(client: TuvimaClient, saved: SavedItems, openCard: (DisplayCard) -> Unit, openMyList: () -> Unit) {
+internal fun HomeScreen(
+    client: TuvimaClient,
+    saved: SavedItems,
+    play: (PlayRequest) -> Unit,
+    openCard: (DisplayCard) -> Unit,
+    openMyList: () -> Unit,
+    openMusic: () -> Unit,
+) {
     var attempt by remember { mutableIntStateOf(0) }
-    var state by remember { mutableStateOf<Load<List<DisplayShelf>>>(Load.Loading) }
+    var state by remember { mutableStateOf<Load<HomeLoad>>(Load.Loading) }
     var myList by remember { mutableStateOf<DisplayShelf?>(null) }
 
     LaunchedEffect(client, saved.version) {
@@ -50,7 +62,7 @@ internal fun HomeScreen(client: TuvimaClient, saved: SavedItems, openCard: (Disp
     LaunchedEffect(client, attempt) {
         state = Load.Loading
         state = try {
-            Load.Ready(loadHomeShelves(client))
+            Load.Ready(loadHome(client))
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -58,17 +70,22 @@ internal fun HomeScreen(client: TuvimaClient, saved: SavedItems, openCard: (Disp
         }
     }
 
-    LoadView(state, retry = { attempt += 1 }) { shelves ->
-        if (shelves.isEmpty()) {
+    LoadView(state, retry = { attempt += 1 }) { loaded ->
+        val shelves = loaded.shelves
+        if (shelves.isEmpty() && loaded.heroes.isEmpty()) {
             ErrorBlock("Nothing to show yet. Your library is empty or still being prepared.", { attempt += 1 })
         } else {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 16.dp)) {
-                item {
-                    Text(
-                        "Home",
-                        style = MaterialTheme.typography.headlineMedium,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
+                if (loaded.heroes.isNotEmpty()) {
+                    item { HomeHeroCard(client, loaded.heroes, openCard, play, openMusic) }
+                } else {
+                    item {
+                        Text(
+                            "Home",
+                            style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
                 }
                 val row = myList
                 val withMyList = if (row == null) shelves else {
@@ -84,15 +101,15 @@ internal fun HomeScreen(client: TuvimaClient, saved: SavedItems, openCard: (Disp
     }
 }
 
-private suspend fun loadHomeShelves(client: TuvimaClient): List<DisplayShelf> {
+private suspend fun loadHome(client: TuvimaClient): HomeLoad {
     // Continue is its own call so it can lead; Home's own copy of that shelf is dropped to avoid showing it twice.
     val continueShelf = runCatching { client.continueAll() }.getOrNull()
         ?.shelves?.firstOrNull { it.items.isNotEmpty() }
         ?.copy(key = "continue", title = "Continue")
-    val home = client.homeShelves()
+    val home = client.homeContent()
     // The Engine's own "my-list" shelf is dropped too: Home draws its own My List row, kept current after every plus or tick.
-    val rest = home.shelves.filter { it.key != "continue" && it.key != "my-list" && it.items.isNotEmpty() }
-    return listOfNotNull(continueShelf) + rest
+    val rest = home.page.shelves.filter { it.key != "continue" && it.key != "my-list" && it.items.isNotEmpty() }
+    return HomeLoad(home.heroes, listOfNotNull(continueShelf) + rest)
 }
 
 private const val MY_LIST_ROW_SIZE = 20

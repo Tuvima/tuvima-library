@@ -1,0 +1,156 @@
+{
+  "shelf": {
+    "key": "albums",
+    "title": "Albums",
+    "subtitle": null,
+    "items": [
+      {
+        "id": "6f0c2a3e-0000-4000-8000-000000000300",
+        "workId": "6f0c2a3e-0000-4000-8000-000000000310",
+        "assetId": "6f0c2a3e-0000-4000-8000-000000000410",
+        "collectionId": null,
+        "mediaType": "Music",
+        "groupingType": "album",
+        "title": "Alpha Songs",
+        "subtitle": "Alpha Band",
+        "facts": [
+          "2021",
+          "Alpha Band"
+        ],
+        "artwork": {
+          "coverUrl": null,
+          "coverLargeUrl": null,
+          "squareUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000410/cover",
+          "squareLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000410/cover?size=large",
+          "backgroundUrl": null,
+          "backgroundLargeUrl": null,
+          "logoUrl": null
+        },
+        "preferredShape": "square",
+        "presentation": "album",
+        "tileTextMode": "caption",
+        "previewPlacement": "smart",
+        "progress": null,
+        "actions": [
+          {
+            "type": "playAlbum",
+            "label": "Play Album",
+            "workId": "6f0c2a3e-0000-4000-8000-000000000310",
+            "assetId": "6f0c2a3e-0000-4000-8000-000000000410",
+            "collectionId": null,
+            "webUrl": "/details/musicalbum/6f0c2a3e-0000-4000-8000-000000000300?context=listen"
+          }
+        ],
+        "flags": {
+          "isPlayable": true,
+          "isReadable": false,
+          "isCollection": true,
+          "isFavorite": false
+        },
+        "sortTimestamp": "2026-11-20T10:15:00+00:00",
+        "subject": "Album",
+        "continuationState": "Unstarted",
+        "previewItems": [
+          {
+            "workId": "6f0c2a3e-0000-4000-8000-000000000321",
+            "assetId": "6f0c2a3e-0000-4000-8000-000000000421",
+            "title": "Opening",
+            "imageUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000421/cover",
+            "shape": "square",
+            "position": "1",
+            "mediaType": "Music",
+            "webUrl": "/listen/music?browse=songs&track=6f0c2a3e-0000-4000-8000-000000000321",
+            "description": null,
+            "facts": [
+              "2021"
+            ]
+          },
+          {
+            "workId": "6f0c2a3e-0000-4000-8000-000000000322",
+            "assetId": "6f0c2a3e-0000-4000-8000-000000000422",
+            "title": "Second Song",
+            "imageUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000422/cover",
+            "shape": "square",
+            "position": "2",
+            "mediaType": "Music",
+            "webUrl": "/listen/music?browse=songs&track=6f0c2a3e-0000-4000-8000-000000000322",
+            "description": null,
+            "facts": [
+              "2021"
+            ]
+          }
+        ],
+        "previewTotalCount": 2
+      },
+      {
+        "id": "6f0c2a3e-0000-4000-8000-000000000400",
+        "workId": "6f0c2a3e-0000-4000-8000-000000000410",
+        "assetId": "6f0c2a3e-0000-4000-8000-000000000510",
+        "collectionId": null,
+        "mediaType": "Music",
+        "groupingType": "album",
+        "title": "Beta Hours",
+        "subtitle": "Beta Quartet",
+        "facts": [
+          "2021",
+          "Beta Quartet"
+        ],
+        "artwork": {
+          "coverUrl": null,
+          "coverLargeUrl": null,
+          "squareUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/cover",
+          "squareLargeUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000510/cover?size=large",
+          "backgroundUrl": null,
+          "backgroundLargeUrl": null,
+          "logoUrl": null
+        },
+        "preferredShape": "square",
+        "presentation": "album",
+        "tileTextMode": "caption",
+        "previewPlacement": "smart",
+        "progress": null,
+        "actions": [
+          {
+            "type": "playAlbum",
+            "label": "Play Album",
+            "workId": "6f0c2a3e-0000-4000-8000-000000000410",
+            "assetId": "6f0c2a3e-0000-4000-8000-000000000510",
+            "collectionId": null,
+            "webUrl": "/details/musicalbum/6f0c2a3e-0000-4000-8000-000000000400?context=listen"
+          }
+        ],
+        "flags": {
+          "isPlayable": true,
+          "isReadable": false,
+          "isCollection": true,
+          "isFavorite": false
+        },
+        "sortTimestamp": "2026-11-20T10:15:00+00:00",
+        "subject": "Album",
+        "continuationState": "Unstarted",
+        "previewItems": [
+          {
+            "workId": "6f0c2a3e-0000-4000-8000-000000000421",
+            "assetId": "6f0c2a3e-0000-4000-8000-000000000521",
+            "title": "Slow Start",
+            "imageUrl": "/stream/6f0c2a3e-0000-4000-8000-000000000521/cover",
+            "shape": "square",
+            "position": "1",
+            "mediaType": "Music",
+            "webUrl": "/listen/music?browse=songs&track=6f0c2a3e-0000-4000-8000-000000000421",
+            "description": null,
+            "facts": [
+              "2021"
+            ]
+          }
+        ],
+        "previewTotalCount": 1
+      }
+    ],
+    "seeAllRoute": null
+  },
+  "nextCursor": "24",
+  "offset": 0,
+  "limit": 24,
+  "hasMore": true
+}

@@ -272,6 +272,7 @@ internal fun parseDisplayShelf(json: JSONObject, absolute: (String?) -> String?)
 internal fun parseDisplayCard(json: JSONObject, absolute: (String?) -> String?): DisplayCard {
     val artwork = json.optJSONObject("artwork") ?: JSONObject()
     val progress = json.optJSONObject("progress")
+    val list = json.optJSONObject("listMetadata")
     return DisplayCard(
         id = json.optString("id"),
         workId = json.optionalString("workId"),
@@ -307,8 +308,32 @@ internal fun parseDisplayCard(json: JSONObject, absolute: (String?) -> String?):
                 ?: artwork.optionalString("squareLargeUrl")
                 ?: artwork.optionalString("squareUrl"),
         ),
+        squareArtUrl = absolute(
+            artwork.optionalString("squareLargeUrl")
+                ?: artwork.optionalString("squareUrl")
+                ?: artwork.optionalString("coverLargeUrl")
+                ?: artwork.optionalString("coverUrl"),
+        ),
+        groupingType = json.optionalString("groupingType")?.lowercase(),
+        isFavorite = json.optJSONObject("flags")?.optBoolean("isFavorite") == true,
+        artist = list?.optionalString("artist"),
+        album = list?.optionalString("album"),
+        duration = list?.optionalString("duration"),
+        trackNumber = list?.optionalString("trackNumber"),
     )
 }
+
+/** One page of a shelf (`/display/shelves/{key}`): the cards and what is needed to ask for the next page. */
+data class DisplayShelfPage(val shelf: DisplayShelf, val nextCursor: String?, val offset: Int, val limit: Int, val hasMore: Boolean)
+
+internal fun parseDisplayShelfPage(json: JSONObject, absolute: (String?) -> String?): DisplayShelfPage =
+    DisplayShelfPage(
+        shelf = parseDisplayShelf(json.optJSONObject("shelf") ?: JSONObject(), absolute),
+        nextCursor = json.optionalString("nextCursor"),
+        offset = json.optInt("offset"),
+        limit = json.optInt("limit"),
+        hasMore = json.optBoolean("hasMore"),
+    )
 
 /** A Universe answer. Every field added after the first version is optional: missing reads as 0, empty or null. */
 internal fun parseUniverseDetail(json: JSONObject, absolute: (String?) -> String?, fallbackQid: String = ""): UniverseDetail =
