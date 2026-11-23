@@ -23,7 +23,8 @@
     tokens: 'tuvima.tv.tokens',
     quality: 'tuvima.tv.quality',
     hevc: 'tuvima.tv.hevc',
-    profile: 'tuvima.tv.profile'
+    profile: 'tuvima.tv.profile',
+    playback: 'tuvima.tv.playback'
   };
 
   /* ---- storage (localStorage only; a blocked store simply behaves as empty) ---- */
@@ -356,6 +357,7 @@
     }
     saveTokens(null);
     writeStore(KEYS.profile, null);
+    writeStore(KEYS.playback, null);
   }
 
   function forgetServer() {
@@ -363,6 +365,7 @@
     origin = '';
     writeStore(KEYS.server, null);
     writeStore(KEYS.profile, null);
+    writeStore(KEYS.playback, null);
   }
 
   /* ---- people ---- */
@@ -377,6 +380,7 @@
     if (pin) { body.pin = pin; }
     var json = await request('POST', '/api/v1/devices/current/switch-profile', body);
     saveTokens(fromTokenResponse(json, tokens));
+    writeStore(KEYS.playback, null); // the device's playback choices belong to the profile that made them
     return json;
   }
 
@@ -436,7 +440,13 @@
     findChoose: function (assetId, body) {
       return request('POST', '/api/v1/stream/' + enc(assetId) + '/text-tracks/alternatives/choose', body);
     },
-    playbackPreferences: function () { return get('/api/v1/devices/current/playback-preferences'); }
+    playbackPreferences: function () { return get('/api/v1/devices/current/playback-preferences'); },
+
+    /* Bookmarks of a video (the Engine's player routes; the Engine decides who sees what: isYours, isGlobal). */
+    bookmarks: function (workId) { return get('/api/v1/player/audiobooks/' + enc(workId) + '/bookmarks'); },
+    createBookmark: function (workId, body) { return request('POST', '/api/v1/player/audiobooks/' + enc(workId) + '/bookmarks', body); },
+    updateBookmark: function (bookmarkId, body) { return request('PUT', '/api/v1/player/audiobooks/bookmarks/' + enc(bookmarkId), body); },
+    deleteBookmark: function (bookmarkId) { return request('DELETE', '/api/v1/player/audiobooks/bookmarks/' + enc(bookmarkId)); }
   };
 
   /* ---- artwork (needs the bearer token, so it is fetched and shown as a blob URL) ---- */
@@ -519,6 +529,24 @@
   }
   function rememberedProfile() { return readJson(KEYS.profile); }
 
+  /* ---- device playback choices ----
+   * The profile's playback preferences are read-only for a paired app (GET only), so what a person changes in the player's
+   * Playback settings, Autoplay switch and Subtitle appearance is kept on this TV: { autoplay, skipBack, skipForward, speed,
+   * subtitleStyle, subtitleBackground }. "Reset playback preferences" clears it and the profile's own values apply again. */
+  function playbackChoices() {
+    var saved = readJson(KEYS.playback);
+    return saved && typeof saved === 'object' ? saved : {};
+  }
+  function setPlaybackChoices(values) {
+    var merged = playbackChoices();
+    for (var name in values) {
+      if (Object.prototype.hasOwnProperty.call(values, name)) { merged[name] = values[name]; }
+    }
+    writeStore(KEYS.playback, JSON.stringify(merged));
+    return merged;
+  }
+  function clearPlaybackChoices() { writeStore(KEYS.playback, null); }
+
   TV.api = {
     KEYS: KEYS,
     CLIENT_ID: CLIENT_ID,
@@ -553,7 +581,10 @@
       quality: qualityValue,
       setQuality: function (value) { writeStore(KEYS.quality, value); },
       hevc: hevcEnabled,
-      setHevc: function (on) { writeStore(KEYS.hevc, on ? '1' : '0'); }
+      setHevc: function (on) { writeStore(KEYS.hevc, on ? '1' : '0'); },
+      playback: playbackChoices,
+      setPlayback: setPlaybackChoices,
+      clearPlayback: clearPlaybackChoices
     }
   };
   for (var name in api) {

@@ -40,7 +40,9 @@ as a Tizen or webOS app.
 - **Player**: HLS through hls.js, captions from the manifest, resume from the
   manifest (and `/api/v1/player/state`), progress through
   `POST /api/v1/player/heartbeat` every 10 seconds and on pause, seek and close,
-  and an Up next prompt from `/api/v1/details/show/{id}/next-episodes`.
+  the transport and tool rows with right-hand panels, paused details, and an
+  Up next end card from `/api/v1/details/show/{id}/next-episodes` (see Player
+  below).
 - **Profiles**: `GET /api/v1/devices/current/profiles` and
   `POST /api/v1/devices/current/switch-profile`. A person without an avatar
   shows their initials. `428` opens an on-screen PIN pad; `403`, `409` and `429`
@@ -113,7 +115,8 @@ nothing.
 
 Arrow keys move focus to the nearest control in that direction, Enter selects,
 and Back (Escape, Backspace, Tizen `10009`, webOS `461`) goes back. Media keys
-(play, pause, stop, fast-forward, rewind) work in the player. The root text size
+(play, pause, stop, fast-forward `417`, rewind `412`) work in the player: Rewind
+and Fast-forward skip by the profile's seconds. The root text size
 is 24 px at 1080p (it scales with the screen height), every control is at least
 56 px, content keeps 5 percent safe margins, and the focused control has a white
 ring.
@@ -127,7 +130,8 @@ ring.
 | `universe.js` | Universe page logic (totals, cast and adaptation lines, which rows each Series shows); no DOM |
 | `nav.js` | Key map and spatial navigation |
 | `find-another.js` | Find another (subtitles): the one-second rest rule, read-once cache, key map and wording (no DOM, Node-testable) and the window |
-| `player.js` | hls.js player, Audio & subtitles side panel, captions, resume, heartbeat, Up next |
+| `player-logic.js` | Player decisions with no DOM: transport and tool rows, the tv-keys key map, panel state, the one line, end card, episode and bookmark rows, skip seconds (Node-testable) |
+| `player.js` | hls.js player: controls overlay, the four side panels and Lyrics, captions, resume, heartbeat, end card |
 | `app.js` | Screens and routing |
 | `styles.css` | 10-foot styles |
 | `vendor/` | hls.js and its license |
@@ -142,7 +146,9 @@ pwsh -NoProfile -File tests/native/Test-TvWebClient.ps1
 The gate runs `node --check` on every script, refuses hard-coded server
 addresses and credentials, checks the required screens and routes, checks the
 wire names against `tests/fixtures/native-client-v1`, and runs the Node
-behaviour checks for the API layer, the Universe page logic and remote input.
+behaviour checks for the API layer, the Universe page logic, remote input and the player logic
+(`tv-web-player.test.js`, which also compares the player's words and rows with the
+contract file).
 
 ## Not yet done
 
@@ -154,37 +160,93 @@ behaviour checks for the API layer, the Universe page logic and remote input.
 ## Player
 
 The player follows the shared contract in
-[`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md).
-Already close: Left and Right seek while the timeline has focus, the Rewind and
-Fast-forward keys seek, an Up next prompt follows an episode, captions come from
-the manifest, and a small **Audio & subtitles** side panel (spec
-`find-another-on-tv`) replaces the old cycling Captions button: Audio rows when
-the manifest offers several (switched through hls.js, in manifest order),
-Subtitles rows (Off, then each track) and a footer **Find subtitles...** row
-that shows only when `GET /api/v1/stream/{asset}/text-tracks/sources?kind=subtitles`
-answers `Ready`. The row opens the **Find another** window (`find-another.js`):
-the Engine's results on the left, the focused result's first lines on the right,
-Use this and Cancel at the foot, all by remote (key map in the contract's
-Televisions section). Previews read after one second at rest (the best match
-at once), each once per window. The Language button lists the profile's subtitle
-language (`GET /api/v1/devices/current/playback-preferences`, which holds only one
-language) followed by a fixed list of common languages. The pane shows the lines
-the Engine sends for a result (a few, not a full 20, until the Engine sends more).
-Gaps: Left and Right both seek a fixed 10 seconds and Rewind
-and Fast-forward a fixed 30 both ways, where the contract says all four use the
-profile's skip seconds (10 back and 30 forward by default); there is no
-Previous/Next transport row dimmed in place, and the tool row is one button
-(Audio & subtitles; a song also gets Lyrics) with no Episodes, Bookmarks or
-Playback settings beside it;
-no other side panels, no bookmarks, no paused details and no Autoplay switch;
-there is no full-screen music Now playing (no cover, title line or Queue panel;
-a song plays in this same player, which gets only the Lyrics panel, see below);
-the Up next
-prompt does not yet match the contract's end card. The Audio rows switch only
-tracks hls.js reports, in manifest order. The gaps are one follow-up thread for the TV web app, laid
-out as the contract's first definition of the television side panels (Unified
-player v2, D29 and section 9). Samsung Tizen and LG webOS wrap this client, so
-they inherit its result.
+[`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md)
+(the Televisions section, the Panels table, Paused details, End card and the
+tv-keys table) and the approved layout in
+`engineering/design/mockups/tv-player/tv-player-panels.html` (dark only, colours
+from `styles.css`, 1920 x 1080 sizes kept as `calc(N * var(--px))`, so 700 px is
+the side panel at 1080p and it scales with the screen height). Its decisions
+live in `player-logic.js` (no DOM, tested by `tests/native/tv-web-player.test.js`
+against the contract file itself); `player.js` draws them.
+
+- **Controls overlay**: the title and the one line ("S1 E1 · The First Wish · 22
+  min", "3 · Ball handling · 12 min" for a folder video, "2019 · 1h 52m" for a
+  film), the timeline (time played at the left, "-14:59" time left at the
+  right), the five transport buttons (Previous, Skip back, Play, Skip forward,
+  Next; labels from the contract's transport-tv and transport-film tables, the
+  seconds inside the circle, Previous and Next dimmed in place) and one tool row
+  (Episodes, Audio & subtitles, Bookmarks, Playback settings; a film has no
+  Episodes; a tool the media or the app does not support is absent). Focus
+  starts on Play. The overlay appears on any key, hides after 5 seconds, and
+  never hides while a panel, the Find window or the end card is open or the video
+  is paused. Previous and Next play the episode before or after in the show.
+- **Keys** (the tv-keys table, decided by `TV.playerLogic.keyEffect`): Left and
+  Right on the timeline skip by the profile's seconds
+  (`GET /api/v1/devices/current/playback-preferences`, `skipBackSeconds` and
+  `skipForwardSeconds`, 10 and 30 when nothing is saved); Rewind and Fast-forward
+  do the same as the skip buttons; Play/Pause; Back closes the open side panel
+  (a nested view first), then hides the overlay, and with the overlay already
+  hidden leaves the player. Samsung and LG key codes for Back, Rewind and
+  Fast-forward are in `platforms/tizen/tizen-keys.js` and
+  `platforms/webos/webos-keys.js`; `nav.js` reads them (`TV_PLATFORM_KEYS`) when it
+  loads.
+- **Side panels** (700 px at the right edge, fixed header with Close, scrolling
+  middle, fixed footer, the opening tool stays highlighted, one panel at a time):
+  **Episodes** (a Season dropdown, the count, a row per episode with its still,
+  "Playing" or "Paused" and the "Up next" chip, the Autoplay next episode switch;
+  episodes come from `GET /api/v1/details/tvShow/{id}`), **Audio & subtitles**
+  (audio rows with their facts and commentary last, "Not switchable in this
+  browser" for a track hls.js cannot switch, subtitle rows starting with Off,
+  footer rows Subtitle appearance and Find subtitles... which opens the Find
+  another window), **Bookmarks** (a Mine | Global choice only when a Global set
+  exists, "Bookmark at {0}" saves at once with no note, a row seeks, Edit
+  (rename with the TV's on-screen keyboard) and Delete (Delete or Keep) on the
+  person's own, the Show on timeline switch; no note field and no search box on a
+  TV) and **Playback settings** (Playback speed with the presets and Left and
+  Right fine steps, Skip back, Skip forward, Playback information, Reset
+  playback preferences). Bookmarks use the Engine's player routes
+  (`/api/v1/player/audiobooks/{workId}/bookmarks`, the same ones the Dashboard
+  uses for video; the Engine decides who sees what) and need the work id, so the
+  tool is absent when the app cannot give one.
+- **Paused details** sit at the bottom left on a local gradient (title, the one
+  line, a short description for episodes) and hide while a panel is open. The
+  **end card** ("Up next", "Starts in {0} seconds" while autoplay is on, the next
+  episode, "Next episode", Cancel and Play now) shows above the controls at the
+  right with Play now focused; Back cancels. With autoplay off it stays and has
+  no countdown.
+- Also kept: Left and Right seek while the timeline has focus, captions come
+  from the manifest, resume from the manifest (and `/api/v1/player/state`),
+  progress through `POST /api/v1/player/heartbeat`, and the **Find another**
+  window (`find-another.js`, spec `find-another-on-tv`): the Engine's results on
+  the left, the focused result's first lines on the right, Use this and Cancel at
+  the foot, previews read after one second at rest. The Language button lists the
+  profile's subtitle language followed by a fixed list of common languages.
+
+Gaps (each is a follow-up, not hidden):
+
+- **The profile's playback preferences are read-only for an app** (the Engine has
+  no write route in `/api/v1`). The Autoplay switch, Skip back, Skip forward,
+  Playback speed and Subtitle appearance are therefore kept on this TV (one
+  `localStorage` entry, cleared by Reset playback preferences, Sign out and a
+  profile switch) and the profile's own values apply until the person changes
+  them here. They do not change the profile.
+- **Lessons (folder videos and courses)**: the tool, panel and "Next lesson" words
+  are built, but no `/api/v1` route lists the other videos of a folder, so the
+  app never offers Lessons and a folder video plays as a film. The end card's
+  "Homework for this lesson" block (supporting files) is not built.
+- The rating card at the top left is not built (the playback manifest carries no
+  rating); Subtitle appearance has no Custom appearance (font, size, colours).
+- A film or folder video has no queue, so its Previous and Next stay dimmed; a
+  show's episode list is the window the details route sends (a very long show may
+  list only part of it).
+- There is no full-screen music Now playing (no cover, title line or Queue panel;
+  a song plays in this same player with Lyrics as its only tool and Previous
+  track, Play and Next track as its transport, the first and last dimmed), and
+  the audiobook player is not built.
+- Not checked on a real TV. The player was run in Chrome at 1920 x 1080 against a
+  stubbed Engine, and the Samsung and LG packages must be rebuilt
+  (`platforms/tizen/package.ps1` now stages `find-another.js` and
+  `player-logic.js`) and tried on the simulators.
 
 ### Lyrics and Find lyrics
 

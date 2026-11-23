@@ -347,7 +347,14 @@
     if (opts && opts.continuePlay && assetId && card.mediaType && canPlay(detailType(card.mediaType)) &&
         text(card.continuationState) !== 'Completed') {
       var showId = ep && ep.showWorkId;
-      play({ assetId: assetId, title: ep ? ep.showTitle : card.title, subtitle: ep ? ep.episodeTitle : card.subtitle, showId: showId });
+      play({
+        assetId: assetId,
+        workId: ep ? ep.episodeWorkId : (card.workId || card.id),
+        title: ep ? ep.showTitle : card.title,
+        subtitle: ep ? ep.episodeTitle : card.subtitle,
+        info: ep ? { season: ep.seasonNumber, episode: ep.episodeNumber, title: ep.episodeTitle } : null,
+        showId: showId
+      });
       return;
     }
 
@@ -382,16 +389,31 @@
     });
   }
 
+  // options: { assetId, workId, title, subtitle, info, restart, showId }. info is { season, episode, title, description, year }
+  // for the line under the title (the player's paused details and end card follow the contract); workId is what the
+  // Bookmarks panel needs; a show's id gives the player its Episodes panel, Previous and Next.
   function play(options) {
     var returnKey = nav.remember();
+    var showId = options.showId;
     TV.player.open({
       assetId: options.assetId,
+      workId: options.workId,
       title: options.title,
       subtitle: options.subtitle,
+      info: options.info,
       restart: options.restart,
-      getNext: options.showId ? function () { return nextEpisode(options.showId, options.assetId); } : null,
-      onNext: function (next) {
-        play({ assetId: next.assetId, title: options.title, subtitle: next.title, showId: options.showId });
+      showId: showId,
+      getNext: showId ? function () { return nextEpisode(showId, options.assetId); } : null,
+      getEpisodes: showId ? function () { return api.details('tvShow', showId); } : null,
+      onSwitch: function (item) {
+        play({
+          assetId: item.assetId,
+          workId: item.workId,
+          title: options.title,
+          subtitle: item.title,
+          info: { season: item.season, episode: item.number, title: item.title, description: item.description },
+          showId: showId
+        });
       },
       onClose: function () {
         // The saved position changed; redraw the screen under the player so Continue and progress are current.
@@ -405,8 +427,14 @@
     var episodes = (result && result.episodes) || [];
     if (!episodes.length) { return null; }
     var e = episodes[0];
-    var label = (e.season_number ? 'S' + e.season_number : '') + (e.episode_number ? 'E' + e.episode_number + ' ' : '') + text(e.title);
-    return { assetId: e.asset_id, title: label.trim() };
+    return {
+      assetId: e.asset_id,
+      workId: e.work_id,
+      title: text(e.title),
+      season: e.season_number,
+      number: e.episode_number,
+      stillUrl: e.still_url
+    };
   }
 
   // The details route works on works, but a manifest needs the media file. The browse search lists cards with their file.
@@ -971,6 +999,11 @@
     return (prefix ? prefix + ' ' : '') + text(item.title);
   }
 
+  function episodeInfo(item) {
+    var e = item.episodeContext || {};
+    return { season: e.seasonNumber, episode: e.episodeNumber, title: item.title, description: item.description };
+  }
+
   // The episode "Play" should start: the one in progress, else the first not yet finished, else the first.
   function pickEpisode(groups) {
     var all = [];
@@ -1041,7 +1074,7 @@
             progress: item.progressPercent || 0,
             onOpen: function () {
               if (!e.episodeAssetId) { toast('This episode is not available to play.'); return; }
-              play({ assetId: e.episodeAssetId, title: vm.title, subtitle: episodeLabel(item), showId: params.id });
+              play({ assetId: e.episodeAssetId, workId: e.episodeWorkId, title: vm.title, subtitle: episodeLabel(item), info: episodeInfo(item), showId: params.id });
             }
           });
         })));
@@ -1057,7 +1090,7 @@
           var e = chosen.episodeContext;
           var resuming = e.state === 'InProgress';
           actions.appendChild(button((resuming ? 'Resume ' : 'Play ') + episodeLabel(chosen), 'play', function () {
-            play({ assetId: e.episodeAssetId, title: vm.title, subtitle: episodeLabel(chosen), showId: params.id });
+            play({ assetId: e.episodeAssetId, workId: e.episodeWorkId, title: vm.title, subtitle: episodeLabel(chosen), info: episodeInfo(chosen), showId: params.id });
           }, 'primary'));
         }
       } else {
@@ -1068,7 +1101,7 @@
             playButton.textContent = vm.progress && vm.progress.percent > 0 ? 'Resume' : (lane === 'listen' ? 'Listen' : 'Play');
           }
           if (!assetId) { toast('This title cannot be played from here yet. Start it from Home or Watch.'); return; }
-          play({ assetId: assetId, title: vm.title, subtitle: vm.subtitle, showId: showId });
+          play({ assetId: assetId, workId: params.id, title: vm.title, subtitle: vm.subtitle, info: { year: vm.facts && vm.facts.year }, showId: showId });
         }, 'primary');
         if (vm.progress && vm.progress.percent > 0) { playButton.textContent = 'Resume'; }
         actions.appendChild(playButton);
@@ -1076,7 +1109,7 @@
           actions.appendChild(button('Start over', 'restart', async function () {
             if (!assetId) { assetId = await resolveAsset(params.id, vm.title || params.title, lane); }
             if (!assetId) { toast('This title cannot be played from here yet.'); return; }
-            play({ assetId: assetId, title: vm.title, subtitle: vm.subtitle, restart: true, showId: showId });
+            play({ assetId: assetId, workId: params.id, title: vm.title, subtitle: vm.subtitle, info: { year: vm.facts && vm.facts.year }, restart: true, showId: showId });
           }));
         }
       }
