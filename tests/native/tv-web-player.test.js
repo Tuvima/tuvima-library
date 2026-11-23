@@ -238,7 +238,7 @@ test('the fixed words of the panels are the contract Panels table words', () => 
   L.APPEARANCE_STYLES.concat(L.APPEARANCE_BACKGROUNDS).forEach((w) => has('Subtitle appearance', w));
   ['playbackSpeed', 'skipBack', 'skipForward', 'playbackInformation', 'resetPreferences'].forEach((k) => has('Playback settings', L.WORDS[k]));
   ['bookmarkAt', 'edit', 'remove', 'keep', 'name', 'save', 'cancel', 'couldNotSave', 'noGlobal', 'noMine', 'selectBookmark', 'showOnTimeline']
-    .forEach((k) => has('Bookmarks', L.WORDS[k].replace('{0}', '{0}')));
+    .forEach((k) => has('Bookmarks', L.WORDS[k]));
   has('Playback speed', 'Current speed');
   has('Playback speed', L.WORDS.resetSpeed);
 });
