@@ -1,3 +1,6 @@
+import java.io.StringReader
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -5,9 +8,9 @@ plugins {
 
 // Version: version.properties beside the root build file is the single source for the phone and TV apps (spec native-apps WP12).
 // versionCode = major * 1000000 + minor * 10000 + patch * 100 + versionBuild, so a higher version always has a higher code.
-val versionProperties = java.util.Properties().apply {
+val versionProperties = Properties().apply {
     val text = providers.fileContents(rootProject.layout.projectDirectory.file("version.properties")).asText.get()
-    load(java.io.StringReader(text))
+    load(StringReader(text))
 }
 val appVersionName: String = versionProperties.getProperty("versionName")
 val appVersionBuild: Int = versionProperties.getProperty("versionBuild", "0").toInt()
