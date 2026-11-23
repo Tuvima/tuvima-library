@@ -1,0 +1,149 @@
+# -----------------------------------------------------------------------------
+# android-release.yml - signed Android builds for the phone app and the TV app
+# (spec native-apps WP12, decisions D6 and D19).
+#
+# Trigger:  set the version in clients/android/version.properties, merge it, then
+#             git tag android-v0.1.0 && git push origin android-v0.1.0
+#           (a second upload of the same versionName: raise versionBuild and tag android-v0.1.0-build1).
+# Output:   a GitHub Release with the signed phone and TV APKs and a checksum file attached, and
+#           the signed phone and TV app bundles (AAB) kept as a workflow artifact for 30 days.
+# Not done: nothing is uploaded to Google Play. Play uploads stay a by-hand step until Shy decides
+#           (engineering/validation/native-android-play-submission-2026-11.md).
+#
+# Secrets (Settings > Secrets and variables > Actions; never in the repository):
+#   ANDROID_KEYSTORE_BASE64   the upload keystore file, base64 encoded
+#   ANDROID_KEYSTORE_PASSWORD the keystore password
+#   ANDROID_KEY_ALIAS         the key's alias in that keystore
+#   ANDROID_KEY_PASSWORD      the key's password
+# Each secret is handed to a step only through that step's env block, never typed into a script.
+# -----------------------------------------------------------------------------
+name: Android release
+
+on:
+  push:
+    tags:
+      - "android-v*"
+
+permissions:
+  contents: write   # needed to create the GitHub Release
+
+jobs:
+  release:
+    name: Signed APKs and bundles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Check the tag, the branch and the version file agree
+        id: version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::The tag $TAG_NAME is not on main. Merge the version change first, then tag the merged commit."
+            exit 1
+          fi
+          node tools/Android-Version.mjs --check-tag "$TAG_NAME" --github-output "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v4
+        with:
+          # Same as native-clients.yml: the default package list names a package Google no longer publishes.
+          packages: ""
+      - name: Install Android SDK 37
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: "9.3.1"
+          # A release build never writes to the shared build cache.
+          cache-read-only: true
+
+      - name: Unpack the upload keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::The secret $name is not set, so a signed release cannot be built. Nothing was published."
+              exit 1
+            fi
+          done
+          keystore="$RUNNER_TEMP/library-upload.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+          echo "TUVIMA_ANDROID_KEYSTORE_FILE=$keystore" >> "$GITHUB_ENV"
+
+      - name: Test, then build signed release APKs and bundles
+        working-directory: clients/android
+        env:
+          TUVIMA_ANDROID_SIGNING_REQUIRED: "true"
+          TUVIMA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          TUVIMA_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          TUVIMA_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        # The configuration cache is off so the passwords are never written into a cache entry.
+        run: >-
+          gradle --no-configuration-cache
+          :core:testDebugUnitTest
+          :mobile:assembleRelease :mobile:bundleRelease
+          :tv:assembleRelease :tv:bundleRelease
+
+      - name: Collect, name and check the signed files
+        id: files
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+        run: |
+          out="$RUNNER_TEMP/android-release"
+          mkdir -p "$out"
+          cp clients/android/mobile/build/outputs/apk/release/mobile-release.apk "$out/Library-phone-$VERSION_NAME.apk"
+          cp clients/android/tv/build/outputs/apk/release/tv-release.apk "$out/Library-tv-$VERSION_NAME.apk"
+          cp clients/android/mobile/build/outputs/bundle/release/mobile-release.aab "$out/Library-phone-$VERSION_NAME.aab"
+          cp clients/android/tv/build/outputs/bundle/release/tv-release.aab "$out/Library-tv-$VERSION_NAME.aab"
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
+          for apk in "$out"/*.apk; do
+            "$apksigner" verify --print-certs "$apk"
+          done
+          (cd "$out" && sha256sum *.apk > SHA256SUMS.txt)
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the app bundles for the by-hand Google Play upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: library-android-bundles-${{ steps.version.outputs.version_name }}
+          path: ${{ steps.files.outputs.dir }}/*.aab
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Create the GitHub Release with the APKs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          FILES_DIR: ${{ steps.files.outputs.dir }}
+        run: |
+          prerelease=""
+          case "$VERSION_NAME" in 0.*) prerelease="--prerelease" ;; esac
+          cat > "$RUNNER_TEMP/notes.md" <<'NOTES'
+          Library for Android: the phone and tablet app and the Android TV app (also for Android-based Fire TV devices, installed by hand).
+
+          Both apps need a Library server running on your own network. They have no account of their own and send nothing to anyone but the server address you type.
+
+          To install: download the APK for your device, open it on the device and allow installs from this source when Android asks. The phone app is Library-phone, the TV app is Library-tv. SHA256SUMS.txt lists the checksum of each file.
+
+          These files are signed with the project's upload key. The Google Play version is signed by Google, so a phone cannot update from one source to the other without uninstalling the app first.
+          NOTES
+          gh release create "$TAG_NAME" $prerelease \
+            --title "Library for Android $VERSION_NAME" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            "$FILES_DIR"/*.apk "$FILES_DIR/SHA256SUMS.txt"
