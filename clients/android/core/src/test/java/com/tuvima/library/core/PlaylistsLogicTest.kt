@@ -128,12 +128,9 @@ class PlaylistsLogicTest {
     }
 
     @Test
-    fun theWordsNameLibraryAndTheDashboardNeverTheCompany() {
-        listOf(
-            PlaylistsLogic.EMPTY_LIST, PlaylistsLogic.EMPTY_PLAYLIST, PlaylistsLogic.OFFLINE_LIST, PlaylistsLogic.OFFLINE_PLAYLIST,
-            PlaylistsLogic.OFFLINE_NOTHING_HELD, PlaylistsLogic.NO_FILE,
-        ).forEach { assertFalse(it, it.contains("Tuvima", ignoreCase = true)) }
-        // Playlists are not made or changed here, and the empty states say where that happens.
+    fun theEmptyWordsSayWhereAPlaylistIsMadeAndLibraryOnlyPlaysIt() {
+        // Playlists are not made or changed here, and the empty states say where that happens (the app-name guardrail scans these strings).
+        assertTrue(PlaylistsLogic.EMPTY_PLAYLIST.contains("Library"))
         assertTrue(PlaylistsLogic.EMPTY_LIST.contains("Dashboard"))
         assertTrue(PlaylistsLogic.EMPTY_PLAYLIST.contains("Dashboard"))
     }
