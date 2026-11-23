@@ -12,6 +12,17 @@ Build from this directory with `gradle :tv:assembleDebug :mobile:assembleDebug`.
 Never place signing keys, service credentials, bearer tokens, or signed media
 URLs in this repository.
 
+Versions and releases (spec native-apps WP12): `version.properties` is the one place the version is set, for the phone
+app and the TV app. `versionName` is `major.minor.patch`; `versionCode` is worked out as
+`major * 1000000 + minor * 10000 + patch * 100 + versionBuild`, so a higher version always has a higher code (raise
+`versionBuild`, 0 to 99, only to upload the same `versionName` again). `tools/Android-Version.mjs` prints the numbers and the
+release tag. Release signing reads four environment variables, `TUVIMA_ANDROID_KEYSTORE_FILE`,
+`TUVIMA_ANDROID_KEYSTORE_PASSWORD`, `TUVIMA_ANDROID_KEY_ALIAS` and `TUVIMA_ANDROID_KEY_PASSWORD`; without all four,
+`assembleRelease` makes an unsigned APK, which is what pull requests build. Pushing a tag `android-v<versionName>`
+(or `android-v<versionName>-build<n>`) runs `.github/workflows/android-release.yml`, which signs with the repository's
+`ANDROID_*` secrets and attaches the phone and TV APKs to a GitHub Release; it never uploads to Google Play. The by-hand
+steps (key, secrets, Play Console) are in `engineering/validation/native-android-play-submission-2026-11.md`.
+
 Orientation: the phone app is locked to portrait (`screenOrientation="portrait"` on
 `MainActivity`); TV is landscape by nature. Movies and episodes rotate to landscape, Photos clips follow
 the phone, and everything else stays portrait. The rule lives in `core` `OrientationPolicy`.

@@ -88,6 +88,9 @@ jobs:
       - name: Build Android applications
         working-directory: clients/android
         run: gradle :core:testDebugUnitTest :tv:assembleDebug :mobile:assembleDebug
+      - name: Build unsigned release apps (no signing secrets here; android-release.yml signs them)
+        working-directory: clients/android
+        run: gradle :tv:assembleRelease :mobile:assembleRelease
 
   apple:
     name: iOS and CarPlay
