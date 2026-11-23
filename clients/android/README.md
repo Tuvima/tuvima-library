@@ -93,9 +93,28 @@ readers are covered by JVM unit tests against sample answers.
 
 Android TV, the phone app and Android Auto follow the shared contract in
 [`clients/contracts/v1/player-controls.md`](../contracts/v1/player-controls.md).
-**Android TV** keeps the stock player view for the picture and the transport controls, with its subtitle button
-replaced by the app's own **Audio & subtitles** side panel (spec "Find another on TV", WP3). Up from the controls
-reaches an "Audio & subtitles" tool (the remote's captions or menu key opens the panel directly). The panel lists Audio
+**Android TV** (spec `native-apps`, WP5) uses the stock player view only for the picture; the controls are the app's own
+(`TvPlayerUi.kt`, drawn 1:1 from `engineering/design/mockups/tv-player/tv-player-panels.html`, sizes written in the mock's
+1920 by 1080 pixels and scaled to the screen, so the right panel is 700 dp-equivalent at 1080p). Under the title and the
+timeline sit the five transport buttons in the contract's order (Previous, Skip back, Play or Pause, Skip forward, Next;
+for music Shuffle, Previous track, Play, Next track, Repeat; for an audiobook Previous and Next chapter), with Previous and
+Next dimmed in place, and a tool row: **Episodes**, **Audio & subtitles**, **Bookmarks**, **Playback settings** (a film has
+no Episodes; a song has Lyrics, an audiobook Chapters). Each tool opens a right panel with the contract's rows and words:
+Episodes (Season picker, rows with the "Playing" or "Paused" state, the **Autoplay next episode** switch), Audio & subtitles
+(below), Bookmarks (a **Mine | Global** choice that appears only when the Engine marks a bookmark `inEveryone`, "Bookmark at
+{0}", Delete with Keep, "Show on timeline"; routes `/api/v1/player/audiobooks/{workId}/bookmarks` and `.../bookmarks/{id}`),
+Playback settings (Playback speed, Skip back, Skip forward, Playback information, Reset playback preferences) and, for an
+audiobook, Chapters with a "Timeline shows" choice. Paused details (title, line, description, rating card) show over the
+picture while it is paused and no panel is open. The end card ("Up next", "Starts in {0} seconds", Cancel, Play now) uses
+`NextEpisodeLogic`. The playback preferences are read-only for apps, so Autoplay, skip seconds, speed, subtitle appearance
+and the timeline choice are kept on the television (`TvDeviceStore`) and never sent to the Engine. Keys (`TvKeyMap`): the
+arrows move focus, Left and Right on the timeline skip by the profile's seconds, Rewind and Fast-forward skip back and
+forward, Back closes the open panel (one level of a nested view) first, then hides the controls, then leaves; the controls
+hide after 5 seconds and never while a panel, the Find window, the end card or a pause is showing. Music and audiobooks use
+the same screen as a full-screen Now playing with Lyrics or Chapters as the side panel. The Cast button is hidden on Fire
+TV (`TvDevice.isFireTv`: the maker is Amazon or the system has `amazon.hardware.fire_tv`).
+The **Audio & subtitles** side panel (spec "Find another on TV", WP3) is the tool the remote's captions or menu key opens
+directly. The panel lists Audio
 rows when there are several tracks, then Subtitles: Off, then each track, and a footer row **Find subtitles…** that is
 shown only when the sources check (`GET /api/v1/stream/{asset}/text-tracks/sources?kind=subtitles`) says `Ready`. Select
 on the footer opens the **Find another** window: full screen over the paused, dimmed video; a header (the item's name,
@@ -120,18 +139,24 @@ on the footer opens the same Find another window with kind lyrics: title "Find l
 times, the checks "Synced" or "Words only, not timed" and "Fits the song" or "N seconds longer or shorter", no Language
 button and no language sent. Use this closes the window, the song carries on from the same place and the panel reads the
 lyrics again ("Updating lyrics…"). Back or Left closes the panel. The reading, key and screen-free rules are in
-`LyricsFollow` (`parse`, `currentIndex`, `pickTrack`, `isMusic`, `panelKey`) with `LyricsFollowTest`; the panel is drawn by
-`LyricsPanel.kt` in `tv`.
+`LyricsFollow` (`parse`, `currentIndex`, `pickTrack`, `isMusic`, `panelKey`) with `LyricsFollowTest`; the Lyrics body is
+drawn with the other side panels in `TvPlayerUi.kt`.
+The player's row builders, key effects, text lines and the Fire TV rule are plain Kotlin in `core` with JVM tests:
+`TvPlayerLogic` (transport, tools, words, end card, key map), `TvPlayerPanels` (`TvPanels` builders and the panel key
+reducer), `TvPlayerData` (episodes, bookmarks, chapters, subtitle appearance, playback information) and
+`TvPlayerContractTest`, which reads the contract's tables and fails if a word or key drifts from them.
 All of the logic is in `core` (pure Kotlin, no screen types, JVM unit-tested) so the phone's sheet reuses it:
 `FindAnotherModel` (one window's state: search, reading, focus, apply), `FindAnotherKeys` (the key map), `FindAnotherDwell`
 (the reading rule, with an injected scheduler), `FindAnotherWording` and `FindAnotherRows` (the Dashboard's sentences and
 row data), `FindAnotherLanguages`, the wire models and parsers (`TextTrackAlternative`, `TextTrackAlternatives`,
 `TextTrackAlternativePreview`, `TextTrackSources`, `ChooseTextTrackRequest`, `TextTrackChoiceResult`), the four routes in
-`ClientRoutes` and the matching `TuvimaClient` calls. Gaps for **Android TV**: it still has none of the contract's other
-controls: the five transport buttons in order with Previous and Next dimmed in place, skips of 10 seconds back and 30
-forward by default (the profile's saved pair), the other tool-row entries (Episodes, Bookmarks, Playback settings) and
-their side panels, Bookmarks (Everyone | Mine), paused details, the end card and the Autoplay switch; and the window's "Updating" wait after Use this is shown inside the window, not on the panel. The Cast
-button (V6b-A) stays waiting on the product owner's television test. Gaps for **Android Auto**: the media service browses a Library
+`ClientRoutes` and the matching `TuvimaClient` calls. Gaps for **Android TV**: this thread's screen has not been compiled or
+tried on a television or emulator (the build machine had no Android SDK); there is no Cast button in the television app yet
+(V6b-A waits on the product owner's television test), so only the Fire TV rule is in place for when it arrives; bookmarks
+cannot be renamed and no note can be typed; Lessons and Homework are not listed (no route returns them); the rating card
+shows only when the Engine gives a content rating; the "Timeline shows" choice is kept per television, not per profile; the
+mock lists Global before Mine while the contract (and the web player) put Mine first, and the app follows the contract; and
+the window's "Updating" wait after Use this is shown inside the window, not on the panel. Gaps for **Android Auto**: the media service browses a Library
 root, but the list should be Continue, the Listen shelves, Audiobooks, Playlists
 and Recently played, and the Now playing card should carry the contract's
 lock-screen fields and the music or audiobook actions (back 10, forward 30,

@@ -35,7 +35,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tuvima.library.core.AudioSubtitlesPanel
 import com.tuvima.library.core.CheckTone
 import com.tuvima.library.core.FindAnotherPane
 import com.tuvima.library.core.FindAnotherPhase
@@ -44,10 +43,8 @@ import com.tuvima.library.core.FindAnotherRows
 import com.tuvima.library.core.FindAnotherState
 import com.tuvima.library.core.FindAnotherWording
 import com.tuvima.library.core.FindAnotherZone
-import com.tuvima.library.core.PanelRow
-import com.tuvima.library.core.PanelRowKind
 
-// The Audio & subtitles side panel and the Find another window of the television player (spec "Find another on TV").
+// The Find another window of the television player (spec "Find another on TV"; the Audio & subtitles panel is drawn with the other side panels in TvPlayerUi).
 // Dark only, controls at least 56dp, a white focus ring, 5 percent safe margins, no toasts and nothing to type. These
 // composables only draw: the remote's keys go through the core key reducers (the activity forwards them), so where focus
 // is comes from state rather than from the framework's focus search.
@@ -76,81 +73,6 @@ private fun toneColor(tone: CheckTone): Color = when (tone) {
     CheckTone.Warn -> Warn
     CheckTone.Bad -> Bad
     CheckTone.Neutral -> TextMuted
-}
-
-/** The tool that opens the panel, shown with the player's controls: Up from the controls reaches it. For a song it reads "Lyrics". */
-@Composable
-internal fun AudioSubtitlesToolButton(focused: Boolean, modifier: Modifier = Modifier, label: String = "Audio & subtitles") {
-    Box(
-        modifier
-            .heightIn(min = 56.dp)
-            .focusRing(focused, RoundedCornerShape(28.dp))
-            .background(ButtonSurface, RoundedCornerShape(28.dp))
-            .padding(horizontal = 28.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = TextPrimary, fontSize = 20.sp)
-    }
-}
-
-/** The small Audio & subtitles side panel: Audio rows (when several), Subtitles rows (Off, then each track) and the footer row. */
-@Composable
-internal fun AudioSubtitlesPanelView(rows: List<PanelRow>, focusIndex: Int, modifier: Modifier = Modifier) {
-    val focusable = AudioSubtitlesPanel.focusable(rows)
-    val focusedRow = focusable.getOrNull(focusIndex)
-    val listState = rememberLazyListState()
-    LaunchedEffect(focusIndex, rows.size) {
-        val position = rows.indexOf(focusedRow)
-        if (position >= 0) listState.animateScrollToItem((position - 2).coerceAtLeast(0))
-    }
-    Column(
-        modifier
-            .width(400.dp)
-            .fillMaxHeight()
-            .background(PanelBackground, RoundedCornerShape(16.dp))
-            .padding(horizontal = 24.dp, vertical = 28.dp),
-    ) {
-        Text("Audio & subtitles", color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
-        LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            itemsIndexed(rows) { _, row ->
-                if (!row.isFocusable) {
-                    Text(
-                        row.label.uppercase(),
-                        color = TextMuted,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
-                    )
-                } else {
-                    PanelRowView(row, focused = row === focusedRow)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PanelRowView(row: PanelRow, focused: Boolean) {
-    val isFooter = row.kind == PanelRowKind.Find
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .focusRing(focused)
-            .background(if (focused) SurfaceFocusedRow else SurfaceColor, RowShape)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // A tick marks the track in use.
-        Text(if (row.selected) "✓" else "", color = Accent, fontSize = 22.sp, modifier = Modifier.width(32.dp))
-        Text(
-            row.label,
-            color = if (isFooter) Accent else TextPrimary,
-            fontSize = 22.sp,
-            fontWeight = if (isFooter) FontWeight.Bold else FontWeight.Normal,
-        )
-    }
 }
 
 /**
