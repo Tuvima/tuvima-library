@@ -1,4 +1,4 @@
-# Tuvima Library for LG webOS (N7c)
+# Library for LG webOS (N7c)
 
 Packaging for the shared TV web client in `clients/tv-web`. Nothing here is a second copy of the client.
 
@@ -7,7 +7,7 @@ Packaging for the shared TV web client in `clients/tv-web`. Nothing here is a se
 `package.ps1` builds a `build/` folder (git-ignored output) holding:
 
 - the shared client: `index.html`, `*.js`, `styles.css`, `assets/`, `vendor/`, copied from `../../`
-- this folder's `appinfo.json`, `icon.png` (80x80), `largeIcon.png` (130x130) and `webos-keys.js`
+- this folder's `appinfo.json`, `icon.png` (80x80), `largeIcon.png` (130x130), `splash.png` (1920x1080, the picture shown while the app starts; made by `node tools/Make-TvStoreImages.mjs`) and `webos-keys.js`
 - `index.html` gets one extra line, `<script src="webos-keys.js">`, before `api.js`
 
 `appinfo.json` sets `disableBackHistoryAPI: true` because the shared client handles Back itself
@@ -44,7 +44,18 @@ ares-launch --device tv com.tuvima.library.tv
 ares-inspect --device tv --app com.tuvima.library.tv --open   # optional
 ```
 
+## LG Content Store submission (spec native-apps, WP13)
+
+| What | Where |
+| --- | --- |
+| Package fields (id, version, title, description, vendor, icons, splash, resolution) | `appinfo.json` |
+| Listing text and the answers to LG Seller Lounge's privacy and content questions | [`engineering/validation/native-tv-store-listing-2026-11.md`](../../../../engineering/validation/native-tv-store-listing-2026-11.md) |
+| What a person has to do by hand (accounts, test package, upload, QA) | [`engineering/validation/native-tv-store-submission-2026-11.md`](../../../../engineering/validation/native-tv-store-submission-2026-11.md) |
+
+The `.ipk` is built with LG's own `ares-package` (printed by `package.ps1`, never run by it), because LG's tool is what checks
+the package. `tests/build/tv-store-packages.test.mjs` checks the fields and image sizes above in CI.
+
 ## Owed
 
 - Not built, installed or run on a TV: no webOS SDK or LG device was available.
-- Sign-off on hardware (HEVC, captions, remote keys) and LG Content Store submission.
+- LG screenshots (1920 x 1080, taken from a real run), sign-off on hardware (HEVC, captions, remote keys) and the Seller Lounge submission itself.

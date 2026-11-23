@@ -5,8 +5,11 @@
   "type": "web",
   "main": "index.html",
   "title": "Library",
+  "appDescription": "Your own library, presented on the TV. Needs a Library server on your network.",
   "icon": "icon.png",
   "largeIcon": "largeIcon.png",
+  "bgColor": "#09080D",
+  "bgImage": "splash.png",
   "resolution": "1920x1080",
   "disableBackHistoryAPI": true
 }

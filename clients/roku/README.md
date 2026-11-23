@@ -1,4 +1,4 @@
-# Tuvima for Roku
+# Library for Roku
 
 This is a native SceneGraph/BrightScript client. Sideload the `clients/roku`
 directory as a development application, or package it through the Roku
@@ -11,10 +11,52 @@ the refresh token is stored in the device registry with the minimum consumer
 scopes and remains protected by server-side rotation, replay revocation, and
 device revocation.
 
-Public publication remains blocked until Roku confirms that Tuvima's
-browser-approved device flow satisfies the current on-device authentication
-criterion. Store artwork and localization assets must also be supplied before
-certification packaging.
+## Package, artwork and store paperwork (spec native-apps, WP13)
+
+Build the channel package offline (Node only, no Roku tools, no zip program):
+
+```
+node tools/Package-RokuChannel.mjs            # writes clients/roku/dist/library-roku.zip (git-ignored)
+node tools/Package-RokuChannel.mjs --out some/place/library-roku.zip
+```
+
+It checks the manifest first (required fields, every `pkg:/` image present) and then zips `manifest`, `LICENSE`, `source/`,
+`components/` and `images/`. By hand, from `clients/roku`: `zip -r -X ../../library-roku.zip manifest LICENSE source components images`.
+`README.md`, `store/` and `dist/` never go in the package. To sideload it: turn on developer mode on the Roku, open
+`http://<roku-ip>` in a browser, sign in with the developer password, choose Upload and pick the zip.
+
+| Manifest field | File | Size (pixels) |
+| --- | --- | --- |
+| `mm_icon_focus_hd` | `images/channel-poster-hd.png` | 336 x 210 |
+| `mm_icon_focus_fhd` | `images/channel-poster-fhd.png` | 540 x 405 |
+| `splash_screen_hd` | `images/splash-hd.png` | 1280 x 720 |
+| `splash_screen_fhd` | `images/splash-fhd.png` | 1920 x 1080 |
+
+The pictures are drawn from `assets/images/tuvima-icon.svg` and `tuvima-logo.svg` by `node tools/Make-TvStoreImages.mjs`
+(no packages; it reads the two SVG files itself). `splash_color` is `#09080D`, the app's dark base. These sizes are the ones
+this build knows from Roku's Channel artwork page; Roku can change them, so confirm them there before the first upload (the
+checklist has the step). The list lives in one place, `tools/Make-TvStoreImages.mjs`, and
+`tests/build/tv-store-packages.test.mjs` checks the files against it.
+
+The listing text, privacy answers and category choices are in [`engineering/validation/native-tv-store-listing-2026-11.md`](../../engineering/validation/native-tv-store-listing-2026-11.md); the
+steps a person must do by hand are in
+[`engineering/validation/native-tv-store-submission-2026-11.md`](../../engineering/validation/native-tv-store-submission-2026-11.md).
+
+### Open question for Roku: sign-in
+
+Public publication is blocked until Roku answers this, and nothing here guesses the answer.
+
+- **What the app does today.** The person types the server address; the Roku shows a short code and the Dashboard address
+  (`POST /api/v1/oauth/device_authorization`); an administrator approves the Roku in the Dashboard in a browser on another device;
+  the Roku polls `POST /api/v1/oauth/token` until approved. There is no account with Roku or with Tuvima, and no password is
+  typed on the TV.
+- **What is not known.** Whether Roku's current certification criteria for on-device authentication accept this
+  browser-approved device flow for a channel that has no Roku-hosted sign-in, and whether Roku requires anything extra
+  (for example a particular sign-in screen wording, a way to sign out on the device, or its account-linking service).
+- **What to do.** Ask Roku through the Developer Dashboard's channel review or developer support before submitting, quoting the
+  steps above, and record the answer (and the criterion's number) here and in
+  `engineering/validation/native-tv-store-submission-2026-11.md`. If Roku refuses the flow, that is a decision for the product owner
+  and a new work packet; do not change the flow to fit a guess.
 
 ## Home rows, photos, and profiles
 
