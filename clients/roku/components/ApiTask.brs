@@ -71,6 +71,20 @@ sub execute()
         ' The lyrics file is plain text; it is handed back inside a small object so every answer stays JSON.
         response = request("GET", textTracksPath(payload.assetId) + "/" + encode(payload.trackId), invalid, true)
         if response.ok then response.body = FormatJson({ text: response.body })
+    else if m.top.operation = "playerPreferences"
+        ' The profile's saved playback preferences (read-only for an app): skip seconds and Autoplay next episode.
+        response = request("GET", "/api/v1/devices/current/playback-preferences", invalid, true)
+    else if m.top.operation = "showEpisodes"
+        ' The show's owned episodes by Season, for the Episodes panel and Previous and Next.
+        response = request("GET", "/api/v1/details/tvShow/" + encode(payload.id), invalid, true)
+    else if m.top.operation = "bookmarks"
+        response = request("GET", bookmarksPath(payload.workId), invalid, true)
+    else if m.top.operation = "bookmarkCreate"
+        response = request("POST", bookmarksPath(payload.workId), payload.body, true)
+    else if m.top.operation = "bookmarkUpdate"
+        response = request("PUT", "/api/v1/player/audiobooks/bookmarks/" + encode(payload.id), payload.body, true)
+    else if m.top.operation = "bookmarkDelete"
+        response = request("DELETE", "/api/v1/player/audiobooks/bookmarks/" + encode(payload.id), invalid, true)
     else if m.top.operation = "textTrackFile"
         ' The player cannot send a bearer header for a sidecar file, so the WebVTT is fetched here and saved to tmp:/.
         m.downloadTarget = payload.target
@@ -138,6 +152,13 @@ function performRequest(method as String, path as String, body as Dynamic, authe
     if method = "POST"
         transfer.AddHeader("Content-Type", "application/json")
         text = transfer.PostFromString(FormatJson(body))
+    else if method = "PUT"
+        transfer.AddHeader("Content-Type", "application/json")
+        transfer.SetRequest("PUT")
+        text = transfer.PostFromString(FormatJson(body))
+    else if method = "DELETE"
+        transfer.SetRequest("DELETE")
+        text = transfer.GetToString()
     else
         if m.downloadTarget <> invalid
             transfer.GetToFile(m.downloadTarget)
@@ -173,6 +194,11 @@ end function
 function languageQuery(payload as Object) as String
     if textKind(payload) = "lyrics" then return ""
     return "&language=" + encode(payload.language)
+end function
+
+' The Engine's bookmark routes for one work (videos and audiobooks); the Engine decides which bookmarks the profile sees.
+function bookmarksPath(workId as String) as String
+    return "/api/v1/player/audiobooks/" + encode(workId) + "/bookmarks"
 end function
 
 function textTracksPath(assetId as String) as String

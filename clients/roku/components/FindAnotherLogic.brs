@@ -598,30 +598,26 @@ end function
 
 ' ---- The Audio & subtitles panel -------------------------------------------------------------------------------
 
-' The panel's rows, top to bottom: a heading and a row per audio track when there is more than one, the Subtitles heading,
-' Off, one row per subtitle track, then "Find subtitles…" when something can be searched.
+' The panel's rows, top to bottom: the Audio heading and a row per audio track when there is more than one, the Subtitles
+' heading, Off, one row per subtitle track, then "Find subtitles…" when something can be searched. The row in use carries `on`
+' (the panel draws a check). The headings are the contract's words ("Audio", "Subtitles").
 ' audio: [{ name, index }]; subtitles: [{ id, language, hearingImpaired }]
 function faPanelRows(audio as Object, activeAudio as Integer, subtitles as Object, activeSubtitleId as String, showFind as Boolean) as Object
     rows = []
     if faCount(audio) > 1
-        rows.Push({ kind: "header", title: "AUDIO", value: "" })
+        rows.Push({ kind: "header", title: "Audio", value: "", on: false })
         for each track in audio
-            title = track.name
-            if track.index = activeAudio then title = title + "  · On"
-            rows.Push({ kind: "audio", title: title, value: track.index.ToStr() })
+            rows.Push({ kind: "audio", title: track.name, value: track.index.ToStr(), on: track.index = activeAudio })
         end for
     end if
-    rows.Push({ kind: "header", title: "SUBTITLES", value: "" })
-    offTitle = "Off"
-    if activeSubtitleId = "" then offTitle = offTitle + "  · On"
-    rows.Push({ kind: "off", title: offTitle, value: "" })
+    rows.Push({ kind: "header", title: "Subtitles", value: "", on: false })
+    rows.Push({ kind: "off", title: "Off", value: "", on: activeSubtitleId = "" })
     for each track in subtitles
         title = faLanguageName(track.language)
         if track.hearingImpaired then title = title + " · SDH"
-        if track.id = activeSubtitleId then title = title + "  · On"
-        rows.Push({ kind: "subtitle", title: title, value: track.id })
+        rows.Push({ kind: "subtitle", title: title, value: track.id, on: track.id = activeSubtitleId })
     end for
-    if showFind then rows.Push({ kind: "find", title: faTextFindSubtitles(), value: "" })
+    if showFind then rows.Push({ kind: "find", title: faTextFindSubtitles(), value: "", on: false })
     return rows
 end function
 
