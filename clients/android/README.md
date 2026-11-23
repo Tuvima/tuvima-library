@@ -181,12 +181,8 @@ tried on a television or emulator (the build machine had no Android SDK); there 
 cannot be renamed and no note can be typed; Lessons and Homework are not listed (no route returns them); the rating card
 shows only when the Engine gives a content rating; the "Timeline shows" choice is kept per television, not per profile; the
 mock lists Global before Mine while the contract (and the web player) put Mine first, and the app follows the contract; and
-the window's "Updating" wait after Use this is shown inside the window, not on the panel. Gaps for **Android Auto**: the media service browses a Library
-root, but the list should be Continue, the Listen shelves, Audiobooks, Playlists
-and Recently played, and the Now playing card should carry the contract's
-lock-screen fields and the music or audiobook actions (back 10, forward 30,
-Previous and Next chapter, Speed presets as extra buttons). The television side
-panels and the car list are a first definition, to be settled in their own
+the window's "Updating" wait after Use this is shown inside the window, not on the panel. Android Auto is built in WP11 (below). The television side
+panels are a first definition, to be settled in their own
 threads (Unified player v2, D29 and section 9).
 
 **Android phone: video player and Edit in browser** (spec `native-apps`, WP10b). The phone's video overlay follows the contract's
@@ -233,6 +229,35 @@ return an album and artist id with a song. Recommendation: have the Engine retur
 settings** for music in the "..." menu: music has no speed or skip choices today, so the menu would hold nothing. Recommendation: leave the
 music menu empty until a music setting exists, and change the contract line. The pure rules (`QueueOrder.kt`, `DetailPlayTarget.kt`, `NowPlayingLogic.kt`) have tests in `core`; the screens and the service
 need a device check (see the spec's Local checks).
+
+**Android Auto** (spec `native-apps`, WP11, issue 787). The car draws its own lists and one Now playing card, so the app supplies only the
+media service's browse tree, its search and the card's buttons; nothing is added on the Engine's side and nothing is shown that is not audio
+(no video, no pictures to browse). The pure rules are in `core` (`CarBrowse.kt`: `CarEntry`, `CarList`, `CarCards`, `CarPlayPlan`,
+`CarSearch`, `CarNowPlaying`, `CarListings`) with JVM tests in `CarBrowseTest`; `TuvimaMediaLibraryService` turns them into Media3.
+**The list** is the contract's (`car-list` table, compared by a test): **Continue** (`GET /display/continue?lane=listen`), **Listen** (the
+Music home's shelves with the Engine's own titles, `GET /display/browse?lane=listen&mediaType=Music&grouping=home`, each shelf a list; the
+Recently played shelf and the artists shelf are left out of it, and an album opens its songs from its Details page), **Audiobooks**
+(`browse?lane=listen&mediaType=Audiobook`) and **Recently played** (`display/shelves/recently-played`). **Playlists** is in the contract's list
+but the phone's connection has no route that reads playlists, so the row is left out until the Engine has one (`CarList.PLAYLISTS_AVAILABLE`;
+it also needs a decision about Auto's four-tab root, see the decisions below). Each list is audio only (songs, albums, audiobooks), at most
+50 rows, and is paged by the size the car asks for. A press on a song plays its list from that song under the list's name; a press on an
+audiobook plays the book from where it was left. Lists are read when they are opened, for the signed-in profile only (the Engine decides what
+a Kids profile may see, so the app never filters by profile), and a list kept for one profile is dropped when another signs in.
+**Voice search** is Media3's `onSearch` and `onGetSearchResult` plus a spoken "play ..." request, all through the universal search route
+(`GET /display/search`): audio results only, the best one starts (an album plays its songs, a song its file, a book from its place), and an
+empty request ("play music") carries on with the first Continue item. **The Now playing card** carries the lock screen's fields
+(`LockScreen.card`) and the contract's buttons: music has Previous, Play and Next with **Shuffle** and **Repeat** as the extra buttons; an
+audiobook has back and forward by the profile's skip seconds and, with chapters, Previous and Next chapter, with **Speed** as the extra
+button (one button that shows the speed and steps through the contract's presets, because the car's card holds only a few extra buttons).
+The manifest already declares the Auto media app (`com.google.android.gms.car.application` and `automotive_app_desc.xml` with `media`) and the
+`MediaBrowserService` action on the service; `CarBrowseTest` checks both.
+
+*Decisions for Shy (WP11).* (1) **Playlists** in the car list needs a read-only playlist connection point on the Engine; until then the row
+is left out, which keeps the root at Auto's four tabs. With playlists the root has five entries, which Auto's tab bar cannot show, so the
+contract's list would need a fifth place (for example Recently played inside Listen). (2) **Speed presets** are one stepping button, not five
+buttons, for the reason above; the contract says "Speed presets as the template's extra buttons". (3) The old browse tree had a **Queue**
+entry; the contract's list has none, so it is gone, and `tests/native/Test-NativeClientSources.ps1` still asks for `"queue" to "Queue"` and
+`api.browse("listen"` in this service: that gate needs its two Android Auto checks changed to the contract's list.
 
 **Android phone: Find another** (spec "Find another on TV", WP8; Find another v1 D12). The video player's **Audio &
 subtitles** view (the Subtitles sheet) ends with a **Find subtitles…** row, drawn only when the same sources check as on

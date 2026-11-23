@@ -124,6 +124,10 @@ object ClientRoutes {
         return "$API/display/shelves/${encode(key)}?${parameters.joinToString("&")}"
     }
 
+    /** The Music home of Listen: its shelves (recently played, favorite songs, new tracks, albums, artists), about 20 cards each. */
+    fun listenHome(): String =
+        "$API/display/browse?lane=${ListenLogic.LANE}&mediaType=${ListenLogic.MEDIA_TYPE}&grouping=home&includeCatalog=false"
+
     /** Universal search: ranked results in sections (the search overlay). */
     fun search(query: String, limit: Int = SearchLogic.RESULT_LIMIT): String =
         "$API/display/search?q=${encode(query.trim())}&limit=${limit.coerceIn(1, 100)}"

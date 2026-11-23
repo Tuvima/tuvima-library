@@ -545,6 +545,9 @@ class TuvimaClient(
     suspend fun listenShelfPage(key: String, cursor: String? = null, offset: Int = 0, limit: Int = ListenLogic.SHELF_PAGE): DisplayShelfPage =
         parseDisplayShelfPage(requestJson("GET", ClientRoutes.listenShelf(key, cursor, offset, limit)), ::absolute)
 
+    /** The Music home of Listen as shelves (the car list reads it); the Engine applies the profile's limits. */
+    suspend fun listenHome(): DisplayPage = parseDisplayPage(requestJson("GET", ClientRoutes.listenHome()))
+
     /**
      * Every song the profile has hearted, in the person's own order: the Engine's favourites filter gives the songs, and the saved list
      * (read first) gives the order, as the Dashboard does.
