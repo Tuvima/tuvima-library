@@ -76,6 +76,7 @@ import com.tuvima.library.core.TvTimeline
 import com.tuvima.library.core.TvTool
 import com.tuvima.library.core.TvZone
 import com.tuvima.library.core.focusKey
+import kotlin.coroutines.cancellation.CancellationException
 
 // The television player's screen, drawn 1:1 from the approved mock-up (engineering/design/mockups/tv-player/tv-player-panels.html).
 // The mock is a 1920 x 1080 picture, so every size below is written in the mock's own pixels and scaled by the real screen
@@ -762,6 +763,15 @@ private fun EndCardButton(text: String, focused: Boolean, primary: Boolean, modi
 @Composable
 private fun TvImage(url: String?, loader: TvImageLoader, modifier: Modifier, shape: RoundedCornerShape) {
     if (url.isNullOrBlank()) return
-    val bitmap by produceState<ImageBitmap?>(null, url) { value = runCatching { loader(url)?.asImageBitmap() }.getOrNull() }
+    val bitmap by produceState<ImageBitmap?>(null, url) {
+        value = try {
+            loader(url)?.asImageBitmap()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // A picture that cannot be drawn leaves the placeholder; nothing depends on it.
+            null
+        }
+    }
     bitmap?.let { Image(it, null, modifier.background(Color.Transparent, shape), contentScale = ContentScale.Crop) }
 }

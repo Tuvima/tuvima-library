@@ -410,7 +410,7 @@ Close (a television is already full screen):
   settings (Lessons only when other videos follow).
 
 A tool opens a **side panel on the right** with the same name, rows and footer as
-the Panels table. The paused details, the end card, the Everyone | Mine
+the Panels table. The paused details, the end card, the Mine | Global
 bookmarks and the Autoplay next episode switch are the same as above.
 
 <!-- contract-table: tv-keys -->

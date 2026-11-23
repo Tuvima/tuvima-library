@@ -225,6 +225,34 @@ class TvPlayerLogicTest {
     }
 
     @Test
+    fun backWithAPanelOpenOverTheEndCardClosesThePanelBeforeCancellingTheCard() {
+        val panel = TvKeyState(overlayVisible = true, panelOpen = true, endCard = true)
+        assertEquals(TvKeyEffect.ClosePanel, TvKeyMap.effect(panel, TvKeyAction.Back).effect)
+        val nested = TvKeyState(overlayVisible = true, panelOpen = true, panelNested = true, endCard = true)
+        assertEquals(TvKeyEffect.PanelBack, TvKeyMap.effect(nested, TvKeyAction.Back).effect)
+        val card = TvKeyState(overlayVisible = true, endCard = true)
+        assertEquals(TvKeyEffect.CancelEndCard, TvKeyMap.effect(card, TvKeyAction.Back).effect)
+    }
+
+    @Test
+    fun playPauseRewindAndFastForwardStillWorkWhileTheEndCardShows() {
+        val card = TvKeyState(overlayVisible = true, endCard = true)
+        assertEquals(TvKeyEffect.TogglePlay, TvKeyMap.effect(card, TvKeyAction.PlayPause).effect)
+        assertEquals(TvKeyEffect.Play, TvKeyMap.effect(card, TvKeyAction.Play).effect)
+        assertEquals(TvKeyEffect.Pause, TvKeyMap.effect(card, TvKeyAction.Pause).effect)
+        assertEquals(TvKeyEffect.SkipBack, TvKeyMap.effect(card, TvKeyAction.Rewind).effect)
+        assertEquals(TvKeyEffect.SkipForward, TvKeyMap.effect(card, TvKeyAction.FastForward).effect)
+        assertEquals(TvKeyEffect.ClosePlayer, TvKeyMap.effect(card, TvKeyAction.Stop).effect)
+    }
+
+    @Test
+    fun theArrowsAndSelectAreLeftToTheScreenWhileTheEndCardShowsSoAnOpenPanelCanTakeThem() {
+        val panel = TvKeyState(overlayVisible = true, panelOpen = true, endCard = true)
+        assertEquals(TvKeyEffect.Move, TvKeyMap.effect(panel, TvKeyAction.Down).effect)
+        assertEquals(TvKeyEffect.Move, TvKeyMap.effect(panel, TvKeyAction.Select).effect)
+    }
+
+    @Test
     fun theCaptionsKeyOpensAudioAndSubtitles() {
         assertEquals(TvKeyEffect.OpenAudioSubtitles, TvKeyMap.effect(TvKeyState(overlayVisible = false), TvKeyAction.Captions).effect)
     }

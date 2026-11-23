@@ -458,10 +458,14 @@ object TvKeyMap {
      */
     fun effect(state: TvKeyState, action: TvKeyAction): TvKeyResult {
         if (state.endCard) {
-            return when (action) {
-                TvKeyAction.Back -> TvKeyResult(TvKeyEffect.CancelEndCard, true)
-                TvKeyAction.Stop -> TvKeyResult(TvKeyEffect.ClosePlayer, true)
-                else -> TvKeyResult(TvKeyEffect.Move, false)
+            // The card owns Back (unless a panel is open: that closes first), Stop and the arrows. With a panel open the arrows
+            // go to the screen, which sends them to the panel. Play, Pause, Rewind and Fast-forward work as on any other screen.
+            when (action) {
+                TvKeyAction.Back -> if (!state.panelOpen) return TvKeyResult(TvKeyEffect.CancelEndCard, true)
+                TvKeyAction.Stop -> return TvKeyResult(TvKeyEffect.ClosePlayer, true)
+                TvKeyAction.Up, TvKeyAction.Down, TvKeyAction.Left, TvKeyAction.Right, TvKeyAction.Select, TvKeyAction.Captions ->
+                    return TvKeyResult(TvKeyEffect.Move, false)
+                else -> Unit
             }
         }
         when (action) {

@@ -111,8 +111,9 @@ and the timeline choice are kept on the television (`TvDeviceStore`) and never s
 arrows move focus, Left and Right on the timeline skip by the profile's seconds, Rewind and Fast-forward skip back and
 forward, Back closes the open panel (one level of a nested view) first, then hides the controls, then leaves; the controls
 hide after 5 seconds and never while a panel, the Find window, the end card or a pause is showing. Music and audiobooks use
-the same screen as a full-screen Now playing with Lyrics or Chapters as the side panel. The Cast button is hidden on Fire
-TV (`TvDevice.isFireTv`: the maker is Amazon or the system has `amazon.hardware.fire_tv`).
+the same screen as a full-screen Now playing with Lyrics or Chapters as the side panel. The television app has no Cast
+button yet; when it gets one it must be hidden on Fire TV, and the rule is ready (`TvDevice.isFireTv`, with `isFireTv(context)`
+in `tv`: the maker is Amazon or the system has `amazon.hardware.fire_tv`).
 The **Audio & subtitles** side panel (spec "Find another on TV", WP3) is the tool the remote's captions or menu key opens
 directly. The panel lists Audio
 rows when there are several tracks, then Subtitles: Off, then each track, and a footer row **Find subtitles…** that is

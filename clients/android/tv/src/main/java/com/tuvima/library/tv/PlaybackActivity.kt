@@ -89,7 +89,10 @@ import com.tuvima.library.core.TvSubtitleTrack
 import com.tuvima.library.core.TvZone
 import com.tuvima.library.core.findAnotherApi
 import com.tuvima.library.core.TvPlayerLogic.PLAY_INDEX
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -428,7 +431,8 @@ class PlaybackActivity : ComponentActivity() {
         null
     }
 
-    private fun sendHeartbeat() {
+    /** [final] is the last report when the screen stops: it must survive the screen closing, so it is not tied to the screen's scope. */
+    private fun sendHeartbeat(final: Boolean = false) {
         if (!::player.isInitialized || manifest == null) return
         val payload = JSONObject()
             .put("assetId", assetId)
@@ -436,9 +440,11 @@ class PlaybackActivity : ComponentActivity() {
             .put("positionSeconds", player.currentPosition / 1000.0)
             .put("durationSeconds", player.duration.takeIf { it > 0 }?.div(1000.0))
             .put("playbackRate", player.playbackParameters.speed.toDouble())
-        lifecycleScope.launch {
+        val connection = client
+        val scope = if (final) CoroutineScope(SupervisorJob() + Dispatchers.IO) else lifecycleScope
+        scope.launch {
             try {
-                client.heartbeat(payload)
+                connection.heartbeat(payload)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -601,8 +607,10 @@ class PlaybackActivity : ComponentActivity() {
 
     private fun onStateChanged() {
         if (::player.isInitialized && player.playbackState == Player.STATE_ENDED) {
+            // While another episode is starting the old one's end must not close the player.
+            if (switching) return
             // The end of a title: an episode with a next one keeps its end card; anything else closes the player.
-            if (!(kind == TvMediaKind.Episode && nextEpisode() != null && !switching)) { finish(); return }
+            if (!(kind == TvMediaKind.Episode && nextEpisode() != null)) { finish(); return }
         }
         rebuild()
     }
@@ -655,8 +663,8 @@ class PlaybackActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 workId = episode.workId.takeIf { it.isNotBlank() }
+                // openAsset reads the details itself (once).
                 openAsset(episode.assetId, restart = false)
-                loadDetails()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -746,7 +754,8 @@ class PlaybackActivity : ComponentActivity() {
 
     /** The arrows and Select when the key map leaves them to the screen: moving focus and pressing the focused control. */
     private fun moveOrPress(action: TvKeyAction) {
-        if (endShownAt > 0L && nextEpisode() != null) {
+        // With a panel open the keys belong to the panel and the controls; the card takes them only when nothing else is open.
+        if (endShownAt > 0L && nextEpisode() != null && panelId == null) {
             if (action == TvKeyAction.Select) {
                 when (TvPlayerLogic.endCardEffect(endFocus)) {
                     TvKeyEffect.CancelEndCard -> cancelEndCard()
@@ -844,6 +853,12 @@ class PlaybackActivity : ComponentActivity() {
         scheduleHide()
     }
 
+    /** Goes into a nested view of the open panel, focus on its first row. */
+    private fun enterPanel(id: TvPanelId) {
+        panelId = id
+        panelFocus = TvPanelFocus(currentPanelNow()?.initialIndex() ?: 0)
+    }
+
     private fun panelBack() {
         val parent = panelId?.let { TvPlayerLogic.parentOf(it) } ?: return closePanel()
         panelId = parent
@@ -886,7 +901,7 @@ class PlaybackActivity : ComponentActivity() {
                     .build()
                 key.startsWith("sub:") -> selectTrack(key.removePrefix("sub:"), C.TRACK_TYPE_TEXT)
                 key.startsWith("audio:") -> selectTrack(key.removePrefix("audio:"), C.TRACK_TYPE_AUDIO)
-                key == "appearance" -> { panelId = TvPanelId.SubtitleAppearance; panelFocus = TvPanelFocus(currentPanelNow()?.initialIndex() ?: 0) }
+                key == "appearance" -> enterPanel(TvPanelId.SubtitleAppearance)
                 key == "find" -> openFind(TextTrackKind.Subtitles)
             }
             TvPanelId.SubtitleAppearance -> {
@@ -911,10 +926,10 @@ class PlaybackActivity : ComponentActivity() {
                 }
             }
             TvPanelId.PlaybackSettings -> when (key) {
-                "speed" -> panelId = TvPanelId.Speed
-                "skip-back" -> panelId = TvPanelId.SkipBack
-                "skip-forward" -> panelId = TvPanelId.SkipForward
-                "info" -> panelId = TvPanelId.PlaybackInformation
+                "speed" -> enterPanel(TvPanelId.Speed)
+                "skip-back" -> enterPanel(TvPanelId.SkipBack)
+                "skip-forward" -> enterPanel(TvPanelId.SkipForward)
+                "info" -> enterPanel(TvPanelId.PlaybackInformation)
                 "reset-preferences" -> {
                     saveDevice(TvDeviceChoices(showBookmarksOnTimeline = device.showBookmarksOnTimeline))
                     player.setPlaybackSpeed(preferences.defaultPlaybackSpeed.toFloat().coerceIn(0.5f, 3f))
@@ -1239,7 +1254,7 @@ class PlaybackActivity : ComponentActivity() {
     override fun onStop() {
         if (::player.isInitialized) {
             player.pause()
-            sendHeartbeat()
+            sendHeartbeat(final = true)
         }
         super.onStop()
     }
