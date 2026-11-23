@@ -9,7 +9,7 @@ $client = Join-Path $repoRoot 'clients/tv-web'
 $fixtures = Join-Path $repoRoot 'tests/fixtures/native-client-v1'
 
 $required = @(
-    'index.html', 'app.js', 'api.js', 'universe.js', 'nav.js', 'find-another.js', 'player.js', 'styles.css', 'README.md',
+    'index.html', 'app.js', 'api.js', 'universe.js', 'nav.js', 'find-another.js', 'player-logic.js', 'player.js', 'styles.css', 'README.md',
     'vendor/hls.min.js', 'vendor/LICENSE-hls.js.txt', 'assets/tuvima-icon.svg', 'assets/tuvima-logo-dark.svg'
 )
 foreach ($relative in $required) {
@@ -50,7 +50,7 @@ foreach ($forbidden in @('sessionStorage', 'document.cookie', 'indexedDB', 'inne
 # 4. index.html loads the scripts in order, as classic scripts (so it also runs from file:// in a packaged app).
 $html = Get-Content -LiteralPath (Join-Path $client 'index.html') -Raw
 $last = -1
-foreach ($name in @('api.js', 'universe.js', 'nav.js', 'find-another.js', 'player.js', 'app.js')) {
+foreach ($name in @('api.js', 'universe.js', 'nav.js', 'find-another.js', 'player-logic.js', 'player.js', 'app.js')) {
     $at = $html.IndexOf("src=`"$name`"", [StringComparison]::Ordinal)
     if ($at -lt 0) { throw "index.html does not load $name." }
     if ($at -lt $last) { throw "index.html must load $name after the previous script." }
@@ -74,6 +74,7 @@ foreach ($requiredText in @(
     '/api/v1/playback/', '/manifest', 'recommendedDelivery', 'hlsUrl', 'hlsStatus', 'subtitleTracks', 'deliveryUrl',
     '/api/v1/player/heartbeat', '/api/v1/player/state', 'hasPlaybackEnded', 'positionSeconds',
     '/api/v1/devices/current/profiles', '/api/v1/devices/current/switch-profile', '/api/v1/devices/current/capabilities',
+    '/api/v1/devices/current/playback-preferences', '/api/v1/player/audiobooks/', '/bookmarks',
     "'/api/v1/devices/'",
     'tv-web', 'tv-web-hevc', 'client_id', 'device_class', 'television')) {
     if (-not $js.Contains($requiredText, [StringComparison]::Ordinal)) {
@@ -102,7 +103,7 @@ foreach ($behavior in @(
     'nav.exitApp()')) {            # Back on the first screen leaves through the platform
     if (-not $js.Contains($behavior, [StringComparison]::Ordinal)) { throw "TV web client is missing '$behavior'." }
 }
-foreach ($code in @('10009', '461', '415', '10252')) {
+foreach ($code in @('10009', '461', '415', '10252', '412', '417')) {
     if (-not $js.Contains($code, [StringComparison]::Ordinal)) { throw "TV web client key map lacks code $code (Tizen/webOS keys)." }
 }
 if ($ownText -notmatch 'font-size:\s*calc\(100vh / 45\)') { throw 'styles.css must set the 24 px root at 1080p (100vh / 45).' }
@@ -135,8 +136,15 @@ foreach ($file in $wire.Keys) {
     }
 }
 
-# 8. Behaviour checks for the API layer and remote input.
-foreach ($test in @('tv-web-api.test.js', 'tv-web-input.test.js', 'tv-web-universe.test.js')) {
+# The player follows the contract's Televisions section: its transport, tool, panel and key-map behaviour lives in player-logic.js.
+foreach ($behavior in @('function keyEffect(', 'function transportFor(', 'function toolsFor(', 'function endCardView(', 'function bookmarkTabs(',
+        'function skipSeconds(', 'OVERLAY_HIDE_MS = 5000', "'side-panel'", 'panel-open')) {
+    if (-not $js.Contains($behavior, [StringComparison]::Ordinal)) { throw "TV web player is missing '$behavior' (player controls contract, Televisions)." }
+}
+if ($ownText -notmatch 'width:\s*calc\(700 \* var\(--px\)\)') { throw 'styles.css must keep the 700 px side panel of the approved TV player layout.' }
+
+# 8. Behaviour checks for the API layer, remote input, the Universe page and the player logic.
+foreach ($test in @('tv-web-api.test.js', 'tv-web-input.test.js', 'tv-web-universe.test.js', 'tv-web-player.test.js')) {
     $path = Join-Path $PSScriptRoot $test
     if (-not (Test-Path -LiteralPath $path)) { throw "Missing $test." }
     & node $path
@@ -172,8 +180,13 @@ if (-not $iconSrc -or -not (Test-Path -LiteralPath (Join-Path $tizen $iconSrc) -
 & node --check (Join-Path $tizen 'tizen-keys.js')
 if ($LASTEXITCODE -ne 0) { throw 'node --check failed for tizen-keys.js.' }
 $keyText = Get-Content -LiteralPath (Join-Path $tizen 'tizen-keys.js') -Raw
-foreach ($key in @('MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop', 'MediaFastForward', 'MediaRewind', 'registerKey')) {
+foreach ($key in @('MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop', 'MediaFastForward', 'MediaRewind', 'registerKey', 'TV_PLATFORM_KEYS', '10009', '412', '417')) {
     if (-not $keyText.Contains($key, [StringComparison]::Ordinal)) { throw "tizen-keys.js does not register $key." }
+}
+# The staged package must carry every script index.html loads.
+$tizenPackage = Get-Content -LiteralPath (Join-Path $tizen 'package.ps1') -Raw
+foreach ($name in @('api.js', 'universe.js', 'nav.js', 'find-another.js', 'player-logic.js', 'player.js', 'app.js', 'styles.css')) {
+    if (-not $tizenPackage.Contains("'$name'", [StringComparison]::Ordinal)) { throw "Tizen package.ps1 does not stage $name." }
 }
 $tizenText = $configText + "`n" + $keyText + "`n" + (Get-Content -LiteralPath (Join-Path $tizen 'package.ps1') -Raw)
 foreach ($pattern in @('localhost', '127\.0\.0\.1', '0\.0\.0\.0', ':61495', ':61494', ':5016', ':7062', '[A-Za-z]:\\', '/Users/')) {
@@ -201,7 +214,7 @@ foreach ($name in @('package.ps1', 'webos-keys.js', 'README.md')) {
 }
 & node --check (Join-Path $webos 'webos-keys.js')
 if ($LASTEXITCODE -ne 0) { throw 'node --check failed for webos-keys.js.' }
-foreach ($code in @('461', '415', '19', '413', '412', '417')) {
+foreach ($code in @('461', '415', '19', '413', '412', '417', 'TV_PLATFORM_KEYS')) {
     if (-not (Get-Content -LiteralPath (Join-Path $webos 'webos-keys.js') -Raw).Contains($code)) { throw "webos-keys.js lacks key code $code." }
 }
 foreach ($file in Get-ChildItem -LiteralPath $webos -File | Where-Object { $_.Extension -in @('.js', '.json', '.ps1', '.sh') }) {

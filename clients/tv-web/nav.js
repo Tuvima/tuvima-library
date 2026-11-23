@@ -21,6 +21,15 @@
     417: 'forward', 412: 'rewind'
   };
 
+  // A packaged app's platform file (platforms/tizen, platforms/webos) loads first and may hand over its own remote codes as
+  // global.TV_PLATFORM_KEYS = { code: action }, so Back, Rewind and Fast-forward map on that TV whatever its model sends.
+  (function addPlatformKeys(extra) {
+    if (!extra) { return; }
+    for (var code in extra) {
+      if (Object.prototype.hasOwnProperty.call(extra, code)) { KEY_ACTIONS[code] = extra[code]; }
+    }
+  })(global.TV_PLATFORM_KEYS);
+
   var KEY_NAMES = {
     ArrowLeft: 'left', ArrowUp: 'up', ArrowRight: 'right', ArrowDown: 'down',
     Enter: 'enter', Escape: 'back', GoBack: 'back', BrowserBack: 'back', XF86Back: 'back',

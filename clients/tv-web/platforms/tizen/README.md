@@ -8,7 +8,7 @@ to `config.xml` in `build/` (ignored by git) and prints the Tizen commands.
 
 `config.xml` uses `content src="index.html"`, so the package root is a folder that
 holds, side by side: `config.xml`, `icon.png`, `tizen-keys.js`, and the shared
-`index.html`, `api.js`, `universe.js`, `nav.js`, `player.js`, `app.js`, `styles.css`, `assets/`
+`index.html`, `api.js`, `universe.js`, `nav.js`, `find-another.js`, `player-logic.js`, `player.js`, `app.js`, `styles.css`, `assets/`
 and `vendor/`. `package.ps1` builds that folder and adds one line to the staged
 `index.html` (it loads `tizen-keys.js` first). The shared `index.html` is not
 changed in git.
@@ -16,7 +16,7 @@ changed in git.
 | File | Role |
 | --- | --- |
 | `config.xml` | Widget: id, version 0.1.0, `tv` profile, privileges `internet` and `tv.inputdevice`, `access origin="*"` |
-| `tizen-keys.js` | Registers the media keys with `tizen.tvinputdevice.registerKey`; does nothing outside Tizen. Return (10009) and the media key codes are mapped by the shared `nav.js` |
+| `tizen-keys.js` | Registers the media keys with `tizen.tvinputdevice.registerKey` and hands `nav.js` the Samsung codes for Back (Return, 10009), Rewind (412) and Fast-forward (417) through `TV_PLATFORM_KEYS`; registers nothing outside Tizen |
 | `icon.png` | 117x117 icon rendered from `assets/tuvima-icon.svg` |
 | `package.ps1` | Stages `build/` and prints the commands below (runs none of them) |
 
