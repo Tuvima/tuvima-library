@@ -110,6 +110,9 @@ object PlaylistsLogic {
     const val OFFLINE_PLAYLIST = "You are offline. Only the songs downloaded to this phone play right now."
     const val OFFLINE_NOTHING_HELD = "You are offline and none of this playlist's songs are downloaded to this phone."
     const val NO_FILE = "This song has no file to play."
+
+    /** The short line under a row that has no file (an album row of a smart playlist): it is shown, dimmed, and cannot be played from here. */
+    const val NO_FILE_ROW = "No file to play here"
     const val NOT_AVAILABLE = "That playlist is not available."
 
     /** The tile's second line: "Smart playlist · 12 songs · 48 min", whichever parts are known. */
@@ -189,17 +192,28 @@ object PlaylistsLogic {
     fun cursorFor(page: PlaylistSongsPage): String? = page.nextCursor.takeIf { page.hasMore }
 
     /**
-     * Adds a page of songs to those shown and keeps them in the playlist's order (`sort_order` runs on across pages). A song that arrives
-     * twice (the same row in an overlapping page) is shown once.
+     * Adds a page of songs to those shown, in the order the pages arrive (the Engine sends a playlist in its saved order, and a smart playlist
+     * in the order its rule gives, so nothing is sorted again here). A song that arrives twice (the same row in an overlapping page) is
+     * shown once, by its id.
      */
     fun mergeSongs(shown: List<PlaylistSong>, incoming: List<PlaylistSong>): List<PlaylistSong> {
-        val seen = shown.mapTo(HashSet()) { it.id to it.sortOrder }
-        return (shown + incoming.filter { seen.add(it.id to it.sortOrder) }).sortedBy { it.sortOrder }
+        val seen = shown.mapTo(HashSet()) { it.id }
+        return shown + incoming.filter { seen.add(it.id) }
     }
 
     /** True while the playlist has another page of songs worth asking for. */
     fun hasNextSongPage(page: PlaylistSongsPage, pagesRead: Int): Boolean =
         page.hasMore && page.items.isNotEmpty() && pagesRead < MAX_SONG_PAGES
+
+    /**
+     * True when more songs exist than the pages read: the Engine still offers a next page, but the page limit stopped the reading. Such a
+     * playlist is shown as partial rather than as complete.
+     */
+    fun isPartial(page: PlaylistSongsPage, continues: Boolean): Boolean = page.hasMore && !continues
+
+    /** The line shown above the songs when only the first part of a very long playlist was read. */
+    fun partialNote(shown: Int, total: Int): String =
+        "Showing the first ${"%,d".format(java.util.Locale.US, shown)} of ${"%,d".format(java.util.Locale.US, total)} songs."
 
     /** True when the song names a file the player can start. */
     fun isPlayable(song: PlaylistSong): Boolean = !song.assetId.isNullOrBlank()
@@ -236,7 +250,7 @@ object PlaylistsLogic {
         val playable = playableSongs(songs, held)
         val tracks = playable.mapNotNull(::trackOf)
         if (tracks.isEmpty()) return null
-        val start = pressed?.let { p -> playable.indexOfFirst { it.id == p.id && it.sortOrder == p.sortOrder } }?.takeIf { it >= 0 } ?: 0
+        val start = pressed?.let { p -> playable.indexOfFirst { it.id == p.id } }?.takeIf { it >= 0 } ?: 0
         return PlayQueue.normalise(PlayQueueRequest(tracks, start, shuffle = false, sourceName = clean(source)))
     }
 

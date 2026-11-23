@@ -75,7 +75,8 @@ if (-not $carPlay.Contains('("Queue", "Queue")', [StringComparison]::Ordinal) -o
 # Playlists is in the contract's list and the phone reads the profile's playlists (GET /api/v1/collections/playlists, WP19), so Android Auto must
 # carry the entry: the flag is on, the root list still filters on it, and the service lists the playlists and opens one as a list of its songs.
 # The service takes the root as it comes, with no list of its own.
-foreach ($playlistRule in @('const val PLAYLISTS_AVAILABLE = true', 'playlistsAvailable || it != CarEntry.Playlists', 'class Playlist(val id: String)')) {
+# The root keeps Auto's four tabs: Recently played is the first shelf of Listen, not a tab, so the root list filters it out and the Listen shelves keep it.
+foreach ($playlistRule in @('const val PLAYLISTS_AVAILABLE = true', 'playlistsAvailable || it != CarEntry.Playlists', 'it != CarEntry.RecentlyPlayed', 'sortedBy { if (it.key == RECENTLY_PLAYED_SHELF) 0 else 1 }', 'class Playlist(val id: String)')) {
     if (-not $androidCar.Contains($playlistRule, [StringComparison]::Ordinal)) {
         throw "Android Auto car list must carry the Playlists entry ($playlistRule)."
     }

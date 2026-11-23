@@ -159,14 +159,47 @@ class PlaylistsLogicTest {
     }
 
     @Test
-    fun songsStayInThePlaylistsOrderAcrossPagesAndARepeatedRowIsShownOnce() {
+    fun songsKeepTheOrderThePagesArriveInAndARepeatedRowIsShownOnceById() {
         val firstPage = (0 until 200).map { song(it) }
         val secondPage = (200 until 230).map { song(it) }
-        // The next request overlaps by one row, and a page can arrive late.
-        val merged = PlaylistsLogic.mergeSongs(PlaylistsLogic.mergeSongs(emptyList(), secondPage + song(199)), firstPage)
+
+        // The next request overlaps by one row.
+        val merged = PlaylistsLogic.mergeSongs(PlaylistsLogic.mergeSongs(emptyList(), firstPage), listOf(song(199)) + secondPage)
 
         assertEquals(230, merged.size)
-        assertEquals((0 until 230).toList(), merged.map { it.sortOrder })
+        assertEquals((0 until 230).map { "item-$it" }, merged.map { it.id })
+    }
+
+    @Test
+    fun aSmartPlaylistKeepsTheOrderItsRuleGaveEvenWhenItsSortOrdersRunBackwardsOrRepeat() {
+        // Nothing is sorted again: the Engine's answer is the order, whatever the numbers say.
+        val arrived = listOf(song(5), song(2), song(9), song(2, id = "other"))
+
+        val merged = PlaylistsLogic.mergeSongs(emptyList(), arrived)
+
+        assertEquals(listOf("item-5", "item-2", "item-9", "other"), merged.map { it.id })
+    }
+
+    @Test
+    fun aListWhoseLastPageStillOffersAnotherIsPartialNotComplete() {
+        val stopped = PlaylistSongsPage(songs(200), 12000, "200", hasMore = true)
+        val done = PlaylistSongsPage(songs(30), 230, null, hasMore = false)
+
+        assertTrue(PlaylistsLogic.isPartial(stopped, continues = false))
+        assertFalse(PlaylistsLogic.isPartial(stopped, continues = true))
+        assertFalse(PlaylistsLogic.isPartial(done, continues = false))
+        assertEquals("Showing the first 10,000 of 12,000 songs.", PlaylistsLogic.partialNote(10000, 12000))
+    }
+
+    @Test
+    fun anAlbumRowWithNoFileIsKeptInTheListButCannotPlayOrDownload() {
+        val list = listOf(song(0), song(1, asset = null), song(2))
+
+        assertFalse(PlaylistsLogic.isPlayable(list[1]))
+        assertEquals(listOf("asset-0", "asset-2"), PlaylistsLogic.playFrom(list, null, "Smart", held = null)!!.tracks.map { it.assetId })
+        assertEquals(listOf("asset-0", "asset-2"), PlaylistsLogic.downloadChildren(list).map { it.assetId })
+        // Pressing the row with no file does not move the start: the queue begins at the first song.
+        assertEquals(0, PlaylistsLogic.playFrom(list, list[1], "Smart", held = null)!!.startIndex)
     }
 
     @Test

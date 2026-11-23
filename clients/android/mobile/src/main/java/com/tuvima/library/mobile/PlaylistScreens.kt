@@ -51,6 +51,7 @@ import com.tuvima.library.core.Playlist
 import com.tuvima.library.core.PlaylistSong
 import com.tuvima.library.core.PlaylistsLogic
 import com.tuvima.library.core.TuvimaClient
+import com.tuvima.library.core.TuvimaHttpException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -95,7 +96,7 @@ internal class PlaylistsController(private val client: TuvimaClient, private val
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                error = userMessage(failure)
+                error = playlistMessage(failure)
             } finally {
                 loading = false
             }
@@ -246,8 +247,12 @@ internal class PlaylistSongsController(
     private var hasMore by mutableStateOf(true)
     private var pagesRead = 0
 
-    /** True once every page is read, so totals that need every song (the length, Download all) are complete. */
-    val complete: Boolean get() = loaded && !hasMore
+    /** True when the page limit stopped the reading while the Engine still had more songs: what is shown is the first part only. */
+    var partial by mutableStateOf(false)
+        private set
+
+    /** True once every page is read, so totals that need every song (the length, Download all) are complete. A partial list is never complete. */
+    val complete: Boolean get() = loaded && !hasMore && !partial
 
     fun load() {
         if (loading || !hasMore) return
@@ -265,13 +270,15 @@ internal class PlaylistSongsController(
                     pagesRead += 1
                     cursor = PlaylistsLogic.cursorFor(page)
                     // A page that added nothing, or gave no cursor, is the end, so paging can never loop.
-                    hasMore = PlaylistsLogic.hasNextSongPage(page, pagesRead) && cursor != null && songs.size > before
+                    val continues = PlaylistsLogic.hasNextSongPage(page, pagesRead) && cursor != null && songs.size > before
+                    hasMore = continues
+                    partial = PlaylistsLogic.isPartial(page, continues)
                     loaded = true
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                error = userMessage(failure)
+                error = playlistMessage(failure)
             } finally {
                 loading = false
             }
@@ -283,6 +290,10 @@ internal class PlaylistSongsController(
         load()
     }
 }
+
+/** Plain words for a failed read: a playlist that is not the profile's own (or is gone) answers 404 and says so in the playlist's words. */
+private fun playlistMessage(failure: Exception): String =
+    if (failure is TuvimaHttpException && failure.statusCode == 404) PlaylistsLogic.NOT_AVAILABLE else userMessage(failure)
 
 /**
  * One playlist: its name and count, Play and Shuffle, Download all, and its songs in the saved order. A press on a song plays the playlist
@@ -369,6 +380,13 @@ internal fun PlaylistScreen(
                 }
             }
         }
+        if (controller.partial) {
+            Text(
+                PlaylistsLogic.partialNote(songs.size, controller.total),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
         PlaylistsLogic.offlineNote(online, heldCount)?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp))
         }
@@ -380,7 +398,7 @@ internal fun PlaylistScreen(
             songs.isEmpty() && !controller.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             songs.isEmpty() -> ErrorBlock(PlaylistsLogic.EMPTY_PLAYLIST, null)
             else -> LazyColumn(Modifier.fillMaxSize()) {
-                itemsIndexed(songs, key = { _, song -> "${song.sortOrder}:${song.id}" }) { _, song ->
+                itemsIndexed(songs, key = { _, song -> song.id }) { _, song ->
                     val available = PlaylistsLogic.isPlayable(song) && (playable == null || song.assetId in playable)
                     PlaylistSongRow(client, song, available, held = song.assetId != null && song.assetId in held) { playFrom(song) }
                 }
@@ -420,6 +438,10 @@ private fun PlaylistSongRow(client: TuvimaClient, song: PlaylistSong, available:
             Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
             if (line.isNotEmpty()) {
                 Text(line, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = TuvimaTokens.textMuted)
+            }
+            // An album row of a smart playlist has no file of its own: it is listed, dimmed, and says why it does not play.
+            if (!PlaylistsLogic.isPlayable(song)) {
+                Text(PlaylistsLogic.NO_FILE_ROW, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = TuvimaTokens.textMuted)
             }
         }
         if (held) DownloadedBadge()

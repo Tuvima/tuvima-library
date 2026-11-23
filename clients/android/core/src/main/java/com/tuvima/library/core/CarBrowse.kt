@@ -44,9 +44,9 @@ object CarList {
     const val ROOT_ID = "tuvima-root"
 
     /**
-     * Android Auto shows the root's entries as tabs and has room for four. The contract's list has five once Playlists is in it, so the fifth
-     * entry ("Recently played", the last in the contract's order) sits beyond the tab bar; whether the car still reaches it is a check on the
-     * Desktop Head Unit (engineering/validation/batch.md) and a decision for Shy (clients/android/README.md, Android Auto).
+     * Android Auto shows the root's entries as tabs and has room for four. The contract's list has five once Playlists is in it, so Recently
+     * played, the one that is not a tab of its own, is the first shelf inside Listen instead ([rootEntries], [listenShelves]); the root keeps
+     * four entries. The car also sends the page size it wants for the root, and the service slices the root by it ([slice]).
      */
     const val ROOT_TAB_LIMIT = 4
 
@@ -59,8 +59,8 @@ object CarList {
      */
     const val PLAYLISTS_AVAILABLE = true
 
-    /** The Engine's own shelf keys that the Listen entry does not repeat: Recently played is an entry of its own, and artists have no car list. */
-    private val LISTEN_SHELVES_LEFT_OUT = setOf("recently-played", "artists")
+    /** The Engine's own shelf keys that the Listen entry leaves out: artists have no car list. Recently played is kept, as the first shelf. */
+    private val LISTEN_SHELVES_LEFT_OUT = setOf("artists")
 
     const val RECENTLY_PLAYED_SHELF = "recently-played"
 
@@ -72,9 +72,12 @@ object CarList {
     private const val PLAYLIST = "car:playlist"
     private const val HIT = "car:hit"
 
-    /** The root's entries in the contract's order, without the ones the phone cannot read yet. */
+    /**
+     * The root's tabs in the contract's order, at most [ROOT_TAB_LIMIT]: Recently played is not a tab but the first shelf of Listen, so the
+     * contract's other four stay top level and Playlists, which Shy requires at the top, is one of them.
+     */
     fun rootEntries(playlistsAvailable: Boolean = PLAYLISTS_AVAILABLE): List<CarEntry> =
-        CarEntry.entries.filter { playlistsAvailable || it != CarEntry.Playlists }
+        CarEntry.entries.filter { (playlistsAvailable || it != CarEntry.Playlists) && it != CarEntry.RecentlyPlayed }
 
     fun shelfId(key: String): String = "$SHELF$SEP$key"
 
@@ -129,10 +132,14 @@ object CarList {
         limit = NODE_LIMIT,
     )
 
-    /** The shelves the Listen entry shows, each as a folder of its own, with the Engine's own titles. Shelves with nothing playable are left out. */
+    /**
+     * The shelves the Listen entry shows, each as a folder of its own, with the Engine's own titles; Recently played comes first. Shelves
+     * with nothing playable are left out.
+     */
     fun listenShelves(page: DisplayPage): List<DisplayShelf> =
         page.shelves
             .filter { it.key !in LISTEN_SHELVES_LEFT_OUT && it.title.isNotBlank() && CarCards.items(it.items).isNotEmpty() }
+            .sortedBy { if (it.key == RECENTLY_PLAYED_SHELF) 0 else 1 }
             .take(NODE_LIMIT)
 
     /** The part of a list the car asked for. A page or size that makes no sense gives the first [NODE_LIMIT]. */
@@ -225,14 +232,17 @@ object CarCards {
             .map { CarCard(CarCardKind.Playlist, it.name.trim(), PlaylistsLogic.tileLine(it), detailType = PlaylistsLogic.SEARCH_TYPE, detailId = it.id) }
     }
 
-    /** The songs of one playlist as rows, in the playlist's order; a song with no file is left out, and the list stops at [CarList.NODE_LIMIT]. */
-    fun playlistSongs(songs: List<PlaylistSong>): List<CarCard> =
-        songs.mapNotNull(PlaylistsLogic::trackOf).take(CarList.NODE_LIMIT).map { track ->
+    /** The songs of one playlist as rows, in the playlist's order; a song with no file (an album row of a smart playlist) is left out, and the list stops at [CarList.NODE_LIMIT]. */
+    fun playlistSongs(songs: List<PlaylistSong>): List<CarCard> {
+        // A file listed twice would give two rows the same id in the car, so each file appears once.
+        val seen = HashSet<String>()
+        return songs.mapNotNull(PlaylistsLogic::trackOf).filter { seen.add(it.assetId) }.take(CarList.NODE_LIMIT).map { track ->
             CarCard(
                 CarCardKind.Song, track.title, PlayQueue.secondLine(track),
                 assetId = track.assetId, workId = track.workId, artist = track.artist, album = track.album, artworkUrl = track.artworkUrl,
             )
         }
+    }
 
     /** The songs of an album's Details page as rows, in the page's order. */
     fun songsOf(tracks: List<QueueTrack>): List<CarCard> =

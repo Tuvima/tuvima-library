@@ -77,17 +77,18 @@ class CarBrowseTest {
     }
 
     @Test
-    fun theRootHoldsAllFiveContractEntriesInTheContractOrderNowThatThePhoneReadsPlaylists() {
+    fun theRootKeepsFourTabsWithPlaylistsOnTopAndRecentlyPlayedMovedInsideListen() {
         val root = CarList.rootEntries()
 
         assertTrue(CarList.PLAYLISTS_AVAILABLE)
-        assertEquals(listOf("Continue", "The Listen shelves", "Audiobooks", "Playlists", "Recently played"), root.map { it.contractName })
-        assertEquals(CarEntry.entries.toList(), root)
-        // The fifth entry sits beyond Auto's four tabs; the head-unit check in the validation batch settles whether the car still reaches it.
-        assertEquals(CarList.ROOT_TAB_LIMIT + 1, root.size)
-        // Turning the flag off is still the only way the row can go, and the others keep their order.
+        assertEquals(listOf("Continue", "The Listen shelves", "Audiobooks", "Playlists"), root.map { it.contractName })
+        assertTrue(root.size <= CarList.ROOT_TAB_LIMIT)
+        // Recently played is still a row of the contract's list; it is the first shelf of Listen rather than a tab.
+        assertTrue(CarEntry.RecentlyPlayed in CarEntry.entries)
+        assertFalse(CarEntry.RecentlyPlayed in root)
+        // Turning the flag off is still the only way the Playlists tab can go, and the others keep their order.
         assertEquals(
-            listOf("Continue", "The Listen shelves", "Audiobooks", "Recently played"),
+            listOf("Continue", "The Listen shelves", "Audiobooks"),
             CarList.rootEntries(playlistsAvailable = false).map { it.contractName },
         )
     }
@@ -141,6 +142,20 @@ class CarBrowseTest {
         assertEquals(listOf("asset-0", "asset-2"), rows.map { it.assetId })
         assertEquals("The Drivers · Road Songs", rows.first().line)
         assertEquals(CarList.NODE_LIMIT, CarCards.playlistSongs((0 until 80).map { playlistSong(it) }).size)
+    }
+
+    @Test
+    fun aFileRepeatedInAPlaylistIsOneRowInTheCarSoNoTwoRowsShareAnId() {
+        val rows = CarCards.playlistSongs(listOf(playlistSong(0, asset = "same"), playlistSong(1, asset = "same"), playlistSong(2)))
+
+        assertEquals(listOf("same", "asset-2"), rows.map { it.assetId })
+    }
+
+    @Test
+    fun anAlbumRowOfASmartPlaylistWithNoFileIsLeftOutOfTheCarList() {
+        val rows = CarCards.playlistSongs(listOf(playlistSong(0, asset = ""), playlistSong(1, asset = null), playlistSong(2)))
+
+        assertEquals(listOf("asset-2"), rows.map { it.assetId })
     }
 
     @Test
@@ -262,22 +277,22 @@ class CarBrowseTest {
     }
 
     @Test
-    fun theListenEntryShowsTheEnginesShelvesExceptTheOnesThatHaveTheirOwnEntryOrNoCarList() {
+    fun theListenEntryShowsTheEnginesShelvesWithRecentlyPlayedFirstAndWithoutTheOnesThatHaveNoCarList() {
         fun shelf(key: String, vararg items: DisplayCard) = DisplayShelf(key, "Title $key", null, items.toList(), null)
         val page = DisplayPage(
             "home", "Music", null,
             listOf(
-                shelf("recently-played", album("A", "al1")),
                 shelf("favorite-songs", song("S")),
                 shelf("new-tracks-added", song("T")),
                 shelf("albums", album("B", "al2")),
+                shelf("recently-played", album("A", "al1")),
                 shelf("artists", card("An Artist", "Music", "artist")),
                 shelf("empty"),
                 shelf("videos", card("A Film", "Movie", "work", "m1")),
             ),
         )
 
-        assertEquals(listOf("favorite-songs", "new-tracks-added", "albums"), CarList.listenShelves(page).map { it.key })
+        assertEquals(listOf("recently-played", "favorite-songs", "new-tracks-added", "albums"), CarList.listenShelves(page).map { it.key })
     }
 
     @Test
