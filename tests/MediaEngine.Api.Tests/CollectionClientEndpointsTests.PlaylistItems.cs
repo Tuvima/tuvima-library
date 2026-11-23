@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json.Nodes;
 using Dapper;
+using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
 
@@ -243,7 +244,119 @@ public sealed partial class CollectionClientEndpointsTests
         AssertSameShape(live, ReadFixture("playlist-items.json"), "$");
     }
 
+    [Fact]
+    public async Task PlaylistItems_SortOrderCountsFromZero_EvenWhenThePlaylistWasBuiltAndReorderedThroughTheRepository()
+    {
+        var songs = Enumerable.Range(1, 4).Select(number => AddSong($"Song {number}", "Album", seconds: 60)).ToArray();
+        var playlist = AddPlaylist("Built by the app", "Playlist", []);
+        var repository = new PlaylistRepository(_database);
+        await repository.AddWorksAsync(playlist, songs);
+        var lastItem = StoredItemOf(playlist, songs[3]);
+        Assert.True(await repository.MoveItemAsync(playlist, lastItem, 1));
+        Assert.Equal([1, 2, 3, 4], StoredOrders(playlist));
+        await using var app = await StartAsync();
+
+        var page = await GetJsonAsync(app, $"/api/v1/collections/{playlist}/items");
+        var items = page["items"]!.AsArray();
+
+        Assert.Equal([songs[3], songs[0], songs[1], songs[2]], items.Select(item => item!["work_id"]!.GetValue<Guid>()));
+        // The stored numbers start at 1; the page counts from zero across the whole list.
+        Assert.Equal([0, 1, 2, 3], items.Select(item => item!["sort_order"]!.GetValue<int>()));
+
+        var second = await GetJsonAsync(app, $"/api/v1/collections/{playlist}/items?limit=2&cursor=2");
+        Assert.Equal([2, 3], second["items"]!.AsArray().Select(item => item!["sort_order"]!.GetValue<int>()));
+    }
+
+    [Fact]
+    public async Task PlaylistItems_KidsProfile_SortOrderHasNoGapsWhereAnItemOverTheLimitIsHidden()
+    {
+        var members = new[]
+        {
+            AddWork("Movies", "Kids G", "G", _alpha, ".mkv"),
+            AddWork("Movies", "Grown-up R", "R", _alpha, ".mkv"),
+            AddWork("Movies", "Kids PG", "PG", _alpha, ".mkv"),
+            AddWork("Movies", "Another R", "R", _alpha, ".mkv"),
+            AddWork("Movies", "Kids G again", "G", _alpha, ".mkv"),
+        };
+        var playlist = AddPlaylist("Movie night", "Playlist", []);
+        await new PlaylistRepository(_database).AddWorksAsync(playlist, members);
+        SetContentLimit("PG");
+        await using var app = await StartAsync();
+
+        var page = await GetJsonAsync(app, $"/api/v1/collections/{playlist}/items");
+        Assert.Equal(["Kids G", "Kids PG", "Kids G again"], page["items"]!.AsArray().Select(item => item!["title"]!.GetValue<string>()));
+        Assert.Equal([0, 1, 2], page["items"]!.AsArray().Select(item => item!["sort_order"]!.GetValue<int>()));
+
+        // A later page carries on from the visible list, not from the stored numbers.
+        var later = await GetJsonAsync(app, $"/api/v1/collections/{playlist}/items?limit=1&cursor=1");
+        Assert.Equal("Kids PG", later["items"]!.AsArray().Single()!["title"]!.GetValue<string>());
+        Assert.Equal(1, later["items"]!.AsArray().Single()!["sort_order"]!.GetValue<int>());
+        Assert.Equal(3, later["total_count"]!.GetValue<int>());
+    }
+
+    [Theory]
+    [InlineData("Smart")]
+    [InlineData("PlaylistFolder")]
+    public async Task PlaylistItems_OfAnOlderListTypeTheProfileOwns_AreNotFound_BecauseTheListRouteNeverReturnsOne(string type)
+    {
+        var songs = AddThreeWorks();
+        var legacy = AddPlaylist("Old list type", type, songs);
+        await using var app = await StartAsync();
+
+        var unknown = await SnapshotAsync(app, $"/api/v1/collections/{Guid.NewGuid()}/items");
+        var answer = await SnapshotAsync(app, $"/api/v1/collections/{legacy}/items");
+        var list = await GetJsonAsync(app, "/api/v1/collections/playlists");
+
+        Assert.Equal(HttpStatusCode.NotFound, answer.Status);
+        Assert.Equal(unknown.Body, answer.Body);
+        Assert.DoesNotContain(legacy, list["items"]!.AsArray().Select(item => item!["id"]!.GetValue<Guid>()));
+    }
+
+    [Fact]
+    public async Task PlaylistItems_ARowThatIsAWholeAlbum_HasNoFileOrLength_WhileASongBesideItKeepsBoth()
+    {
+        var album = AddWork("Music", "Whole Album", "G", _alpha, ".flac");
+        var track = AddSong("Album track", "Whole Album", seconds: 30);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE works SET work_kind = 'parent' WHERE id = @album", new { album });
+            connection.Execute("UPDATE works SET work_kind = 'child', parent_work_id = @album WHERE id = @track", new { album, track });
+        }
+
+        SetValue(album, "album", "Whole Album");
+        SetValue(AssetOf(album), "duration_seconds", "999");
+        var song = AddSong("One Song", "Single", seconds: 75);
+        var playlist = AddPlaylist("Albums and songs", "Playlist", [album, song]);
+        await using var app = await StartAsync();
+
+        var items = (await GetJsonAsync(app, $"/api/v1/collections/{playlist}/items"))["items"]!.AsArray();
+
+        var albumRow = items.Single(item => item!["work_id"]!.GetValue<Guid>() == album)!;
+        Assert.Null(albumRow["asset_id"]);
+        Assert.Null(albumRow["duration_seconds"]);
+        Assert.Equal("Whole Album", albumRow["album"]!.GetValue<string>());
+        var songRow = items.Single(item => item!["work_id"]!.GetValue<Guid>() == song)!;
+        Assert.Equal(AssetOf(song), songRow["asset_id"]!.GetValue<Guid>());
+        Assert.Equal(75d, songRow["duration_seconds"]!.GetValue<double>());
+    }
+
     // Seeds ------------------------------------------------------------------------------------------------------
+
+    private Guid StoredItemOf(Guid playlist, Guid work)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.QuerySingle<Guid>(
+            "SELECT id FROM collection_items WHERE collection_id = @playlist AND work_id = @work",
+            new { playlist, work });
+    }
+
+    private List<int> StoredOrders(Guid playlist)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.Query<int>(
+            "SELECT sort_order FROM collection_items WHERE collection_id = @playlist ORDER BY sort_order",
+            new { playlist }).ToList();
+    }
 
     // A song with its artist, album and stored length on the song itself.
     private Guid AddSong(string title, string album, string? artist = null, double? seconds = null)

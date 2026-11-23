@@ -285,11 +285,13 @@ internal static class ManagedCollectionMapper
             RuleJson = null,
             Resolution = source.Resolution,
             RuleHash = null,
-            MatchMode = source.MatchMode,
-            SortField = source.SortField,
-            SortDirection = source.SortDirection,
-            SecondarySortField = source.SecondarySortField,
-            SecondarySortDirection = source.SecondarySortDirection,
+            // The rule's matching and sorting are the person's own authoring, like the rule itself: the fields stay on the wire
+            // at their neutral values (the playlist's order is the one the songs route gives), not the rule's.
+            MatchMode = "all",
+            SortField = null,
+            SortDirection = "desc",
+            SecondarySortField = null,
+            SecondarySortDirection = null,
             RefreshSchedule = null,
             ItemCount = source.ItemCount,
             CoverMode = source.CoverMode,

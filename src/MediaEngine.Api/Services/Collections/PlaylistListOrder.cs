@@ -14,11 +14,13 @@ internal static class PlaylistListOrder
 {
     private const string OrderProperty = "listenPlaylistOrder";
 
-    /// <summary>The same three types the Dashboard lists as playlists (MediaTileComposerService.IsUserVisiblePlaylist).</summary>
+    /// <summary>
+    /// What the Dashboard lists as a playlist from the managed read, which returns only the Custom and Playlist types: so only
+    /// the Playlist type (a smart playlist is a Playlist whose members come from a rule). The older Smart and PlaylistFolder
+    /// types never reach this read, and the songs route does not serve them either.
+    /// </summary>
     public static bool IsUserVisiblePlaylist(ManagedCollectionDto collection) =>
-        string.Equals(collection.CollectionType, "Playlist", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(collection.CollectionType, "Smart", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(collection.CollectionType, "PlaylistFolder", StringComparison.OrdinalIgnoreCase);
+        string.Equals(collection.CollectionType, "Playlist", StringComparison.OrdinalIgnoreCase);
 
     public static List<ManagedCollectionDto> Order(IEnumerable<ManagedCollectionDto> playlists, string? navigationConfig)
     {

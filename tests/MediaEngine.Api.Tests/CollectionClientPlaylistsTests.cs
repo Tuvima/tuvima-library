@@ -84,7 +84,13 @@ public sealed partial class CollectionClientEndpointsTests
         using (var connection = _database.CreateConnection())
         {
             connection.Execute(
-                "UPDATE collections SET cover_artwork_path = 'C:/private/cover.jpg', rule_hash = 'abc' WHERE id IN (@playlist, @manual)",
+                """
+                UPDATE collections
+                   SET cover_artwork_path = 'C:/private/cover.jpg', rule_hash = 'abc',
+                       match_mode = 'any', sort_field = 'title', sort_direction = 'asc',
+                       secondary_sort_field = 'year', secondary_sort_direction = 'asc'
+                 WHERE id IN (@playlist, @manual)
+                """,
                 new { playlist, manual });
         }
 
@@ -97,6 +103,12 @@ public sealed partial class CollectionClientEndpointsTests
         Assert.NotNull(entry["membership_mode"]);
         Assert.Null(entry["rule_json"]);
         Assert.Null(entry["rule_hash"]);
+        // Nor are the rule's matching and sorting: they stay at their neutral values.
+        Assert.Equal("all", entry["match_mode"]!.GetValue<string>());
+        Assert.Null(entry["sort_field"]);
+        Assert.Equal("desc", entry["sort_direction"]!.GetValue<string>());
+        Assert.Null(entry["secondary_sort_field"]);
+        Assert.Null(entry["secondary_sort_direction"]);
         Assert.Null(entry["profile_id"]);
         Assert.Empty(entry["selected_profile_ids"]!.AsArray());
         Assert.Null(entry["cover_artwork_url"]);
@@ -246,12 +258,12 @@ public sealed partial class CollectionClientEndpointsTests
     [Theory]
     [InlineData("Playlist", true)]
     [InlineData("playlist", true)]
-    [InlineData("Smart", true)]
-    [InlineData("PlaylistFolder", true)]
+    [InlineData("Smart", false)]
+    [InlineData("PlaylistFolder", false)]
     [InlineData("Custom", false)]
     [InlineData("Series", false)]
     [InlineData("Universe", false)]
-    public void PlaylistListOrder_ListsTheSameThreeTypesTheDashboardDoes(string type, bool expected) =>
+    public void PlaylistListOrder_ListsOnlyThePlaylistTypeTheDashboardDoes(string type, bool expected) =>
         Assert.Equal(expected, PlaylistListOrder.IsUserVisiblePlaylist(new ManagedCollectionDto { CollectionType = type }));
 
     // Seeds ------------------------------------------------------------------------------------------------------

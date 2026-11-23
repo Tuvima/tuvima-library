@@ -42,8 +42,9 @@ public sealed class CollectionItemDto
     public string? PositionLabel { get; set; }
 
     /// <summary>
-    /// The file that plays a playlist's song (its own media asset). Read only for a playlist's items on the paired-app route;
-    /// null when it has none, and left out of the answer when null.
+    /// The item's representative media asset, set by the shared item read for the items of every collection. The paired-app
+    /// items route sends it only for a playlist's songs (the file that plays the song); a row that stands for a whole album or
+    /// show has none. Null when there is none, and left out of the answer when null.
     /// </summary>
     [JsonPropertyName("asset_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
