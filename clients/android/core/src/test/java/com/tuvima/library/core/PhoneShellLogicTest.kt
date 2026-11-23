@@ -33,11 +33,14 @@ class PhoneShellLogicTest {
     }
 
     @Test
-    fun theMenuListsHomeMyListRecentlyAddedTheLanesThenSettingsAndSwitchProfile() {
+    fun theMenuListsHomeMyListRecentlyAddedTheLanesThenSettingsSwitchProfileAndSignOut() {
         val items = PhoneShellLogic.menuItems(isKids = false, profileCount = 3)
 
         assertEquals(
-            listOf("Home", "My List", "Recently added", "Read", "Watch", "Listen", "View", "Collections", "Settings", "Switch profile"),
+            listOf(
+                "Home", "My List", "Recently added", "Read", "Watch", "Listen", "View", "Collections",
+                "Settings", "Switch profile", "Sign out",
+            ),
             items.map { it.label },
         )
         assertEquals(listOf("Settings"), items.filter { it.afterDivider }.map { it.label })
@@ -48,15 +51,35 @@ class PhoneShellLogicTest {
     fun switchProfileIsOnlyOfferedWhenTheHouseholdHasMoreThanOneProfile() {
         assertFalse(PhoneShellLogic.menuItems(isKids = false, profileCount = 1).any { it.target == PhoneMenuTarget.SwitchProfile })
         assertTrue(PhoneShellLogic.menuItems(isKids = false, profileCount = 2).any { it.target == PhoneMenuTarget.SwitchProfile })
+        assertEquals(
+            listOf("Settings", "Sign out"),
+            PhoneShellLogic.menuItems(isKids = false, profileCount = 1).takeLast(2).map { it.label },
+        )
     }
 
     @Test
-    fun aKidsMenuHasNoRecentlyAddedAndNoSettings() {
+    fun aKidsMenuHasNoRecentlyAddedAndNoSettingsAndEndsWithSignOut() {
+        val items = PhoneShellLogic.menuItems(isKids = true, profileCount = 1)
+
+        assertEquals(listOf("Home", "My List", "Watch", "Listen", "Read", "Sign out"), items.map { it.label })
+        // With no Settings row, Sign out starts the group below the rule.
+        assertTrue(items.last().afterDivider)
+    }
+
+    @Test
+    fun aKidsProfileStillMayChangePersonWhenTheHouseholdHasMoreThanOne() {
         val items = PhoneShellLogic.menuItems(isKids = true, profileCount = 2)
 
-        assertEquals(listOf("Home", "My List", "Watch", "Listen", "Read", "Switch profile"), items.map { it.label })
-        // With no Settings row, Switch profile starts the group below the rule.
-        assertTrue(items.last().afterDivider)
+        assertEquals(listOf("Switch profile", "Sign out"), items.takeLast(2).map { it.label })
+        assertEquals(listOf("Switch profile"), items.filter { it.afterDivider }.map { it.label })
+        assertFalse(items.any { it.target == PhoneMenuTarget.Settings })
+    }
+
+    @Test
+    fun theShellFailsClosedToTheKidsShellUntilTheProfileIsKnownToBeAnAdult() {
+        assertTrue(PhoneShellLogic.treatAsKids(true))
+        assertTrue(PhoneShellLogic.treatAsKids(null))
+        assertFalse(PhoneShellLogic.treatAsKids(false))
     }
 
     @Test

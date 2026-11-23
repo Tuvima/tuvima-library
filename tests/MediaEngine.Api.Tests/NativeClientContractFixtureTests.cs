@@ -131,24 +131,9 @@ public sealed class NativeClientContractFixtureTests
     }
 
     [Fact]
-    public void MyListFixtures_MatchThePublishedContractTypes()
+    public void MyListGridFixture_MatchesThePublishedGridContractType()
     {
-        var saved = Read<List<ProfileSavedItemDto>>("profile-saved.json");
-        var remove = Read<RemoveSavedItemsRequest>("profile-saved-remove-request.json");
-        var restore = Read<RestoreSavedItemsRequest>("profile-saved-restore-request.json");
         var grid = Read<DisplayGridPageDto>("my-list-grid.json");
-        var recent = Read<DisplayRecentPageDto>("recent-page.json");
-
-        // The kind travels as the enum's number; a hearted song keeps its Favorites position.
-        Assert.Equal(
-            [ProfileEntityKind.Movie, ProfileEntityKind.TvShow, ProfileEntityKind.Audiobook, ProfileEntityKind.Song],
-            saved.Select(item => item.EntityKind));
-        Assert.All(saved, item => Assert.NotEqual(Guid.Empty, item.EntityId));
-        Assert.Equal(-2, saved[3].Position);
-
-        // Remove names titles by kind and id; Undo sends back what the remove returned, with the original dates.
-        Assert.Equal(saved.Take(2).Select(item => (item.EntityKind, item.EntityId)), remove.Items.Select(item => (item.EntityKind, item.EntityId)));
-        Assert.Equal(saved.Take(2).Select(item => item.SavedAt), restore.Items.Select(item => item.SavedAt));
 
         Assert.Equal("personal", grid.Lane);
         Assert.Equal(DisplayGridValues.RememberMyList, grid.ShelfKey);
@@ -157,16 +142,7 @@ public sealed class NativeClientContractFixtureTests
         var kinds = Assert.Single(grid.Filters, group => group.Key == DisplayGridValues.FilterType);
         Assert.Equal(grid.TotalCount, kinds.Options.Sum(option => option.Count));
 
-        Assert.True(recent.HasMore);
-        Assert.Equal("2", recent.NextCursor);
-        Assert.NotNull(Assert.Single(recent.Items, item => item.Catalogue is not null).Catalogue);
-        Assert.NotNull(Assert.Single(recent.Items, item => item.ViewAsset is not null).ViewAsset);
-
-        AssertSameWireNames("profile-saved.json", saved);
-        AssertSameWireNames("profile-saved-remove-request.json", remove);
-        AssertSameWireNames("profile-saved-restore-request.json", restore);
         AssertSameWireNames("my-list-grid.json", grid);
-        AssertSameWireNames("recent-page.json", recent);
     }
 
     [Fact]

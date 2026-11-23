@@ -12,15 +12,22 @@ class SavedItemsTest {
 
     @Test
     fun theEnginesFixtureReadsAsTheSavedTitlesInOrder() {
-        val items = parseSavedItems(JSONArray(WireFixtures.text("profile-saved.json")))
+        val items = parseSavedItems(JSONArray(WireFixtures.text("my-list-saved.json")))
 
         assertEquals(
-            listOf(SavedKind.Movie, SavedKind.TvShow, SavedKind.Audiobook, SavedKind.Song),
+            listOf(SavedKind.Movie, SavedKind.TvShow, SavedKind.Book),
             items.map { it.key.kind },
         )
-        assertEquals("2026-11-20T10:15:00+00:00", items[0].savedAt)
+        assertEquals("2026-11-01T09:30:00+00:00", items[0].savedAt)
         assertNull(items[0].position)
-        assertEquals(-2, items[3].position)
+    }
+
+    @Test
+    fun aHeartedSongKeepsItsFavoritesPosition() {
+        val items = parseSavedItems(JSONArray("""[{"entityKind":6,"entityId":"$movie","savedAt":"2026-11-12T00:00:00+00:00","position":-2}]"""))
+
+        assertEquals(SavedKind.Song, items.single().key.kind)
+        assertEquals(-2, items.single().position)
     }
 
     @Test
@@ -88,12 +95,12 @@ class SavedItemsTest {
 
     @Test
     fun undoSendsBackTheOriginalDatesAndPositions() {
-        val removed = parseSavedItems(JSONArray(WireFixtures.text("profile-saved.json"))).take(2)
+        val removed = parseSavedItems(JSONArray(WireFixtures.text("my-list-saved.json"))).take(2)
 
         val body = restoreSavedBody(removed)
 
         val items = body.getJSONArray("items")
-        assertEquals("2026-11-20T10:15:00+00:00", items.getJSONObject(0).getString("savedAt"))
+        assertEquals("2026-11-01T09:30:00+00:00", items.getJSONObject(0).getString("savedAt"))
         assertTrue(items.getJSONObject(0).isNull("position"))
         assertEquals(1, items.getJSONObject(1).getInt("entityKind"))
     }

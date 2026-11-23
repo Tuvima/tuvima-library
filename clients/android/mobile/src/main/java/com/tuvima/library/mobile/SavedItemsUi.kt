@@ -36,6 +36,7 @@ import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.savedKeyForEntity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -77,13 +78,18 @@ internal class SavedItems(private val client: TuvimaClient, private val scope: C
             ?: titles?.keyForId(card.collectionId ?: card.workId ?: card.id)
     }
 
-    /** Saves the title, or takes it off, as a press on its plus or tick means. */
+    // The last request queued for each title, so a quick second press waits for the first and the Engine sees them in order.
+    private val queued = HashMap<SavedKey, Job>()
+
+    /** Saves the title, or takes it off, as a press on its plus or tick means. Presses on one title are sent one after another. */
     fun toggle(key: SavedKey) {
         val current = titles ?: return
         val save = current.pressWouldSave(key)
         titles = if (save) current.with(key) else current.without(key)
         changeFailed = false
-        scope.launch {
+        val before = queued[key]
+        val job = scope.launch {
+            before?.join()
             val accepted = try {
                 if (save) client.saveItem(key) else client.unsaveItem(key)
             } catch (cancelled: CancellationException) {
@@ -98,14 +104,18 @@ internal class SavedItems(private val client: TuvimaClient, private val scope: C
             }
             version += 1
         }
+        queued[key] = job
+        job.invokeOnCompletion { if (queued[key] === job) queued.remove(key) }
     }
 
-    /** Tells the store a remove or restore made elsewhere (the My List page) so every tick agrees. */
+    /** Tells the store a remove or restore made elsewhere (the My List page) so every tick agrees, and lists read again. */
     fun applied(removed: List<SavedItem>, restored: List<SavedItem>) {
-        var now = titles ?: return
-        removed.forEach { now = now.without(it.key) }
-        restored.forEach { now = now.with(it.key) }
-        titles = now
+        titles?.let { current ->
+            var now = current
+            removed.forEach { now = now.without(it.key) }
+            restored.forEach { now = now.with(it.key) }
+            titles = now
+        }
         version += 1
     }
 

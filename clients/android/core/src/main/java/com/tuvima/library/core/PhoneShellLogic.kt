@@ -21,7 +21,7 @@ enum class PhoneDockTab(val label: String) {
 }
 
 /** Where the menu can go. */
-enum class PhoneMenuTarget { Home, MyList, RecentlyAdded, Section, Settings, SwitchProfile }
+enum class PhoneMenuTarget { Home, MyList, RecentlyAdded, Section, Settings, SwitchProfile, SignOut }
 
 /** One menu row. [section] is set for a lane row. [afterDivider] starts the group below the rule (Settings, Switch profile). */
 data class PhoneMenuItem(
@@ -56,21 +56,28 @@ object PhoneShellLogic {
     fun topBarActions(): List<PhoneTopBarAction> = PhoneTopBarAction.entries.toList()
 
     /**
-     * The menu: Home, My List, Recently added (adults), then the lanes; below the rule, Settings (not for Kids) and Switch profile (only
-     * when the household has more than one profile). Sign out stays in Settings.
+     * The menu, with the Dashboard's rules: Home, My List, Recently added (adults), then the lanes; below the rule, Settings (not for
+     * Kids), Switch profile (only when the household has more than one profile, Kids included) and Sign out (always, as the Dashboard's
+     * phone menu has it). A Kids profile never reaches the full Settings page: its Settings row is absent.
      */
     fun menuItems(isKids: Boolean, profileCount: Int): List<PhoneMenuItem> = buildList {
         add(PhoneMenuItem(PhoneMenuTarget.Home, "Home"))
         add(PhoneMenuItem(PhoneMenuTarget.MyList, "My List"))
         if (!isKids) add(PhoneMenuItem(PhoneMenuTarget.RecentlyAdded, "Recently added"))
         sections(isKids).forEach { add(PhoneMenuItem(PhoneMenuTarget.Section, it.label, section = it)) }
-        var firstBelow = true
-        if (!isKids) {
-            add(PhoneMenuItem(PhoneMenuTarget.Settings, "Settings", afterDivider = firstBelow))
-            firstBelow = false
+        val below = buildList {
+            if (!isKids) add(PhoneMenuTarget.Settings to "Settings")
+            if (profileCount > 1) add(PhoneMenuTarget.SwitchProfile to "Switch profile")
+            add(PhoneMenuTarget.SignOut to "Sign out")
         }
-        if (profileCount > 1) add(PhoneMenuItem(PhoneMenuTarget.SwitchProfile, "Switch profile", afterDivider = firstBelow))
+        below.forEachIndexed { index, (target, label) -> add(PhoneMenuItem(target, label, afterDivider = index == 0)) }
     }
+
+    /**
+     * True while this phone's profile cannot be shown to be an adult: a Kids profile, or the profile list not read yet. The shell fails
+     * closed to the Kids shell, so a child's profile never flashes the adult menu or Settings.
+     */
+    fun treatAsKids(activeProfileIsKids: Boolean?): Boolean = activeProfileIsKids != false
 
     /** The one letter on the avatar: the profile's first letter, or a dot while the name is not known. */
     fun avatarInitial(displayName: String?): String =

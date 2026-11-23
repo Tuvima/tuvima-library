@@ -84,7 +84,7 @@ internal fun PhoneTopBar(
                 PhoneTopBarAction.Menu -> {
                     BareIconButton(PhoneShellLogic.MENU_TITLE, onMenu) { HamburgerGlyph(TuvimaTokens.textPrimary) }
                     Text(
-                        "Tuvima",
+                        "Library",
                         color = TuvimaTokens.accentPrimaryHover,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
@@ -166,7 +166,8 @@ internal fun PhoneDock(selected: PhoneDockTab?, onPick: (PhoneDockTab) -> Unit) 
                         when (tab) {
                             PhoneDockTab.Home -> Text("⌂", color = tint, fontSize = 20.sp)
                             PhoneDockTab.Search -> Text("⌕", color = tint, fontSize = 20.sp)
-                            PhoneDockTab.MyList -> BookmarkGlyph(tint)
+                            // The bookmark turns gold while My List is the open page.
+                            PhoneDockTab.MyList -> BookmarkGlyph(if (lit) TuvimaTokens.accentCollection else tint)
                         }
                         Text(tab.label, color = tint, fontSize = 13.sp, fontWeight = if (lit) FontWeight.SemiBold else FontWeight.Normal)
                     }

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -36,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.DetailMenuAction
 import com.tuvima.library.core.DetailMenuLogic
@@ -66,13 +64,14 @@ internal fun DetailScreen(
     onBack: () -> Unit,
     play: (PlayRequest) -> Unit,
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val offline = application.offline
     val downloads by offline.store().records.collectAsState()
     val kind = remember(entityType) { OfflineLogic.downloadKindFor(entityType) }
     val isShow = remember(entityType) { OfflineLogic.isShowEntity(entityType) }
     var showQualityPicker by remember { mutableStateOf(false) }
+    // What the last Download press did, shown in words under the top line (no toast).
+    var downloadNote by remember { mutableStateOf<String?>(null) }
     var selectedQuality by remember(kind) {
         mutableStateOf(OfflineLogic.defaultQualityFor(kind, application.downloadQuality()))
     }
@@ -93,7 +92,7 @@ internal fun DetailScreen(
                 profileKey = quality,
             ),
         )
-        Toast.makeText(context, enqueueMessage(result), Toast.LENGTH_LONG).show()
+        downloadNote = enqueueMessage(result)
     }
 
     fun downloadNextEpisodes(after: String) {
@@ -106,7 +105,7 @@ internal fun DetailScreen(
             } catch (failure: Exception) {
                 userMessage(failure)
             }
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            downloadNote = message
         }
     }
 
@@ -177,6 +176,13 @@ internal fun DetailScreen(
                     }
                 }
             }
+        }
+        downloadNote?.let { note ->
+            Text(
+                note,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            )
         }
         LoadView(state, retry = { attempt += 1 }) { detail ->
             LazyColumn(

@@ -41,13 +41,13 @@ private sealed interface Destination {
     data object RecentlyAdded : Destination
     data object Downloads : Destination
     data class Section(val section: PhoneSection) : Destination
-    data class Settings(val openProfiles: Boolean) : Destination
+    data class Settings(val openProfiles: Boolean, val openSignOut: Boolean = false) : Destination
 }
 
 /**
  * The signed-in app, laid out as the Dashboard is on a phone: a top bar (menu, logo, Downloads, My List, avatar), the section chips
  * (Read, Watch, Listen, View, Collections), the page, and a floating dock of three tabs (Home, Search, My List). The menu lists Home,
- * My List, Recently added, the lanes, Settings and Switch profile. Full-screen pages (details, a collection, a Universe, a gallery, the
+ * My List, Recently added, the lanes, Settings, Switch profile and Sign out. Full-screen pages (details, a collection, a Universe, a gallery, the
  * photo viewer) are shown over all of it; Back removes the top one, then returns to Home.
  */
 @Composable
@@ -86,7 +86,8 @@ internal fun MobileShell(
     BackHandler(enabled = stack.isEmpty() && !menuOpen && destination != Destination.Home) { destination = Destination.Home }
 
     val active = profiles.firstOrNull { it.isActive }
-    val isKids = active?.isKids == true
+    // Fails closed: until the profile is known to be an adult, the shell is the Kids shell (no Settings, no Recently added)
+    val isKids = PhoneShellLogic.treatAsKids(active?.isKids)
     val profileCount = profiles.size
 
     fun goTo(next: Destination) {
@@ -118,6 +119,7 @@ internal fun MobileShell(
             PhoneMenuTarget.Section -> item.section?.let { goTo(Destination.Section(it)) }
             PhoneMenuTarget.Settings -> goTo(Destination.Settings(openProfiles = false))
             PhoneMenuTarget.SwitchProfile -> goTo(Destination.Settings(openProfiles = true))
+            PhoneMenuTarget.SignOut -> goTo(Destination.Settings(openProfiles = false, openSignOut = true))
         }
     }
 
@@ -128,6 +130,7 @@ internal fun MobileShell(
         PhoneMenuTarget.Section -> (destination as? Destination.Section)?.section == item.section
         PhoneMenuTarget.Settings -> destination is Destination.Settings
         PhoneMenuTarget.SwitchProfile -> false
+        PhoneMenuTarget.SignOut -> false
     }
 
     val selectedDock: PhoneDockTab? = when (destination) {
@@ -146,13 +149,10 @@ internal fun MobileShell(
                         onMenu = { menuOpen = true },
                         onDownloads = { goTo(Destination.Downloads) },
                         onMyList = { goTo(Destination.MyList) },
-                        // The avatar leads to the people on this phone when there is more than one, otherwise to Settings (not for Kids).
+                        // The avatar leads to the people on this phone when there is more than one, otherwise to the Settings page
+                        // (for a Kids profile that page holds only the profile and Sign out).
                         onAccount = {
-                            when {
-                                profileCount > 1 -> goTo(Destination.Settings(openProfiles = true))
-                                !isKids -> goTo(Destination.Settings(openProfiles = false))
-                                else -> Unit
-                            }
+                            goTo(Destination.Settings(openProfiles = profileCount > 1))
                         },
                     )
                 },
@@ -212,6 +212,8 @@ internal fun MobileShell(
                                     onChangeServer = onChangeServer,
                                     onSignedOut = onSignedOut,
                                     openProfilesOnStart = current.openProfiles,
+                                    openSignOutOnStart = current.openSignOut,
+                                    limited = isKids,
                                 )
                             }
                         }

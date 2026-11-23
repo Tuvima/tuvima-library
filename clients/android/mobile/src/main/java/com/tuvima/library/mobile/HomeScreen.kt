@@ -90,11 +90,12 @@ private suspend fun loadHomeShelves(client: TuvimaClient): List<DisplayShelf> {
         ?.shelves?.firstOrNull { it.items.isNotEmpty() }
         ?.copy(key = "continue", title = "Continue")
     val home = client.homeShelves()
-    val rest = home.shelves.filter { it.key != "continue" && it.items.isNotEmpty() }
+    // The Engine's own "my-list" shelf is dropped too: Home draws its own My List row, kept current after every plus or tick.
+    val rest = home.shelves.filter { it.key != "continue" && it.key != "my-list" && it.items.isNotEmpty() }
     return listOfNotNull(continueShelf) + rest
 }
 
-private const val MY_LIST_ROW_SIZE = 24
+private const val MY_LIST_ROW_SIZE = 20
 
 /** A titled row of posters. [onTitleClick] makes the title open the full list behind the row (My List). */
 @Composable

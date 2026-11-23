@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RecentlyAddedTest {
-    private fun page() = RecentlyAddedLogic.parsePage(WireFixtures.json("recent-page.json"), WireFixtures.absolute)
+    private fun page() = RecentlyAddedLogic.parsePage(WireFixtures.json("display-recent.json"), WireFixtures.absolute)
 
     @Test
     fun theEnginesFixtureReadsAsCatalogueCardsAndTheCursor() {
@@ -14,7 +14,7 @@ class RecentlyAddedTest {
 
         // The personal photo (a View asset) is left to the View section.
         assertEquals(listOf("Alpha One"), page.cards.map { it.title })
-        assertEquals("2", page.nextCursor)
+        assertEquals("opaque-cursor-1", page.nextCursor)
         assertTrue(page.hasMore)
         assertEquals(listOf("watch", "read", "view"), page.availableTypes)
     }

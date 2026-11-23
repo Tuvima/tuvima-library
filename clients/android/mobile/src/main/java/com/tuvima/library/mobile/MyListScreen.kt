@@ -185,6 +185,14 @@ internal fun MyListScreen(
         saved.load()
         list.reload()
     }
+    // Any plus, tick, removal or Undo (here or elsewhere) changes what this list should show, so it is read again in place.
+    var seenVersion by remember { mutableIntStateOf(saved.version) }
+    LaunchedEffect(saved.version) {
+        if (saved.version != seenVersion) {
+            seenVersion = saved.version
+            list.reload(silent = true)
+        }
+    }
     LaunchedEffect(client) {
         // Best effort: without Continue the list is still complete.
         continueShelf = runCatching { client.continueAll() }.getOrNull()
@@ -205,9 +213,9 @@ internal fun MyListScreen(
         scope.launch {
             try {
                 val removed = client.removeSavedItems(keys)
+                // The change bumps the saved version, which reads the grid again.
                 saved.applied(removed, emptyList())
                 undo = UndoOffer.forRemoved(removed)
-                list.reload(silent = true)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
@@ -229,7 +237,6 @@ internal fun MyListScreen(
                 val removed = client.removeSavedItems(finished.map { it.key })
                 saved.applied(removed, emptyList())
                 undo = UndoOffer.forRemoved(removed)
-                list.reload(silent = true)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
@@ -245,7 +252,6 @@ internal fun MyListScreen(
             try {
                 val restored = client.restoreSavedItems(offer.removed)
                 saved.applied(emptyList(), restored)
-                list.reload(silent = true)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
@@ -371,7 +377,10 @@ internal fun MyListScreen(
             if (index >= list.cards.size - 6) {
                 LaunchedEffect(list.cards.size) { list.loadMore() }
             }
-            PosterTile(client, card, Modifier.fillMaxWidth(), onSavedPress = { key -> remove(listOf(key)) }) { openCard(card) }
+            PosterTile(client, card, Modifier.fillMaxWidth(), onSavedPress = { key ->
+                // A tick removes (with Undo); a plus, on a card that is no longer saved, adds it back.
+                if (saved.titles?.contains(key) == true) remove(listOf(key)) else saved.toggle(key)
+            }) { openCard(card) }
         }
 
         if (list.loadingMore || list.moreFailed) {
