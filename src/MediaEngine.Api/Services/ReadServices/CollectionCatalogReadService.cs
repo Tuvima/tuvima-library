@@ -21,7 +21,7 @@ namespace MediaEngine.Api.Services.ReadServices;
 public sealed record CollectionItemReadResult(bool Found, bool Forbidden, List<CollectionItemDto> Items);
 
 /// <summary>One page of a collection's items for a paired app, with the number of items the profile may see in all.</summary>
-public sealed record CollectionItemPageResult(bool Found, bool Forbidden, int TotalCount, List<CollectionItemDto> Items);
+public sealed record CollectionItemPageResult(bool Found, bool Forbidden, int TotalCount, List<CollectionItemDto> Items, bool IsPlaylist = false);
 
 public sealed class CollectionCatalogReadService(
     ICollectionRepository collectionRepo,
@@ -324,8 +324,8 @@ public sealed class CollectionCatalogReadService(
 
     /// <summary>
     /// One page of a collection's items for a paired app. The collection must be one the catalogue would list for the
-    /// profile (enabled, openable by the profile, a supported rule, not a playlist); anything else is reported as
-    /// forbidden so the caller answers it like an unknown collection. The ordered ids are resolved once and only the
+    /// profile (enabled, openable by the profile, a supported rule), or one of the profile's own playlists; anything else is
+    /// reported as forbidden so the caller answers it like an unknown collection. The ordered ids are resolved once and only the
     /// page's items are then looked up, except for generated series, whose order comes from the lookup itself and are
     /// resolved whole. Returns up to <paramref name="limit"/> + 1 items so the caller can tell whether more follow.
     /// </summary>
@@ -343,13 +343,16 @@ public sealed class CollectionCatalogReadService(
             return new CollectionItemPageResult(false, false, 0, []);
         }
 
+        // A playlist is read for its owner only: the paired profile's own list, the same rule as the playlist list route. The
+        // Collections catalogue never lists one, so every other collection keeps its catalogue rules (a season window applies).
+        var isPlaylist = IsPlaylistCatalogCollection(collection);
         if (!collection.IsEnabled
             || !CollectionAccessPolicy.CanAccess(collection, activeProfile)
             || !HasSupportedRuleDefinition(collection)
-            || IsPlaylistCatalogCollection(collection)
-            || !CollectionOptionsPolicy.IsInSeason(collection, Today))
+            || (isPlaylist && (activeProfile is null || collection.ProfileId != activeProfile.Id))
+            || (!isPlaylist && !CollectionOptionsPolicy.IsInSeason(collection, Today)))
         {
-            return new CollectionItemPageResult(true, true, 0, []);
+            return new CollectionItemPageResult(true, true, 0, [], isPlaylist);
         }
 
         var take = limit + 1;
@@ -359,8 +362,8 @@ public sealed class CollectionCatalogReadService(
         {
             // Hand-picked: the members are already owned, allowed and unique per root, so only the page is looked up.
             var page = await mediaLookupReadService.ResolveItemsAsync(
-                collection.Id, rootMembers.Items.Skip(offset).Take(take).ToList(), ct, allowedMemberIds, IsPlaylistCatalogCollection(collection)).ConfigureAwait(false);
-            return new CollectionItemPageResult(true, false, rootMembers.Items.Count, page);
+                collection.Id, rootMembers.Items.Skip(offset).Take(take).ToList(), ct, allowedMemberIds, isPlaylist).ConfigureAwait(false);
+            return new CollectionItemPageResult(true, false, rootMembers.Items.Count, await WithSongDetailsAsync(page, isPlaylist, ct).ConfigureAwait(false), isPlaylist);
         }
 
         if (!rootMembers.PreserveOrder)
@@ -368,7 +371,7 @@ public sealed class CollectionCatalogReadService(
             // The order of a generated series comes from the lookup itself, so the whole set is resolved.
             var all = await ResolveCollectionWorkIdsToItemsAsync(
                 collection.Id, rootIds.Take(MaxPagedItems).ToList(), preserveRequestedOrder: false, UsesSeriesOrdering(collection), allowedMemberIds, ct).ConfigureAwait(false);
-            return new CollectionItemPageResult(true, false, all.Count, all.Skip(offset).Take(take).ToList());
+            return new CollectionItemPageResult(true, false, all.Count, await WithSongDetailsAsync(all.Skip(offset).Take(take).ToList(), isPlaylist, ct).ConfigureAwait(false), isPlaylist);
         }
 
         var queryIds = rootIds.Take(MaxPagedItems).ToList();
@@ -380,7 +383,115 @@ public sealed class CollectionCatalogReadService(
             item.SortOrder += offset;
         }
 
-        return new CollectionItemPageResult(true, false, queryIds.Count, resolved);
+        return new CollectionItemPageResult(true, false, queryIds.Count, await WithSongDetailsAsync(resolved, isPlaylist, ct).ConfigureAwait(false), isPlaylist);
+    }
+
+    /// <summary>
+    /// Whether the id is a playlist (any of the playlist types). The item route asks first so a playlist page can use its own
+    /// default and largest page size: a long playlist has to be paged through in a few reads.
+    /// </summary>
+    public async Task<bool> IsPlaylistAsync(Guid collectionId, CancellationToken ct = default) =>
+        await collectionRepo.GetByIdAsync(collectionId, ct).ConfigureAwait(false) is { } collection
+        && IsPlaylistCatalogCollection(collection);
+
+    /// <summary>
+    /// What a phone needs to play a song from a playlist page and show its row: the album and the stored length, read the way
+    /// the Dashboard's Listen catalogue reads them (the song's own value, then its album's, then its file's). Only a playlist's
+    /// items are filled; any other collection's items keep their shape. A value that is not there stays out of the answer.
+    /// </summary>
+    private async Task<List<CollectionItemDto>> WithSongDetailsAsync(List<CollectionItemDto> items, bool isPlaylist, CancellationToken ct)
+    {
+        if (!isPlaylist)
+        {
+            // The file address is a playlist song's own field: another collection's item is opened from its details page.
+            foreach (var item in items)
+            {
+                item.AssetId = null;
+            }
+
+            return items;
+        }
+
+        if (items.Count == 0)
+        {
+            return items;
+        }
+
+        var entityIds = items
+            .SelectMany(item => item.AssetId is { } assetId ? new[] { item.WorkId, assetId } : new[] { item.WorkId })
+            .Distinct()
+            .ToList();
+        var values = new List<SongValueRow>();
+        var parents = new Dictionary<Guid, Guid>();
+        using var conn = db.CreateConnection();
+        foreach (var chunk in entityIds.Chunk(MaxSqlIdsPerQuery))
+        {
+            var ids = chunk.Select(GuidSql.ToBlob).ToArray();
+            values.AddRange(await conn.QueryAsync<SongValueRow>(new CommandDefinition(
+                """
+                -- readiness: reads two descriptive values of works and files the page already lists
+                SELECT cv.entity_id AS EntityId, cv.key AS Key, CAST(cv.value AS TEXT) AS Value
+                FROM canonical_values cv
+                WHERE cv.entity_id IN @Ids AND cv.key IN ('album', 'duration_sec', 'duration_seconds');
+                """,
+                new { Ids = ids },
+                cancellationToken: ct)).ConfigureAwait(false));
+            foreach (var row in await conn.QueryAsync<SongParentRow>(new CommandDefinition(
+                "-- readiness: the album work of songs the page already lists\nSELECT w.id AS WorkId, w.parent_work_id AS ParentWorkId FROM works w WHERE w.id IN @Ids AND w.parent_work_id IS NOT NULL;",
+                new { Ids = ids },
+                cancellationToken: ct)).ConfigureAwait(false))
+            {
+                parents[row.WorkId] = row.ParentWorkId;
+            }
+        }
+
+        // The album work's own value is read too: a song often keeps the album name only on its album.
+        var missingParents = parents.Values.Where(parent => !entityIds.Contains(parent)).Distinct().ToList();
+        foreach (var chunk in missingParents.Chunk(MaxSqlIdsPerQuery))
+        {
+            values.AddRange(await conn.QueryAsync<SongValueRow>(new CommandDefinition(
+                """
+                -- readiness: reads the album name kept on the album work of songs the page already lists
+                SELECT cv.entity_id AS EntityId, cv.key AS Key, CAST(cv.value AS TEXT) AS Value
+                FROM canonical_values cv
+                WHERE cv.entity_id IN @Ids AND cv.key = 'album';
+                """,
+                new { Ids = chunk.Select(GuidSql.ToBlob).ToArray() },
+                cancellationToken: ct)).ConfigureAwait(false));
+        }
+
+        var byEntity = values.ToLookup(row => row.EntityId);
+        string? ValueOf(Guid? entity, params string[] keys) => entity is null
+            ? null
+            : byEntity[entity.Value]
+                .Where(row => keys.Contains(row.Key) && !string.IsNullOrWhiteSpace(row.Value))
+                .OrderBy(row => Array.IndexOf(keys, row.Key))
+                .Select(row => row.Value!.Trim())
+                .FirstOrDefault();
+        foreach (var item in items)
+        {
+            Guid? albumWork = parents.TryGetValue(item.WorkId, out var parent) ? parent : null;
+            item.Album = ValueOf(item.WorkId, "album") ?? ValueOf(albumWork, "album") ?? ValueOf(item.AssetId, "album");
+            var length = ValueOf(item.WorkId, "duration_sec", "duration_seconds") ?? ValueOf(item.AssetId, "duration_sec", "duration_seconds");
+            item.DurationSeconds = double.TryParse(length, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0
+                ? seconds
+                : null;
+        }
+
+        return items;
+    }
+
+    private sealed class SongValueRow
+    {
+        public Guid EntityId { get; init; }
+        public string Key { get; init; } = string.Empty;
+        public string? Value { get; init; }
+    }
+
+    private sealed class SongParentRow
+    {
+        public Guid WorkId { get; init; }
+        public Guid ParentWorkId { get; init; }
     }
 
     /// <summary>
@@ -1759,6 +1870,7 @@ public sealed class CollectionCatalogReadService(
                 CoverUrl = ResolveCollectionItemCoverUrl(row),
                 SortOrder = seriesOrdering || preserveRequestedOrder ? index : row.LegacySortOrder,
                 DetailRoute = BuildCollectionItemDetailRoute(row),
+                AssetId = row.MediaAssetId,
                 MembershipScope = string.IsNullOrWhiteSpace(row.MembershipScope)
                     ? SeriesMembershipScopeNames.MainSequence
                     : row.MembershipScope,

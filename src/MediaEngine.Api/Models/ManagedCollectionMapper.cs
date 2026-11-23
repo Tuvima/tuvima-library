@@ -248,6 +248,59 @@ internal static class ManagedCollectionMapper
             SetName = source.SetName,
             ChildCollectionCount = source.ChildCollectionCount,
         };
+
+    /// <summary>
+    /// Copies one of the paired profile's own playlists for a paired app. Apps only read: the authoring fields (rule
+    /// definition, who a list is shared with, edit rights) and the profile id are left out, and the uploaded cover's route
+    /// is not part of the app surface, so no artwork address is offered. The profile's own pin, the playlist's summed length
+    /// and the cover mode (<c>picture</c> or <c>mosaic</c>) stay: the Dashboard's Playlists page shows them too.
+    /// </summary>
+    public static ManagedCollectionDto ForNativePlaylist(ManagedCollectionDto source) =>
+        new()
+        {
+            Id = source.Id,
+            Name = source.Name,
+            Description = source.Description,
+            IconName = source.IconName,
+            CoverArtworkUrl = null,
+            BackgroundArtworkUrl = null,
+            BannerArtworkUrl = null,
+            LogoArtworkUrl = null,
+            CollectionType = source.CollectionType,
+            Scope = source.Scope,
+            ProfileId = null,
+            Visibility = source.Visibility,
+            MembershipMode = source.MembershipMode,
+            PrimaryArea = source.PrimaryArea,
+            OwnerKind = source.OwnerKind,
+            Audience = source.Audience,
+            SelectedProfileIds = [],
+            IsEnabled = source.IsEnabled,
+            IsFeatured = source.IsFeatured,
+            MinItems = source.MinItems,
+            MaxItems = source.MaxItems,
+            SeasonFrom = source.SeasonFrom,
+            SeasonTo = source.SeasonTo,
+            HiddenUntil = source.HiddenUntil,
+            RuleJson = null,
+            Resolution = source.Resolution,
+            RuleHash = null,
+            MatchMode = source.MatchMode,
+            SortField = source.SortField,
+            SortDirection = source.SortDirection,
+            SecondarySortField = source.SecondarySortField,
+            SecondarySortDirection = source.SecondarySortDirection,
+            RefreshSchedule = null,
+            ItemCount = source.ItemCount,
+            CoverMode = source.CoverMode,
+            IsPinned = source.IsPinned,
+            TotalDurationSeconds = source.TotalDurationSeconds,
+            Status = source.Status,
+            CreatedAt = source.CreatedAt,
+            ModifiedAt = source.ModifiedAt,
+            CanEdit = false,
+            CanShare = false,
+        };
 }
 
 /// <summary>How a collection fills up and where it came from, worked out once per catalog read for the Collections page.</summary>

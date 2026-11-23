@@ -478,6 +478,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                     : row.AssetId.HasValue ? $"/stream/{row.AssetId.Value:D}/cover" : null,
                 SortOrder = row.SortOrder,
                 DetailRoute = BuildResolvedItemRoute(row),
+                AssetId = row.AssetId,
             }).ToList();
     }
 

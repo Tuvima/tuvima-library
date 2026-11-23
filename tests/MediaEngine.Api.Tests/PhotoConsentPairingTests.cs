@@ -97,7 +97,7 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
         _routes =
         [
             "/api/v1/view/timeline", "/api/v1/view/galleries", $"/api/v1/view/galleries/{_gallery:D}/items",
-            "/api/v1/view/people", "/api/v1/view/people/ana/items", "/api/v1/view/places",
+            "/api/v1/view/people", "/api/v1/view/people/ana/items", "/api/v1/view/places", "/api/v1/view/places/paris/items",
             $"/api/v1/view/items/{_photo:D}", $"/api/v1/view/items/{_photo:D}/thumbnail",
             $"/api/v1/view/items/{_photo:D}/preview", $"/api/v1/view/items/{_photo:D}/original",
             $"/api/v1/view/items/{_video:D}/playback",

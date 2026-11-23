@@ -1694,6 +1694,9 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionIt
   DetailRoute: System.String | nullability=nullable | accessors=get,set
   MembershipScope: System.String | nullability=not-null | accessors=get,set
   PositionLabel: System.String | nullability=nullable | accessors=get,set
+  AssetId: System.Guid? | nullability=nullable | accessors=get,set
+  Album: System.String | nullability=nullable | accessors=get,set
+  DurationSeconds: System.Double? | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionItemMoveRequest
   Position: System.Int32? | nullability=nullable | accessors=get,init
