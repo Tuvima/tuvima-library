@@ -254,6 +254,7 @@ class VideoPlayerActivity : ComponentActivity() {
     private var nextEpisodes by mutableStateOf<List<NextEpisode>>(emptyList())
     private var nextRequested = false
     private var cancelledFor by mutableStateOf<String?>(null)
+    private var endCardClosedFor by mutableStateOf<String?>(null)
     private var finished by mutableStateOf(false)
     private var advancing = false
     // The controls' visibility lives here (not in the screen) so Back and Escape can close them before leaving.
@@ -634,7 +635,8 @@ class VideoPlayerActivity : ComponentActivity() {
                 seasons = TvEpisodes.seasons(json) { it }
                 json.optString("title").takeIf { it.isNotBlank() }?.let { showTitle = it }
                 seasonShown = TvEpisodes.seasonIndexOf(seasons, assetId)
-                TvEpisodes.find(seasons, assetId)?.workId?.takeIf { it.isNotBlank() }?.let { workId = it }
+                // The episode's own work (a season's page names a container, not the work), so its bookmarks are the real ones.
+                TvEpisodes.find(seasons, assetId)?.workId?.takeIf { it.isNotBlank() }?.let { changeWork(it) }
                 loadBookmarks()
             } catch (error: CancellationException) {
                 throw error
@@ -765,16 +767,32 @@ class VideoPlayerActivity : ComponentActivity() {
         val app = application as TuvimaMobileApplication
         val client = app.client
         lifecycleScope.launch {
-            bookmarks = try {
-                client?.bookmarks(work) ?: app.offline.bookmarksFor(work)
+            val read = try {
+                // The Engine's list plus any bookmark made on this phone that has not been sent yet, so it does not vanish before the sync.
+                client?.bookmarks(work)?.let { OfflineBookmarkLogic.mergeWaiting(it, app.offline.store().pendingBookmarks(), work) }
+                    ?: app.offline.bookmarksFor(work)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
                 // No connection: show the bookmarks this phone holds for the title (an empty list when it is not a download).
                 app.offline.bookmarksFor(work)
             }
-            bookmarksLoaded = true
+            // Another episode may have started while this was being read; its list is read on its own.
+            if (workId == work) {
+                bookmarks = read
+                bookmarksLoaded = true
+            }
         }
+    }
+
+    /** Points the bookmarks at another work (the next episode, or the season's real episode work): the list is read again for it. */
+    private fun changeWork(newWorkId: String?) {
+        if (newWorkId == workId) return
+        workId = newWorkId
+        bookmarks = emptyList()
+        bookmarksLoaded = false
+        bookmarkSaveFailed = false
+        bookmarksRequested = false
     }
 
     /** "Bookmark at {0}": saved at the moment it was pressed, at once; on a download with no connection it waits on the phone. */
@@ -790,13 +808,14 @@ class VideoPlayerActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 if (client == null) throw java.io.IOException("No connection")
-                bookmarks = PhoneBookmarks.withAdded(bookmarks, client.createBookmark(work, body))
+                val created = client.createBookmark(work, body)
+                if (workId == work) bookmarks = PhoneBookmarks.withAdded(bookmarks, created)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                // Saved on the phone when this is a download (its note is not kept); otherwise the panel says it could not save.
-                if (playingDownload() && app.offline.addBookmarkOffline(forAsset, position, duration)) {
-                    bookmarks = app.offline.bookmarksFor(work)
+                // Saved on the phone, with its note, when this is a download; otherwise the panel says it could not save.
+                if (playingDownload() && app.offline.addBookmarkOffline(forAsset, position, duration, note)) {
+                    if (workId == work) bookmarks = OfflineBookmarkLogic.mergeWaiting(bookmarks.filterNot { OfflineBookmarkLogic.isWaiting(it.id) }, app.offline.store().pendingBookmarks(), work)
                 } else {
                     bookmarkSaveFailed = true
                 }
@@ -854,6 +873,7 @@ class VideoPlayerActivity : ComponentActivity() {
         assetId = episode.assetId
         title = episode.title.ifBlank { title }
         subtitle = com.tuvima.library.core.OfflineLogic.episodeLabel(episode.seasonNumber, episode.episodeNumber)
+        // The next episode's bookmarks start afresh, even when its work is not known yet.
         workId = episode.workId?.takeIf { it.isNotBlank() }
         bookmarks = emptyList()
         bookmarksLoaded = false
@@ -1321,13 +1341,14 @@ class VideoPlayerActivity : ComponentActivity() {
                             ) { Text(skip.label) }
                         }
                     }
-                    if (next != null && nextOffer != NextEpisodeOffer.None) {
+                    if (next != null && nextOffer != NextEpisodeOffer.None && endCardClosedFor != assetId) {
                         NextEpisodeCard(
                             next = next,
                             countdown = nextOffer == NextEpisodeOffer.Countdown,
                             raised = controlsVisible,
                             onPlay = { playEpisode(next, previousEnded = true) },
-                            onCancel = { cancelledFor = assetId },
+                            // With a countdown running Cancel stops it (the card stays); on a card with no countdown it closes the card.
+                            onCancel = { if (nextOffer == NextEpisodeOffer.Countdown) cancelledFor = assetId else endCardClosedFor = assetId },
                         )
                     } else if (!isPlaying && !buffering && !finished && sheet == Sheet.None) {
                         PausedDetails(durationSeconds, raised = controlsVisible)
@@ -1447,6 +1468,7 @@ class VideoPlayerActivity : ComponentActivity() {
                 Sheet.Speed -> SpeedSheet(
                     speed = speed.toDouble(),
                     onSet = { setSpeed(it) },
+                    onPreview = { controller?.setPlaybackSpeed(TvPlayerLogic.clampSpeed(it).toFloat()) },
                     onClose = { sheet = Sheet.None },
                     onBack = { sheet = Sheet.Settings },
                 )
@@ -1759,7 +1781,7 @@ class VideoPlayerActivity : ComponentActivity() {
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (countdown) OutlinedButton(onClick = onCancel, modifier = Modifier.sizeMinimum()) { Text(view.cancel) }
+                    OutlinedButton(onClick = onCancel, modifier = Modifier.sizeMinimum()) { Text(view.cancel) }
                     Button(onClick = onPlay, modifier = Modifier.sizeMinimum()) { Text(view.playNow) }
                 }
             }

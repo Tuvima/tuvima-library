@@ -10,12 +10,17 @@ class PhonePlayerLogicTest {
     private val skip = TvSkip(10, 30)
 
     @Test
-    fun aFilmsBookmarksHangOnItsOwnWorkAndAShowOrCollectionOrEpisodePageHasNone() {
+    fun aSingleTitlesBookmarksHangOnItsOwnWorkAndEveryContainerOrEpisodePageHasNone() {
         assertEquals("work-1", PhonePlayerLogic.workIdFor("movie", "work-1"))
         assertEquals("work-1", PhonePlayerLogic.workIdFor("work", "work-1?x=1"))
+        assertEquals("work-1", PhonePlayerLogic.workIdFor("audiobook", "work-1"))
+        assertEquals("work-1", PhonePlayerLogic.workIdFor("Video", "work-1"))
         assertNull(PhonePlayerLogic.workIdFor("tvShow", "show-1"))
+        assertNull(PhonePlayerLogic.workIdFor("tvSeason", "season-1"))
+        assertNull(PhonePlayerLogic.workIdFor("movieSeries", "series-1"))
         assertNull(PhonePlayerLogic.workIdFor("collection", "c-1"))
         assertNull(PhonePlayerLogic.workIdFor("tvEpisode", "e-1"))
+        assertNull(PhonePlayerLogic.workIdFor("musicAlbum", "a-1"))
         assertNull(PhonePlayerLogic.workIdFor("movie", "  "))
         assertNull(PhonePlayerLogic.workIdFor(null, "work-1"))
     }

@@ -142,15 +142,17 @@ object PhonePlayerLogic {
     }
 
     /**
-     * The work a title's bookmarks hang on, from the page that started playback: a film's or other single title's own id. A show or a
-     * collection has none, and an episode's comes from the show's episode list once that is read.
+     * The work a title's bookmarks hang on, from the page that started playback: the page's own id, but only for a type that is one
+     * playable title (a film, a folder video, an audiobook, or a plain work). A show, a season, a Series, a collection or an episode
+     * has none from its page: an episode's comes from the show's episode list once that is read.
      */
     fun workIdFor(entityType: String?, id: String?): String? {
         val clean = id?.substringBefore('?')?.substringBefore('#')?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        val type = entityType?.trim().orEmpty()
-        if (type.isEmpty() || OfflineLogic.isShowEntity(type) || type.equals("collection", ignoreCase = true) || type.equals("tvEpisode", ignoreCase = true)) return null
-        return clean
+        val type = entityType?.trim()?.lowercase()?.replace("-", "")?.replace("_", "").orEmpty()
+        return if (type in SINGLE_TITLE_TYPES) clean else null
     }
+
+    private val SINGLE_TITLE_TYPES = setOf("movie", "work", "video", "videos", "audiobook")
 
     /** The wording of an end card's countdown and buttons for a phone (the same rows as the Dashboard's and the television's). */
     fun endCard(nextTitle: String, kind: TvMediaKind, secondsLeft: Int?): TvEndCardView = TvPlayerLogic.endCard(nextTitle, kind, secondsLeft)

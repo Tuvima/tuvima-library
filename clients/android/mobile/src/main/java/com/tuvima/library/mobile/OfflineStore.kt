@@ -304,6 +304,7 @@ internal class OfflineStore(val root: File) {
             positionSeconds = json.optDouble("position_seconds", 0.0),
             durationSeconds = json.readDouble("duration_seconds"),
             recordedAtMs = json.optLong("recorded_at_ms"),
+            note = json.optString("note", ""),
         )
     }
 
@@ -339,6 +340,7 @@ internal class OfflineStore(val root: File) {
         .put("position_seconds", entry.positionSeconds)
         .putOpt("duration_seconds", entry.durationSeconds)
         .put("recorded_at_ms", entry.recordedAtMs)
+        .put("note", entry.note)
 
     private fun cachedBookmarkToJson(bookmark: TvBookmark): JSONObject = JSONObject()
         .put("id", bookmark.id)

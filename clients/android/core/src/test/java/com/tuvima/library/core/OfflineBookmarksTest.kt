@@ -72,6 +72,26 @@ class OfflineBookmarksTest {
     }
 
     @Test
+    fun body_CarriesTheTypedNoteAndOmitsItWhenThereIsNone() {
+        val noted = PendingBookmark("a", "work-1", "asset-1", 10.0, 3600.0, 1, "  Watch this  ")
+
+        assertEquals("Watch this", OfflineBookmarkLogic.body(noted).getString("note"))
+        assertFalse(OfflineBookmarkLogic.body(pending("b", 10.0, 1)).has("note"))
+    }
+
+    @Test
+    fun waitingFor_ShowsTheNoteAndMergeWaitingAddsThemToTheEnginesListByPosition() {
+        val online = listOf(bookmark("x", 300.0), bookmark("y", 10.0))
+        val queue = listOf(PendingBookmark("p", "work-1", "asset-1", 120.0, null, 1, "Good bit"), pending("other", 5.0, 2, work = "work-2"))
+
+        val merged = OfflineBookmarkLogic.mergeWaiting(online, queue, "work-1")
+
+        assertEquals(listOf("y", "offline-p", "x"), merged.map { it.id })
+        assertEquals("Good bit", merged[1].note)
+        assertEquals(listOf("y", "x"), OfflineBookmarkLogic.mergeWaiting(online, emptyList(), "work-1").map { it.id })
+    }
+
+    @Test
     fun forDisplay_AddsTheWaitingBookmarksOfThisTitleByPosition() {
         val cached = listOf(bookmark("x", 300.0), bookmark("y", 10.0))
         val waiting = listOf(pending("p", 120.0, 1), pending("other", 5.0, 2, work = "work-2"))

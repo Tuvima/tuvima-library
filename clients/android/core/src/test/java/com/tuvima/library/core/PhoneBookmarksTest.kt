@@ -94,6 +94,13 @@ class PhoneBookmarksTest {
     }
 
     @Test
+    fun aBookmarkMadeOfflineWithANoteReadsWithThatNote() {
+        val waiting = TvBookmark("offline-abc", 12.0, "Saved on this phone", "Watch this", null, "", isYours = true, inEveryone = false)
+
+        assertEquals("Watch this", PhoneBookmarks.list(listOf(waiting), TvBookmarkTab.Mine, "", true).rows.single().words)
+    }
+
+    @Test
     fun theAddBodyCarriesTheNoteOnlyWhenOneWasTypedAndNeverMakesAGlobalBookmark() {
         val plain = PhoneBookmarks.createBody("asset", 2052.04, 7200.0, "")!!
         val noted = PhoneBookmarks.createBody("asset", 10.0, null, "  Watch this  ")!!
