@@ -468,11 +468,28 @@
     else
     {
         <CascadingValue Value="@AlbumSelectionOffer" IsFixed="true">
-            <MediaTileGrid Items="@_cards"
-                           Class="browse-shell__grid"
-                           SelectionMode="@AlbumSelectionOn"
-                           IsSelected="@IsAlbumTileSelected"
-                           OnToggle="ToggleAlbumTileAsync" />
+            @if (ShowVideoFolderRows)
+            {
+                @* The Videos tab: folders of videos in their own headed row, loose videos in another, so the two never mix on one row (issue 1327). *@
+                var folders = _cards.Where(VideoFolderRows.IsFolder).ToList();
+                var loose = _cards.Where(card => !VideoFolderRows.IsFolder(card)).ToList();
+                <section class="browse-shell__video-rows" aria-labelledby="browse-video-folders">
+                    <h2 id="browse-video-folders" class="browse-shell__video-rows-title">@L["BrowseShell_VideoFolders"]</h2>
+                    <MediaTileGrid Items="@folders" Class="browse-shell__grid" />
+                </section>
+                <section class="browse-shell__video-rows" aria-labelledby="browse-loose-videos">
+                    <h2 id="browse-loose-videos" class="browse-shell__video-rows-title">@L["BrowseShell_LooseVideos"]</h2>
+                    <MediaTileGrid Items="@loose" Class="browse-shell__grid" />
+                </section>
+            }
+            else
+            {
+                <MediaTileGrid Items="@_cards"
+                               Class="browse-shell__grid"
+                               SelectionMode="@AlbumSelectionOn"
+                               IsSelected="@IsAlbumTileSelected"
+                               OnToggle="ToggleAlbumTileAsync" />
+            }
         </CascadingValue>
     }
 

@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Library;
 using MediaEngine.Web.Components.Listen;
@@ -50,6 +51,12 @@ public partial class MediaBrowseShell
 
     // The fixed tab whose per-tab rules (sort, columns, tiles, links) the active tab follows: a library's own tab follows the tab of its media type.
     private string BehaviourTabId => CurrentTab.EffectiveBehaviourId;
+
+    /// <summary>The Videos tab's folder view lists folders and loose videos in two headed rows, but only when it holds both.</summary>
+    private bool ShowVideoFolderRows => !_unmatched
+        && string.Equals(CurrentTab.MediaType, "Videos", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(_grouping, "videos", StringComparison.OrdinalIgnoreCase)
+        && VideoFolderRows.HoldsBoth(_cards);
 
     private string RootClass =>
         $"browse-shell {(Embedded ? "browse-shell--embedded" : string.Empty)}".Trim();
