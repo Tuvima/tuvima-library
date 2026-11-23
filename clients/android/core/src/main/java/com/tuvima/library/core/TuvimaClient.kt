@@ -531,6 +531,40 @@ class TuvimaClient(
         )
     }
 
+    // My List (`/api/v1/profile-state/saved`), the active profile's saved titles.
+
+    /** Everything the profile has saved (My List titles; songs hearted as Favorites share the list). */
+    suspend fun savedItems(): List<SavedItem> =
+        parseSavedItems(requestArray("GET", ClientRoutes.PROFILE_SAVED))
+
+    /** The saved titles the profile has finished, which Remove finished would take. */
+    suspend fun finishedSavedItems(): List<SavedItem> =
+        parseSavedItems(requestArray("GET", ClientRoutes.PROFILE_SAVED_FINISHED))
+
+    /** Saves one title. True when the Engine accepted it (it is also true when it was already saved). */
+    suspend fun saveItem(key: SavedKey): Boolean =
+        requestStatus("PUT", ClientRoutes.profileSaved(key.kind, key.id), JSONObject()) in 200..299
+
+    /** Takes one title off My List. True when the Engine accepted it (also when it was not saved). */
+    suspend fun unsaveItem(key: SavedKey): Boolean =
+        requestStatus("DELETE", ClientRoutes.profileSaved(key.kind, key.id), null) in 200..299
+
+    /** Takes several titles off My List and returns exactly what was taken, with the saved dates, so Undo can put them back. */
+    suspend fun removeSavedItems(keys: List<SavedKey>): List<SavedItem> =
+        parseSavedItems(JSONArray(requestText("POST", ClientRoutes.PROFILE_SAVED_REMOVE, removeSavedBody(keys), authenticated = true)))
+
+    /** Saves titles again with their original dates (Undo). Returns what was restored. */
+    suspend fun restoreSavedItems(items: List<SavedItem>): List<SavedItem> =
+        parseSavedItems(JSONArray(requestText("POST", ClientRoutes.PROFILE_SAVED_RESTORE, restoreSavedBody(items), authenticated = true)))
+
+    /** One page of the My List grid with the Dashboard's sort and kind filter applied by the Engine. */
+    suspend fun myListPage(sort: MyListSort? = null, type: String? = null, offset: Int = 0, limit: Int = MyListLogic.PAGE_SIZE): MyListPage =
+        MyListLogic.parsePage(requestJson("GET", ClientRoutes.myListGrid(sort?.wire, type, offset, limit)), ::absolute)
+
+    /** One page of Recently added, a cursor at a time. */
+    suspend fun recentPage(type: String? = null, cursor: String? = null, limit: Int = 18): RecentPage =
+        RecentlyAddedLogic.parsePage(requestJson("GET", ClientRoutes.recent(type, cursor, limit)), ::absolute)
+
     suspend fun detailPage(entityType: String, id: String): DetailModel =
         parseDetailModel(requestJson("GET", ClientRoutes.details(entityType, id)), ::absolute)
 

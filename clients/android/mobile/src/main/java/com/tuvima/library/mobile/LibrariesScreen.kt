@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.BrowseQuery
 import com.tuvima.library.core.CollectionEntry
 import com.tuvima.library.core.DisplayCard
+import com.tuvima.library.core.PhoneSection
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.ViewGallery
 import com.tuvima.library.core.ViewItem
@@ -43,44 +44,27 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-private enum class LibrarySection(val label: String) {
-    Watch("Watch"),
-    Read("Read"),
-    Listen("Listen"),
-    View("View"),
-    Collections("Collections"),
-}
-
-/** Libraries: Watch, Read, Listen, View (photos) and Collections, switched with chips at the top. */
+/**
+ * One section of the library, chosen with the chips under the top bar (the shell owns them): Read, Watch, Listen, View (photos) or
+ * Collections.
+ */
 @Composable
 internal fun LibrariesScreen(
+    section: PhoneSection,
     client: TuvimaClient,
     openCard: (DisplayCard) -> Unit,
     openCollection: (CollectionEntry) -> Unit,
     openViewer: (List<ViewItem>, Int) -> Unit,
     openGallery: (ViewGallery) -> Unit,
 ) {
-    var section by remember { mutableStateOf(LibrarySection.Watch) }
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            LibrarySection.entries.forEach { item ->
-                FilterChip(
-                    selected = section == item,
-                    onClick = { section = item },
-                    label = { Text(item.label) },
-                )
-            }
-        }
         key(section) {
             when (section) {
-                LibrarySection.Watch -> LaneBrowse(client, "watch", openCard)
-                LibrarySection.Read -> LaneBrowse(client, "read", openCard)
-                LibrarySection.Listen -> LaneBrowse(client, "listen", openCard)
-                LibrarySection.View -> PhotosScreen(client, openViewer, openGallery)
-                LibrarySection.Collections -> CollectionsScreen(client, openCollection)
+                PhoneSection.Watch -> LaneBrowse(client, "watch", openCard)
+                PhoneSection.Read -> LaneBrowse(client, "read", openCard)
+                PhoneSection.Listen -> LaneBrowse(client, "listen", openCard)
+                PhoneSection.View -> PhotosScreen(client, openViewer, openGallery)
+                PhoneSection.Collections -> CollectionsScreen(client, openCollection)
             }
         }
     }

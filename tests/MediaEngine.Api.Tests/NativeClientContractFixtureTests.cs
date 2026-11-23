@@ -131,6 +131,21 @@ public sealed class NativeClientContractFixtureTests
     }
 
     [Fact]
+    public void MyListGridFixture_MatchesThePublishedGridContractType()
+    {
+        var grid = Read<DisplayGridPageDto>("my-list-grid.json");
+
+        Assert.Equal("personal", grid.Lane);
+        Assert.Equal(DisplayGridValues.RememberMyList, grid.ShelfKey);
+        Assert.Equal(DisplayGridValues.SortAdded, grid.Sort);
+        Assert.Equal(2, grid.Items.Count);
+        var kinds = Assert.Single(grid.Filters, group => group.Key == DisplayGridValues.FilterType);
+        Assert.Equal(grid.TotalCount, kinds.Options.Sum(option => option.Count));
+
+        AssertSameWireNames("my-list-grid.json", grid);
+    }
+
+    [Fact]
     public void ProfileSwitchRequest_UsesSnakeCaseWireNames()
     {
         var json = JsonSerializer.Serialize(new SwitchDeviceProfileRequest { ProfileId = Guid.Empty, Pin = "1234" }, JsonOptions);

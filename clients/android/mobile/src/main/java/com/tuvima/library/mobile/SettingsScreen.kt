@@ -55,6 +55,12 @@ internal fun SettingsScreen(
     onProfileSwitched: (String) -> Unit,
     onChangeServer: () -> Unit,
     onSignedOut: (String?) -> Unit,
+    /** Opens the Switch profile window as soon as the screen appears (the menu's Switch profile and the avatar). */
+    openProfilesOnStart: Boolean = false,
+    /** Asks "Sign out?" as soon as the screen appears (the menu's Sign out). */
+    openSignOutOnStart: Boolean = false,
+    /** A Kids profile: only the profile and Sign out are shown, never the server, photos or download settings. */
+    limited: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     var activeName by remember { mutableStateOf<String?>(null) }
@@ -156,64 +162,75 @@ internal fun SettingsScreen(
         }
     }
 
+    LaunchedEffect(openProfilesOnStart) {
+        if (openProfilesOnStart) openProfiles()
+    }
+    LaunchedEffect(openSignOutOnStart) {
+        if (openSignOutOnStart) confirmSignOut = true
+    }
+
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium)
 
-        Text("Server", style = MaterialTheme.typography.titleMedium)
-        Text(client.serverOrigin)
-        OutlinedButton(onClick = onChangeServer) { Text("Change server") }
-
-        Spacer(Modifier.height(8.dp))
+        // A Kids profile sees only its profile and Sign out; the server, photos and download settings are for adults.
+        if (!limited) {
+            Text("Server", style = MaterialTheme.typography.titleMedium)
+            Text(client.serverOrigin)
+            OutlinedButton(onClick = onChangeServer) { Text("Change server") }
+            Spacer(Modifier.height(8.dp))
+        }
         Text("Profile", style = MaterialTheme.typography.titleMedium)
         Text(activeName?.let { "Using $it" } ?: "Using the profile this phone was paired with")
         OutlinedButton(onClick = { openProfiles() }, enabled = !busy) { Text("Switch profile") }
 
-        Spacer(Modifier.height(8.dp))
-        Text("Photos and videos", style = MaterialTheme.typography.titleMedium)
-        Text(
-            if (client.hasPhotoAccess()) {
-                "Allowed on this phone."
-            } else {
-                "Not allowed on this phone. To enable it, sign out, connect again and tick the photos and videos option."
-            },
-        )
+        if (!limited) {
+            Spacer(Modifier.height(8.dp))
+            Text("Photos and videos", style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (client.hasPhotoAccess()) {
+                    "Allowed on this phone."
+                } else {
+                    "Not allowed on this phone. To enable it, sign out, connect again and tick the photos and videos option."
+                },
+            )
 
-        Spacer(Modifier.height(8.dp))
-        Text("Default download quality", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            qualityChoices.forEach { (key, label) ->
-                FilterChip(
-                    selected = quality == key,
-                    onClick = {
-                        quality = key
-                        application.setDownloadQuality(key)
-                    },
-                    label = { Text(label) },
-                )
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-        Text("Offline storage limit", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Using ${OfflineLogic.formatBytes(OfflineLogic.committedBytes(downloads))} of " +
-                "${OfflineLogic.formatBytes(capBytes)}. New downloads are blocked once the limit is reached.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        StorageCap.optionsGb.chunked(3).forEach { options ->
+            Spacer(Modifier.height(8.dp))
+            Text("Default download quality", style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { gb ->
+                qualityChoices.forEach { (key, label) ->
                     FilterChip(
-                        selected = StorageCap.gbFor(capBytes) == gb,
+                        selected = quality == key,
                         onClick = {
-                            capBytes = StorageCap.bytesForGb(gb)
-                            application.setStorageCapBytes(capBytes)
+                            quality = key
+                            application.setDownloadQuality(key)
                         },
-                        label = { Text("$gb GB") },
+                        label = { Text(label) },
                     )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text("Offline storage limit", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Using ${OfflineLogic.formatBytes(OfflineLogic.committedBytes(downloads))} of " +
+                    "${OfflineLogic.formatBytes(capBytes)}. New downloads are blocked once the limit is reached.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            StorageCap.optionsGb.chunked(3).forEach { options ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    options.forEach { gb ->
+                        FilterChip(
+                            selected = StorageCap.gbFor(capBytes) == gb,
+                            onClick = {
+                                capBytes = StorageCap.bytesForGb(gb)
+                                application.setStorageCapBytes(capBytes)
+                            },
+                            label = { Text("$gb GB") },
+                        )
+                    }
                 }
             }
         }
