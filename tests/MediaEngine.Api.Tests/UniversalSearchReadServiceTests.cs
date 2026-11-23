@@ -698,6 +698,130 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         Assert.Equal("4 items", collection.Subtitle);
     }
 
+    [Fact]
+    public async Task SearchAsync_DoesNotReturnAnotherProfilesPrivatePlaylist_ToAnotherProfile()
+    {
+        var owner = AddProfileId("Owner");
+        var shelf = await SeedPlaylistAsync("Roadtrip Mix", owner, ownerKind: "Profile", audience: "Private", scope: "user");
+
+        // The signed-in person is the seeded profile, not the owner; the song inside is one they may see.
+        var response = await CreateService(shelf.Projection).SearchAsync("Roadtrip Mix", 20, CancellationToken.None);
+
+        Assert.DoesNotContain(response.Sections.SelectMany(section => section.Results), result => result.Id == shelf.CollectionId);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DoesNotReturnAnotherProfilesPrivatePlaylist_ToAKidsProfile()
+    {
+        var owner = AddProfileId("Owner");
+        var shelf = await SeedPlaylistAsync("Roadtrip Mix", owner, ownerKind: "Profile", audience: "Private", scope: "user");
+
+        var response = await CreateAppService(shelf.Projection, AddProfileId("Kid")).SearchAsync("Roadtrip Mix", 20, CancellationToken.None);
+
+        Assert.DoesNotContain(response.Sections.SelectMany(section => section.Results), result => result.Id == shelf.CollectionId);
+    }
+
+    [Fact]
+    public async Task SearchAsync_StillFindsAPrivatePlaylist_ForItsOwner()
+    {
+        var owner = AddProfileId("Owner");
+        var shelf = await SeedPlaylistAsync("Roadtrip Mix", owner, ownerKind: "Profile", audience: "Private", scope: "user");
+
+        var response = await CreateService(shelf.Projection, owner).SearchAsync("Roadtrip Mix", 20, CancellationToken.None);
+
+        var playlist = Assert.Single(response.Sections.Single(section => section.Key == "series-collections").Results);
+        Assert.Equal(shelf.CollectionId, playlist.Id);
+        Assert.Equal("playlist", playlist.EntityType);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ReturnsAPlaylistSharedToSelectedProfiles_OnlyToThoseProfiles()
+    {
+        var owner = AddProfileId("Owner");
+        var other = AddProfileId("Other");
+        var shelf = await SeedPlaylistAsync(
+            "Roadtrip Mix", owner, ownerKind: "Profile", audience: "SelectedProfiles", scope: "user", sharedWith: [Profile.SeedProfileId]);
+
+        var selected = await CreateService(shelf.Projection).SearchAsync("Roadtrip Mix", 20, CancellationToken.None);
+        var notSelected = await CreateService(shelf.Projection, other).SearchAsync("Roadtrip Mix", 20, CancellationToken.None);
+
+        Assert.Contains(selected.Sections.SelectMany(section => section.Results), result => result.Id == shelf.CollectionId);
+        Assert.DoesNotContain(notSelected.Sections.SelectMany(section => section.Results), result => result.Id == shelf.CollectionId);
+    }
+
+    [Fact]
+    public async Task SearchAsync_StillReturnsLibraryOwnedAndEveryoneCollections_ToAnyProfile()
+    {
+        var owner = AddProfileId("Owner");
+        var libraryShelf = await SeedPlaylistAsync("Roadtrip Library Shelf", null, ownerKind: "Library", audience: "Everyone", scope: "library");
+        var everyoneShelf = await SeedPlaylistAsync("Roadtrip Shared Shelf", owner, ownerKind: "Profile", audience: "Everyone", scope: "user");
+        var projection = new StubDisplayProjection(libraryShelf.Projection.Rows.Concat(everyoneShelf.Projection.Rows).ToArray());
+
+        var response = await CreateService(projection).SearchAsync("Roadtrip", 20, CancellationToken.None);
+
+        var found = response.Sections.SelectMany(section => section.Results).Select(result => result.Id).ToArray();
+        Assert.Contains(libraryShelf.CollectionId, found);
+        Assert.Contains(everyoneShelf.CollectionId, found);
+    }
+
+    // A playlist (or other collection) with one song the signed-in person may see, owned and shared as the arguments say.
+    private async Task<(Guid CollectionId, StubDisplayProjection Projection)> SeedPlaylistAsync(
+        string name,
+        Guid? ownerProfile,
+        string ownerKind,
+        string audience,
+        string scope,
+        Guid[]? sharedWith = null)
+    {
+        var collectionId = Guid.NewGuid();
+        var workId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO collections (id, display_name, collection_type, scope, profile_id, owner_kind, audience, created_at)
+                VALUES (@collectionId, @name, 'Playlist', @scope, @ownerProfile, @ownerKind, @audience, CURRENT_TIMESTAMP);
+                INSERT INTO works (id, media_type, work_kind) VALUES (@workId, 'Music', 'standalone');
+                INSERT INTO collection_items (id, collection_id, work_id)
+                VALUES (@itemId, @collectionId, @workId);
+                """,
+                new
+                {
+                    collectionId = GuidSql.ToBlob(collectionId),
+                    name,
+                    scope,
+                    ownerProfile = ownerProfile.HasValue ? GuidSql.ToBlob(ownerProfile.Value) : null,
+                    ownerKind,
+                    audience,
+                    workId = GuidSql.ToBlob(workId),
+                    itemId = GuidSql.ToBlob(Guid.NewGuid()),
+                });
+            foreach (var profile in sharedWith ?? [])
+            {
+                await connection.ExecuteAsync(
+                    "INSERT INTO collection_profile_audience (collection_id, profile_id) VALUES (@collectionId, @profile)",
+                    new { collectionId = GuidSql.ToBlob(collectionId), profile = GuidSql.ToBlob(profile) });
+            }
+        }
+
+        var projection = new StubDisplayProjection(
+        [
+            new DisplayWorkRow { WorkId = workId, AssetId = assetId, MediaType = "Music", Title = $"{name} Song" },
+        ]);
+        return (collectionId, projection);
+    }
+
+    private Guid AddProfileId(string name)
+    {
+        var id = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            "INSERT INTO profiles (id, display_name, created_at) VALUES (@id, @name, @now)",
+            new { id = GuidSql.ToBlob(id), name, now = DateTimeOffset.UtcNow.ToString("O") });
+        return id;
+    }
+
     // One collection with a raw cover and three members: a restricted one (absent from the authorized projection, first in order),
     // an allowed one without a cover, and an allowed one with a cover.
     private async Task<(Guid CollectionId, StubDisplayProjection Projection, string AllowedCover)> SeedMixedCollectionAsync()
@@ -978,14 +1102,14 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         new ProfileRepository(_db),
         new WaitingPersonalStateRepository(_db));
 
-    private UniversalSearchReadService CreateService(IDisplayProjectionReadService display)
+    private UniversalSearchReadService CreateService(IDisplayProjectionReadService display, Guid? activeProfileId = null)
     {
         var context = new DefaultHttpContext();
         return new UniversalSearchReadService(
             _db,
             display,
             new HttpContextAccessor { HttpContext = context },
-            TestViewAuthorityResolver.Human(Profile.SeedProfileId),
+            TestViewAuthorityResolver.Human(activeProfileId ?? Profile.SeedProfileId),
             SpoilerTestKit.Create(display, _db),
             new ProfileRepository(_db),
             new WaitingPersonalStateRepository(_db));
