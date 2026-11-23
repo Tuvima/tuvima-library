@@ -13,7 +13,8 @@ class DetailMenuLogicTest {
         downloadLabel: String = "Download",
         downloadEnabled: Boolean = true,
         canDownloadNextEpisodes: Boolean = false,
-    ) = DetailMenuLogic.items(canSave, isSaved, canDownload, downloadLabel, downloadEnabled, canDownloadNextEpisodes)
+        canDownloadAll: Boolean = false,
+    ) = DetailMenuLogic.items(canSave, isSaved, canDownload, downloadLabel, downloadEnabled, canDownloadNextEpisodes, canDownloadAll)
 
     @Test
     fun aMovieMenuHoldsMyListThenDownloadAndNeverEditOrAddToCollection() {
@@ -47,6 +48,18 @@ class DetailMenuLogicTest {
     @Test
     fun aBookWithNothingToDownloadKeepsOnlyMyList() {
         assertEquals(listOf(DetailMenuAction.ToggleMyList), items(canDownload = false, canDownloadNextEpisodes = true).map { it.action })
+    }
+
+    @Test
+    fun aPageThatListsSeveralFilesOffersDownloadAllLastEvenWithNoSingleFileToDownload() {
+        assertEquals(
+            listOf(DetailMenuAction.ToggleMyList, DetailMenuAction.Download, DetailMenuAction.DownloadAll),
+            items(canDownloadAll = true).map { it.action },
+        )
+        assertEquals(
+            listOf(DetailMenuAction.ToggleMyList, DetailMenuAction.DownloadAll),
+            items(canDownload = false, canDownloadAll = true).map { it.action },
+        )
     }
 
     @Test

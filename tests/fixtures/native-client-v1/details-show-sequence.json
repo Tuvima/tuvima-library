@@ -1,0 +1,107 @@
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "entityType": 3,
+  "title": "The Fixture Show",
+  "mediaGroups": [],
+  "sequencePlacement": {
+    "containerId": "11111111-1111-1111-1111-111111111111",
+    "containerTitle": "The Fixture Show",
+    "groups": [
+      {
+        "key": "season-1",
+        "title": "Season 1",
+        "entityId": "22222222-2222-2222-2222-222222222221",
+        "ownedCount": 2,
+        "itemCount": 3,
+        "items": [
+          {
+            "id": "88888888-8888-8888-8888-888888888881",
+            "entityType": 5,
+            "title": "The First Door",
+            "isOwned": true,
+            "groupKey": "season-1",
+            "groupTitle": "Season 1",
+            "positionNumber": 1,
+            "artworkUrl": "/api/v1/display/artwork/fixture/still-one",
+            "episodeContext": {
+              "showWorkId": "11111111-1111-1111-1111-111111111111",
+              "episodeWorkId": "88888888-8888-8888-8888-888888888881",
+              "episodeAssetId": "99999999-9999-9999-9999-999999999991",
+              "showTitle": "The Fixture Show",
+              "episodeTitle": "The First Door",
+              "seasonNumber": 1,
+              "episodeNumber": 1,
+              "state": "Unstarted",
+              "positionSeconds": null,
+              "durationSeconds": null
+            }
+          },
+          {
+            "id": "88888888-8888-8888-8888-888888888882",
+            "entityType": 5,
+            "title": "The Second Door",
+            "isOwned": true,
+            "groupKey": "season-1",
+            "groupTitle": "Season 1",
+            "positionNumber": 2,
+            "artworkUrl": null,
+            "episodeContext": {
+              "showWorkId": "11111111-1111-1111-1111-111111111111",
+              "episodeWorkId": "88888888-8888-8888-8888-888888888882",
+              "episodeAssetId": "99999999-9999-9999-9999-999999999992",
+              "showTitle": "The Fixture Show",
+              "episodeTitle": "The Second Door",
+              "seasonNumber": 1,
+              "episodeNumber": 2,
+              "state": "InProgress",
+              "positionSeconds": 600.0,
+              "durationSeconds": 2700.0
+            }
+          },
+          {
+            "id": "88888888-8888-8888-8888-888888888883",
+            "entityType": 5,
+            "title": "Not In Your Library Yet",
+            "isOwned": false,
+            "groupKey": "season-1",
+            "groupTitle": "Season 1",
+            "positionNumber": 3,
+            "artworkUrl": null,
+            "episodeContext": null
+          }
+        ]
+      },
+      {
+        "key": "season-2",
+        "title": "Season 2",
+        "entityId": "22222222-2222-2222-2222-222222222222",
+        "ownedCount": 1,
+        "itemCount": 1,
+        "items": [
+          {
+            "id": "88888888-8888-8888-8888-888888888884",
+            "entityType": 5,
+            "title": "Back Again",
+            "isOwned": true,
+            "groupKey": "season-2",
+            "groupTitle": "Season 2",
+            "positionNumber": 1,
+            "artworkUrl": null,
+            "episodeContext": {
+              "showWorkId": "11111111-1111-1111-1111-111111111111",
+              "episodeWorkId": "88888888-8888-8888-8888-888888888884",
+              "episodeAssetId": "99999999-9999-9999-9999-999999999994",
+              "showTitle": "The Fixture Show",
+              "episodeTitle": "Back Again",
+              "seasonNumber": 2,
+              "episodeNumber": 1,
+              "state": "Unstarted",
+              "positionSeconds": null,
+              "durationSeconds": null
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

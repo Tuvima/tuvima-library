@@ -1,21 +1,30 @@
 package com.tuvima.library.mobile
 
+import android.util.Log
 import com.tuvima.library.core.DownloadRecord
 import com.tuvima.library.core.DownloadState
 import com.tuvima.library.core.OfflineKind
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.OfflineProgressEntry
+import com.tuvima.library.core.OfflineBookmarkLogic
+import com.tuvima.library.core.PendingBookmark
 import com.tuvima.library.core.PendingReport
 import com.tuvima.library.core.ReportKind
+import com.tuvima.library.core.TvBookmark
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
+
+private const val LOG_TAG = "OfflineStore"
 
 /**
- * What one person's phone holds for offline use, kept in three small JSON files under [root]: the downloads, the
- * progress recorded while playing them, and the reports the Engine's device download list has not received yet.
+ * What one person's phone holds for offline use, kept in small JSON files under [root]: the downloads, the progress recorded
+ * while playing them, the reports the Engine's device download list has not received yet, the bookmarks added offline that have
+ * not been sent, and the bookmarks the Engine listed for each downloaded title.
  * The files live in the app's private no-backup folder. Nothing is ever written to History from here; offline
  * progress is only kept until it can be replayed.
  */
@@ -24,9 +33,13 @@ internal class OfflineStore(val root: File) {
     private val indexFile = File(root, "index.json")
     private val progressFile = File(root, "progress.json")
     private val reportsFile = File(root, "reports.json")
+    private val bookmarksFile = File(root, "bookmarks.json")
+    private val bookmarkCacheFile = File(root, "bookmark-cache.json")
     private val recordState = MutableStateFlow(readRecords())
     private var progressEntries: List<OfflineProgressEntry> = readProgress()
     private var reportQueue: List<PendingReport> = readReports()
+    private var bookmarkQueue: List<PendingBookmark> = readPendingBookmarks()
+    private var bookmarkCache: Map<String, List<TvBookmark>> = readBookmarkCache()
 
     /** The downloads, observable by the Downloads screen. */
     val records: StateFlow<List<DownloadRecord>> get() = recordState
@@ -131,6 +144,46 @@ internal class OfflineStore(val root: File) {
         }
     }
 
+    // ---- Bookmarks of downloaded titles ----
+
+    /** Bookmarks added while offline that the Engine has not received yet. */
+    fun pendingBookmarks(): List<PendingBookmark> = synchronized(lock) { bookmarkQueue }
+
+    fun addPendingBookmark(entry: PendingBookmark) {
+        synchronized(lock) {
+            bookmarkQueue = OfflineBookmarkLogic.queue(bookmarkQueue, entry)
+            persistBookmarks()
+        }
+    }
+
+    fun removePendingBookmark(localId: String) {
+        synchronized(lock) {
+            bookmarkQueue = bookmarkQueue.filterNot { it.localId == localId }
+            persistBookmarks()
+        }
+    }
+
+    /** The Engine's bookmark list for a work as it was last read (kept when its download finished or after a send), empty when never read. */
+    fun cachedBookmarks(workId: String): List<TvBookmark> = synchronized(lock) { bookmarkCache[workId].orEmpty() }
+
+    /** True once the Engine's list for this work has been read (an empty list counts), so a title is not read again and again. */
+    fun hasBookmarkCache(workId: String): Boolean = synchronized(lock) { workId in bookmarkCache }
+
+    fun cacheBookmarks(workId: String, bookmarks: List<TvBookmark>) {
+        synchronized(lock) {
+            bookmarkCache = bookmarkCache + (workId to bookmarks)
+            persistBookmarkCache()
+        }
+    }
+
+    fun forgetBookmarks(workId: String) {
+        synchronized(lock) {
+            if (workId !in bookmarkCache) return
+            bookmarkCache = bookmarkCache - workId
+            persistBookmarkCache()
+        }
+    }
+
     // ---- Files ----
 
     fun mediaFile(variantId: String, extension: String): File = File(File(root, "media"), "$variantId.$extension")
@@ -153,6 +206,8 @@ internal class OfflineStore(val root: File) {
             recordState.value = emptyList()
             progressEntries = emptyList()
             reportQueue = emptyList()
+            bookmarkQueue = emptyList()
+            bookmarkCache = emptyMap()
         }
     }
 
@@ -168,6 +223,16 @@ internal class OfflineStore(val root: File) {
 
     private fun persistReports() = writeAtomically(reportsFile, JSONArray().also { array ->
         reportQueue.forEach { array.put(reportToJson(it)) }
+    }.toString())
+
+    private fun persistBookmarks() = writeAtomically(bookmarksFile, JSONArray().also { array ->
+        bookmarkQueue.forEach { array.put(pendingBookmarkToJson(it)) }
+    }.toString())
+
+    private fun persistBookmarkCache() = writeAtomically(bookmarkCacheFile, JSONObject().also { cache ->
+        bookmarkCache.forEach { (workId, list) ->
+            cache.put(workId, JSONArray().also { array -> list.forEach { array.put(cachedBookmarkToJson(it)) } })
+        }
     }.toString())
 
     private fun writeAtomically(target: File, text: String) {
@@ -204,6 +269,7 @@ internal class OfflineStore(val root: File) {
             error = json.readString("error"),
             queuedAtMs = json.optLong("queued_at_ms"),
             kind = OfflineKind.fromWire(json.readString("kind")),
+            workId = json.readString("work_id"),
         )
     }
 
@@ -229,6 +295,71 @@ internal class OfflineStore(val root: File) {
             itemKind = OfflineKind.fromWire(json.readString("item_kind")),
         )
     }
+
+    private fun readPendingBookmarks(): List<PendingBookmark> = readArray(bookmarksFile) { json ->
+        PendingBookmark(
+            localId = json.getString("local_id"),
+            workId = json.getString("work_id"),
+            assetId = json.getString("asset_id"),
+            positionSeconds = json.optDouble("position_seconds", 0.0),
+            durationSeconds = json.readDouble("duration_seconds"),
+            recordedAtMs = json.optLong("recorded_at_ms"),
+        )
+    }
+
+    // Like the other files: a missing or unreadable cache reads as empty, and the next sync reads the Engine's lists again.
+    private fun readBookmarkCache(): Map<String, List<TvBookmark>> {
+        if (!bookmarkCacheFile.isFile) return emptyMap()
+        return try {
+            val all = JSONObject(bookmarkCacheFile.readText(Charsets.UTF_8))
+            buildMap {
+                all.keys().forEach { workId ->
+                    val array = all.optJSONArray(workId) ?: return@forEach
+                    put(
+                        workId,
+                        buildList {
+                            for (index in 0 until array.length()) array.optJSONObject(index)?.let { add(cachedBookmarkFromJson(it)) }
+                        },
+                    )
+                }
+            }
+        } catch (unreadable: JSONException) {
+            Log.w(LOG_TAG, "The saved bookmark lists could not be read; the next sync reads them from the Engine again.", unreadable)
+            emptyMap()
+        } catch (unreadable: IOException) {
+            Log.w(LOG_TAG, "The saved bookmark lists could not be read; the next sync reads them from the Engine again.", unreadable)
+            emptyMap()
+        }
+    }
+
+    private fun pendingBookmarkToJson(entry: PendingBookmark): JSONObject = JSONObject()
+        .put("local_id", entry.localId)
+        .put("work_id", entry.workId)
+        .put("asset_id", entry.assetId)
+        .put("position_seconds", entry.positionSeconds)
+        .putOpt("duration_seconds", entry.durationSeconds)
+        .put("recorded_at_ms", entry.recordedAtMs)
+
+    private fun cachedBookmarkToJson(bookmark: TvBookmark): JSONObject = JSONObject()
+        .put("id", bookmark.id)
+        .put("position_seconds", bookmark.positionSeconds)
+        .put("label", bookmark.label)
+        .put("note", bookmark.note)
+        .put("owner_name", bookmark.ownerName)
+        .put("is_yours", bookmark.isYours)
+        .put("in_everyone", bookmark.inEveryone)
+
+    // The still frame of a bookmark needs the Engine, so an offline list shows its label and time only.
+    private fun cachedBookmarkFromJson(json: JSONObject): TvBookmark = TvBookmark(
+        id = json.getString("id"),
+        positionSeconds = json.optDouble("position_seconds", 0.0),
+        label = json.optString("label"),
+        note = json.optString("note"),
+        frameUrl = null,
+        ownerName = json.optString("owner_name"),
+        isYours = json.optBoolean("is_yours"),
+        inEveryone = json.optBoolean("in_everyone"),
+    )
 
     private fun <T> readArray(file: File, mapper: (JSONObject) -> T): List<T> {
         if (!file.isFile) return emptyList()
@@ -259,6 +390,7 @@ internal class OfflineStore(val root: File) {
         .putOpt("error", record.error)
         .put("queued_at_ms", record.queuedAtMs)
         .put("kind", record.kind.wire)
+        .putOpt("work_id", record.workId)
 
     private fun progressToJson(entry: OfflineProgressEntry): JSONObject = JSONObject()
         .put("asset_id", entry.assetId)
@@ -279,5 +411,7 @@ internal class OfflineStore(val root: File) {
 }
 
 private fun JSONObject.readString(name: String): String? = if (has(name) && !isNull(name)) getString(name) else null
+
+private fun JSONObject.readDouble(name: String): Double? = if (has(name) && !isNull(name)) getDouble(name) else null
 
 private fun JSONObject.readLong(name: String): Long? = if (has(name) && !isNull(name)) getLong(name) else null

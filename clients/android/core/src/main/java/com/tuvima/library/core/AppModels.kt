@@ -25,6 +25,8 @@ data class DetailModel(
     val progressPercent: Double?,
     /** The show an episode belongs to, when the Engine's answer names it; next-episode features need it. */
     val showId: String? = null,
+    /** The owned files this page lists under the title (a season's episodes, an album's tracks, an audiobook's parts); see [DetailChildren]. */
+    val children: List<DetailChildGroup> = emptyList(),
 ) {
     /** True when the person has started this work and has not finished it. */
     val isInProgress: Boolean

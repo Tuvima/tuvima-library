@@ -7,21 +7,31 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.tuvima.library.core.BatchPlan
+import com.tuvima.library.core.BatchStop
+import com.tuvima.library.core.DetailChild
 import com.tuvima.library.core.DownloadKind
+import com.tuvima.library.core.DownloadNetwork
 import com.tuvima.library.core.DownloadRecord
 import com.tuvima.library.core.DownloadState
 import com.tuvima.library.core.LocalBookFiles
+import com.tuvima.library.core.OfflineBatchLogic
+import com.tuvima.library.core.OfflineBookmarkLogic
 import com.tuvima.library.core.OfflineKind
 import com.tuvima.library.core.OfflineLogic
+import com.tuvima.library.core.OfflineStorageLogic
+import com.tuvima.library.core.PendingBookmark
 import com.tuvima.library.core.PendingReport
 import com.tuvima.library.core.PhotoCandidate
 import com.tuvima.library.core.PhotoKeepPlan
 import com.tuvima.library.core.PhotoKeepStop
 import com.tuvima.library.core.ReportKind
 import com.tuvima.library.core.TuvimaClient
+import com.tuvima.library.core.TvBookmark
 import com.tuvima.library.core.ViewItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /** What a person asked to download. The title and artwork are kept so the Downloads list reads without the Engine. */
@@ -33,7 +43,12 @@ internal data class DownloadRequest(
     val entityType: String,
     val showId: String?,
     val profileKey: String,
+    /** The Engine's work id (the Details page id), so bookmarks of the downloaded title can be read and saved offline. */
+    val workId: String? = null,
 )
+
+/** What came of asking for a whole season, album or audiobook: what was planned, and whether the phone is paired at all. */
+internal data class BatchOutcome(val plan: BatchPlan, val notPaired: Boolean = false)
 
 internal sealed interface EnqueueResult {
     data object Queued : EnqueueResult
@@ -71,6 +86,7 @@ internal data class NextEpisodesResult(
  */
 internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
     private val stores = mutableMapOf<String, OfflineStore>()
+    private val spaceLock = Any()
     private val workManager: WorkManager get() = WorkManager.getInstance(app)
 
     /** How many entries the Engine's list showed on the last read, used to plan against the device's limit. Null until read. */
@@ -132,12 +148,77 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
                     variantRequested = false,
                     error = null,
                     queuedAtMs = now,
+                    workId = request.workId,
                 ),
             )
         }
         scheduleDownload(profileId, request.assetId, request.profileKey, ExistingWorkPolicy.REPLACE)
         return EnqueueResult.Queued
     }
+
+    /**
+     * Queues the listed files of a Details page (a season or whole show, an album or playlist, every part of an audiobook). Files
+     * already held are skipped, and it stops at the storage limit or the Engine's list limit; the files queued one by one go through
+     * [enqueue], so each keeps the same rules and its own resumable work. [quality] is the video quality; audio always uses the audio copy.
+     */
+    fun enqueueBatch(parentTitle: String?, showId: String?, children: List<DetailChild>, quality: String): BatchOutcome {
+        val profileId = activeProfileId()
+        if (profileId == null) {
+            return BatchOutcome(BatchPlan(emptyList(), 0, children.size, BatchStop.None), notPaired = true)
+        }
+        val store = storeFor(profileId)
+        val all = children.distinctBy { it.assetId }
+        val audiobookParts = all.filter { it.entityType == "audiobook" }
+        val plan = synchronized(this) {
+            val snapshot = store.snapshot()
+            val now = System.currentTimeMillis()
+            OfflineBatchLogic.plan(
+                children = all,
+                held = snapshot.filter { it.state != DownloadState.Failed && !OfflineLogic.isExpired(it, now) }
+                    .map { it.assetId }.toSet(),
+                committedBytes = OfflineLogic.committedBytes(snapshot),
+                capBytes = app.storageCapBytes(),
+                listedCount = OfflineLogic.effectiveListedCount(snapshot.size, knownEngineListCount),
+                estimateFor = { OfflineStorageLogic.estimateBytes(it.entityType, qualityFor(it, quality)) },
+            )
+        }
+        val started = mutableListOf<DetailChild>()
+        var stop = plan.stop
+        var held = plan.alreadyHeld
+        for (child in plan.toQueue) {
+            val name = OfflineBatchLogic.nameFor(parentTitle, child, audiobookParts.indexOf(child).coerceAtLeast(0), audiobookParts.size)
+            val result = enqueue(
+                DownloadRequest(
+                    assetId = child.assetId,
+                    title = name.title,
+                    subtitle = name.subtitle,
+                    artworkUrl = child.artworkUrl,
+                    entityType = child.entityType,
+                    showId = if (child.entityType == "tvEpisode") child.showId ?: showId else null,
+                    profileKey = qualityFor(child, quality),
+                    workId = child.workId,
+                ),
+            )
+            when (result) {
+                is EnqueueResult.Queued -> started.add(child)
+                is EnqueueResult.AlreadyHeld -> held += 1
+                is EnqueueResult.OverCap -> {
+                    stop = BatchStop.StorageCap
+                    break
+                }
+                is EnqueueResult.ListFull -> {
+                    stop = BatchStop.ListFull
+                    break
+                }
+                is EnqueueResult.NotOffered, is EnqueueResult.NotPaired -> Unit
+            }
+        }
+        return BatchOutcome(BatchPlan(started, held, plan.total, stop))
+    }
+
+    /** The quality one file is asked for: the person's video choice for a video, the audio copy for a song or an audiobook. */
+    private fun qualityFor(child: DetailChild, videoQuality: String): String =
+        OfflineLogic.defaultQualityFor(OfflineLogic.downloadKindFor(child.entityType), videoQuality)
 
     /**
      * Keeps one photo on the phone (its 2048 px preview, not the original, to save space) unless it is already held or
@@ -264,6 +345,7 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
                     entityType = "tvEpisode",
                     showId = showId,
                     profileKey = profileKey,
+                    workId = episode.workId,
                 ),
             )
             when (result) {
@@ -307,6 +389,93 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
         }
     }
 
+    /** Pauses every title that is waiting or moving; each keeps its partial file. */
+    fun pauseAll() {
+        store().snapshot()
+            .filter { it.state == DownloadState.Queued || it.state == DownloadState.Preparing || it.state == DownloadState.Downloading }
+            .forEach { pause(it.assetId) }
+    }
+
+    /** Resumes every paused or failed title (a failed one is tried again). */
+    fun resumeAll() {
+        store().snapshot().filter { it.state == DownloadState.Paused || it.state == DownloadState.Failed }.forEach { resume(it.assetId) }
+    }
+
+    /** Removes every download of the person using the phone, finished or not, and tells the Engine's list. */
+    fun deleteAll() {
+        store().snapshot().forEach { delete(it.assetId) }
+    }
+
+    /** Free bytes on the storage downloads are written to, or null when it cannot be read. */
+    fun freeBytes(): Long? = app.noBackupFilesDir.usableSpace.takeIf { it > 0L }
+
+    /**
+     * Lets a transfer start only if the phone keeps its reserve free after this one and the other moving downloads have written what
+     * they still have to. The check and [markMoving] (which makes this one count for the next caller) happen under one lock, so
+     * downloads that start together cannot each take the same room. Returns false when there is not enough room.
+     */
+    fun claimFreeSpace(store: OfflineStore, assetId: String, stillToWriteBytes: Long, markMoving: () -> Unit): Boolean =
+        synchronized(spaceLock) {
+            val free = freeBytes()
+            val others = OfflineStorageLogic.stillToCome(store.snapshot(), assetId)
+            if (free != null && !OfflineStorageLogic.fitsFreeSpace(free, stillToWriteBytes, others)) return false
+            markMoving()
+            true
+        }
+
+    /**
+     * The Wi-Fi-only choice changed: titles that are queued or moving start their work again so the new connection rule applies
+     * (a running transfer stops and continues from the bytes already on disk).
+     */
+    fun onNetworkChoiceChanged() {
+        val profileId = activeProfileId() ?: return
+        val unfinished = store().snapshot().filter {
+            it.state == DownloadState.Queued || it.state == DownloadState.Preparing || it.state == DownloadState.Downloading
+        }
+        unfinished.filterNot { it.isPhoto }
+            .forEach { scheduleDownload(profileId, it.assetId, it.profileKey, ExistingWorkPolicy.REPLACE) }
+        if (unfinished.any { it.isPhoto }) schedulePhotos(profileId, ExistingWorkPolicy.REPLACE)
+    }
+
+    // ---- Bookmarks of downloaded titles (read and saved offline, sent by the sync) ----
+
+    /**
+     * The bookmarks of a downloaded video or audiobook as the phone can show them with no connection: the Engine's list as it was when
+     * the download finished (or last synced), plus any added since while offline.
+     */
+    fun bookmarksFor(workId: String): List<TvBookmark> {
+        val store = store()
+        return OfflineBookmarkLogic.forDisplay(store.cachedBookmarks(workId), store.pendingBookmarks(), workId)
+    }
+
+    /**
+     * Saves a bookmark at [positionSeconds] of a downloaded title while there may be no connection. It waits on the phone and the sync
+     * sends it as soon as there is one. Returns false when the file is not a download of this person's, or its kind has no bookmarks.
+     */
+    fun addBookmarkOffline(assetId: String, positionSeconds: Double, durationSeconds: Double?): Boolean {
+        val store = store()
+        val record = store.record(assetId) ?: return false
+        val workId = record.workId ?: return false
+        if (!record.isComplete || !OfflineBookmarkLogic.keepsBookmarks(record.entityType)) return false
+        store.addPendingBookmark(
+            PendingBookmark(UUID.randomUUID().toString(), workId, assetId, positionSeconds, durationSeconds, System.currentTimeMillis()),
+        )
+        scheduleSync()
+        return true
+    }
+
+    /** Removes a bookmark that was added offline and has not been sent yet. A bookmark the Engine holds is deleted online only. */
+    fun removeWaitingBookmark(bookmarkId: String) {
+        OfflineBookmarkLogic.localIdOf(bookmarkId)?.let { store().removePendingBookmark(it) }
+    }
+
+    /** Reads the Engine's bookmark list for a downloaded title and keeps it on the phone. Best effort: offline it is read at the next sync. */
+    internal suspend fun cacheBookmarksOf(client: TuvimaClient, store: OfflineStore, record: DownloadRecord) {
+        val workId = record.workId ?: return
+        if (!OfflineBookmarkLogic.keepsBookmarks(record.entityType)) return
+        tryOrNull { client.bookmarks(workId) }?.let { store.cacheBookmarks(workId, it) }
+    }
+
     /** Deletes the file, forgets the progress kept for it and tells the Engine's list (retried later when offline). */
     fun delete(assetId: String) {
         val profileId = activeProfileId() ?: return
@@ -315,6 +484,10 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
         val record = store.remove(assetId) ?: return
         store.deleteFiles(record)
         store.removeProgress(assetId)
+        record.workId?.let { work ->
+            // The bookmark list of a title is kept only while a copy of it is on the phone.
+            if (store.snapshot().none { it.workId == work }) store.forgetBookmarks(work)
+        }
         val variantId = record.variantId
         if (record.isPhoto) {
             // A kept photo is listed under its View item id; a delete the Engine does not know is already done.
@@ -380,7 +553,8 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
      */
     fun scheduleSync() {
         val request = OneTimeWorkRequestBuilder<OfflineSyncWorker>()
-            .setConstraints(connected())
+            // Reports and progress are tiny, so they go out over any connection even when downloads wait for Wi-Fi.
+            .setConstraints(anyConnection())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1L, TimeUnit.MINUTES)
             .addTag(TAG)
             .build()
@@ -423,8 +597,15 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
         workManager.enqueueUniqueWork("photos-${safeName(profileId)}", policy, request)
     }
 
-    private fun connected(): Constraints =
-        Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+    /** What a transfer waits for: any connection, or only an unmetered one when the person chose Wi-Fi only. */
+    private fun connected(): Constraints = Constraints.Builder().setRequiredNetworkType(
+        when (OfflineStorageLogic.networkFor(app.wifiOnlyDownloads())) {
+            DownloadNetwork.UnmeteredOnly -> NetworkType.UNMETERED
+            DownloadNetwork.AnyConnection -> NetworkType.CONNECTED
+        },
+    ).build()
+
+    private fun anyConnection(): Constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
     private fun workName(profileId: String, assetId: String): String = "download-${safeName(profileId)}-$assetId"
 

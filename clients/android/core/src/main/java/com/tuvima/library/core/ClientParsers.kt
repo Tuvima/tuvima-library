@@ -155,6 +155,7 @@ internal fun parseDetailModel(json: JSONObject, absolute: (String?) -> String?):
         }.orEmpty(),
         progressPercent = json.optJSONObject("progress")?.optionalDouble("percent"),
         showId = parentShowId(json.optionalString("showId"), json.optJSONObject("episodeContext")?.optionalString("showWorkId")),
+        children = DetailChildren.parse(json, absolute),
     )
 }
 

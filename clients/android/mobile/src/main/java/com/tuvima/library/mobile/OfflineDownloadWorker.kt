@@ -9,6 +9,7 @@ import com.tuvima.library.core.DownloadRecord
 import com.tuvima.library.core.DownloadState
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.OfflineProgressEntry
+import com.tuvima.library.core.OfflineStorageLogic
 import com.tuvima.library.core.PendingReport
 import com.tuvima.library.core.ProfileChangedException
 import com.tuvima.library.core.ReportKind
@@ -19,6 +20,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 /**
  * Downloads one offline copy. It asks the Engine to prepare the variant (once), waits until it is ready, then
@@ -59,6 +61,10 @@ class OfflineDownloadWorker(context: Context, parameters: WorkerParameters) : Co
             store.update(assetId) { it.copy(state = DownloadState.Paused, error = "Switch back to this profile to continue.") }
             Result.success()
         } catch (failure: Exception) {
+            // The phone's own storage is full: waiting will not help, so say so and keep the partial file for Retry.
+            if (failure is IOException && OfflineStorageLogic.isOutOfSpace(failure.message)) {
+                return fail(store, assetId, OfflineStorageLogic.NOT_ENOUGH_SPACE)
+            }
             val permanent = failure is TuvimaHttpException && failure.statusCode in 400..499 &&
                 failure.statusCode != 401 && failure.statusCode != 408 && failure.statusCode != 429
             if (!permanent && runAttemptCount < MAX_ATTEMPTS) {
@@ -142,16 +148,26 @@ class OfflineDownloadWorker(context: Context, parameters: WorkerParameters) : Co
             return fail(store, assetId, "Storage limit reached. Delete a download or raise the limit in Settings.")
         }
 
-        store.update(assetId) {
-            it.copy(
-                state = DownloadState.Downloading,
-                variantId = ready.id,
-                totalBytes = expected,
-                bytesDone = onDisk,
-                expiresAtMs = ready.expiresAtMs,
-                filePath = file.absolutePath,
-                error = null,
-            )
+        // The phone itself must keep some room free, whatever the storage limit says; the partial file stays for Retry. Downloads of a
+        // batch start together, so the check counts what the other moving downloads still have to write, and the claim (this check plus
+        // marking this one as moving) is made under one lock so two starting at once cannot both take the same room.
+        val stillToCome = if (expected > 0L) (expected - onDisk).coerceAtLeast(0L) else 0L
+        val started = app.offline.claimFreeSpace(store, assetId, stillToCome) {
+            store.update(assetId) {
+                it.copy(
+                    state = DownloadState.Downloading,
+                    variantId = ready.id,
+                    totalBytes = expected,
+                    bytesDone = onDisk,
+                    expiresAtMs = ready.expiresAtMs,
+                    filePath = file.absolutePath,
+                    error = null,
+                )
+            }
+        }
+        if (!started) {
+            store.update(assetId) { it.copy(bytesDone = onDisk, totalBytes = expected) }
+            return fail(store, assetId, OfflineStorageLogic.NOT_ENOUGH_SPACE)
         }
 
         if (expected <= 0L || onDisk < expected) {
@@ -209,6 +225,8 @@ class OfflineDownloadWorker(context: Context, parameters: WorkerParameters) : Co
                 ),
             )
         }
+        // Keep the title's bookmarks on the phone too, so they read with no connection.
+        app.offline.cacheBookmarksOf(client, store, done)
         app.offline.scheduleSync()
         return Result.success()
     }

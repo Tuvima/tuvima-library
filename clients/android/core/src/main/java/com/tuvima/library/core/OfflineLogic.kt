@@ -59,6 +59,8 @@ data class DownloadRecord(
     val error: String?,
     val queuedAtMs: Long,
     val kind: OfflineKind = OfflineKind.Variant,
+    /** The Engine's work id (the Details page id), kept so bookmarks of a downloaded title can be read and saved offline. Null when not known. */
+    val workId: String? = null,
 ) {
     val isComplete: Boolean get() = state == DownloadState.Complete
     val isPhoto: Boolean get() = kind == OfflineKind.Photo

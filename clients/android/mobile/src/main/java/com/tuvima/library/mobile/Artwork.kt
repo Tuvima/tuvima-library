@@ -132,6 +132,7 @@ internal fun PosterTile(
             } else if (saved != null) {
                 SavedToggle(saved.keyFor(card), Modifier.align(Alignment.TopEnd), onSavedPress)
             }
+            CardDownloadedBadge(card, Modifier.align(Alignment.BottomStart).padding(start = 4.dp, bottom = 6.dp))
             val percent = card.progressPercent
             if (percent != null && percent > 0.0) {
                 LinearProgressIndicator(

@@ -88,6 +88,24 @@ Video: the phone app declares MKV and M4V containers and SRT subtitles, and the 
 carries audio tracks, subtitle tracks, chapters and skip segments (`PlaybackTrackPicker` chooses the
 starting tracks from the profile's language preferences).
 
+Downloads and offline playback (spec native-apps WP10a, first-class on the phone): a title can be kept for a movie, an episode, a song or an audiobook, and
+for a whole show, season, album, playlist or audiobook (every part) from the Details page's "Download all..." choice. The files come from the Details answer's own
+`mediaGroups` for an album, playlist or audiobook and `sequencePlacement` (each owned episode's `episodeContext`) for a show or season, because the Engine sends no
+`mediaGroups` for a show (`core` `DetailChildren`; an audiobook lists one row per chapter, so a file counts once), so no new Engine route is used; a book, comic or
+Series is not kept (books open in the Dashboard's reader in the phone's browser: an audit decision of 2026-11-23, not a spec decision). One press queues at most 200 files and stops at the
+storage limit or the Engine's 500-entry device list (`OfflineBatchLogic`). The Downloads page (top bar) opens from the phone's own list, so it works with no
+connection and a paired phone that cannot reach the server opens on it. It shows what downloads use of the storage limit and the room the phone itself has left,
+sections for Downloading, On this phone and Expired, per-title progress with Pause, Resume, Retry and Cancel, Pause all, Resume all and Remove all, and (not for a Kids
+profile) "Download on Wi-Fi only" and the storage limit. Wi-Fi only changes the WorkManager network rule from connected to unmetered; progress, bookmark and list
+reports always go over any connection. A download stops with "Not enough free space on this phone" when less than 500 MB would stay free, and keeps its partial file for
+Retry; the check counts what the other moving downloads still have to write, so a batch cannot take the same room twice. A poster (one that names a file of its own: a
+movie, episode, audiobook or song card), and Details, of a title that is on the phone shows a small Downloaded mark (a show, season, album or playlist card gets none).
+Playing a download needs no connection; where it was left (position) and bookmarks added to a downloaded video or audiobook are kept on the phone and sent, oldest first,
+when a connection returns (`OfflineSyncWorker`); the Engine's own bookmark list for the title is kept when its download finishes, so it reads offline
+(`OfflineDownloads.bookmarksFor`, `addBookmarkOffline`). That plumbing exists and is tested, but no screen calls it yet: the video and audiobook players (WP10b) will. Signing out removes every download from the phone and says so; a Kids
+profile has only its own downloads and no download settings. What a press did is said in a line of text, never a toast. Rules are pure functions in `core`
+(`DetailChildren`, `OfflineBatch`, `OfflineStorage`, `DownloadsPageLogic`, `OfflineBookmarks`, `DownloadBadge`).
+
 Unit tests for the shared client (home and outside address selection, API v1 paths, typed profile-switch results, photo consent, photo grid layout,
 and the offline download rules: server-won detection, replay order, the storage cap, expiry and report results,
 plus kept photos: the cap with photos, the purge rule, kinds and the gallery plan)

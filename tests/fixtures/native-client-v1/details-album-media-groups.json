@@ -1,0 +1,46 @@
+{
+  "id": "5a5a5a5a-0000-0000-0000-000000000001",
+  "entityType": 11,
+  "title": "The Fixture Album",
+  "mediaGroups": [
+    {
+      "key": "tracks",
+      "title": "Tracks",
+      "ownedCount": 2,
+      "totalCount": 3,
+      "missingCount": 1,
+      "items": [
+        {
+          "id": "5a5a5a5a-0000-0000-0000-000000000011",
+          "entityType": 0,
+          "title": "First Song",
+          "subtitle": "The Fixture Band",
+          "trackNumber": "1",
+          "assetId": "5a5a5a5a-0000-0000-0000-000000000021",
+          "artworkUrl": "/stream/5a5a5a5a-0000-0000-0000-000000000021/cover",
+          "isOwned": true
+        },
+        {
+          "id": "5a5a5a5a-0000-0000-0000-000000000012",
+          "entityType": 0,
+          "title": "Second Song",
+          "subtitle": null,
+          "trackNumber": "2",
+          "assetId": "5a5a5a5a-0000-0000-0000-000000000022",
+          "artworkUrl": null,
+          "isOwned": true
+        },
+        {
+          "id": "5a5a5a5a-0000-0000-0000-000000000013",
+          "entityType": 0,
+          "title": "A Song You Do Not Own",
+          "subtitle": null,
+          "trackNumber": "3",
+          "assetId": null,
+          "artworkUrl": null,
+          "isOwned": false
+        }
+      ]
+    }
+  ]
+}

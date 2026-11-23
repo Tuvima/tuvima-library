@@ -13,6 +13,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -58,10 +59,12 @@ internal fun MobileShell(
     play: (PlayRequest) -> Unit,
     onChangeServer: () -> Unit,
     onSignedOut: (String?) -> Unit,
+    /** True when the phone opened with no connection to the server: it starts on Downloads, which plays what is saved on the phone. */
+    startOffline: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var destination by remember { mutableStateOf<Destination>(Destination.Home) }
+    var destination by remember { mutableStateOf<Destination>(if (startOffline) Destination.Downloads else Destination.Home) }
     var menuOpen by remember { mutableStateOf(false) }
     var searchOpen by remember { mutableStateOf(false) }
     // Bumped after a profile switch so every screen reads again as the new person.
@@ -70,6 +73,10 @@ internal fun MobileShell(
     // The new person's saved titles are read again after a switch (a fresh holder per person).
     val saved = remember(client, epoch) { SavedItems(client, scope) }
     var profiles by remember { mutableStateOf<List<DeviceProfile>>(emptyList()) }
+    // The files of this person that are on the phone and play, for the Downloaded mark on posters and Details (changes only when the set does).
+    val downloadedAssets by remember(client, epoch) {
+        heldAssetsFlow(application.offline.store().records)
+    }.collectAsState(initial = emptySet())
 
     LaunchedEffect(initialDetail) {
         initialDetail?.let { stack.add(Overlay.Detail(it.first, it.second, null)) }
@@ -141,7 +148,7 @@ internal fun MobileShell(
         else -> null
     }
 
-    CompositionLocalProvider(LocalSavedItems provides saved) {
+    CompositionLocalProvider(LocalSavedItems provides saved, LocalDownloadedAssets provides downloadedAssets) {
         Box(Modifier.fillMaxSize()) {
             Scaffold(
                 topBar = {
@@ -196,6 +203,7 @@ internal fun MobileShell(
                                     client = client,
                                     play = play,
                                     openPhotos = { items, index -> stack.add(Overlay.ViewerOpen(items, index)) },
+                                    limited = isKids,
                                 )
                                 is Destination.Section -> LibrariesScreen(
                                     section = current.section,
