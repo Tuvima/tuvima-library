@@ -1373,8 +1373,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var row = Assert.Single(await new DisplayJourneyProjectionReader(_database).LoadAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "watch", default));
         Assert.Equal("/shows/poster.jpg", row.CoverUrl);
         Assert.Equal("/shows/poster-s.jpg", row.CoverSmallUrl);
-        Assert.Equal("/episodes/3.jpg", row.BackgroundUrl);
-        Assert.Equal("/episodes/3-m.jpg", row.BackgroundMediumUrl);
+        // Continue where you left off shows the title's landscape art; the episode still is only the fallback (issue 1328).
+        Assert.Equal("/shows/inherited-backdrop.jpg", row.BackgroundUrl);
+        Assert.Equal("/shows/inherited-backdrop-m.jpg", row.BackgroundMediumUrl);
         Assert.Equal(episode.AssetId, row.AssetId);
         Assert.Equal(episode.WorkId, row.WorkId);
         Assert.Equal(42, row.ProgressPct);

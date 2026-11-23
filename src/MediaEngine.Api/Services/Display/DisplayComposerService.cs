@@ -414,13 +414,15 @@ public sealed partial class DisplayComposerService
         if (string.Equals(grouping, "videos", StringComparison.OrdinalIgnoreCase)
             && string.Equals(DisplayMediaRules.NormalizeMediaType(mediaType ?? string.Empty), "Videos", StringComparison.OrdinalIgnoreCase))
         {
-            var videoCards = _cards.BuildVideoCards(filteredWorks, progressByWork);
+            // Folders come first, then loose videos, each newest first (issue 1327): the two never mix on one row of the Videos tab.
+            var videoCards = _cards.BuildVideoCards(filteredWorks, progressByWork)
+                .OrderBy(card => VideoFolderWording.IsVideoFolderMediaType(card.MediaType) ? 0 : 1).ToList();
             var pagedVideoCards = await MarkKeptAsync(
                 videoCards.Skip(Math.Max(0, offset)).Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200)).ToList(), filteredWorks, libraryId, unmatchedOnly, ct);
             return new DisplayPageDto(
                 Key: "browse-watch-videos",
                 Title: "Videos",
-                Subtitle: "Folders and videos from your library",
+                Subtitle: "Videos from your library",
                 Hero: pagedVideoCards.FirstOrDefault() is { } videoHero ? DisplayCardBuilder.ToHero(videoHero, "Videos") : null,
                 Shelves: includeCatalog ? [] : [new DisplayShelfDto("results", "Videos", null, pagedVideoCards, null)],
                 Catalog: includeCatalog ? pagedVideoCards : [])

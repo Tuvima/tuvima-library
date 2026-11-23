@@ -794,3 +794,5 @@
     gap: 8px;
     padding-block: 8px;
 }
+.browse-shell__video-rows { margin-bottom:24px; }
+.browse-shell__video-rows-title { margin:0 0 12px; font-size:var(--tl-type-subheading-size); font-weight:var(--tl-type-subheading-weight); color:var(--tl-text-primary); }

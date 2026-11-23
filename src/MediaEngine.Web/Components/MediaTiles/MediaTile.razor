@@ -81,6 +81,29 @@ else if (!_removed)
                     <span class="media-tile-standin__tag" aria-label="@($"{L["MediaTile_StandIn_Tag"].Value}. {StandInTooltip}")">@L["MediaTile_StandIn_Tag"]</span>
                 </div>
             }
+            else if (IsVideoCollection)
+            {
+                @* A folder of videos (issue 1327): the same portrait tile as a single video, so folders and loose videos sit together on one row.
+                   The folder's own name is the only title (no kind word), and a stacked-videos mark with the count says it is a group. *@
+                <div class="media-tile-video-collection">
+                    <div class="media-tile-video-collection__art">
+                        @if (!string.IsNullOrWhiteSpace(CardImageUrl))
+                        {
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" alt="" aria-hidden="true" class="media-tile-video-collection__soft" loading="@CardImageLoading" decoding="async" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" alt="" aria-hidden="true" class="media-tile-video-collection__still" loading="@CardImageLoading" decoding="async" />
+                        }
+                        else
+                        {
+                            <span class="media-tile-video-collection__still media-tile-video-collection__still--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span>
+                        }
+                    </div>
+                    <span class="media-tile-video-collection__title" data-overflow-tooltip="@Item.Title">@Item.Title</span>
+                    <div class="media-tile-video-collection__foot">
+                        <span class="media-tile-video-collection__count">@MediaTileLabels.CountText(Item)</span>
+                        <AppTooltip Text="@L["MediaTile_GroupOfVideos"].Value"><span class="media-tile-video-collection__group" aria-label="@L["MediaTile_GroupOfVideos"].Value"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.VideoLibrary" Size="AppIconSize.Control20" aria-hidden="true" /></span></AppTooltip>
+                    </div>
+                </div>
+            }
             else if (IsVideoStill)
             {
                 @* A video's still on top, its name and one detail line below (D7, D16). With no frame at all the top is a plain dark panel with a video icon. *@
@@ -199,7 +222,7 @@ else if (!_removed)
                 <span class="media-tile-label media-tile-label--status media-tile-label--kind">@kind</span>
             }
             @* A video tile's detail line already says how many videos a folder holds, so it draws no second count (issue 1297). *@
-            @if (BottomLabel is { } bottom && !ShowCollage && !IsVideoStill)
+            @if (BottomLabel is { } bottom && !ShowCollage && !IsVideoStill && !IsVideoCollection)
             {
                 <span class="@($"media-tile-label media-tile-label--bottom{(IsPersonQuadrant ? " media-tile-label--beside-photo" : string.Empty)}")" aria-label="@bottom" data-overflow-tooltip="@bottom">@bottom</span>
             }
@@ -293,8 +316,8 @@ else if (!_removed)
         _ => "is-cover-portrait",
     };
 
-    // A folder of videos is a group like any other (the landscape collage, issue 1260), never the plain still tile.
-    private bool IsVideoCollection => IsGroup && MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner
+    // A folder of videos is its own portrait tile with a stacked-videos mark (issue 1327), never the plain still tile and never the landscape collage.
+    private bool IsVideoCollection => MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner
         && Item.IsCollection && VideoFolderWording.IsVideoFolderMediaType(Item.MediaKind);
     private bool IsVideoStill => MediaTileLabels.IsVideoStillTile(Item) && !ShowCollectionBanner && !IsVideoCollection;
     private string? VideoDetail => MediaTileLabels.VideoDetail(Item);
@@ -383,13 +406,20 @@ else if (!_removed)
         : $"{L["MediaTile_StandIn_Tooltip"].Value} {L["MediaTile_StandIn_NextCheck", Item.StandInRetryAfter].Value}";
 
     // A group draws only a cover somebody chose for it; otherwise it is the cover collage (or the plain tile with none).
-    private string CardImageUrl => IsGroup
+    private string CardImageUrl => IsVideoCollection
+        ? VideoCollectionPictureUrl
+        : IsGroup
         ? Item.CustomCoverUrl ?? string.Empty
         : Item.TileImageUrl ?? string.Empty;
 
     // The one picture the collage shows whole in place of its covers: a cover somebody chose for the group. A folder of videos with no
     // chosen cover takes the picture the Engine sent for the folder (its own or folder image, an online thumbnail or an extracted frame);
     // with none of those the collage draws a frame from each of its own videos.
+    // A folder of videos draws the picture the Engine sent for it (its own or folder image, or a frame of its first video), then a frame from one of its own videos, before the film icon.
+    private string VideoCollectionPictureUrl => !string.IsNullOrWhiteSpace(Item.CustomCoverUrl) ? Item.CustomCoverUrl
+        : !string.IsNullOrWhiteSpace(Item.TileImageUrl) ? Item.TileImageUrl
+        : Item.ArtworkStackItems.FirstOrDefault(member => !string.IsNullOrWhiteSpace(member.ImageUrl))?.ImageUrl ?? string.Empty;
+
     private string? CollageCoverUrl => !string.IsNullOrWhiteSpace(Item.CustomCoverUrl)
         ? Item.CustomCoverUrl
         : IsVideoCollection && !string.IsNullOrWhiteSpace(Item.TileImageUrl) ? Item.TileImageUrl : null;

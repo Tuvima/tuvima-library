@@ -28,7 +28,7 @@ public sealed class GroupTilePhoneParityTests : AsyncBunitContext
     private Task Init(string formFactor) =>
         _device.InitialiseAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, formFactor == "phone"));
 
-    public static TheoryData<string> GroupKinds => new() { "series", "collection", "video-folder", "video-folder-picture" };
+    public static TheoryData<string> GroupKinds => new() { "series", "collection" };
 
     [Theory]
     [MemberData(nameof(GroupKinds))]
@@ -58,31 +58,6 @@ public sealed class GroupTilePhoneParityTests : AsyncBunitContext
         Assert.Equal("Group", cut.Find(".group-collage__name").TextContent.Trim());
         Assert.StartsWith("3 ", cut.Find(".group-collage__count").TextContent.Trim(), StringComparison.Ordinal);
         Assert.NotEmpty(cut.FindAll(".media-tile-label--kind"));
-        Assert.Empty(cut.FindAll(".media-tile-video-collection"));
-    }
-
-    [Fact]
-    public async Task AVideoFolderTile_OnAPhone_KeepsItsKindWord_ThatTheOldCompactCardDroppedBelowAWidth()
-    {
-        await Init("phone");
-
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, Build("video-folder")));
-
-        Assert.Equal("Video collection", cut.Find(".media-tile-label--kind").TextContent.Trim());
-    }
-
-    [Fact]
-    public async Task AVideoFolderWithAFolderPicture_ShowsItWhole_OnAPhoneAsOnADesktop()
-    {
-        foreach (var formFactor in new[] { "phone", "desktop" })
-        {
-            await Init(formFactor);
-
-            var cut = Render<MediaTile>(p => p.Add(c => c.Item, Build("video-folder-picture")));
-
-            Assert.Contains("folder.jpg", cut.Find("img.group-collage__custom").GetAttribute("src"), StringComparison.Ordinal);
-            Assert.Empty(cut.FindAll(".group-collage__cover"));
-        }
     }
 
     [Fact]

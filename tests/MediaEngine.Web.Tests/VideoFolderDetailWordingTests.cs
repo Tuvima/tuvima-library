@@ -105,6 +105,17 @@ public sealed class VideoFolderDetailWordingTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AVideoFolderRowShowsItsVideosLikeEpisodes_WithNoENumbering()
+    {
+        var cut = RenderPanel(VideoFolderPlacement());
+
+        Assert.Contains("Ball handling", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".tl-series-item__node"));
+        Assert.DoesNotContain("E1", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("E2", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ATvShowStillListsSeasonsAndEpisodes()
     {
         var cut = RenderPanel(TvPlacement());

@@ -148,7 +148,7 @@
                            href="@route"
                            aria-current="@(item.IsCurrent ? "page" : null)"
                            aria-label="Open @SequenceItemTitle(item)">
-                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                            <SequenceEntryContent Item="item" IsSeasonContainer="@(IsSeasonContainer || IsVideoFolder)"
                                                   ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
                                                   PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                                   DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
@@ -164,7 +164,7 @@
                         <article class="@SequenceItemClass(item)"
                                  aria-current="@(item.IsCurrent ? "page" : null)"
                                  aria-label="@SequenceItemAccessibilityLabel(item)">
-                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                            <SequenceEntryContent Item="item" IsSeasonContainer="@(IsSeasonContainer || IsVideoFolder)"
                                                   ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
                                                   PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                                   DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
@@ -460,7 +460,7 @@ else
                            href="@route"
                            aria-current="@(item.IsCurrent ? "page" : null)"
                            aria-label="Open @SequenceItemTitle(item)">
-                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                            <SequenceEntryContent Item="item" IsSeasonContainer="@(IsSeasonContainer || IsVideoFolder)"
                                                   ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
                                                   PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                                   DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
@@ -475,7 +475,7 @@ else
                         <article class="@SequenceItemClass(item)"
                                  aria-current="@(item.IsCurrent ? "page" : null)"
                                  aria-label="@SequenceItemAccessibilityLabel(item)">
-                            <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                            <SequenceEntryContent Item="item" IsSeasonContainer="@(IsSeasonContainer || IsVideoFolder)"
                                                   ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
                                                   PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                                   DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
@@ -620,6 +620,7 @@ else
         || (VisibleGroups.Count > 1 && !string.IsNullOrWhiteSpace(Placement.GroupLabel));
     // A folder of Other videos is a plain list of videos whose sub-folders are named sections (item 17): never Season, Series or Show.
     private bool IsVideoFolder => VideoFolderWording.IsVideoFolderList(Placement.ContainerLabel, Placement.ItemLabel);
+    // A video folder's entries are drawn like TV episodes (picture, title, length) with no E1, E2 numbering; the Engine's inferred order is the order shown (issue 1329).
     private string HeadingLabel => IsSeasonContainer ? "Season" : IsVideoFolder ? VideoFolderWording.ContainerLabel : "Series";
     private string HeadingValue => IsSeasonContainer
         ? SeasonHeading

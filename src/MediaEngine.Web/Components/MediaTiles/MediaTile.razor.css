@@ -109,3 +109,14 @@ body.is-song-dragging .media-tile[data-song-drop] .media-tile-media { outline:1p
 .media-tile-episode-caption strong { color:var(--tl-text-primary); font-size: var(--tl-type-secondary-size); }
 
 @media (prefers-reduced-motion: reduce) { .media-tile-media { transition:none; } }
+/* A folder of videos (issue 1327): one portrait tile like a single video, the folder's name as the title and a stacked-videos mark with the count. */
+.media-tile .media-tile-media:has(.media-tile-video-collection) { background:linear-gradient(165deg, color-mix(in srgb, var(--tl-accent-primary-active) 35%, var(--tl-bg-root)) 0%, var(--tl-bg-surface) 55%, var(--tl-bg-shell) 100%); border:1px solid color-mix(in srgb, var(--tl-accent-primary) 45%, transparent); border-radius:inherit; }
+.media-tile-video-collection { position:relative; display:flex; flex-direction:column; gap:6px; height:100%; padding:10px; box-sizing:border-box; }
+.media-tile-video-collection__art { position:relative; flex:0 0 auto; margin-top:24px; aspect-ratio:16 / 9; overflow:hidden; border-radius:var(--tl-radius-sm,6px); background:color-mix(in srgb, var(--tl-viewer-black) 35%, transparent); }
+.media-tile-video-collection__soft { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scale(1.3); filter:blur(14px) brightness(.6); }
+.media-tile-video-collection__still { position:absolute; inset:8%; width:84%; height:84%; object-fit:cover; border-radius:4px; box-shadow:0 4px 14px var(--tl-scrim-dark-4); }
+.media-tile-video-collection__still--empty { display:flex; align-items:center; justify-content:center; color:var(--tl-text-disabled); font-size:36px; }
+.media-tile-video-collection__title { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; overflow-wrap:anywhere; margin-top:4px; font-size: var(--tl-type-secondary-size); font-weight: var(--tl-type-subheading-weight); line-height:1.25; color:var(--tl-text-primary); }
+.media-tile-video-collection__foot { margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; border-top:1px solid color-mix(in srgb, var(--tl-accent-primary) 50%, transparent); }
+.media-tile-video-collection__count { font-size: var(--tl-type-secondary-size); color:var(--tl-text-primary); }
+.media-tile-video-collection__group { display:inline-flex; align-items:center; justify-content:center; color:var(--tl-text-secondary); }
