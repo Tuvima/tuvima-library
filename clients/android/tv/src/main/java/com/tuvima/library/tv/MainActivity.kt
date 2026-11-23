@@ -89,11 +89,13 @@ class MainActivity : ComponentActivity() {
         val application = application as TuvimaTvApplication
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFF9B7BFF))) {
-                TuvimaTvRoot(application) { assetId, title ->
+                TuvimaTvRoot(application) { assetId, title, entityType, entityId ->
                     startActivity(
                         Intent(this, PlaybackActivity::class.java)
                             .putExtra(PlaybackActivity.ASSET_ID, assetId)
-                            .putExtra(PlaybackActivity.TITLE, title),
+                            .putExtra(PlaybackActivity.TITLE, title)
+                            .putExtra(PlaybackActivity.ENTITY_TYPE, entityType)
+                            .putExtra(PlaybackActivity.ENTITY_ID, entityId),
                     )
                 }
             }
@@ -115,7 +117,7 @@ private sealed interface TvState {
     data class Pairing(val session: PairingSession) : TvState
     data class Library(val page: DisplayPage, val extras: TvExtras = TvExtras()) : TvState
     data class Search(val query: String, val results: List<TvSearchResult>) : TvState
-    data class Detail(val detail: TvDetail, val playableAssetId: String?) : TvState
+    data class Detail(val detail: TvDetail, val playableAssetId: String?, val entityType: String, val entityId: String) : TvState
     data class CollectionItems(
         val entry: CollectionEntry,
         val items: List<CollectionItem>,
@@ -146,7 +148,7 @@ private data class TvDetail(
 private val FocusBorderColor = Color(0xFFFFFFFF)
 
 @Composable
-private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String, String?) -> Unit) {
+private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String, String?, String, String) -> Unit) {
     val scope = rememberCoroutineScope()
     var state: TvState by remember { mutableStateOf(TvState.Server) }
     val history = remember { mutableListOf<TvState>() }
@@ -177,7 +179,7 @@ private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String, String
 
     fun openDetail(entityType: String, entityId: String, playableAssetId: String?) {
         navigate("Loading details…") {
-            TvState.Detail(parseDetail(activeClient!!.details(entityType, entityId)), playableAssetId)
+            TvState.Detail(parseDetail(activeClient!!.details(entityType, entityId)), playableAssetId, entityType, entityId)
         }
     }
 
@@ -770,14 +772,14 @@ private fun SearchScreen(state: TvState.Search, search: (String) -> Unit, open: 
 }
 
 @Composable
-private fun DetailScreen(state: TvState.Detail, play: (String, String?) -> Unit, openUniverse: (String) -> Unit, back: () -> Unit) {
+private fun DetailScreen(state: TvState.Detail, play: (String, String?, String, String) -> Unit, openUniverse: (String) -> Unit, back: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(72.dp), verticalArrangement = Arrangement.Center) {
         Text(state.detail.title, style = MaterialTheme.typography.displayMedium)
         state.detail.subtitle?.let { Text(it, style = MaterialTheme.typography.headlineSmall) }
         if (state.detail.facts.isNotBlank()) Text(state.detail.facts, modifier = Modifier.padding(top = 12.dp))
         state.detail.description?.let { Text(it, modifier = Modifier.fillMaxWidth(0.7f).padding(top = 20.dp)) }
         Row(Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            state.playableAssetId?.let { asset -> Button(onClick = { play(asset, state.detail.title) }) { Text("PLAY") } }
+            state.playableAssetId?.let { asset -> Button(onClick = { play(asset, state.detail.title, state.entityType, state.entityId) }) { Text("PLAY") } }
             state.detail.universeQid?.let { qid -> Button(onClick = { openUniverse(qid) }) { Text("UNIVERSE") } }
             Button(onClick = back) { Text("BACK") }
         }
