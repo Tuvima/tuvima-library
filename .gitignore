@@ -131,6 +131,10 @@ tools/cloudflare-api-gateway/.dev.vars
 # Native client generated state
 clients/android/.gradle/
 clients/android/local.properties
+# Signing keys never belong in the repository (spec native-apps WP12)
+*.jks
+*.keystore
+*.p12
 clients/android/**/build/
 clients/apple/*.xcodeproj/
 clients/apple/DerivedData/
