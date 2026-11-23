@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One tool of the Roku player's tool row (spec native-apps WP6): Episodes, Audio & subtitles, Bookmarks, Playback settings.
+     A white ring on focus; purple while its panel is open. -->
+<component name="ToolPill" extends="Group">
+    <interface>
+        <field id="label" type="string" onChange="onLook" />
+        <field id="pillWidth" type="float" value="200" onChange="onLook" />
+        <field id="selected" type="boolean" value="false" onChange="onLook" />
+        <field id="focused" type="boolean" value="false" onChange="onLook" />
+    </interface>
+    <children>
+        <Rectangle id="ring" color="#FFFFFF" visible="false" />
+        <Rectangle id="fill" color="#2F3039" />
+        <Label id="text" color="#F5F7FB" horizAlign="center" vertAlign="center" />
+    </children>
+    <script type="text/brightscript" uri="pkg:/components/ToolPill.brs" />
+</component>

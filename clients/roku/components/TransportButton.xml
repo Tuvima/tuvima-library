@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One round button of the Roku player's transport row (spec native-apps WP6). Its origin is its centre, so the five buttons share
+     one centre line however large each is. A dimmed button stays where it is. -->
+<component name="TransportButton" extends="Group">
+    <interface>
+        <!-- { key, label, dimmed, seconds, playing } from plTransport. -->
+        <field id="spec" type="assocarray" onChange="onSpec" />
+        <field id="focused" type="boolean" value="false" onChange="onFocus" />
+        <!-- The diameter in pixels: 112 for the four small buttons, 136 for Play. -->
+        <field id="diameter" type="float" value="112" onChange="onSpec" />
+    </interface>
+    <children>
+        <Poster id="ring" uri="pkg:/images/circle.png" blendColor="#FFFFFF" visible="false" />
+        <Poster id="disc" uri="pkg:/images/circle.png" blendColor="#2F3039" />
+        <Poster id="icon" uri="pkg:/images/play.png" />
+        <Label id="seconds" color="#FFFFFF" horizAlign="center" vertAlign="center" visible="false" />
+    </children>
+    <script type="text/brightscript" uri="pkg:/components/TransportButton.brs" />
+</component>

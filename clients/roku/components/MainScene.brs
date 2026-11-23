@@ -69,6 +69,7 @@ sub init()
     m.subtitleLanguage = invalid
     m.sideMode = ""
     m.lastTitle = ""
+    initPlayer()
 
     server = m.registry.Read("server")
     token = m.registry.Read("access_token")
@@ -333,11 +334,27 @@ sub showLibrary(page as Object)
             mediaKind = ""
             if card.mediaKind <> invalid then mediaKind = card.mediaKind
             item.AddFields({ kind: kind, mediaKind: mediaKind, assetId: assetId, entityId: card.id, entityType: detailEntityType(card.mediaType), mediaType: card.mediaType, httpHeaders: { Authorization: "Bearer " + m.api.accessToken } })
+            item.AddFields(playFields(card))
         end for
     end for
     m.rows.content = root
     m.rows.setFocus(true)
 end sub
+
+' What the player needs to know about a card (the work, the show, the episode), read again when the card is selected.
+function playFields(card as Object) as Object
+    fields = { workId: faStr(card.workId), showId: "", subject: faStr(card.subject), seasonNo: 0, episodeNo: 0, epTitle: "", playTitle: faStr(card.title), sortYear: wireCount(card.sortYear) }
+    context = card.episodeContext
+    if context <> invalid
+        if faStr(context.episodeWorkId) <> "" then fields.workId = faStr(context.episodeWorkId)
+        fields.showId = faStr(context.showWorkId)
+        fields.seasonNo = wireCount(context.seasonNumber)
+        fields.episodeNo = wireCount(context.episodeNumber)
+        fields.epTitle = faStr(context.episodeTitle)
+        if faStr(context.showTitle) <> "" then fields.playTitle = faStr(context.showTitle)
+    end if
+    return fields
+end function
 
 sub onItemFocused()
     location = m.rows.rowItemFocused
@@ -366,8 +383,11 @@ sub onItemSelected()
     else if item.kind = "photo"
         openPhoto(item)
     else if item.assetId <> ""
+        m.pendingMeta = metaFromItem(item)
         runApi("manifest", { assetId: item.assetId })
     else if item.entityId <> ""
+        m.pendingMeta = metaFromItem(item)
+        if m.pendingMeta.workId = "" then m.pendingMeta.workId = item.entityId
         runApi("details", { entityType: item.entityType, id: item.entityId })
     end if
 end sub
@@ -679,7 +699,6 @@ sub playManifest(manifest as Object)
     content.HttpHeaders = { Authorization: "Bearer " + m.api.accessToken }
     m.video.content = content
     m.video.visible = true
-    m.video.setFocus(true)
     if manifest.resume <> invalid then m.video.seek = manifest.resume.positionSeconds
     m.activeAssetId = manifest.assetId
     ' What the Audio & subtitles panel needs to start this video again with a different subtitle file.
@@ -694,6 +713,19 @@ sub playManifest(manifest as Object)
     m.lyricsParsed = invalid
     m.lyricsStatus = "loading"
     m.lyricsAvailable = false
+    ' Video gets the player's own controls (spec native-apps WP6); music and audiobooks keep Roku's playback screen.
+    meta = m.pendingMeta
+    if meta = invalid then meta = emptyMeta()
+    m.pendingMeta = invalid
+    kind = plKindOf(faStr(manifest.mediaType), meta.showId, meta.subject)
+    if plHasOverlay(kind)
+        m.video.enableUI = false
+        beginPlayer(manifest, kind, meta)
+    else
+        m.video.enableUI = true
+        endPlayerUi()
+        m.video.setFocus(true)
+    end if
     m.video.control = "play"
     m.heartbeatTimer.control = "start"
 end sub
@@ -705,7 +737,16 @@ sub onVideoState()
         m.pendingSubtitleTrack = invalid
         m.status.text = ""
     end if
+    if m.p <> invalid
+        if m.video.state = "finished"
+            ' The next episode starts (or the End card waits); otherwise the player closes as below.
+            if playerFinished() then return
+        else if m.video.state <> "error"
+            playerState()
+        end if
+    end if
     if m.video.state = "finished" or m.video.state = "error"
+        endPlayerUi()
         m.panel.visible = false
         m.lyricsPanel.visible = false
         m.findWindow.visible = false
@@ -798,6 +839,8 @@ sub onSideResult(event as Object)
     result = event.getData()
     if result = invalid then return
     value = result.value
+    ' The player's own calls (preferences, episodes, bookmarks, the next episode's manifest).
+    if handlePlayerResult(info.operation, value, info.node.payload) then return
     if m.activeIsMusic
         onLyricsSideResult(info.operation, value)
         return
@@ -832,6 +875,7 @@ sub onSideError(event as Object)
     info = m.sideTasks[event.getNode()]
     if info = invalid then return
     m.sideTasks.Delete(event.getNode())
+    if handlePlayerError(info.operation, event.getData()) then return
     if m.activeIsMusic
         onLyricsSideError(info.operation)
         return
@@ -880,7 +924,7 @@ end sub
 sub closePanel(resume as Boolean)
     m.panel.visible = false
     if resume then m.video.control = "resume"
-    m.video.setFocus(true)
+    focusPlayer()
 end sub
 
 sub onPanelClose()
@@ -933,7 +977,7 @@ sub onFindClosed()
     if faIsTrue(result.applied)
         m.status.text = faTextUpdating()
         m.sideMode = "choose"
-        m.video.setFocus(true)
+        focusPlayer()
         runSide("alternativeChoose", { assetId: m.activeAssetId, provider: result.provider, sourceId: result.sourceId, language: result.language })
     else
         showPanel()
@@ -967,7 +1011,7 @@ sub attachSubtitleFile(path as String)
     m.pendingSubtitleTrack = path
     m.activeSubtitleId = track.id
     m.video.control = "play"
-    m.video.setFocus(true)
+    focusPlayer()
 end sub
 
 ' ---- Lyrics panel (music) and Find lyrics (spec find-another-on-tv D6, WP5) ----------------------------------------------
@@ -1002,6 +1046,7 @@ end sub
 
 sub onVideoPosition()
     if m.lyricsPanel.visible then updateLyricsActive()
+    if m.p <> invalid then playerTick()
 end sub
 
 sub onLyricsClose()
@@ -1108,6 +1153,10 @@ end sub
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
+    ' While a video plays under the player's own controls, the remote belongs to them first (the contract's tv-keys table).
+    if m.p <> invalid and m.video.visible and not m.findWindow.visible and not m.photoGroup.visible
+        return playerKey(key)
+    end if
     if m.photoGroup.visible
         if key = "left" and m.photoIndex > 0
             m.photoIndex = m.photoIndex - 1

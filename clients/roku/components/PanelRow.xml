@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One row of the Roku player's right-hand panel (spec native-apps WP6): at least 56 px high (92 here), text 24 px or more,
+     a white ring and a lighter fill on the focused row. The kind in the row's content decides what it shows. -->
+<component name="PanelRow" extends="Group">
+    <interface>
+        <field id="itemContent" type="node" onChange="onContent" />
+        <field id="width" type="float" />
+        <field id="height" type="float" />
+        <field id="itemHasFocus" type="boolean" onChange="onFocusChange" />
+    </interface>
+    <children>
+        <Rectangle id="ring" width="644" height="92" color="#FFFFFF" visible="false" />
+        <Rectangle id="fill" translation="[3,3]" width="638" height="86" color="#14151A" />
+        <Rectangle id="segLeft" translation="[3,3]" width="319" height="86" color="#8852FC" visible="false" />
+        <Rectangle id="segRight" translation="[322,3]" width="319" height="86" color="#8852FC" visible="false" />
+        <Label id="titleLabel" translation="[24,8]" width="456" height="44" color="#F5F7FB" vertAlign="center" />
+        <Label id="secondLabel" translation="[24,52]" width="456" height="34" color="#94A3B8" vertAlign="center" />
+        <Label id="valueLabel" translation="[330,8]" width="290" height="76" color="#B6C2D6" horizAlign="right" vertAlign="center" visible="false" />
+        <Label id="centerLabel" translation="[3,3]" width="638" height="86" color="#F5F7FB" horizAlign="center" vertAlign="center" visible="false" />
+        <Label id="segLeftLabel" translation="[3,3]" width="319" height="86" color="#B6C2D6" horizAlign="center" vertAlign="center" visible="false" />
+        <Label id="segRightLabel" translation="[322,3]" width="319" height="86" color="#B6C2D6" horizAlign="center" vertAlign="center" visible="false" />
+        <Rectangle id="chipBack" translation="[492,28]" width="132" height="36" color="#4A3C86" visible="false" />
+        <Label id="chipLabel" translation="[492,28]" width="132" height="36" horizAlign="center" vertAlign="center" color="#D9C9FF" visible="false" />
+        <Poster id="checkMark" translation="[580,26]" width="40" height="40" uri="pkg:/images/check.png" blendColor="#8852FC" visible="false" />
+        <Rectangle id="switchTrack" translation="[540,23]" width="84" height="46" color="#3A3B45" visible="false" />
+        <Rectangle id="switchKnob" translation="[544,27]" width="36" height="38" color="#FFFFFF" visible="false" />
+    </children>
+    <script type="text/brightscript" uri="pkg:/components/PanelRow.brs" />
+</component>
