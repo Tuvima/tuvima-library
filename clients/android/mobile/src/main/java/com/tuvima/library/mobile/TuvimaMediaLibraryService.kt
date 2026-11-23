@@ -21,6 +21,7 @@ import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.session.CommandButton
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -32,7 +33,25 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import com.tuvima.library.core.AudioNow
+import com.tuvima.library.core.CarCard
+import com.tuvima.library.core.CarCardKind
+import com.tuvima.library.core.CarCards
+import com.tuvima.library.core.CarEntry
+import com.tuvima.library.core.CarList
+import com.tuvima.library.core.CarListings
+import com.tuvima.library.core.CarNode
+import com.tuvima.library.core.CarNowPlaying
+import com.tuvima.library.core.CarPlan
+import com.tuvima.library.core.CarPlayPlan
+import com.tuvima.library.core.CarQueueFill
+import com.tuvima.library.core.CarQuery
+import com.tuvima.library.core.CarSearch
 import com.tuvima.library.core.HeartbeatRules
+import com.tuvima.library.core.ListenLogic
+import com.tuvima.library.core.RepeatCycle
+import com.tuvima.library.core.SongSort
+import com.tuvima.library.core.TvRepeatMode
+import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.ListenQueue
 import com.tuvima.library.core.LockAction
 import com.tuvima.library.core.LockScreen
@@ -57,7 +76,6 @@ import com.tuvima.library.core.VideoSessionPolicy
 import com.tuvima.library.core.VideoErrors
 import com.tuvima.library.core.VideoFailure
 import com.tuvima.library.core.VideoMessages
-import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.OfflineProgressEntry
 import kotlinx.coroutines.CoroutineScope
@@ -79,7 +97,16 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
     private lateinit var player: ExoPlayer
     private lateinit var session: MediaLibrarySession
     private val client get() = (application as TuvimaMobileApplication).client
-    private val children = mutableMapOf<String, List<MediaItem>>()
+    // Android Auto (spec native-apps WP11). Each list the car opened is read from the Engine when it is opened and kept only for the profile that
+    // read it ([CarListings] starts empty when another profile signs in, so a Kids profile never sees an adult's list).
+    private class CarListing(val title: String, val cards: List<CarCard>)
+    private val carItems = CarListings<List<MediaItem>>()
+    private val carLists = CarListings<CarListing>()
+    private val carIndex = CarListings<MediaItem>()
+    private val carSearches = CarListings<List<MediaItem>>()
+
+    // How many times the session has put items into the player. A car queue adds its other songs only after the session has done so (CarQueueFill).
+    private var sessionItemsSet = 0
     private var activeAssetId: String? = null
     private var progressJob: Job? = null
     private var heartbeatJob: Job? = null
@@ -167,6 +194,11 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
             override fun onPlayerError(error: PlaybackException) = onStreamError(error)
 
+            // The car's extra buttons show Repeat and the speed as they stand.
+            override fun onRepeatModeChanged(repeatMode: Int) = updateCarButtons()
+
+            override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) = updateCarButtons()
+
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 mediaItem?.mediaId?.let { activeAssetId = it }
                 publishNow(mediaItem)
@@ -192,12 +224,12 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         sessionPlayer = AudioCardPlayer(player)
         session = MediaLibrarySession.Builder(this, sessionPlayer, LibraryCallback()).build()
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkCallback)
+        updateCarButtons()
         // The Sleep timer ticks here, where the player is, so it works with the screen off: a timed one pauses when its time is up and an end-of-chapter
         // one at the chapter's end. Setting it back to Off (or starting another) restarts the watch.
         scope.launch {
             AudioBridge.sleepTimer.collectLatest { timer -> if (timer != SleepTimer.Off) watchSleepTimer(timer) }
         }
-        refreshLibrary()
     }
 
     // ---- the music and audiobook players (spec native-apps WP10c) ----
@@ -225,6 +257,37 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         override fun removeListener(listener: Player.Listener) {
             listeners -= listener
             super.removeListener(listener)
+        }
+
+        // The session fills the player through these; the count tells a car queue that its first song has really been put in place.
+        override fun setMediaItems(mediaItems: MutableList<MediaItem>) {
+            super.setMediaItems(mediaItems)
+            sessionItemsSet += 1
+        }
+
+        override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
+            super.setMediaItems(mediaItems, resetPosition)
+            sessionItemsSet += 1
+        }
+
+        override fun setMediaItems(mediaItems: MutableList<MediaItem>, startIndex: Int, startPositionMs: Long) {
+            super.setMediaItems(mediaItems, startIndex, startPositionMs)
+            sessionItemsSet += 1
+        }
+
+        override fun setMediaItem(mediaItem: MediaItem) {
+            super.setMediaItem(mediaItem)
+            sessionItemsSet += 1
+        }
+
+        override fun setMediaItem(mediaItem: MediaItem, startPositionMs: Long) {
+            super.setMediaItem(mediaItem, startPositionMs)
+            sessionItemsSet += 1
+        }
+
+        override fun setMediaItem(mediaItem: MediaItem, resetPosition: Boolean) {
+            super.setMediaItem(mediaItem, resetPosition)
+            sessionItemsSet += 1
         }
 
         fun commandsChanged() {
@@ -310,6 +373,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         audioTickJob?.cancel()
         if (info != null && info.isAudiobook && info.chapters.isNotEmpty()) startAudioTick()
         if (::sessionPlayer.isInitialized) sessionPlayer.commandsChanged()
+        updateCarButtons()
     }
 
     /** While a book with chapters plays, the card's second line follows the chapter (author · chapter name). */
@@ -410,6 +474,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             QueueShuffle.moves(ids, target).forEach { player.moveMediaItem(it.from, it.to) }
         }
         AudioBridge.shuffle.value = on
+        updateCarButtons()
     }
 
     /** The cover of a song or book as bytes for the lock screen (the Engine wants the device's own sign-in, so the system cannot fetch it). */
@@ -523,6 +588,20 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
      * starts at the speed the phone last used for books; its chapters come from the playback manifest.
      */
     private suspend fun startAudioAsset(assetId: String, title: String?, subtitle: String?, workId: String?, entityType: String?, artworkUrl: String?) {
+        val prepared = prepareAudioAsset(assetId, title, subtitle, workId, entityType, artworkUrl) ?: return
+        player.setMediaItem(prepared.item, prepared.startMs)
+        player.prepare()
+        player.play()
+    }
+
+    /** A song or book ready to hand to the player: the item (with its card) and where it starts. */
+    private class PreparedAudio(val item: MediaItem, val startMs: Long)
+
+    /**
+     * Everything [startAudioAsset] does before the player is given the item (the phone's Play, and the car's press or voice request, both start
+     * here): the card, the chapters, the speed and skip seconds. Null when the Engine would not give a stream (the screens are told).
+     */
+    private suspend fun prepareAudioAsset(assetId: String, title: String?, subtitle: String?, workId: String?, entityType: String?, artworkUrl: String?): PreparedAudio? {
         AudioBridge.shuffle.value = false
         AudioBridge.sleepTimer.value = SleepTimer.Off
         AudioBridge.problem.value = null
@@ -566,7 +645,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             val path = manifest?.playablePath()
             if (manifest == null || path == null) {
                 AudioBridge.problem.value = SONG_NOT_READY
-                return
+                return null
             }
             item = MediaItem.Builder().setMediaId(assetId).setUri(path).setMediaMetadata(metadata).build()
             startMs = StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds)
@@ -577,9 +656,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         AudioBridge.skip.value = PhonePlayerLogic.skip(prefs, device, audio = true)
         player.setAudioAttributes(mediaAudioAttributes(C.AUDIO_CONTENT_TYPE_MUSIC), true)
         player.setPlaybackSpeed(NowPlayingLogic.startSpeed(kind, prefs, device).toFloat())
-        player.setMediaItem(item, startMs)
-        player.prepare()
-        player.play()
+        return PreparedAudio(item, startMs)
     }
 
     // Recovery attempts per item id since it last reached the ready state; cleared when playback is ready again.
@@ -655,36 +732,297 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         return result
     }
 
-    private fun refreshLibrary() {
-        val api = client ?: return
-        scope.launch {
-            val categories = listOf(
-                "music" to "Music",
-                "audiobooks" to "Audiobooks",
-                "playlists" to "Playlists",
-                "queue" to "Queue",
-                "recent" to "Recent items",
-            )
-            children[ROOT] = categories.map { (id, title) -> folder(id, title) }
-            categories.forEach { (id, _) ->
-                val page = runCatching {
-                    when (id) {
-                        "audiobooks" -> api.browse("listen", "Audiobooks")
-                        "playlists" -> api.browse("listen", "Playlists")
-                        "recent" -> api.continuePage("listen")
-                        "queue" -> null
-                        else -> api.browse("listen", "Music")
-                    }
-                }.getOrNull()
-                children[id] = if (id == "queue") {
-                    runCatching { queueItems(api.playerState()) }.getOrDefault(emptyList())
-                } else {
-                    page?.shelves?.flatMap { it.items }?.distinctBy { it.id }?.mapNotNull(::playable).orEmpty()
-                }
-                session.notifyChildrenChanged(id, children[id]?.size ?: 0, null)
-            }
-            session.notifyChildrenChanged(ROOT, categories.size, null)
+    // ---- Android Auto: the car list, search and the Now playing card's extra buttons (spec native-apps WP11) ----
+
+    /** Tells the kept lists who is signed in; a different profile starts them empty, so a list is only ever shown to the profile that read it. */
+    private fun useCarProfile(api: TuvimaClient) {
+        val profile = api.currentProfileId()
+        carItems.useProfile(profile)
+        carLists.useProfile(profile)
+        carIndex.useProfile(profile)
+        carSearches.useProfile(profile)
+    }
+
+    private fun remember(item: MediaItem): MediaItem {
+        carIndex[item.mediaId] = item
+        return item
+    }
+
+    private fun carFolder(id: String, title: String, line: String? = null): MediaItem = remember(folder(id, title, line))
+
+    /** One row of a list: an album opens its songs; a song or audiobook plays (its id says which list it was shown in). */
+    private fun carRow(card: CarCard, listId: String): MediaItem? {
+        if (card.kind == CarCardKind.Album) {
+            val type = card.detailType ?: return null
+            val id = card.detailId ?: return null
+            return carFolder(CarList.albumId(type, id), card.title, card.line)
         }
+        val assetId = card.assetId ?: return null
+        return remember(
+            MediaItem.Builder()
+                .setMediaId(CarList.playId(assetId, listId))
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(card.title)
+                        .setSubtitle(card.line)
+                        .setIsBrowsable(false)
+                        .setIsPlayable(true)
+                        .setMediaType(if (card.kind == CarCardKind.Audiobook) MediaMetadata.MEDIA_TYPE_AUDIO_BOOK else MediaMetadata.MEDIA_TYPE_MUSIC)
+                        .build(),
+                )
+                .build(),
+        )
+    }
+
+    /** Keeps a list (so a press can play it from the pressed row) and returns its rows. */
+    private fun carListing(listId: String, title: String, cards: List<CarCard>): List<MediaItem> {
+        carLists[listId] = CarListing(title, cards)
+        return cards.mapNotNull { carRow(it, listId) }
+    }
+
+    /**
+     * What a place in the car's list holds. The root is the contract's list in the contract's order; every other list is read from the Engine
+     * through the routes the phone already uses, for the signed-in profile (the Engine decides what that profile may see), audio only and at
+     * most [CarList.NODE_LIMIT] rows. Nothing here is video.
+     */
+    private suspend fun carChildren(parentId: String, refresh: Boolean): List<MediaItem> {
+        val node = CarList.parse(parentId) ?: return emptyList()
+        if (node is CarNode.Root) return CarList.rootEntries().map { carFolder(it.nodeId, it.title) }
+        val api = client ?: return emptyList()
+        useCarProfile(api)
+        if (!refresh) carItems[parentId]?.let { return it }
+        val rows: List<MediaItem> = when (node) {
+            is CarNode.Entry -> when (node.entry) {
+                CarEntry.Continue ->
+                    carListing(parentId, node.entry.title, CarCards.items(api.continuePage(ListenLogic.LANE).shelves.flatMap { it.items }))
+                CarEntry.ListenShelves -> CarList.listenShelves(api.listenHome()).map { shelf ->
+                    val shelfId = CarList.shelfId(shelf.key)
+                    carLists[shelfId] = CarListing(shelf.title, CarCards.items(shelf.items))
+                    carFolder(shelfId, shelf.title)
+                }
+                CarEntry.Audiobooks ->
+                    carListing(parentId, node.entry.title, CarCards.items(api.browsePage(CarList.audiobooksQuery()).cards))
+                // No route reads playlists for the phone yet, so there is nothing to list (CarList.PLAYLISTS_AVAILABLE).
+                CarEntry.Playlists -> emptyList()
+                CarEntry.RecentlyPlayed -> carListing(
+                    parentId,
+                    node.entry.title,
+                    CarCards.items(api.listenShelfPage(CarList.RECENTLY_PLAYED_SHELF, limit = CarList.NODE_LIMIT).shelf.items),
+                )
+            }
+            is CarNode.ListenShelf -> {
+                // A shelf is normally read when the Listen entry was opened; reading it again covers a car that asks for a shelf directly.
+                if (carLists[parentId] == null) carChildren(CarEntry.ListenShelves.nodeId, refresh = true)
+                carLists[parentId]?.cards?.mapNotNull { carRow(it, parentId) }.orEmpty()
+            }
+            is CarNode.Album -> {
+                val detail = api.detailPage(node.entityType, node.id)
+                val songs = CarCards.songsOf(PlayQueue.tracksOf(detail.children, detail.title, detail.subtitle, detail.artworkUrl))
+                carListing(parentId, detail.title, songs)
+            }
+            else -> emptyList()
+        }
+        carItems[parentId] = rows
+        return rows
+    }
+
+    /** The playable results of a typed or spoken search, as list rows (a result plays when pressed). */
+    private suspend fun carSearchItems(query: String, refresh: Boolean): List<MediaItem> {
+        val api = client ?: return emptyList()
+        useCarProfile(api)
+        // Every new search (onSearch) asks the Engine again; the pages of that search's result come from what it kept.
+        if (refresh) carSearches.remove(query)
+        carSearches[query]?.let { return it }
+        val text = (CarSearch.classify(query) as? CarQuery.Text)?.text ?: return emptyList()
+        val rows = CarSearch.audioHits(api.searchResults(text)).map { hit ->
+            remember(
+                MediaItem.Builder()
+                    .setMediaId(CarList.hitId(CarSearch.isAudiobook(hit), hit.entityType, hit.id))
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(hit.title)
+                            .setSubtitle(hit.line)
+                            .setIsBrowsable(false)
+                            .setIsPlayable(true)
+                            .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                            .build(),
+                    )
+                    .build(),
+            )
+        }
+        carSearches[query] = rows
+        return rows
+    }
+
+    /** True for what the car asks to play: a row of its list, a search result, or a spoken request (which carries a search text, possibly empty). */
+    private fun isCarRequest(item: MediaItem): Boolean {
+        if (item.requestMetadata.searchQuery != null) return true
+        val node = CarList.parse(item.mediaId)
+        return node is CarNode.Play || node is CarNode.Hit
+    }
+
+    /** Works out what a press or a spoken request starts, and starts it; null when nothing playable was found. */
+    private suspend fun carStart(item: MediaItem): MediaSession.MediaItemsWithStartPosition? {
+        val api = client ?: return null
+        useCarProfile(api)
+        val node = CarList.parse(item.mediaId)
+        val plan = when (node) {
+            is CarNode.Play -> planForPress(node.assetId, node.listId)
+            is CarNode.Hit -> planForHit(api, node)
+            else -> planForSpeech(api, item.requestMetadata.searchQuery)
+        } ?: return null
+        queueJob?.cancel()
+        return when (plan) {
+            is CarPlan.Songs -> startCarQueue(plan.request)?.let { MediaSession.MediaItemsWithStartPosition(listOf(it), 0, 0L) }
+            is CarPlan.Book -> {
+                val prepared = prepareAudioAsset(plan.assetId, plan.title.ifBlank { null }, plan.author, plan.workId, null, plan.artworkUrl)
+                prepared?.let { MediaSession.MediaItemsWithStartPosition(listOf(it.item), 0, it.startMs) }
+            }
+        }
+    }
+
+    /** A press on a row plays its list from there; a row this app no longer remembers (a restart) plays on its own. */
+    private fun planForPress(assetId: String, listId: String?): CarPlan {
+        val listing = listId?.let { carLists[it] }
+        return listing?.let { CarPlayPlan.forPress(it.cards, assetId, it.title) } ?: CarPlan.Book(assetId, "", null, null, null)
+    }
+
+    private suspend fun planForHit(api: TuvimaClient, hit: CarNode.Hit): CarPlan? {
+        val detail = api.detailPage(hit.entityType, hit.id)
+        CarPlayPlan.forHit(hit, detail)?.let { return it }
+        if (hit.audiobook) return null
+        // A song whose page lists no file: the song list narrowed by its title finds it.
+        return CarPlayPlan.forSongTitle(detail.title, api.browsePage(ListenLogic.songsQuery(detail.title, SongSort.Title, null, 0)).cards)
+    }
+
+    /**
+     * A spoken request: the best audio results of the universal search are tried in order, and an empty request ("play music") carries on with
+     * what the profile was listening to.
+     */
+    private suspend fun planForSpeech(api: TuvimaClient, spoken: String?): CarPlan? {
+        val query = CarSearch.classify(spoken)
+        if (query is CarQuery.Text) {
+            for (hit in CarSearch.audioHits(api.searchResults(query.text), limit = 3)) {
+                planForHit(api, CarSearch.nodeOf(hit))?.let { return it }
+            }
+            return null
+        }
+        if (query !is CarQuery.Resume) return null
+        val cards = CarCards.items(api.continuePage(ListenLogic.LANE).shelves.flatMap { it.items })
+        val first = cards.firstOrNull() ?: return null
+        if (first.kind == CarCardKind.Album) {
+            val type = first.detailType ?: return null
+            val id = first.detailId ?: return null
+            return CarPlayPlan.forAlbum(api.detailPage(type, id))
+        }
+        return CarPlayPlan.forPress(cards, first.assetId.orEmpty(), CarEntry.Continue.title)
+    }
+
+    /**
+     * Starts a list of songs for the car: the first song that can be prepared is returned for the player (so it starts at once), and the rest of the
+     * queue is added behind and in front of it as the Engine prepares each one, the same way the phone's Play does.
+     */
+    private suspend fun startCarQueue(request: PlayQueueRequest): MediaItem? {
+        val arranged = QueueShuffle.arranged(request, kotlin.random.Random.Default)
+        originalOrder = ListenQueue.originalIds(request)
+        AudioBridge.shuffle.value = request.shuffle
+        AudioBridge.sleepTimer.value = SleepTimer.Off
+        AudioBridge.problem.value = null
+        player.setAudioAttributes(mediaAudioAttributes(C.AUDIO_CONTENT_TYPE_MUSIC), true)
+        player.setPlaybackSpeed(1f)
+        val tracks = arranged.tracks
+        val start = arranged.startIndex.coerceIn(0, (tracks.size - 1).coerceAtLeast(0))
+        val order = (start until tracks.size) + (0 until start)
+        var first: MediaItem? = null
+        var firstAt = -1
+        for ((position, index) in order.withIndex()) {
+            val item = queueItem(tracks[index], request.sourceName, hasNext = index < tracks.size - 1) ?: continue
+            first = item
+            firstAt = position
+            break
+        }
+        if (first == null) {
+            AudioBridge.problem.value = SONG_NOT_READY
+            return null
+        }
+        activeAssetId = first.mediaId
+        val firstId = first.mediaId
+        val rest = order.drop(firstAt + 1)
+        val setAtStart = sessionItemsSet
+        queueJob = scope.launch {
+            // The session puts the first song in the player a moment after this returns (replacing whatever was loaded, even this same song); the
+            // others follow only once it has, or they would be thrown away with the old items.
+            var waited = 0
+            while (!CarQueueFill.canAddRest(setAtStart, sessionItemsSet, player.currentMediaItem?.mediaId, firstId) && waited < CAR_QUEUE_WAIT_STEPS) {
+                delay(CAR_QUEUE_WAIT_MS)
+                waited += 1
+            }
+            if (!CarQueueFill.canAddRest(setAtStart, sessionItemsSet, player.currentMediaItem?.mediaId, firstId)) return@launch
+            var before = 0
+            for (index in rest) {
+                val item = queueItem(tracks[index], request.sourceName, hasNext = index < tracks.size - 1) ?: continue
+                if (index > start) {
+                    player.addMediaItem(item)
+                } else {
+                    player.addMediaItem(before, item)
+                    before += 1
+                }
+            }
+        }
+        return first
+    }
+
+    private fun repeatOf(mode: Int): TvRepeatMode = when (mode) {
+        Player.REPEAT_MODE_ALL -> TvRepeatMode.All
+        Player.REPEAT_MODE_ONE -> TvRepeatMode.One
+        else -> TvRepeatMode.Off
+    }
+
+    /**
+     * The Now playing card's extra buttons: Shuffle and Repeat for music, the speed for an audiobook (nothing for anything else). The system draws
+     * the card's lines and its Previous, Play, Next (or skip and chapter) buttons from the player's commands (see [AudioCardPlayer]).
+     */
+    private fun updateCarButtons() {
+        if (!::session.isInitialized || !::player.isInitialized) return
+        val now = AudioBridge.now.value
+        val extras = if (now.isNone) {
+            emptyList()
+        } else {
+            CarNowPlaying.extraButtons(now.kind, AudioBridge.shuffle.value, repeatOf(player.repeatMode), player.playbackParameters.speed.toDouble())
+        }
+        session.setCustomLayout(ImmutableList.copyOf(extras.map(::carButton)))
+    }
+
+    private fun carButton(extra: CarNowPlaying.ExtraButton): CommandButton {
+        val icon = when (extra.extra) {
+            CarNowPlaying.Extra.Shuffle -> if (extra.selected) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF
+            CarNowPlaying.Extra.Repeat -> when (player.repeatMode) {
+                Player.REPEAT_MODE_ALL -> CommandButton.ICON_REPEAT_ALL
+                Player.REPEAT_MODE_ONE -> CommandButton.ICON_REPEAT_ONE
+                else -> CommandButton.ICON_REPEAT_OFF
+            }
+            CarNowPlaying.Extra.Speed -> CommandButton.ICON_PLAYBACK_SPEED
+        }
+        return CommandButton.Builder(icon)
+            .setDisplayName(extra.label)
+            .setSessionCommand(SessionCommand(extra.extra.command, Bundle.EMPTY))
+            .build()
+    }
+
+    private fun carCycleRepeat() {
+        player.repeatMode = when (RepeatCycle.next(repeatOf(player.repeatMode))) {
+            TvRepeatMode.All -> Player.REPEAT_MODE_ALL
+            TvRepeatMode.One -> Player.REPEAT_MODE_ONE
+            TvRepeatMode.Off -> Player.REPEAT_MODE_OFF
+        }
+    }
+
+    /** The speed button of an audiobook steps to the next preset and keeps it as the speed audiobooks start at, as the phone's own choice does. */
+    private fun carStepSpeed() {
+        if (!AudioBridge.now.value.isAudiobook) return
+        val next = CarNowPlaying.nextSpeed(player.playbackParameters.speed.toDouble())
+        player.setPlaybackSpeed(next.toFloat())
+        (application as TuvimaMobileApplication).playerChoices.update(client?.currentProfileId()) { it.copy(audiobookSpeed = next) }
     }
 
     private inner class LibraryCallback : MediaLibrarySession.Callback {
@@ -693,8 +1031,9 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<MediaItem>> =
-            Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT, "Library"), params))
+            Futures.immediateFuture(LibraryResult.ofItem(folder(CarList.ROOT_ID, "Library"), params))
 
+        // Lists are read when they are opened (the first page re-reads; the later pages of the same list come from what that read kept).
         override fun onGetChildren(
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
@@ -702,11 +1041,116 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             page: Int,
             pageSize: Int,
             params: LibraryParams?,
-        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-            val source = children[parentId].orEmpty()
-            val start = (page * pageSize).coerceAtMost(source.size)
-            val end = (start + pageSize).coerceAtMost(source.size)
-            return Futures.immediateFuture(LibraryResult.ofItemList(source.subList(start, end), params))
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = CallbackToFutureAdapter.getFuture { completer ->
+            scope.launch {
+                try {
+                    val rows = carChildren(parentId, refresh = page == 0)
+                    completer.set(LibraryResult.ofItemList(ImmutableList.copyOf(CarList.slice(rows, page, pageSize)), params))
+                } catch (cancelled: CancellationException) {
+                    completer.setCancelled()
+                    throw cancelled
+                } catch (failure: Exception) {
+                    // The Engine could not be reached: the car shows an empty list rather than waiting, and asks again when it is opened next.
+                    completer.set(LibraryResult.ofItemList(ImmutableList.of<MediaItem>(), params))
+                }
+            }
+            "Read the Library car list"
+        }
+
+        override fun onGetItem(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            mediaId: String,
+        ): ListenableFuture<LibraryResult<MediaItem>> {
+            client?.let { useCarProfile(it) }
+            val item = if (mediaId == CarList.ROOT_ID) folder(CarList.ROOT_ID, "Library") else carIndex[mediaId]
+            return Futures.immediateFuture(
+                if (item != null) LibraryResult.ofItem(item, null) else LibraryResult.ofError<MediaItem>(LibraryResult.RESULT_ERROR_BAD_VALUE),
+            )
+        }
+
+        override fun onSubscribe(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            parentId: String,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<Void>> = Futures.immediateFuture(LibraryResult.ofVoid())
+
+        // Search is by voice or by what is typed in the car: the universal search route, audio results only.
+        override fun onSearch(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<Void>> {
+            scope.launch {
+                val count = try {
+                    carSearchItems(query, refresh = true).size
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    // The search could not be asked: the car is told there is nothing to show.
+                    0
+                }
+                session.notifySearchResultChanged(browser, query, count, params)
+            }
+            return Futures.immediateFuture(LibraryResult.ofVoid())
+        }
+
+        override fun onGetSearchResult(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            page: Int,
+            pageSize: Int,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = CallbackToFutureAdapter.getFuture { completer ->
+            scope.launch {
+                try {
+                    completer.set(LibraryResult.ofItemList(ImmutableList.copyOf(CarList.slice(carSearchItems(query, refresh = false), page, pageSize)), params))
+                } catch (cancelled: CancellationException) {
+                    completer.setCancelled()
+                    throw cancelled
+                } catch (failure: Exception) {
+                    // The search could not be asked: an empty answer, never a wait.
+                    completer.set(LibraryResult.ofItemList(ImmutableList.of<MediaItem>(), params))
+                }
+            }
+            "Search the Library for the car"
+        }
+
+        // A press on a row of the car's list or a spoken request arrives here. The car sends only the row's id (or the words said), so what to play
+        // is worked out from the lists above and the Engine, and the first song or book comes back fully built, with its card, chapters and place.
+        override fun onSetMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: List<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val request = mediaItems.firstOrNull { isCarRequest(it) }
+                ?: return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
+            return CallbackToFutureAdapter.getFuture { completer ->
+                scope.launch {
+                    try {
+                        val started = carStart(request)
+                        if (started != null) {
+                            completer.set(started)
+                        } else {
+                            AudioBridge.problem.value = SONG_NOT_READY
+                            completer.setException(IllegalStateException(SONG_NOT_READY))
+                        }
+                    } catch (cancelled: CancellationException) {
+                        completer.setCancelled()
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        // The Engine could not be asked: the phone's screens say so in words, and the car's request ends.
+                        AudioBridge.problem.value = SONG_NOT_READY
+                        completer.setException(failure)
+                    }
+                }
+                "Start Library audio for the car"
+            }
         }
 
         override fun onConnect(
@@ -719,6 +1163,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 .add(SessionCommand(COMMAND_CLOSE_VIDEO, Bundle.EMPTY))
                 .add(SessionCommand(COMMAND_RELOAD_SUBTITLES, Bundle.EMPTY))
                 .add(SessionCommand(COMMAND_SET_SHUFFLE, Bundle.EMPTY))
+                // The Now playing card's extra buttons in the car (Shuffle, Repeat, Speed).
+                .apply { CarNowPlaying.Extra.entries.forEach { add(SessionCommand(it.command, Bundle.EMPTY)) } }
                 .build()
             if (controller.connectionHints.getBoolean(HINT_VIDEO_SCREEN)) videoScreens.add(controller)
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
@@ -769,6 +1215,19 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             COMMAND_RELOAD_SUBTITLES -> reloadSubtitles(args.getString(EXTRA_ASSET_ID).orEmpty())
             COMMAND_SET_SHUFFLE -> {
                 setShuffle(args.getBoolean(EXTRA_SHUFFLE))
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            // The car's extra buttons carry no values: each one acts on the state the player is in now.
+            CarNowPlaying.Extra.Shuffle.command -> {
+                setShuffle(!AudioBridge.shuffle.value)
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            CarNowPlaying.Extra.Repeat.command -> {
+                carCycleRepeat()
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            CarNowPlaying.Extra.Speed.command -> {
+                carStepSpeed()
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             else -> Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
@@ -1086,59 +1545,18 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         return MediaItem.Builder().setMediaId(assetId).setUri(path).build()
     }
 
-    private fun folder(id: String, title: String): MediaItem = MediaItem.Builder()
+    private fun folder(id: String, title: String, line: String? = null): MediaItem = MediaItem.Builder()
         .setMediaId(id)
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(title)
+                .setSubtitle(line)
                 .setIsBrowsable(true)
                 .setIsPlayable(false)
                 .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                 .build(),
         )
         .build()
-
-    private fun playable(card: DisplayCard): MediaItem? {
-        val assetId = card.actions.firstNotNullOfOrNull { it.assetId } ?: card.assetId ?: return null
-        return MediaItem.Builder()
-            .setMediaId(assetId)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(card.title)
-                    .setSubtitle(card.subtitle)
-                    .setIsBrowsable(false)
-                    .setIsPlayable(true)
-                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-                    .build(),
-            )
-            .build()
-    }
-
-    private fun queueItems(state: JSONObject): List<MediaItem> {
-        val queue = state.optJSONArray("queue") ?: return emptyList()
-        return buildList {
-            for (index in 0 until queue.length()) {
-                val item = queue.optJSONObject(index) ?: continue
-                val mediaType = item.optString("mediaType")
-                if (!mediaType.equals("Music", true) && !mediaType.equals("Audiobooks", true)) continue
-                val assetId = item.optString("assetId").takeIf(String::isNotBlank) ?: continue
-                add(
-                    MediaItem.Builder()
-                        .setMediaId(assetId)
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setTitle(item.optString("title", "Library"))
-                                .setSubtitle(item.optString("subtitle").takeIf(String::isNotBlank))
-                                .setIsBrowsable(false)
-                                .setIsPlayable(true)
-                                .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-                                .build(),
-                        )
-                        .build(),
-                )
-            }
-        }
-    }
 
     override fun onDestroy() {
         progressJob?.cancel()
@@ -1195,7 +1613,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         const val RESULT_FAILURE = "failure"
         const val RESULT_MESSAGE = "message"
         const val RESULT_CANCELLED = "cancelled"
-        private const val ROOT = "tuvima-root"
+        private const val CAR_QUEUE_WAIT_MS = 100L
+        private const val CAR_QUEUE_WAIT_STEPS = 50
         private const val PROGRESS_SAVE_MS = 10_000L
         private const val MIN_RECORDED_SECONDS = 5.0
         private const val PREFS_WAIT_MS = 2_000L
