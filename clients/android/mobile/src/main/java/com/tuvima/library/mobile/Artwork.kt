@@ -28,6 +28,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.DisplayCard
+import com.tuvima.library.core.SavedKey
 import com.tuvima.library.core.TuvimaClient
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -80,17 +81,23 @@ internal fun RemoteImage(
     }
 }
 
-/** A portrait poster with its title, and a progress line when the work has been started. */
+/**
+ * A portrait poster with its title, a progress line when the work has been started, and the My List plus or tick in its top corner
+ * (only for a title My List can hold). [onSavedPress] replaces the default save-or-remove; the My List page uses it to remove with Undo.
+ */
 @Composable
 internal fun PosterTile(
     client: TuvimaClient,
     card: DisplayCard,
     modifier: Modifier = Modifier,
+    onSavedPress: ((SavedKey) -> Unit)? = null,
     onClick: () -> Unit,
 ) {
+    val saved = LocalSavedItems.current
     Column(modifier.clickable(onClick = onClick)) {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp))) {
             RemoteImage(client, card.posterUrl ?: card.artworkUrl, Modifier.fillMaxSize())
+            if (saved != null) SavedToggle(saved.keyFor(card), Modifier.align(Alignment.TopEnd), onSavedPress)
             val percent = card.progressPercent
             if (percent != null && percent > 0.0) {
                 LinearProgressIndicator(

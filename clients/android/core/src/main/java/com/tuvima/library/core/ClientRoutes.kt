@@ -69,6 +69,40 @@ object ClientRoutes {
         return "$API/display/browse?${parameters.joinToString("&")}"
     }
 
+    /** My List: the saved titles of the active profile. GET lists them; `/finished` lists the ones already finished. */
+    const val PROFILE_SAVED = "$API/profile-state/saved"
+    const val PROFILE_SAVED_FINISHED = "$API/profile-state/saved/finished"
+
+    /** POST: take the named titles off My List; the answer is what was taken (with its saved dates), for Undo. */
+    const val PROFILE_SAVED_REMOVE = "$API/profile-state/saved/remove"
+
+    /** POST: save the titles a remove returned again with their original dates. */
+    const val PROFILE_SAVED_RESTORE = "$API/profile-state/saved/restore"
+
+    /** PUT saves one title, DELETE removes it (`204`). The kind is the Engine's route name (see [SavedKind.route]). */
+    fun profileSaved(kind: SavedKind, id: String): String = "$PROFILE_SAVED/${kind.route}/${encode(id)}"
+
+    /** One page of the My List grid (`personal/my-list`) with the Dashboard's sort and kind filter. */
+    fun myListGrid(sort: String? = null, type: String? = null, offset: Int = 0, limit: Int = MyListLogic.PAGE_SIZE): String {
+        val parameters = buildList {
+            sort?.takeIf(String::isNotBlank)?.let { add("sort=${encode(it)}") }
+            type?.takeIf(String::isNotBlank)?.let { add("type=${encode(it)}") }
+            add("offset=${offset.coerceAtLeast(0)}")
+            add("limit=${limit.coerceIn(1, 100)}")
+        }
+        return "$API/display/grids/${MyListLogic.LANE}/${MyListLogic.SHELF_KEY}?${parameters.joinToString("&")}"
+    }
+
+    /** The newest additions the profile may see, a page at a time by cursor ([type] is watch, read, listen or view). */
+    fun recent(type: String? = null, cursor: String? = null, limit: Int = 18): String {
+        val parameters = buildList {
+            type?.takeIf(String::isNotBlank)?.let { add("type=${encode(it)}") }
+            cursor?.takeIf(String::isNotBlank)?.let { add("cursor=${encode(it)}") }
+            add("limit=${limit.coerceIn(1, 100)}")
+        }
+        return "$API/display/recent?${parameters.joinToString("&")}"
+    }
+
     fun details(entityType: String, id: String): String =
         "$API/details/${encode(entityType)}/${encode(id)}"
 

@@ -55,6 +55,8 @@ internal fun SettingsScreen(
     onProfileSwitched: (String) -> Unit,
     onChangeServer: () -> Unit,
     onSignedOut: (String?) -> Unit,
+    /** Opens the Switch profile window as soon as the screen appears (the menu's Switch profile and the avatar). */
+    openProfilesOnStart: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     var activeName by remember { mutableStateOf<String?>(null) }
@@ -154,6 +156,10 @@ internal fun SettingsScreen(
                 else "Signed out on this phone. The server could not be reached, so remove this device under Devices in the Dashboard.",
             )
         }
+    }
+
+    LaunchedEffect(openProfilesOnStart) {
+        if (openProfilesOnStart) openProfiles()
     }
 
     Column(

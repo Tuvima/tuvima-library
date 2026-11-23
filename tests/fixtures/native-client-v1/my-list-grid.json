@@ -1,0 +1,109 @@
+{
+  "lane": "personal",
+  "shelfKey": "my-list",
+  "title": "My List",
+  "subtitle": null,
+  "items": [
+    {
+      "id": "5a1c0001-0000-4000-8000-000000000011",
+      "workId": "5a1c0001-0000-4000-8000-000000000001",
+      "assetId": "5a1c0001-0000-4000-8000-000000000021",
+      "collectionId": null,
+      "mediaType": "Movies",
+      "groupingType": "Work",
+      "title": "Alpha One",
+      "subtitle": null,
+      "facts": ["2021", "PG-13"],
+      "artwork": {
+        "coverUrl": "/stream/5a1c0001-0000-4000-8000-000000000031/cover",
+        "coverLargeUrl": "/stream/5a1c0001-0000-4000-8000-000000000031/cover?size=large",
+        "backgroundUrl": "/stream/5a1c0001-0000-4000-8000-000000000031/background"
+      },
+      "preferredShape": "Portrait",
+      "presentation": "Movie",
+      "tileTextMode": "Caption",
+      "previewPlacement": "None",
+      "progress": null,
+      "actions": [
+        {
+          "type": "details",
+          "label": "Details",
+          "workId": "5a1c0001-0000-4000-8000-000000000001",
+          "assetId": null,
+          "collectionId": null,
+          "webUrl": "/details/movie/5a1c0001-0000-4000-8000-000000000001"
+        }
+      ],
+      "flags": {
+        "isPlayable": true,
+        "isReadable": false,
+        "isCollection": false,
+        "isFavorite": false
+      },
+      "sortTimestamp": "2026-11-20T10:15:00+00:00",
+      "subject": "Work",
+      "continuationState": "Unstarted"
+    },
+    {
+      "id": "5a1c0001-0000-4000-8000-000000000012",
+      "workId": "5a1c0001-0000-4000-8000-000000000002",
+      "assetId": null,
+      "collectionId": null,
+      "mediaType": "TV",
+      "groupingType": "Show",
+      "title": "Beta Show",
+      "subtitle": "3 seasons",
+      "facts": ["2019"],
+      "artwork": {
+        "coverUrl": "/stream/5a1c0001-0000-4000-8000-000000000032/cover"
+      },
+      "preferredShape": "Portrait",
+      "presentation": "TvSeries",
+      "tileTextMode": "Caption",
+      "previewPlacement": "None",
+      "progress": null,
+      "actions": [
+        {
+          "type": "details",
+          "label": "Details",
+          "workId": "5a1c0001-0000-4000-8000-000000000002",
+          "assetId": null,
+          "collectionId": null,
+          "webUrl": "/details/tvshow/5a1c0001-0000-4000-8000-000000000002"
+        }
+      ],
+      "flags": {
+        "isPlayable": true,
+        "isReadable": false,
+        "isCollection": true,
+        "isFavorite": false
+      },
+      "sortTimestamp": "2026-11-19T08:00:00+00:00",
+      "subject": "TvShow",
+      "continuationState": "InProgress"
+    }
+  ],
+  "totalCount": 2,
+  "offset": 0,
+  "limit": 48,
+  "hasMore": false,
+  "nextCursor": null,
+  "sort": "added",
+  "defaultSort": "added",
+  "rememberKey": "my-list",
+  "sortOptions": [
+    { "value": "added", "label": "Date added" },
+    { "value": "title", "label": "Title" },
+    { "value": "year", "label": "Release year" }
+  ],
+  "filters": [
+    {
+      "key": "type",
+      "label": "Type",
+      "options": [
+        { "value": "movie", "label": "Movies", "count": 1, "selected": false },
+        { "value": "tv", "label": "TV shows", "count": 1, "selected": false }
+      ]
+    }
+  ]
+}
