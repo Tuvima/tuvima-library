@@ -410,6 +410,31 @@ public sealed class NativeClientContractFixtureTests
     }
 
     [Fact]
+    public void PlaylistItemsFixture_MatchesThePublishedContractType_AndCarriesWhatAPhoneNeedsToPlayASong()
+    {
+        var songs = Read<PagedResponse<CollectionItemDto>>("playlist-items.json");
+
+        // GET /api/v1/collections/{id}/items for one of the paired profile's own playlists: the saved order, 100 per page by default.
+        Assert.Equal(100, songs.Limit);
+        Assert.False(songs.HasMore);
+        Assert.Null(songs.NextCursor);
+        Assert.Equal(songs.Items.Count, songs.TotalCount);
+        Assert.Equal(Enumerable.Range(0, songs.Items.Count), songs.Items.Select(song => song.SortOrder));
+        Assert.All(songs.Items, song =>
+        {
+            Assert.Equal("Music", song.MediaType);
+            // asset_id is the file that plays the song; album and duration_seconds are read only for a playlist's items.
+            Assert.NotNull(song.AssetId);
+            Assert.False(string.IsNullOrWhiteSpace(song.Album));
+            Assert.True(song.DurationSeconds > 0);
+            Assert.False(string.IsNullOrWhiteSpace(song.Creator));
+            Assert.False(string.IsNullOrWhiteSpace(song.CoverUrl));
+        });
+
+        AssertSameWireNames("playlist-items.json", songs);
+    }
+
+    [Fact]
     public void AudiobookBookmarkFixtures_MatchThePublishedContractTypes()
     {
         var bookmarks = Read<List<AudiobookBookmarkDto>>("audiobook-bookmarks.json");

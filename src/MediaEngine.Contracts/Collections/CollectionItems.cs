@@ -40,6 +40,24 @@ public sealed class CollectionItemDto
     /// <summary>The position as the source gives it, decimals intact ("1.5"); null when the source gives none.</summary>
     [JsonPropertyName("position_label")]
     public string? PositionLabel { get; set; }
+
+    /// <summary>
+    /// The file that plays a playlist's song (its own media asset). Read only for a playlist's items on the paired-app route;
+    /// null when it has none, and left out of the answer when null.
+    /// </summary>
+    [JsonPropertyName("asset_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? AssetId { get; set; }
+
+    /// <summary>The album a song belongs to. Read only for a playlist's items; left out of the answer when null.</summary>
+    [JsonPropertyName("album")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Album { get; set; }
+
+    /// <summary>The stored length of a song in seconds. Read only for a playlist's items; left out of the answer when null.</summary>
+    [JsonPropertyName("duration_seconds")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? DurationSeconds { get; set; }
 }
 
 public sealed class CollectionResolvedItemDto
