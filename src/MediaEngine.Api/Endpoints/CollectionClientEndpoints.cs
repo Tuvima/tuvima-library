@@ -2,6 +2,7 @@ using System.Globalization;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Authentication;
@@ -68,6 +69,48 @@ public static class CollectionClientEndpoints
             .WithName("GetClientCollections")
             .WithSummary("Returns the paged Collections catalogue visible to the paired profile.")
             .Produces<PagedResponse<CollectionManagementCatalogDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .RequireClientScope(ClientApiScopes.LibraryRead);
+
+        // The paired profile's own playlists, listed the way the Dashboard's Listen page lists them (pinned first, then the
+        // profile's saved order). The Collections catalogue above leaves playlists out on purpose, so this is their own route.
+        collections.MapGet("/playlists", async (
+            string? cursor,
+            int? limit,
+            HttpContext http,
+            IProfileRepository profiles,
+            CollectionCatalogReadService catalog,
+            IDisplayProjectionReadService display,
+            CancellationToken ct) =>
+        {
+            if (!TryParseCursor(cursor, out var offset))
+            {
+                return ApiErrors.BadRequest("The cursor is not valid.");
+            }
+
+            var page = PagedRequest.From(offset, limit, defaultLimit: 50, maxLimit: 100);
+            var profile = await ResolveActiveProfileAsync(http, profiles, ct);
+            var ordered = new List<ManagedCollectionDto>();
+            if (profile is not null)
+            {
+                // The same read the Dashboard makes (counts limited to what this profile may see), kept to the profile's own
+                // playlists: a list someone else made, or the Library or an administrator shared, is not part of this one.
+                var allowedWorkIds = await LoadAllowedWorkIdsAsync(display, ct);
+                var own = (await catalog.GetManagedAsync(profile, ct, allowedWorkIds))
+                    .Where(playlist => playlist.ProfileId == profile.Id && PlaylistListOrder.IsUserVisiblePlaylist(playlist));
+                ordered = PlaylistListOrder.Order(own, profile.NavigationConfig);
+            }
+
+            var window = ordered
+                .Skip(page.Offset)
+                .Take(page.Limit + 1)
+                .Select(ManagedCollectionMapper.ForNativePlaylist)
+                .ToList();
+            return Results.Ok(PagedResponse<ManagedCollectionDto>.FromPage(window, page, ordered.Count));
+        })
+            .WithName("GetClientPlaylists")
+            .WithSummary("Returns the paired profile's own playlists, pinned first, then in the profile's saved order.")
+            .Produces<PagedResponse<ManagedCollectionDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .RequireClientScope(ClientApiScopes.LibraryRead);
 

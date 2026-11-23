@@ -87,7 +87,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
             .ToArray();
 
         Assert.Equal(
-            ["/api/v1/collections/", "/api/v1/collections/{id:guid}", "/api/v1/collections/{id:guid}/items", "/api/v1/universe/{qid}"],
+            ["/api/v1/collections/", "/api/v1/collections/playlists", "/api/v1/collections/{id:guid}", "/api/v1/collections/{id:guid}/items", "/api/v1/universe/{qid}"],
             routes.Select(route => route.RoutePattern.RawText!).Order(StringComparer.Ordinal));
         foreach (var route in routes)
         {
@@ -1207,6 +1207,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<IVaultLibraryRepository>(new FixedVaultLibraries());
         builder.Services.AddSingleton<MediaEngine.Api.Security.LibraryVisibilityRule>();
         builder.Services.AddSingleton<ICollectionRepository, CollectionRepository>();
+        builder.Services.AddSingleton<IPlaylistRepository, PlaylistRepository>();
         builder.Services.AddSingleton<CollectionDisplayOverrideRepository>();
         builder.Services.AddSingleton<ISeriesManifestRepository, SeriesManifestRepository>();
         builder.Services.AddSingleton<IPersonRepository, PersonRepository>();

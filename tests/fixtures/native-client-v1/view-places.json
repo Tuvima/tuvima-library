@@ -1,7 +1,7 @@
 {
   "items": [
     {
-      "key": "paris-france",
+      "key": "paris, france@48.9,2.4",
       "name": "Paris, France",
       "latitude": 48.8566,
       "longitude": 2.3522,
@@ -10,7 +10,7 @@
       "representative_asset_id": "7a000000-0000-4000-8000-000000000021"
     },
     {
-      "key": "oslo-norway",
+      "key": "oslo, norway@59.9,10.8",
       "name": "Oslo, Norway",
       "latitude": 59.9139,
       "longitude": 10.7522,

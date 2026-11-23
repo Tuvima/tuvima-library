@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
@@ -206,6 +207,50 @@ public static class ViewClientEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .RequireClientScope(ApplicationPermissionIds.ViewPersonalRead.Value);
 
+        // One place cluster's photos and videos. The key is the one /places hands out; a key that is not in the person's own
+        // space (someone else's place, a place that is gone, a made-up one) is an empty page, never a different answer.
+        group.MapGet("/places/{key}/items", async (string key, string? cursor, int? limit,
+            IViewRequestProfileContext identity, ViewDiscoveryService discovery, CancellationToken ct) =>
+        {
+            var (authority, refusal) = await ResolvePairedAppAsync(identity, ct);
+            if (refusal is not null)
+            {
+                return refusal;
+            }
+
+            if (string.IsNullOrWhiteSpace(key) || key.Length > 300)
+            {
+                return Missing();
+            }
+
+            if (!TryParsePlaceCursor(cursor, out var offset))
+            {
+                return ApiErrors.BadRequest("The cursor is not valid.");
+            }
+
+            try
+            {
+                var take = PagedRequest.From(0, limit, 100, 200).Limit;
+                var result = await discovery.GetPlaceMediaAsync(ViewScopeRequest.Mine, key, offset, take, ct: ct);
+                if (result.Outcome != ViewAccessOutcome.Allowed || result.Page is not { } page)
+                {
+                    return Refuse(result.Outcome);
+                }
+
+                var items = page.Items.Where(item => IsPhotoOrVideo(item.MediaKind))
+                    .Select(item => ToClient(item, authority!.ActiveProfileId!.Value)).ToList();
+                return Results.Ok(new ViewClientItemPageDto(
+                    items, page.HasMore ? (offset + take).ToString(CultureInfo.InvariantCulture) : null, page.HasMore));
+            }
+            catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
+        })
+            .WithName("GetViewClientPlaceItems")
+            .WithSummary("The photos and videos of one place cluster, newest first.")
+            .Produces<ViewClientItemPageDto>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireClientScope(ApplicationPermissionIds.ViewPersonalRead.Value);
+
         group.MapGet("/items/{id:guid}", async (Guid id, IViewRequestProfileContext identity,
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets,
             IViewProfileRepository policies, CancellationToken ct) =>
@@ -407,6 +452,14 @@ public static class ViewClientEndpoints
             || authority.DeviceId is not { } deviceId || deviceId == Guid.Empty
                 ? (null, ApiErrors.Forbidden("Only a paired app can use this."))
                 : (authority, null);
+    }
+
+    // A place's photos are paged by position, so the cursor is the offset the previous page handed back.
+    private static bool TryParsePlaceCursor(string? cursor, out int offset)
+    {
+        offset = 0;
+        return string.IsNullOrEmpty(cursor)
+            || (int.TryParse(cursor, NumberStyles.None, CultureInfo.InvariantCulture, out offset) && offset <= 100_000);
     }
 
     private static IResult Refuse(ViewAccessOutcome outcome) => outcome switch

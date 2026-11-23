@@ -363,6 +363,53 @@ public sealed class NativeClientContractFixtureTests
     }
 
     [Fact]
+    public void PlaylistAndPlacePhotoFixtures_MatchThePublishedContractTypes()
+    {
+        var playlists = Read<PagedResponse<ManagedCollectionDto>>("playlists.json");
+        var placeItems = Read<ViewClientItemPageDto>("view-place-items.json");
+
+        // GET /api/v1/collections/playlists: the paired profile's own playlists, pinned first, as the Dashboard lists them.
+        Assert.False(playlists.HasMore);
+        Assert.Null(playlists.NextCursor);
+        Assert.Equal(playlists.Items.Count, playlists.TotalCount);
+        // A smart playlist is a Playlist whose members come from a rule (membership_mode Smart, resolution query); the rule itself is not sent.
+        Assert.All(playlists.Items, entry => Assert.Equal("Playlist", entry.CollectionType));
+        var smart = Assert.Single(playlists.Items, entry => entry.MembershipMode == "Smart");
+        Assert.Equal("query", smart.Resolution);
+        Assert.True(playlists.Items[0].IsPinned);
+        Assert.All(playlists.Items.Skip(1), entry => Assert.False(entry.IsPinned));
+        // An empty playlist is listed (item_count 0, status Empty) so the app can show it and offer nothing to play.
+        var empty = Assert.Single(playlists.Items, entry => entry.ItemCount == 0);
+        Assert.Equal("Empty", empty.Status);
+        Assert.All(playlists.Items, entry =>
+        {
+            Assert.Equal("private", entry.Visibility);
+            // Apps only read: authoring fields and the artwork routes they cannot open never reach them.
+            Assert.Null(entry.ProfileId);
+            Assert.Null(entry.RuleJson);
+            Assert.Empty(entry.SelectedProfileIds);
+            Assert.Null(entry.CoverArtworkUrl);
+            Assert.False(entry.CanEdit);
+            Assert.False(entry.CanShare);
+            Assert.Contains(entry.CoverMode, new[] { "mosaic", "picture" });
+        });
+
+        // GET /api/v1/view/places/{key}/items: the same item-page type People photos use.
+        Assert.True(placeItems.HasMore);
+        Assert.Equal("2", placeItems.NextCursor);
+        Assert.Equal(new[] { "image", "video" }, placeItems.Items.Select(item => item.MediaKind).ToArray());
+        Assert.All(placeItems.Items, item =>
+        {
+            Assert.Equal($"/api/v1/view/items/{item.Id:D}/thumbnail", item.ThumbnailUrl);
+            Assert.Equal($"/api/v1/view/items/{item.Id:D}/original", item.ContentUrl);
+            Assert.Null(item.DocumentInfo);
+        });
+
+        AssertSameWireNames("playlists.json", playlists);
+        AssertSameWireNames("view-place-items.json", placeItems);
+    }
+
+    [Fact]
     public void AudiobookBookmarkFixtures_MatchThePublishedContractTypes()
     {
         var bookmarks = Read<List<AudiobookBookmarkDto>>("audiobook-bookmarks.json");

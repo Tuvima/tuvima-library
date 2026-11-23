@@ -431,7 +431,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         var routes = new[]
         {
             "/api/v1/view/timeline", "/api/v1/view/galleries", $"/api/v1/view/galleries/{Guid.NewGuid():D}/items",
-            "/api/v1/view/people", "/api/v1/view/people/ana/items", "/api/v1/view/places",
+            "/api/v1/view/people", "/api/v1/view/people/ana/items", "/api/v1/view/places", "/api/v1/view/places/paris/items",
             $"/api/v1/view/items/{_anaTimeline[0]:D}", $"/api/v1/view/items/{_anaTimeline[0]:D}/thumbnail",
             $"/api/v1/view/items/{_anaTimeline[0]:D}/preview", $"/api/v1/view/items/{_anaTimeline[0]:D}/original",
             $"/api/v1/view/items/{_anaVideo:D}/playback",
@@ -546,6 +546,113 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         Assert.Equal(nobody, clerk);
     }
 
+    // ------------------------------------------------------------------ one place's photos
+
+    private async Task<string> PlaceKeyAsync(string name)
+    {
+        var places = (await _client.GetFromJsonAsync<ViewPlacesPageDto>("/api/v1/view/places"))!;
+        return Uri.EscapeDataString(places.Items.Single(place => place.Name == name).Key);
+    }
+
+    [Fact]
+    public async Task APlacesPhotosAreThatPlacesPhotosNewestFirst_ForTheKeyPlacesHandsOut_AndCarryOnlyTheAppsOwnAddresses()
+    {
+        var paris = (await _client.GetFromJsonAsync<ViewClientItemPageDto>($"/api/v1/view/places/{await PlaceKeyAsync("Paris")}/items"))!;
+        var lisbon = (await _client.GetFromJsonAsync<ViewClientItemPageDto>($"/api/v1/view/places/{await PlaceKeyAsync("Lisbon")}/items"))!;
+
+        // Two photos taken in Paris two hours apart, newest first; Lisbon has the one.
+        Assert.Equal([_anaTimeline[1], _anaTimeline[0]], paris.Items.Select(item => item.Id));
+        Assert.Equal([_anaTimeline[2]], lisbon.Items.Select(item => item.Id));
+        Assert.False(paris.HasMore);
+        Assert.Null(paris.NextCursor);
+        Assert.All(paris.Items.Concat(lisbon.Items), item =>
+        {
+            Assert.Equal(LocalAssetMediaKinds.Image, item.MediaKind);
+            Assert.Equal($"/api/v1/view/items/{item.Id:D}/thumbnail", item.ThumbnailUrl);
+            Assert.Equal($"/api/v1/view/items/{item.Id:D}/original", item.ContentUrl);
+            Assert.Equal(_ana.ProfileId, item.OwnerProfileId);
+            Assert.False(item.CanTrash);
+        });
+
+        // The place's count in the list is the number of photos its page holds.
+        var places = (await _client.GetFromJsonAsync<ViewPlacesPageDto>("/api/v1/view/places"))!;
+        Assert.Equal(paris.Items.Count, places.Items.Single(place => place.Name == "Paris").AssetCount);
+    }
+
+    [Fact]
+    public async Task APlacesPhotosPageByCursor_WithoutRepeatsOrGaps_AndABadCursorIsABadRequest()
+    {
+        var key = await PlaceKeyAsync("Paris");
+        var first = (await _client.GetFromJsonAsync<ViewClientItemPageDto>($"/api/v1/view/places/{key}/items?limit=1"))!;
+        var second = (await _client.GetFromJsonAsync<ViewClientItemPageDto>($"/api/v1/view/places/{key}/items?limit=1&cursor={first.NextCursor}"))!;
+
+        Assert.Equal([_anaTimeline[1]], first.Items.Select(item => item.Id));
+        Assert.True(first.HasMore);
+        Assert.Equal("1", first.NextCursor);
+        Assert.Equal([_anaTimeline[0]], second.Items.Select(item => item.Id));
+        Assert.False(second.HasMore);
+        Assert.Null(second.NextCursor);
+
+        foreach (var cursor in new[] { "abc", "-1", "1.5", "100001" })
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, (await Answer($"/api/v1/view/places/{key}/items?cursor={cursor}")).Status);
+        }
+
+        // A cursor past the end is an empty page, not an error.
+        var past = (await _client.GetFromJsonAsync<ViewClientItemPageDto>($"/api/v1/view/places/{key}/items?cursor=50"))!;
+        Assert.Empty(past.Items);
+        Assert.False(past.HasMore);
+    }
+
+    [Fact]
+    public async Task APlaceInSomeoneElsesSpaceOrADocumentsPlaceOrOneNobodyHas_AnswerAlike_WithNoPhotoInThem()
+    {
+        var nobody = await Answer("/api/v1/view/places/nowhere%401.0%2C1.0/items");
+        // Ben's Berlin photo is in his own space; Ana's Berlin place only holds a document, which this surface never lists.
+        var berlin = await Answer("/api/v1/view/places/berlin%4052.5%2C13.4/items");
+
+        Assert.Equal(HttpStatusCode.OK, nobody.Status);
+        Assert.Equal(nobody, berlin);
+        Assert.DoesNotContain(_ben.Photos[0].ToString("D"), berlin.Body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(_ana.Document.ToString("D"), berlin.Body, StringComparison.OrdinalIgnoreCase);
+
+        // A scope or profile in the query changes nothing: the paired person's own space is the only one there is.
+        var parisKey = await PlaceKeyAsync("Paris");
+        Assert.Equal(
+            await Answer($"/api/v1/view/places/{parisKey}/items"),
+            await Answer($"/api/v1/view/places/{parisKey}/items?scope=profile&scopeProfileId={_ben.ProfileId:D}"));
+
+        // Ben sees his own Berlin and none of Ana's places.
+        _actor.Current = _ben.Authority;
+        var bens = (await _client.GetFromJsonAsync<ViewClientItemPageDto>("/api/v1/view/places/berlin%4052.5%2C13.4/items"))!;
+        Assert.Equal([_ben.Photos[0]], bens.Items.Select(item => item.Id));
+        Assert.Empty((await _client.GetFromJsonAsync<ViewClientItemPageDto>($"/api/v1/view/places/{parisKey}/items"))!.Items);
+
+        // A key longer than any place key is the same not found as every other View id nobody has.
+        var tooLong = await Answer($"/api/v1/view/places/{new string('a', 301)}/items");
+        Assert.Equal(HttpStatusCode.NotFound, tooLong.Status);
+    }
+
+    [Fact]
+    public async Task APlacesPhotosAreRefusedForAProfileWithPhotosOff_AndForAnAppWithoutTheConsent()
+    {
+        var rome = Uri.EscapeDataString("rome@41.9,12.5");
+        _actor.Current = _noDocuments.Authority;
+        var allowed = (await _client.GetFromJsonAsync<ViewClientItemPageDto>($"/api/v1/view/places/{rome}/items"))!;
+        Assert.Equal([_noDocuments.Photos[0]], allowed.Items.Select(item => item.Id));
+
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(_noDocuments.ProfileId) with { PhotosEnabled = false });
+        var off = (await _client.GetFromJsonAsync<ViewClientItemPageDto>($"/api/v1/view/places/{rome}/items"))!;
+        Assert.Empty(off.Items);
+
+        // An app that was never given the View consent is refused with the scope it lacks.
+        _actor.Current = _ana.Authority;
+        var paris = await PlaceKeyAsync("Paris");
+        _actor.Consents = [ApplicationPermissionIds.LibraryRead.Value];
+        using var refused = await _client.GetAsync($"/api/v1/view/places/{paris}/items");
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+    }
+
     // ------------------------------------------------------------------ Documents
 
     [Fact]
@@ -591,6 +698,11 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         Assert.Contains("Nona", people.Body, StringComparison.Ordinal);
         Assert.Contains("Rome", places.Body, StringComparison.Ordinal);
         Assert.Equal(await Answer("/api/v1/view/people/nobody-at-all/items"), await Answer("/api/v1/view/people/passport%20person/items"));
+        Assert.Equal(
+            await Answer("/api/v1/view/places/nowhere%401.0%2C1.0/items"),
+            await Answer("/api/v1/view/places/oslo%4059.9%2C10.8/items"));
+        Assert.Equal([_noDocuments.Photos[0]], JsonSerializer.Deserialize<ViewClientItemPageDto>(
+            (await Answer("/api/v1/view/places/rome%4041.9%2C12.5/items")).Body)!.Items.Select(item => item.Id));
 
         // The document itself, and every file made from it, is exactly what an id nobody has answers.
         foreach (var route in new[] { "", "/thumbnail", "/preview", "/original", "/playback", "/thumbnail?size=160" })
@@ -801,6 +913,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
             "GET /api/v1/view/people",
             "GET /api/v1/view/people/{key}/items",
             "GET /api/v1/view/places",
+            "GET /api/v1/view/places/{key}/items",
             "GET /api/v1/view/timeline",
         }, routes);
 
