@@ -50,14 +50,14 @@ foreach ($requiredText in @(
 
 $carPlay = Get-Content -LiteralPath (Join-Path $clientRoot 'apple/iOS/CarPlaySceneDelegate.swift') -Raw
 $androidAuto = Get-Content -LiteralPath (Join-Path $clientRoot 'android/mobile/src/main/java/com/tuvima/library/mobile/TuvimaMediaLibraryService.kt') -Raw
-foreach ($forbiddenAutomotive in @('lane: "watch"', 'lane: "read"', 'admin', 'settings')) {
+$androidCar = Get-Content -LiteralPath (Join-Path $clientRoot 'android/core/src/main/java/com/tuvima/library/core/CarBrowse.kt') -Raw
+foreach ($forbiddenAutomotive in @('lane: "watch"', 'lane: "read"', 'lane = "watch"', 'lane = "read"', 'admin', 'settings')) {
     if ($carPlay.Contains($forbiddenAutomotive, [StringComparison]::OrdinalIgnoreCase) -or
-        $androidAuto.Contains($forbiddenAutomotive, [StringComparison]::OrdinalIgnoreCase)) {
+        $androidAuto.Contains($forbiddenAutomotive, [StringComparison]::OrdinalIgnoreCase) -or
+        $androidCar.Contains($forbiddenAutomotive, [StringComparison]::OrdinalIgnoreCase)) {
         throw "Automotive client contains out-of-scope surface '$forbiddenAutomotive'."
     }
 }
-
-$androidCar = Get-Content -LiteralPath (Join-Path $clientRoot 'android/core/src/main/java/com/tuvima/library/core/CarBrowse.kt') -Raw
 
 if (-not $carPlay.Contains('lane: "listen"', [StringComparison]::Ordinal) -or
     -not $androidAuto.Contains('ListenLogic.LANE', [StringComparison]::Ordinal) -or
@@ -70,6 +70,19 @@ if (-not $carPlay.Contains('lane: "listen"', [StringComparison]::Ordinal) -or
 if (-not $carPlay.Contains('("Queue", "Queue")', [StringComparison]::Ordinal) -or
     -not $androidAuto.Contains('CarList.rootEntries()', [StringComparison]::Ordinal)) {
     throw 'Automotive clients must expose the contract car list.'
+}
+
+# Playlists is in the contract's list but no route reads playlists for the apps yet, so the only way it may be missing from the car's root is the
+# documented flag (CarList.PLAYLISTS_AVAILABLE) that the root list filters on; the service takes the root as it comes, with no list of its own.
+foreach ($playlistRule in @('const val PLAYLISTS_AVAILABLE', 'playlistsAvailable || it != CarEntry.Playlists')) {
+    if (-not $androidCar.Contains($playlistRule, [StringComparison]::Ordinal)) {
+        throw "Android Auto car list must leave Playlists out only through the documented flag ($playlistRule)."
+    }
+}
+
+if ($androidAuto.Contains('rootEntries(playlistsAvailable', [StringComparison]::Ordinal) -or
+    $androidAuto.Contains('CarEntry.Playlists.nodeId', [StringComparison]::Ordinal)) {
+    throw 'Android Auto service must not decide on its own whether the Playlists entry is in the root.'
 }
 
 foreach ($carEntry in @('"Continue"', '"The Listen shelves"', '"Audiobooks"', '"Playlists"', '"Recently played"')) {

@@ -33,8 +33,8 @@ sealed interface CarNode {
     /** A search result that plays: [audiobook] says which kind, so a voice request never starts the wrong thing. */
     data class Hit(val audiobook: Boolean, val entityType: String, val id: String) : CarNode
 
-    /** A song or audiobook file in a list. */
-    data class Play(val assetId: String) : CarNode
+    /** A song or audiobook file in a list; [listId] is the list it was shown in (null when the id does not say). */
+    data class Play(val assetId: String, val listId: String? = null) : CarNode
 }
 
 object CarList {
@@ -59,6 +59,7 @@ object CarList {
     const val RECENTLY_PLAYED_SHELF = "recently-played"
 
     private const val SEP = ":"
+    private const val PLAY_LIST_MARK = "|"
     private const val PLAY = "car:play"
     private const val SHELF = "car:listen"
     private const val ALBUM = "car:album"
@@ -74,7 +75,8 @@ object CarList {
 
     fun hitId(audiobook: Boolean, entityType: String, id: String): String = "$HIT$SEP${if (audiobook) "a" else "m"}$SEP$entityType$SEP$id"
 
-    fun playId(assetId: String): String = "$PLAY$SEP$assetId"
+    /** A file's id in a list. It names the list too, so a press plays the list the file was pressed in even when it sits in two lists. */
+    fun playId(assetId: String, listId: String): String = "$PLAY$SEP$assetId$PLAY_LIST_MARK$listId"
 
     /** What an id from the car points at; null for an id this app never gave out. */
     fun parse(id: String?): CarNode? {
@@ -85,7 +87,11 @@ object CarList {
         return when (parts.firstOrNull()) {
             "car" -> when (parts.getOrNull(1)) {
                 "listen" -> parts.getOrNull(2)?.takeIf(String::isNotBlank)?.let { CarNode.ListenShelf(id.removePrefix("$SHELF$SEP")) }
-                "play" -> id.removePrefix("$PLAY$SEP").takeIf { it.isNotBlank() && it != id }?.let { CarNode.Play(it) }
+                "play" -> id.removePrefix("$PLAY$SEP").takeIf { it.isNotBlank() && it != id }?.let { rest ->
+                    val asset = rest.substringBefore(PLAY_LIST_MARK).takeIf(String::isNotBlank)
+                    val list = rest.substringAfter(PLAY_LIST_MARK, "").takeIf(String::isNotBlank)
+                    asset?.let { CarNode.Play(it, list) }
+                }
                 "album" -> {
                     val type = parts.getOrNull(2)?.takeIf(String::isNotBlank)
                     val key = parts.getOrNull(3)?.takeIf(String::isNotBlank)
@@ -324,10 +330,17 @@ class CarListings<T> {
         lists[key] = value
     }
 
+    fun remove(key: String) {
+        lists.remove(key)
+    }
+
     fun clear() = lists.clear()
 }
 
-/** The Now playing card's extra buttons and the contract's transport for the car. The card's lines come from [LockScreen] (the lock screen's own fields). */
+/**
+ * The Now playing card's extra buttons for the car. The card's lines and its own buttons (Previous, Play, Next; or back, forward and the chapter
+ * buttons) come from [LockScreen], the lock screen's own fields and actions.
+ */
 object CarNowPlaying {
     /** The extras the card can carry; [command] is the session command each one sends. */
     enum class Extra(val command: String) {
@@ -356,21 +369,15 @@ object CarNowPlaying {
         val now = TvPlayerLogic.clampSpeed(current)
         return TvPlayerLogic.SPEED_PRESETS.firstOrNull { it > now + 0.0001 } ?: TvPlayerLogic.SPEED_PRESETS.first()
     }
+}
 
+/** When the rest of a car queue may be added (see the media service's startCarQueue). */
+object CarQueueFill {
     /**
-     * The transport the contract names for the car, as the system's own action names: music has Previous, Play and Next; an audiobook has back
-     * and forward by the profile's skip seconds and, with chapters, Previous chapter and Next chapter (Play is the template's own button).
+     * The first song is handed to the session, which then replaces the player's items with it; anything added before that is thrown away with the
+     * old items. So the rest waits for the session to have set items again since the queue was started ([setCountNow] above [setCountAtStart]) and
+     * for the first song to be the one in play. A song that happened to be loaded already does not count as the session having set it.
      */
-    fun transport(kind: TvMediaKind, hasChapters: Boolean): List<String> = when (kind) {
-        TvMediaKind.Music -> listOf(LockAction.PREVIOUS_TRACK, LockAction.PLAY, LockAction.NEXT_TRACK)
-        TvMediaKind.Audiobook -> buildList {
-            add(LockAction.SEEK_BACKWARD)
-            add(LockAction.SEEK_FORWARD)
-            if (hasChapters) {
-                add(LockAction.PREVIOUS_TRACK)
-                add(LockAction.NEXT_TRACK)
-            }
-        }
-        else -> emptyList()
-    }
+    fun canAddRest(setCountAtStart: Int, setCountNow: Int, currentId: String?, firstId: String): Boolean =
+        setCountNow > setCountAtStart && currentId == firstId
 }

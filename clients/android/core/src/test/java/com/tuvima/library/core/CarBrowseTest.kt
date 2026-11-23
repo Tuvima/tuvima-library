@@ -105,7 +105,10 @@ class CarBrowseTest {
         assertEquals(CarNode.Album("musicalbum", "6f0c"), CarList.parse(CarList.albumId("musicalbum", "6f0c")))
         assertEquals(CarNode.Hit(audiobook = true, entityType = "work", id = "9a"), CarList.parse(CarList.hitId(true, "work", "9a")))
         assertEquals(CarNode.Hit(audiobook = false, entityType = "album", id = "9a"), CarList.parse(CarList.hitId(false, "album", "9a")))
-        assertEquals(CarNode.Play("file-1"), CarList.parse(CarList.playId("file-1")))
+        assertEquals(CarNode.Play("file-1", "car:continue"), CarList.parse(CarList.playId("file-1", CarEntry.Continue.nodeId)))
+        assertEquals(CarNode.Play("file-1", "car:album:musicalbum:6f0c"), CarList.parse(CarList.playId("file-1", CarList.albumId("musicalbum", "6f0c"))))
+        assertEquals(CarNode.Play("file-1", null), CarList.parse("car:play:file-1"))
+        assertNull(CarList.parse("car:play:|car:continue"))
         assertNull(CarList.parse(null))
         assertNull(CarList.parse(""))
         assertNull(CarList.parse("car:album:musicalbum"))
@@ -331,18 +334,27 @@ class CarBrowseTest {
     }
 
     @Test
-    fun theCarTransportIsTheContractsButtonsAndEveryOneIsAnActionTheLockScreenAlreadyAllows() {
-        assertEquals(listOf("previoustrack", "play", "nexttrack"), CarNowPlaying.transport(TvMediaKind.Music, hasChapters = false))
-        assertEquals(
-            listOf("seekbackward", "seekforward", "previoustrack", "nexttrack"),
-            CarNowPlaying.transport(TvMediaKind.Audiobook, hasChapters = true),
-        )
-        assertEquals(listOf("seekbackward", "seekforward"), CarNowPlaying.transport(TvMediaKind.Audiobook, hasChapters = false))
-        assertTrue(CarNowPlaying.transport(TvMediaKind.Film, hasChapters = false).isEmpty())
-        listOf(TvMediaKind.Music to false, TvMediaKind.Audiobook to true, TvMediaKind.Audiobook to false).forEach { (kind, chapters) ->
-            val allowed = LockScreen.actions(kind, hasNext = false, hasChapters = chapters)
-            assertTrue("$kind", allowed.containsAll(CarNowPlaying.transport(kind, chapters)))
-        }
+    fun theCardsOwnButtonsAreTheContractsAndComeFromTheLockScreenActions() {
+        val music = LockScreen.actions(TvMediaKind.Music, hasNext = false, hasChapters = false)
+        assertTrue(music.containsAll(listOf("previoustrack", "play", "nexttrack")))
+        assertFalse(music.contains("seekbackward"))
+
+        val book = LockScreen.actions(TvMediaKind.Audiobook, hasNext = false, hasChapters = true)
+        assertTrue(book.containsAll(listOf("seekbackward", "seekforward", "previoustrack", "nexttrack")))
+        val bookWithoutChapters = LockScreen.actions(TvMediaKind.Audiobook, hasNext = false, hasChapters = false)
+        assertTrue(bookWithoutChapters.containsAll(listOf("seekbackward", "seekforward")))
+        assertFalse(bookWithoutChapters.contains("previoustrack"))
+        assertFalse(bookWithoutChapters.contains("nexttrack"))
+    }
+
+    @Test
+    fun theRestOfAQueueWaitsUntilTheSessionHasReplacedTheItemsEvenWhenTheFirstSongWasAlreadyLoaded() {
+        // The first song is already the one in play, but the session has not set the new items yet: adding now would be thrown away.
+        assertFalse(CarQueueFill.canAddRest(setCountAtStart = 3, setCountNow = 3, currentId = "a1", firstId = "a1"))
+        // The session has set items, but another song is in play (not the first yet).
+        assertFalse(CarQueueFill.canAddRest(3, 4, "other", "a1"))
+        assertFalse(CarQueueFill.canAddRest(3, 4, null, "a1"))
+        assertTrue(CarQueueFill.canAddRest(3, 4, "a1", "a1"))
     }
 
     @Test
@@ -402,6 +414,16 @@ class CarBrowseTest {
         listings["car:continue"] = listOf("Kids title")
         assertTrue(listings.useProfile(null))
         assertNull(listings["car:continue"])
+    }
+
+    @Test
+    fun aKeptListCanBeDroppedSoTheNextOpenReadsItAgain() {
+        val listings = CarListings<List<String>>()
+        listings["north"] = listOf("old result")
+
+        listings.remove("north")
+
+        assertNull(listings["north"])
     }
 
     // ---- the manifest declarations Android Auto reads ----
