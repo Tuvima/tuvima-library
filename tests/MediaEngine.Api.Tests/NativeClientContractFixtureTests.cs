@@ -2,11 +2,14 @@ using System.Text.Json;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Progress;
+using MediaEngine.Contracts.ProfileState;
 using MediaEngine.Contracts.Universe;
+using MediaEngine.Domain.Enums;
 
 namespace MediaEngine.Api.Tests;
 
@@ -209,6 +212,97 @@ public sealed class NativeClientContractFixtureTests
         var plain = JsonSerializer.Deserialize<ProgressUpdateRequest>("{\"progress_pct\":10,\"expected_revision\":3}", JsonOptions)!;
         Assert.False(plain.Offline);
         Assert.Null(plain.ClientTimestamp);
+    }
+
+    [Fact]
+    public void MyListFixtures_MatchThePublishedContractTypes()
+    {
+        var saved = Read<List<ProfileSavedItemDto>>("my-list-saved.json");
+        var result = Read<ProfileStateMutationDto>("my-list-save-result.json");
+        var remove = Read<RemoveSavedItemsRequest>("my-list-remove-request.json");
+        var restore = Read<RestoreSavedItemsRequest>("my-list-restore-request.json");
+
+        // GET /api/v1/profile-state/saved: a plain array, newest first as the Engine stores it; Favorites songs are never in My List.
+        Assert.Equal([ProfileEntityKind.Movie, ProfileEntityKind.TvShow, ProfileEntityKind.Book], saved.Select(item => item.EntityKind));
+        Assert.All(saved, item => Assert.NotEqual(Guid.Empty, item.EntityId));
+        Assert.DoesNotContain(saved, item => item.EntityKind == ProfileEntityKind.Song);
+
+        // PUT /saved/{entityKind}/{entityId}: the answer says the item is now saved and carries no reaction.
+        Assert.True(result.IsSaved);
+        Assert.Null(result.Reaction);
+        Assert.Equal(saved[0].EntityId, result.EntityId);
+
+        // POST /saved/remove then /saved/restore: restore takes back exactly what remove returned (kind, id, saved date, position).
+        Assert.Equal([saved[0].EntityId, saved[2].EntityId], remove.Items.Select(item => item.EntityId));
+        Assert.Equal(restore.Items.Select(item => item.EntityId), remove.Items.Select(item => item.EntityId));
+        Assert.All(restore.Items, item => Assert.Contains(saved, original => original == item));
+
+        AssertSameWireNames("my-list-saved.json", saved);
+        AssertSameWireNames("my-list-save-result.json", result);
+        AssertSameWireNames("my-list-remove-request.json", remove);
+        AssertSameWireNames("my-list-restore-request.json", restore);
+    }
+
+    [Fact]
+    public void MyListWire_SendsTheKindAsItsNumber_AndTheRouteTakesItsName()
+    {
+        var json = JsonSerializer.Serialize(new ProfileSavedItemKeyDto(ProfileEntityKind.TvShow, Guid.Empty), JsonOptions);
+
+        // Bodies carry the enum number (Movie 0, TvShow 1, Book 2, Comic 3, Audiobook 4, Album 5, Song 6, Collection 7, Playlist 8); a name is refused.
+        Assert.Contains("\"entityKind\":1", json);
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ProfileSavedItemKeyDto>(
+            "{\"entityKind\":\"TvShow\",\"entityId\":\"00000000-0000-0000-0000-000000000000\"}", JsonOptions));
+    }
+
+    [Fact]
+    public void SearchAndRecentFixtures_MatchThePublishedContractTypes()
+    {
+        var search = Read<UniversalSearchResponseDto>("display-search.json");
+        var recent = Read<DisplayRecentPageDto>("display-recent.json");
+
+        Assert.Equal("alpha", search.Query);
+        Assert.Equal(search.Sections.Sum(section => section.Results.Count), search.TotalCount);
+        Assert.NotNull(search.TopResult);
+        Assert.All(search.Sections, section => Assert.Equal(section.Results.Count, section.TotalCount));
+        Assert.All(search.Sections.SelectMany(section => section.Results), hit =>
+        {
+            Assert.NotEqual(Guid.Empty, hit.Id);
+            Assert.StartsWith("/details/", hit.DetailRoute, StringComparison.Ordinal);
+        });
+
+        // Each recent entry fills exactly one branch: a catalogue card, or a View asset (a photo or video, never a catalogue work).
+        Assert.True(recent.HasMore);
+        Assert.NotNull(recent.NextCursor);
+        Assert.Equal(["watch", "read", "view"], recent.AvailableTypes);
+        Assert.All(recent.Items, item => Assert.True((item.Catalogue is null) != (item.ViewAsset is null)));
+        Assert.Contains(recent.Items, item => item.Catalogue is not null);
+        Assert.Contains(recent.Items, item => item.ViewAsset is { MediaKind: "image" });
+
+        AssertSameWireNames("display-search.json", search);
+        AssertSameWireNames("display-recent.json", recent);
+    }
+
+    [Fact]
+    public void AudiobookBookmarkFixtures_MatchThePublishedContractTypes()
+    {
+        var bookmarks = Read<List<AudiobookBookmarkDto>>("audiobook-bookmarks.json");
+        var create = Read<CreateAudiobookBookmarkRequestDto>("audiobook-bookmark-create-request.json");
+
+        // GET /api/v1/player/audiobooks/{workId}/bookmarks: the person's own bookmarks plus the title's Everyone list, marked by the Engine.
+        Assert.Equal(2, bookmarks.Count);
+        Assert.All(bookmarks, bookmark => Assert.True(bookmark.InEveryone));
+        var mine = Assert.Single(bookmarks, bookmark => bookmark.IsYours);
+        Assert.False(mine.IsGlobal);
+        var everyone = Assert.Single(bookmarks, bookmark => bookmark.IsGlobal);
+        Assert.False(everyone.IsYours);
+
+        // POST on the same route: a bookmark made while playing is always the person's own.
+        Assert.False(create.IsGlobal);
+        Assert.NotEqual(Guid.Empty, create.AssetId);
+        Assert.Equal(mine.PositionSeconds, create.PositionSeconds);
+
+        AssertSameWireNames("audiobook-bookmarks.json", bookmarks);
+        AssertSameWireNames("audiobook-bookmark-create-request.json", create);
     }
 
     [Fact]

@@ -1,0 +1,140 @@
+{
+  "type": "all",
+  "nextCursor": "opaque-cursor-1",
+  "hasMore": true,
+  "availableTypes": [
+    "watch",
+    "read",
+    "view"
+  ],
+  "items": [
+    {
+      "key": "work:6f0c2a3e-0000-0000-0000-000000000002",
+      "addedAt": "2026-11-20T08:00:00+00:00",
+      "catalogue": {
+        "id": "6f0c2a3e-0000-0000-0000-000000000002",
+        "workId": "6f0c2a3e-0000-0000-0000-000000000002",
+        "assetId": "6f0c2a3e-0000-0000-0000-000000000003",
+        "collectionId": "6f0c2a3e-0000-0000-0000-000000000001",
+        "mediaType": "Movie",
+        "groupingType": "work",
+        "title": "Alpha One",
+        "subtitle": null,
+        "facts": [
+          "PG"
+        ],
+        "artwork": {
+          "coverUrl": "/stream/6f0c2a3e-0000-0000-0000-000000000003/cover",
+          "coverSmallUrl": null,
+          "coverMediumUrl": null,
+          "coverLargeUrl": null,
+          "squareUrl": null,
+          "squareSmallUrl": null,
+          "squareMediumUrl": null,
+          "squareLargeUrl": null,
+          "bannerUrl": null,
+          "bannerSmallUrl": null,
+          "bannerMediumUrl": null,
+          "bannerLargeUrl": null,
+          "backgroundUrl": null,
+          "backgroundSmallUrl": null,
+          "backgroundMediumUrl": null,
+          "backgroundLargeUrl": null,
+          "logoUrl": null,
+          "coverWidthPx": null,
+          "coverHeightPx": null,
+          "squareWidthPx": null,
+          "squareHeightPx": null,
+          "bannerWidthPx": null,
+          "bannerHeightPx": null,
+          "backgroundWidthPx": null,
+          "backgroundHeightPx": null,
+          "accentColor": null
+        },
+        "preferredShape": "portrait",
+        "presentation": "movie",
+        "tileTextMode": "caption",
+        "previewPlacement": "smart",
+        "progress": null,
+        "actions": [
+          {
+            "type": "playAsset",
+            "label": "Play",
+            "workId": "6f0c2a3e-0000-0000-0000-000000000002",
+            "assetId": "6f0c2a3e-0000-0000-0000-000000000003",
+            "collectionId": "6f0c2a3e-0000-0000-0000-000000000001",
+            "webUrl": "/watch/player/6f0c2a3e-0000-0000-0000-000000000002"
+          },
+          {
+            "type": "openWork",
+            "label": "Details",
+            "workId": "6f0c2a3e-0000-0000-0000-000000000002",
+            "assetId": null,
+            "collectionId": "6f0c2a3e-0000-0000-0000-000000000001",
+            "webUrl": "/details/work/6f0c2a3e-0000-0000-0000-000000000002?context=watch"
+          }
+        ],
+        "flags": {
+          "isPlayable": true,
+          "isReadable": false,
+          "isCollection": false,
+          "isFavorite": false,
+          "keptAsIs": false
+        },
+        "sortTimestamp": "2026-10-01T09:30:00+00:00",
+        "subject": "Work",
+        "contentRating": null,
+        "continuationState": "Unstarted",
+        "episodeContext": null,
+        "tagline": null,
+        "description": null,
+        "genres": [],
+        "badges": [],
+        "previewItems": [],
+        "previewTotalCount": null,
+        "groupSummary": null,
+        "sortYear": 0,
+        "listMetadata": {
+          "author": null,
+          "artist": null,
+          "director": null,
+          "narrator": null,
+          "album": null,
+          "series": null,
+          "genre": null,
+          "duration": null,
+          "trackNumber": null,
+          "year": null,
+          "showName": "Alpha One",
+          "seasonNumber": null,
+          "episodeNumber": null,
+          "playCount": null,
+          "lastPlayedAt": null,
+          "rootWorkId": "6f0c2a3e-0000-0000-0000-000000000002",
+          "artistPersonId": null,
+          "isUpdatingDetails": false
+        },
+        "isNew": false,
+        "isSettling": false,
+        "universeQid": null
+      },
+      "viewAsset": null
+    },
+    {
+      "key": "view:6f0c2a3e-0000-0000-0000-000000000042",
+      "addedAt": "2026-11-19T12:00:00+00:00",
+      "catalogue": null,
+      "viewAsset": {
+        "assetId": "6f0c2a3e-0000-0000-0000-000000000042",
+        "libraryId": "6f0c2a3e-0000-0000-0000-000000000043",
+        "title": "Beach day",
+        "fileName": "IMG_0042.jpg",
+        "mediaKind": "image",
+        "width": 4032,
+        "height": 3024,
+        "durationSeconds": null,
+        "addedAt": "2026-11-19T12:00:00+00:00"
+      }
+    }
+  ]
+}
