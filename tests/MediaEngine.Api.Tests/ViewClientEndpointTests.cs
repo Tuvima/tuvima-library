@@ -631,6 +631,11 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         // A key longer than any place key is the same not found as every other View id nobody has.
         var tooLong = await Answer($"/api/v1/view/places/{new string('a', 301)}/items");
         Assert.Equal(HttpStatusCode.NotFound, tooLong.Status);
+
+        // The limit is "longer than 300": a key of exactly 300 characters is still looked up (here a place nobody has).
+        var atTheLimit = await Answer($"/api/v1/view/places/{new string('a', 300)}/items");
+        Assert.Equal(HttpStatusCode.OK, atTheLimit.Status);
+        Assert.Empty(JsonSerializer.Deserialize<ViewClientItemPageDto>(atTheLimit.Body, new JsonSerializerOptions(JsonSerializerDefaults.Web))!.Items);
     }
 
     [Fact]
