@@ -1,4 +1,4 @@
-﻿using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Tuvima.Wikidata;
