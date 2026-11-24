@@ -22,6 +22,8 @@
         <span class="lact-live @(IsLive ? "is-live" : null)" data-testid="lact-live" data-live="@(IsLive ? "true" : "false")"><span class="lact-live__dot" aria-hidden="true"></span> @(IsLive ? L["LibraryActivity_Live"] : L["LibraryActivity_NotLive"])</span>
     </header>
 
+    <MediaEngine.Web.Components.MediaHub.SetupUnfinishedNotice />
+
     @if (LibraryId is null)
     {
         @* Each area chip is outlined in its own area colour (the same lib-chip look as the Libraries page). All libraries is an on/off chip like the others, with no arrow. *@

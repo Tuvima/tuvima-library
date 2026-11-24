@@ -25,6 +25,10 @@ public abstract class LiveLibraryTestContext : AsyncBunitContext
     protected Func<Task<IngestionQueueProgressDto?>> Queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
     protected List<IngestionMediaGroupDto> History = [];
 
+    /// <summary>What the Engine says about why an area is empty (honest waiting messages); null reads as the Engine being unreachable.</summary>
+    protected Func<Task<MediaEngine.Contracts.Library.AreaReadinessDto?>> AreaReadiness =
+        () => Task.FromResult<MediaEngine.Contracts.Library.AreaReadinessDto?>(null);
+
     /// <summary>The signed-in session; it starts as an administrator who may open Activity (<see cref="SignInAs"/> changes that).</summary>
     protected readonly DashboardSessionAccessor Session = new();
 
@@ -50,6 +54,11 @@ public abstract class LiveLibraryTestContext : AsyncBunitContext
                 Calls.Add("history");
                 return Task.FromResult<PagedResponse<IngestionMediaGroupDto>?>(new PagedResponse<IngestionMediaGroupDto>(History, 0, 25, false, History.Count));
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetAreaReadinessAsync), _ =>
+            {
+                Calls.Add("area-readiness");
+                return AreaReadiness();
+            });
             stub.SetHandler(nameof(IEngineApiClient.TriggerRescanAsync), _ =>
             {
                 Calls.Add("rescan");
@@ -59,6 +68,7 @@ public abstract class LiveLibraryTestContext : AsyncBunitContext
         SignInAs(administrator: true);
         Services.AddSingleton(Session);
         Services.AddSingleton(api);
+        Services.AddSingleton(new MediaEngine.Web.Services.Theming.DeviceContextService(api));
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(State);
         Services.AddSingleton(provider =>
