@@ -14,24 +14,31 @@
 @inject ILogger<ProfileDetailPage> Logger
 @inject IStringLocalizer<SharedStrings> L
 
-@* Settings > Manage Profiles > one person, in three tabs: Profile (details, sign-in, roles), Preferences (watching, listening, reading,
-   subtitles, Home) and Access & safety (Kid's profile, Vault, administrator PIN, delete). The same for your own profile and, for
-   administrators, anyone in the household. *@
+@* Settings > Household > one person, in four tabs: Profile (name and picture, PIN, sign-in, devices), Preferences (watching, listening,
+   reading, subtitles, Home), Access & safety (roles, Kid's profile, Vault, administrator PIN, delete) and Activity (what they watched,
+   listened to and read). The page is titled with the person's name and has one link back to Household, both drawn by the Settings frame
+   (profile-and-household D12). *@
 <div class="profile-detail" data-profile-section="detail" data-profile-tab="@(Tab.Length == 0 ? "profile" : Tab)">
-    @if (IsAdministrator && !Embedded)
-    {
-        <a class="profile-detail__back" href="/settings/household">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" aria-hidden="true" />
-            <span>@L["ProfileDetailPage_ManageProfiles"]</span>
-        </a>
-    }
-
     @if (_loading)
     {
         <div class="profile-detail__loading" role="status" aria-label="@L["ProfileDetailPage_LoadingProfile"].Value">
             <AppSkeleton Height="96px" />
             <AppSkeleton Height="168px" />
             <AppSkeleton Height="224px" />
+        </div>
+    }
+    else if (_unavailable != Unavailability.None)
+    {
+        @* Someone this person may not open, or who is no longer there: the app's normal "not available" state, with the way back. *@
+        <div data-profile-unavailable="@(_unavailable == Unavailability.Gone ? "gone" : "not-allowed")">
+            <AppPageState Kind="AppPageStateKind.Unavailable"
+                          Icon="@AppMaterialIcons.Outlined.Person"
+                          Title="@(_unavailable == Unavailability.Gone ? "This person no longer exists" : "Not available")"
+                          Message="@(_unavailable == Unavailability.Gone ? "They may have been removed from the household." : "Only an administrator can open another person's page.")">
+                <Actions>
+                    <a class="profile-detail__unavailable-link" href="@SettingsProfilesRoute">@L["ProfileDetailPage_ManageProfiles"]</a>
+                </Actions>
+            </AppPageState>
         </div>
     }
     else if (_person is null)
@@ -42,12 +49,12 @@
     }
     else
     {
-        @if (!Embedded)
+        @if (OnProfileTab && !Embedded)
         {
-        <header class="profile-detail__header">
+        @* The person's name is the page title above the tabs; this card holds the picture, the role and the badges, once, on the Profile tab. *@
+        <header class="profile-detail__header" aria-label="@_person.DisplayName">
             <span class="profile-detail__avatar"><ProfileAvatar DisplayName="@_person.DisplayName" ImageUrl="@_person.AvatarImageUrl" Color="@_person.AvatarColor" Icon="@_person.AvatarIcon" /></span>
             <div class="profile-detail__who">
-                <h2 class="profile-detail__name">@_person.DisplayName</h2>
                 <p class="profile-detail__role">@RoleLabel</p>
                 <ul class="profile-detail__badges" aria-label="@L["ProfileDetailPage_ProfileBadges"].Value">
                     @if (IsSelf)
@@ -83,7 +90,7 @@
         @if (OnProfileTab)
         {
         <div class="profile-detail__group">
-        <SettingsSectionPanel Title="@L["Common_Profile"].Value">
+        <SettingsSectionPanel Title="">
             <ul class="profile-detail__list" role="list">
                 @if (CanEditDetails)
                 {
@@ -114,13 +121,6 @@
                     @* Opens the Devices page already narrowed to this person. *@
                     <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="@L["ProfileDetailPage_Devices"].Value" Status="Phones, TVs and browsers" Href="@DevicesLink" />
                 </li>
-                @if (IsAdministrator)
-                {
-                    <li class="profile-detail__item">
-                        @* Opens the Activity page already narrowed to this person; the Engine logs an administrator looking at someone else's activity. *@
-                        <SettingsNavRow Key="activity" Icon="@AppMaterialIcons.Outlined.History" Title="@L["ProfileDetailPage_ViewActivity"].Value" Status="What they watched, listened to and read" Href="@ActivityLink" />
-                    </li>
-                }
             </ul>
         </SettingsSectionPanel>
         </div>
@@ -130,6 +130,14 @@
         {
             @* The same preference parts My profile uses, so a person's page and your own never drift apart (profile-and-household D4). *@
             <ProfilePreferencesPanel ProfileId="@ProfileId" IsSelf="@IsSelf" Forbidden="@_forbidden" />
+        }
+
+        @if (OnActivityTab)
+        {
+            @* The same Activity page as My profile, narrowed to this person (the Engine logs an administrator looking at someone else's activity). *@
+            <div class="profile-detail__activity" data-profile-section="activity">
+                <ActivityPage Scope="@ActivityScope" />
+            </div>
         }
 
         @if (OnAccessTab && !_forbidden)
@@ -271,7 +279,11 @@
 <AdministratorUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
 
 @code {
-    private const string SettingsProfilesRoute = "/settings/household";
+    private const string SettingsProfilesRoute = SettingsNav.HouseholdRoute;
+
+    private enum Unavailability { None, NotAllowed, Gone }
+
+    private Unavailability _unavailable;
 
     private ProfileEditingWorkflow? _workflow;
     private ProfileViewModel? _active;
@@ -308,17 +320,19 @@
     /// <summary>The person this page is about.</summary>
     [Parameter, EditorRequired] public Guid ProfileId { get; set; }
 
-    /// <summary>The open tab: empty for Profile, otherwise <c>preferences</c> or <c>access</c>.</summary>
+    /// <summary>The open tab: empty for Profile, otherwise <c>preferences</c>, <c>access</c> or <c>activity</c>.</summary>
     [Parameter] public string Tab { get; set; } = string.Empty;
 
     private bool OnPreferencesTab => Tab == "preferences";
 
     private bool OnAccessTab => Tab == "access";
 
-    private bool OnProfileTab => !OnPreferencesTab && !OnAccessTab;
+    private bool OnActivityTab => Tab == "activity";
+
+    private bool OnProfileTab => !OnPreferencesTab && !OnAccessTab && !OnActivityTab;
 
     /// <summary>
-    /// True when the page sits inside My profile (Access &amp; safety of your own profile): the back link and the header card are left out,
+    /// True when the page sits inside My profile (Access &amp; safety of your own profile): the header card is left out,
     /// because My profile has its own title and tabs.
     /// </summary>
     [Parameter] public bool Embedded { get; set; }
@@ -367,8 +381,8 @@
     // The Devices page, already narrowed to this person. Your own page omits ?profile=, like the preference links do.
     private string DevicesLink => IsSelf ? "/settings/security/devices" : $"/settings/security/devices?profile={ProfileId:D}";
 
-    // The Activity page, already narrowed to this person. Your own page omits ?scope=, because Me is the default.
-    private string ActivityLink => IsSelf ? SettingsNav.ActivityRoute : $"{SettingsNav.ActivityRoute}?scope=profile:{ProfileId:D}";
+    // The Activity tab shows this person's activity. Your own page leaves the scope out, because Me is the default.
+    private string? ActivityScope => IsSelf ? null : $"profile:{ProfileId:D}";
 
     // PIN protection only has something to protect on a profile that holds an administrator role and has a sign-in, and it is changed
     // only on your own profile or by the server administrator.
@@ -445,6 +459,9 @@
         _loadedFor = ProfileId;
         _notice = null;
         _person = null;
+        _unavailable = Unavailability.None;
+        // The page title is the person's name, so it must not keep showing the previous person while this one loads.
+        await NameChanged.InvokeAsync(string.Empty);
         await LoadAsync();
     }
 
@@ -452,6 +469,7 @@
     {
         _loading = _person is null;
         _forbidden = false;
+        _unavailable = Unavailability.None;
         try
         {
             _active = await Orchestrator.GetActiveProfileAsync();
@@ -464,7 +482,9 @@
             var canManage = ProfileManageRules.CanManage(_active.IsRestricted, IsAdministrator);
             if (ProfileId != _active.Id && !canManage)
             {
-                Nav.NavigateTo(SettingsProfilesRoute, replace: true);
+                // Only an administrator opens another person's page: say so here, with the way back to Household.
+                _person = null;
+                _unavailable = Unavailability.NotAllowed;
                 return;
             }
 
@@ -479,8 +499,8 @@
             _person = FindPerson();
             if (_person is null && ProfileId != _active.Id)
             {
-                // Not someone this administrator can see (or no longer there): back to the list rather than a blank page.
-                Nav.NavigateTo(SettingsProfilesRoute, replace: true);
+                // Not someone this administrator can see, or no longer there: say so, with the way back to Household.
+                _unavailable = Unavailability.Gone;
                 return;
             }
 
@@ -833,7 +853,7 @@
         await RefreshPeopleAsync();
         if (deleted)
         {
-            // This page has nothing left to show, so go back to the list.
+            // This page has nothing left to show, so go back to Household.
             Nav.NavigateTo(SettingsProfilesRoute);
             return;
         }
