@@ -3,8 +3,9 @@
 Rule (Shy, 2026-10-20): all work is planned and built in cloud sessions. Local sessions are for validation only, done once per batch of merged work.
 
 ## Cloud sessions
-- Build every spec, packet and wave, write tests and docs, run restore, the CI-strength build and the filtered tests (`Category!=LiveProvider`), run the reviewer, and merge per CLAUDE.md step 9.
-- While building, run only the affected test project; run the full CI-strength build and tests once at the end.
+- Build every spec, packet and wave, write tests and docs, run restore, the CI-strength build and the affected test projects, run the reviewer, and merge per CLAUDE.md step 9.
+- While building, run only the affected test project. At the end run the CI-strength build and every test project the work touched (`dotnet test tests/<Project>.Tests --no-build --filter "Category!=LiveProvider"`). Do not run the whole suite in the cloud session: the proposed change's CI runs every test over six runners at once and is the required check, so a second full run only repeats it, slower.
+- Where the whole suite runs (the deeper checks): on every proposed change (required), again with coverage and a whole-solution format check on every merge to main, every night, on demand (Actions, CI, Run workflow, any branch), and on Windows in the Local validation batch. Live providers are checked weekly.
 - Never start the Engine against real media. A visual or Engine check, if a spec needs one, uses a small generated library only.
 - Known Linux-only red checks (the external-links audit) are not regressions; do not "fix" them inside unrelated work. Tests that can only pass on Windows carry `[Trait("Category", "WindowsOnly")]` and are excluded from the cloud test command.
 - Each spec has a "Local checks" section: what Shy or a local session must try on SHY-DESKTOP (real media, `Z:\Development\testing\media\real_media`, Windows paths, devices, visual proof). A cloud session ends by appending those checks to the batch list, not by asking for validation now.
