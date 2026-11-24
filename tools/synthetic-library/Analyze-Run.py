@@ -34,6 +34,8 @@ def main():
     out_path = sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else None
     record = json.load(open(args[0], encoding="utf-8"))
     manifest = json.load(open(args[1], encoding="utf-8"))["files"]
+    for f in manifest:
+        f["path"] = f["path"].replace("\\", "/")
     items = {i["path"]: i for i in record["items"]}
     views = {v["path"]: v for v in record.get("view_items", [])}
     lines = []
@@ -367,7 +369,7 @@ def main():
     say(f"{len(people)} distinct names; {with_id} have a Wikidata ID.")
     for n, v in sorted(people.items()):
         if len({q for _, q in v if q}) > 1:
-            say(f"- One name, several people: {sorted(v)}")
+            say(f"- One name, several people: {sorted(v, key=str)}")
     say("")
 
     # 14. Photos ----------------------------------------------------------------------
