@@ -1712,9 +1712,6 @@
   <data name="Common_Kids" xml:space="preserve">
     <value>Kids</value>
   </data>
-  <data name="TopNavAccountMenu_WhoSWatching" xml:space="preserve">
-    <value>Who's watching?</value>
-  </data>
   <data name="Common_ManageProfiles" xml:space="preserve">
     <value>Household</value>
   </data>
@@ -8947,6 +8944,12 @@
   </data>
   <data name="TopNavAccountMenu_NeedsReviewCount" xml:space="preserve">
     <value>{0} need review</value>
+  </data>
+  <data name="TopNavAccountMenu_ProfileAndPreferences" xml:space="preserve">
+    <value>Profile and preferences</value>
+  </data>
+  <data name="TopNavAccountMenu_SwitchTo" xml:space="preserve">
+    <value>Switch to</value>
   </data>
   <data name="MediaTile_AddToMyList" xml:space="preserve">
     <value>Add to My List</value>

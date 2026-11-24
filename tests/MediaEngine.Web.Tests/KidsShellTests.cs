@@ -39,7 +39,8 @@ public sealed class KidsShellTests : AsyncBunitContext
         var cut = RenderOpenMenu(kids: true, canReview: false);
 
         var items = cut.FindAll("a[role=menuitem]").Select(link => (Href: link.GetAttribute("href"), Text: link.TextContent.Trim())).ToList();
-        Assert.Contains(items, item => item.Href == "/my-profile" && item.Text == "Profile");
+        Assert.Contains(items, item => item.Href == "/my-profile" && item.Text.Contains("Profile and preferences", StringComparison.Ordinal));
+        Assert.DoesNotContain(items, item => item.Text is "Household" or "Settings");
         Assert.DoesNotContain(items, item => item.Href is not null && item.Href.StartsWith("/settings", StringComparison.Ordinal));
     }
 
@@ -55,12 +56,13 @@ public sealed class KidsShellTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AdultProfile_HasProfile_InsteadOfMyProfileMyActivityAndProfileSettings()
+    public void AdultProfile_HasItsOwnRowToMyProfile_InsteadOfAProfileRowMyActivityAndProfileSettings()
     {
         var cut = RenderOpenMenu(kids: false, canReview: false);
 
         var items = cut.FindAll("a[role=menuitem]").Select(link => (Href: link.GetAttribute("href"), Text: link.TextContent.Trim())).ToList();
-        Assert.Contains(items, item => item.Href == "/settings/overview" && item.Text == "Profile");
+        Assert.Contains(items, item => item.Href == "/settings/overview" && item.Text.Contains("Profile and preferences", StringComparison.Ordinal));
+        Assert.DoesNotContain(items, item => item.Text == "Profile");
         Assert.DoesNotContain(items, item => item.Text == "My activity");
         Assert.DoesNotContain(items, item => item.Text == "Profile settings");
         Assert.DoesNotContain(items, item => item.Text == "Household");

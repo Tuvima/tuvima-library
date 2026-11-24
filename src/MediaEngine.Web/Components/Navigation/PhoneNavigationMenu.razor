@@ -87,15 +87,18 @@
                         </a>
                     </li>
                 }
-                <li>
-                    <form method="post" action="/auth/logout" class="phone-nav-menu__signout-form">
-                        <AntiforgeryToken />
-                        <AppNativeButton Type="submit" Class="@ItemClass(false)">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Logout" />
-                            <span>@L["TopBar_SignOut"]</span>
-                        </AppNativeButton>
-                    </form>
-                </li>
+                @if (ShowSignOut)
+                {
+                    <li>
+                        <form method="post" action="/auth/logout" class="phone-nav-menu__signout-form">
+                            <AntiforgeryToken />
+                            <AppNativeButton Type="submit" Class="@ItemClass(false)">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Logout" />
+                                <span>@L["TopBar_SignOut"]</span>
+                            </AppNativeButton>
+                        </form>
+                    </li>
+                }
             </ul>
         </nav>
     </div>
@@ -113,6 +116,9 @@
 
     /// <summary>Settings is offered when the active profile has it (not Kids).</summary>
     [Parameter] public bool ShowSettings { get; set; }
+
+    /// <summary>Sign out is offered only when this browser signed in with a password; a no-password home sign-in has nothing to sign out of (profile and household D14).</summary>
+    [Parameter] public bool ShowSignOut { get; set; } = true;
 
     /// <summary>Switch profile is offered when the household has more than one profile.</summary>
     [Parameter] public bool ShowSwitchProfile { get; set; }

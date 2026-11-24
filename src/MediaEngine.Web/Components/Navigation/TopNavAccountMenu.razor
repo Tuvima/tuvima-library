@@ -15,8 +15,8 @@
                 <AppAvatar ImageUrl="@AvatarImageUrl"
                            AltText=""
                            Initials="@AvatarInitial"
-                           AccentColor="@AvatarColor"
-                           ForegroundColor="@AvatarForeground"
+                           AccentColor="@OwnColor"
+                           ForegroundColor="@OwnForeground"
                            Class="top-nav-account-menu__avatar" />
                 <span class="top-nav-account-menu__trigger-copy">@DisplayName</span>
                 @if (IsKids)
@@ -32,36 +32,38 @@
         @* Drawn through the shared popover so it sits in the top layer and no bar or scroll box can clip it. *@
         <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_anchor" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight" Size="AppPopoutSize.Menu" Class="top-nav-account-menu__surface">
             <div class="top-nav-account-menu__panel" role="menu">
-                <header class="top-nav-account-menu__header">
-                    <AppAvatar ImageUrl="@AvatarImageUrl"
-                               AltText=""
-                               Initials="@AvatarInitial"
-                               AccentColor="@AvatarColor"
-                               ForegroundColor="@AvatarForeground"
-                               Class="top-nav-account-menu__header-avatar" />
-                    <strong>@HeaderLabel</strong>
+                @* Your own row is one button to My profile (profile and household D1; a Kids profile opens its own simple page, D15).
+                   It is drawn at once from the signed-in person, so the menu never waits for the household list. *@
+                <a class="top-nav-account-menu__me"
+                   href="@(IsKids ? KidsProfileHref : MyProfileHref)"
+                   aria-label="@OwnRowAriaLabel"
+                   role="menuitem"
+                   data-testid="profile-menu-own-row"
+                   @onclick="CloseMenu">
+                    <span class="top-nav-account-menu__me-avatar">
+                        <ProfileAvatar DisplayName="@DisplayName" ImageUrl="@OwnImageUrl" Color="@OwnColor" Icon="@OwnIcon" />
+                    </span>
+                    <span class="top-nav-account-menu__me-copy">
+                        <strong>@DisplayName</strong>
+                        <small>@L["TopNavAccountMenu_ProfileAndPreferences"]</small>
+                    </span>
                     @if (IsKids)
                     {
                         <AppChip Text="@L["Common_Kids"].Value" Tone="AppUiTone.Info" />
                     }
-                </header>
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight"
+                                     Class="top-nav-account-menu__me-arrow" />
+                </a>
 
-                @* The other people come first (Netflix order, in the household's order). The signed-in person is not listed, and a household of one has no list. *@
-                @if (Profiles.Count > 1)
+                @* The other people, in the household's order. A household of one has no heading and no list. The full-screen
+                   picker is not offered here (D9): this list does the same job. *@
+                @if (HasOtherProfiles)
                 {
+                    <p class="top-nav-account-menu__label" data-testid="profile-menu-switch-to">@L["TopNavAccountMenu_SwitchTo"]</p>
                     <TopNavProfileSwitcher ActiveProfileId="@ActiveProfileId" Profiles="@Profiles" />
-
-                    <a class="top-nav-account-menu__item"
-                       href="@ProfilePickerRoute.Path"
-                       role="menuitem"
-                       @onclick="CloseMenu">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People"
-                                 Class="top-nav-account-menu__item-icon" />
-                        <span>@L["TopNavAccountMenu_WhoSWatching"]</span>
-                    </a>
-
-                    <AppDivider Class="top-nav-account-menu__divider" />
                 }
+
+                <AppDivider Class="top-nav-account-menu__divider" />
 
                 @if (CanManageProfiles && !IsKids)
                 {
@@ -74,16 +76,6 @@
                         <span>@L["Common_ManageProfiles"]</span>
                     </a>
                 }
-
-                @* A Kids profile cannot reach Settings, so its Profile link opens its own pages outside Settings. *@
-                <a class="top-nav-account-menu__item"
-                   href="@(IsKids ? KidsProfileHref : MyProfileHref)"
-                   role="menuitem"
-                   @onclick="CloseMenu">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person"
-                             Class="top-nav-account-menu__item-icon" />
-                    <span>@L["Common_Profile"]</span>
-                </a>
 
                 @if (!IsKids)
                 {
@@ -157,7 +149,8 @@
                         <AppNativeButton Type="submit"
                                          Class="top-nav-account-menu__signout"
                                          role="menuitem">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Logout" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Logout"
+                                     Class="top-nav-account-menu__item-icon" />
                             <span>@L["TopBar_SignOut"]</span>
                         </AppNativeButton>
                     </form>
@@ -173,7 +166,7 @@
     [Parameter] public string? AccountLabel { get; set; }
     [Parameter] public bool CanManageProfiles { get; set; }
     public const string ManageProfilesHref = "/settings/household";
-    /// <summary>Profile opens the person's own Overview.</summary>
+    /// <summary>The own row opens My profile.</summary>
     public const string MyProfileHref = "/settings/overview";
     public const string KidsProfileHref = "/my-profile";
     [Parameter] public string ProfileRole { get; set; } = "Profile";
@@ -185,6 +178,8 @@
     [Parameter] public IReadOnlyList<ProfileViewModel> Profiles { get; set; } = [];
     /// <summary>Pages plugins add to the menu, already cut to what the active profile may see.</summary>
     [Parameter] public IReadOnlyList<PluginMenuEntryDto> PluginMenu { get; set; } = [];
+
+    /// <summary>Sign out is offered only when this browser signed in with a password (profile and household D14); a no-password home sign-in has nothing to sign out of.</summary>
     [Parameter] public bool ShowSignOut { get; set; }
 
     /// <summary>Rows in Needs Review (review items plus files the Engine could not match); shown beside Settings, and absent at zero. Zero for anyone who is not an administrator.</summary>
@@ -195,7 +190,27 @@
 
     private bool _open;
     private ElementReference _anchor;
-    private string HeaderLabel => string.IsNullOrWhiteSpace(AccountLabel) ? DisplayName : AccountLabel!;
+
+    // The household's order decides each person's circle colour (D13), so the menu and the switcher agree.
+    private ProfileViewModel? ActiveProfile => ActiveProfileId is { } id ? Profiles.FirstOrDefault(profile => profile.Id == id) : null;
+    // Names the signed-in account too (when the shell knows it), since the email is no longer printed in the menu.
+    private string? OwnRowAriaLabel => string.IsNullOrWhiteSpace(AccountLabel)
+        ? null
+        : string.Join(", ", DisplayName, L["TopNavAccountMenu_ProfileAndPreferences"].Value, AccountLabel);
+    private bool HasOtherProfiles => Profiles.Any(profile => profile.Id != ActiveProfileId);
+    private string? OwnImageUrl => ActiveProfile?.AvatarImageUrl ?? AvatarImageUrl;
+    private string? OwnIcon => ActiveProfile?.AvatarIcon;
+    private string OwnColor
+    {
+        get
+        {
+            var index = ActiveProfileId is { } id ? Profiles.ToList().FindIndex(profile => profile.Id == id) : -1;
+            return index >= 0
+                ? ProfileAvatarPalette.Distinct([.. Profiles.Select(profile => (string?)profile.AvatarColor)])[index]
+                : AvatarColor;
+        }
+    }
+    private string OwnForeground => string.Equals(OwnColor, AvatarColor, StringComparison.OrdinalIgnoreCase) ? AvatarForeground : ProfileAvatarPalette.InkFor(OwnColor);
     private string ProfileMenuAriaLabel =>
         string.IsNullOrWhiteSpace(DisplayName) ? L["TopBar_OpenProfileMenu"].Value : string.Concat(L["TopBar_OpenProfileMenu"].Value, ": ", DisplayName);
 
