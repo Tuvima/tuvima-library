@@ -21,7 +21,7 @@
     </header>
     <div class="media-viewer__body@(ShowInfo ? " has-info" : string.Empty)">
         <main class="media-viewer__canvas" @onclick:stopPropagation="true">
-            @if (HasPrevious) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--previous" Icon="@AppMaterialIcons.Outlined.ChevronLeft" Tooltip="@L["Home_CarouselPrevious"].Value" AriaLabel="@L["MediaViewerShell_PreviousItem"].Value" OnClick="PreviousAsync" /> }
+            @if (HasPrevious) { <AppIconButton ButtonStyle="AppButtonStyle.Text" Class="media-viewer__navigate media-viewer__navigate--previous" Icon="@AppMaterialIcons.Outlined.ChevronLeft" Tooltip="@L["Home_CarouselPrevious"].Value" AriaLabel="@L["MediaViewerShell_PreviousItem"].Value" OnClick="PreviousAsync" /> }
             <div class="media-viewer__stage" @ref="_stage">
                 @if (Item.Kind == MediaViewerKind.Video)
                 {
@@ -88,15 +88,15 @@
                     }
                 }
             </div>
-            @if (HasNext) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--next" Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="@L["Home_CarouselNext"].Value" AriaLabel="@L["MediaViewerShell_NextItem"].Value" OnClick="NextAsync" /> }
+            @if (HasNext) { <AppIconButton ButtonStyle="AppButtonStyle.Text" Class="media-viewer__navigate media-viewer__navigate--next" Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="@L["Home_CarouselNext"].Value" AriaLabel="@L["MediaViewerShell_NextItem"].Value" OnClick="NextAsync" /> }
             @if (Item.Kind == MediaViewerKind.Image && Capabilities.CanZoom)
             {
                 <div class="media-viewer__zoom" role="toolbar" aria-label="@L["MediaViewerShell_ImageZoomControls"].Value">
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="@L["Common_ZoomOut"].Value" AriaLabel="@L["Common_ZoomOut"].Value" OnClick="ZoomOutAsync" />
+                    <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="@L["Common_ZoomOut"].Value" AriaLabel="@L["Common_ZoomOut"].Value" OnClick="ZoomOutAsync" />
                     <span aria-live="polite">@ZoomLabel</span>
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="@L["Common_ZoomIn"].Value" AriaLabel="@L["Common_ZoomIn"].Value" OnClick="ZoomInAsync" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="@L["MediaViewerShell_FitToWindow"].Value" AriaLabel="@L["MediaViewerShell_FitImageToWindow"].Value" OnClick="FitAsync" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Fullscreen" Tooltip="@L["MediaViewerShell_Fullscreen"].Value" AriaLabel="@L["MediaViewerShell_EnterFullscreen"].Value" OnClick="FullscreenAsync" />
+                    <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.Add" Tooltip="@L["Common_ZoomIn"].Value" AriaLabel="@L["Common_ZoomIn"].Value" OnClick="ZoomInAsync" />
+                    <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="@L["MediaViewerShell_FitToWindow"].Value" AriaLabel="@L["MediaViewerShell_FitImageToWindow"].Value" OnClick="FitAsync" />
+                    <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.Fullscreen" Tooltip="@L["MediaViewerShell_Fullscreen"].Value" AriaLabel="@L["MediaViewerShell_EnterFullscreen"].Value" OnClick="FullscreenAsync" />
                 </div>
             }
         </main>
@@ -113,7 +113,7 @@
 
 @code {
     private RenderFragment ViewerActions => @<div class="media-viewer__actions" role="toolbar" aria-label="Media actions">
-            @if (Capabilities.CanFavorite) { <AppIconButton Icon="@(Capabilities.IsFavorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Tooltip="Favorite" AriaLabel="Toggle favorite" OnClick="OnFavorite" /> }
+            @if (Capabilities.CanFavorite) { <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@(Capabilities.IsFavorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Tooltip="Favorite" AriaLabel="Toggle favorite" OnClick="OnFavorite" /> }
             @if (Capabilities.CanAddToGallery)
             {
                 @* The app's own menu (opens in the top layer, a bottom sheet on phones), the same one every other "Add to Gallery" uses; not a native select. *@
@@ -128,15 +128,15 @@
                     }
                 </AppOverflowMenu>
             }
-            @if (Capabilities.CanSlideshow) { <AppIconButton Icon="@(_slideshow ? AppMaterialIcons.Filled.PauseCircle : AppMaterialIcons.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
+            @if (Capabilities.CanSlideshow) { <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@(_slideshow ? AppMaterialIcons.Filled.PauseCircle : AppMaterialIcons.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
             @if (Capabilities.CanDownload) { <AppTooltip Text="Download original"><a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" /></a></AppTooltip> }
-            @if (Capabilities.CanArchive) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
-            @if (Capabilities.CanHide) { <AppIconButton Icon="@AppMaterialIcons.Outlined.VisibilityOff" Tooltip="Hide" AriaLabel="Hide item" OnClick="OnHide" /> }
-            @if (Capabilities.CanRestore) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
+            @if (Capabilities.CanArchive) { <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
+            @if (Capabilities.CanHide) { <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.VisibilityOff" Tooltip="Hide" AriaLabel="Hide item" OnClick="OnHide" /> }
+            @if (Capabilities.CanRestore) { <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
             @ContextActions
-            @if (Capabilities.CanTrash) { <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tooltip="Move to Trash" AriaLabel="Move item to Trash" Tone="AppUiTone.Error" OnClick="OnTrash" /> }
-            @if (Capabilities.CanShowInfo) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Info" Tooltip="@(ShowInfo ? "Hide information" : "Show information")" AriaLabel="Toggle information panel" aria-pressed="@(ShowInfo ? "true" : "false")" OnClick="ToggleInfo" /> }
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close" AriaLabel="Close viewer" OnClick="CloseAsync" />
+            @if (Capabilities.CanTrash) { <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tooltip="Move to Trash" AriaLabel="Move item to Trash" Tone="AppUiTone.Error" OnClick="OnTrash" /> }
+            @if (Capabilities.CanShowInfo) { <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.Info" Tooltip="@(ShowInfo ? "Hide information" : "Show information")" AriaLabel="Toggle information panel" aria-pressed="@(ShowInfo ? "true" : "false")" OnClick="ToggleInfo" /> }
+            <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close" AriaLabel="Close viewer" OnClick="CloseAsync" />
         </div>;
 
     [Parameter, EditorRequired] public MediaViewerItem Item { get; set; } = default!;

@@ -6,7 +6,7 @@
 <aside class="place-story" aria-label="@L["ViewPlaceStoryPanel_PlaceDetails"].Value">
     <header class="place-story__header">
         <div><h2>@Title</h2><p>@Summary</p></div>
-        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["ViewPlaceStoryPanel_ClosePlaceDetails"].Value" AriaLabel="@L["ViewPlaceStoryPanel_ClosePlaceDetails"].Value" OnClick="@(_ => OnClose.InvokeAsync())" />
+        <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["ViewPlaceStoryPanel_ClosePlaceDetails"].Value" AriaLabel="@L["ViewPlaceStoryPanel_ClosePlaceDetails"].Value" OnClick="@(_ => OnClose.InvokeAsync())" />
     </header>
     @if (Hotspot is not null)
     {

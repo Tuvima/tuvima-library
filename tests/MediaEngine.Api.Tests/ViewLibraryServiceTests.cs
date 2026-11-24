@@ -65,9 +65,10 @@ public sealed class ViewLibraryServiceTests
             await fixture.Service.ScanAsync(fixture.PersonalLibraryId));
 
         Assert.Equal(4, result.FilesSeen);
-        Assert.Equal(1, result.ItemsAdded);
-        Assert.Equal(1, result.FilesAdded);
-        Assert.Equal(1, result.SourcesAdded);
+        // The photos folder takes the picture and the video (decision 229A); the text, audio and unknown files stay out.
+        Assert.Equal(2, result.ItemsAdded);
+        Assert.Equal(2, result.FilesAdded);
+        Assert.Equal(2, result.SourcesAdded);
         Assert.Equal(0, result.Errors);
         Assert.Equal(originalImage, System.IO.File.ReadAllBytes(imagePath));
         Assert.True(System.IO.File.Exists(Path.Combine(fixture.PersonalRoot, "concert.mp4")));
@@ -76,8 +77,9 @@ public sealed class ViewLibraryServiceTests
             fixture.PersonalLibraryId,
             Limit: 20,
             IncludeHidden: true));
-        Assert.Equal(1, page.Total);
-        Assert.Equal(LocalAssetMediaKinds.Image, Assert.Single(page.Items).MediaKind);
+        Assert.Equal(2, page.Total);
+        Assert.Contains(page.Items, item => item.MediaKind == LocalAssetMediaKinds.Image);
+        Assert.Contains(page.Items, item => item.MediaKind == LocalAssetMediaKinds.Video);
         Assert.Empty(fixture.Repository.Query(new LocalAssetQuery(
             fixture.PersonalLibraryId,
             Search: "Yellowstone packing")).Items);
@@ -91,7 +93,7 @@ public sealed class ViewLibraryServiceTests
         Assert.Equal(0, repeat.ItemsAdded);
         Assert.Equal(0, repeat.FilesAdded);
         Assert.Equal(0, repeat.SourcesAdded);
-        Assert.Equal(1, fixture.Repository.Query(new LocalAssetQuery(
+        Assert.Equal(2, fixture.Repository.Query(new LocalAssetQuery(
             fixture.PersonalLibraryId,
             Limit: 20,
             IncludeHidden: true)).Total);

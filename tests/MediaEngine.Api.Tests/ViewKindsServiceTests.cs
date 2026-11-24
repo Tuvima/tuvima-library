@@ -17,7 +17,7 @@ public sealed class ViewKindsServiceTests
         Assert.Single(await fixture.Spaces.GetSourcesAsync(fixture.PersonalSpaceId), source => source.SourceKey == "test:personal");
 
     [Fact]
-    public async Task APhotosFolderIndexesPicturesSkipsOtherFilesCountsThemAndLeavesAllOfThemUntouched()
+    public async Task APhotosAndVideosFolderIndexesPicturesAndVideosSkipsOtherFilesCountsThemAndLeavesAllOfThemUntouched()
     {
         using var fixture = new ViewFixture();
         var first = fixture.WritePersonal("one.jpg", Jpeg);
@@ -28,20 +28,22 @@ public sealed class ViewKindsServiceTests
 
         var result = Assert.IsType<LocalAssetScanResultDto>(await fixture.Service.ScanAsync(fixture.PersonalLibraryId));
 
-        Assert.Equal(2, result.ItemsAdded);
+        // A "Photos and videos" folder takes both (decision 229A); each item keeps its own kind.
+        Assert.Equal(3, result.ItemsAdded);
         var items = Items(fixture);
-        Assert.Equal(2, items.Length);
-        Assert.All(items, item => Assert.Equal(ViewContentKinds.Photos, item.ContentKind));
-        Assert.Equal(2, (await FolderAsync(fixture)).SkippedFileCount);
+        Assert.Equal(3, items.Length);
+        Assert.All(items.Where(item => item.MediaKind == LocalAssetMediaKinds.Image), item => Assert.Equal(ViewContentKinds.Photos, item.ContentKind));
+        Assert.Equal(ViewContentKinds.PersonalVideos, Assert.Single(items, item => item.MediaKind == LocalAssetMediaKinds.Video).ContentKind);
+        Assert.Equal(1, (await FolderAsync(fixture)).SkippedFileCount);
         foreach (var (path, bytes) in before)
         {
             Assert.Equal(bytes, System.IO.File.ReadAllBytes(path));
         }
 
-        // The count starts over on every full scan: once the video is gone, one file is left over.
-        System.IO.File.Delete(video);
+        // The count starts over on every full scan: once the document is gone, nothing is left over.
+        System.IO.File.Delete(pdf);
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
-        Assert.Equal(1, (await FolderAsync(fixture)).SkippedFileCount);
+        Assert.Equal(0, (await FolderAsync(fixture)).SkippedFileCount);
     }
 
     [Fact]
@@ -207,7 +209,7 @@ public sealed class ViewKindsServiceTests
     public void WhatEachKindAcceptsIsOneRule()
     {
         Assert.True(ViewKindAcceptance.Accepts(ViewContentKinds.Photos, "image"));
-        Assert.False(ViewKindAcceptance.Accepts(ViewContentKinds.Photos, "video"));
+        Assert.True(ViewKindAcceptance.Accepts(ViewContentKinds.Photos, "video"));
         Assert.True(ViewKindAcceptance.Accepts(ViewContentKinds.PersonalVideos, "video"));
         Assert.False(ViewKindAcceptance.Accepts(ViewContentKinds.PersonalVideos, "image"));
         Assert.True(ViewKindAcceptance.Accepts(ViewContentKinds.Documents, "document"));
@@ -223,5 +225,8 @@ public sealed class ViewKindsServiceTests
         Assert.False(ViewKindAcceptance.SourceAccepts(ViewContentKinds.Photos, ViewKindAcceptance.BrowserUploadSourceKey, "audio"));
         Assert.Equal(ViewContentKinds.PersonalVideos, ViewKindAcceptance.KindFor(ViewContentKinds.Photos, ViewKindAcceptance.BrowserUploadSourceKey, "video"));
         Assert.Equal(ViewContentKinds.Documents, ViewKindAcceptance.KindFor(ViewContentKinds.Documents, "test:folder", "image"));
+        // A "Photos and videos" folder takes both; each item keeps its own kind (decision 229A).
+        Assert.Equal(ViewContentKinds.PersonalVideos, ViewKindAcceptance.KindFor(ViewContentKinds.Photos, "test:folder", "video"));
+        Assert.Equal(ViewContentKinds.Photos, ViewKindAcceptance.KindFor(ViewContentKinds.Photos, "test:folder", "image"));
     }
 }

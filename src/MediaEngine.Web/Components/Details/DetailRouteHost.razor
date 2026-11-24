@@ -120,6 +120,9 @@ else
         return Task.CompletedTask;
     }
 
+    private static readonly TimeSpan LoadTimeLimit = TimeSpan.FromSeconds(30);
+    private const long SlowLoadWarningMs = 2000;
+
     private Task RetryAsync() => LoadAsync();
 
     private async Task LoadAsync()
@@ -154,16 +157,27 @@ else
         }
 
         var loadTimer = System.Diagnostics.Stopwatch.StartNew();
+        // One Engine call gates the whole page, so it gets a time limit: a call that never answers ends in the page's
+        // normal "could not load" state with Retry instead of grey placeholders that never go away.
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        limit.CancelAfter(LoadTimeLimit);
         var result = await ApiClient.LoadDetailPageAsync(
             entityType,
             Request.EntityId,
             Request.PresentationContext,
             containerId: Request.ContainerId,
             sequence: SequenceWindowQuery.Windowed,
-            ct: ct);
+            ct: limit.Token);
+        // The client reads its own cancellation as "superseded", so a time-out is told apart here.
+        if (limit.IsCancellationRequested && !ct.IsCancellationRequested)
+            result = DetailPageLoadResult.Failed(DetailPageLoadFailure.Unreachable);
 
         if (ct.IsCancellationRequested || loadVersion != _loadVersion)
             return;
+
+        if (loadTimer.ElapsedMilliseconds > SlowLoadWarningMs)
+            Logger.LogWarning("Details page {Type} took {ElapsedMs} ms to load (see the Engine's DetailPerformance line for where the time went)",
+                entityType, loadTimer.ElapsedMilliseconds);
 
         // How long the Dashboard waited for the Engine (the Engine's own split is in its "DetailPerformance" log line and Server-Timing header).
         Logger.LogInformation("Details page {Type} loaded in {ElapsedMs} ms", entityType, loadTimer.ElapsedMilliseconds);

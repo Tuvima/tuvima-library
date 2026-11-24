@@ -66,9 +66,10 @@ else if (Slides.Count > 0)
                 @if (ActiveHero.CollageUrls.Count > 0)
                 {
                     <div class="cinematic-hero-carousel__collage" aria-hidden="true">
-                        @foreach (var cover in ActiveHero.CollageUrls.Take(8))
+                        @* A picture that cannot load is dropped, so the collage never shows broken-picture frames (issue 1370). *@
+                        @foreach (var cover in ActiveHero.CollageUrls.Where(url => !_failedCollage.Contains(url)).Take(8))
                         {
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 220)" alt="" decoding="async" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 220)" alt="" decoding="async" @onerror="@(() => _failedCollage.Add(cover))" />
                         }
                     </div>
                 }
@@ -208,6 +209,8 @@ else if (Slides.Count > 0)
 }
 
 @code {
+    private readonly HashSet<string> _failedCollage = new(StringComparer.Ordinal);
+
     [Parameter] public IReadOnlyList<DiscoveryHeroViewModel> Items { get; set; } = [];
     [Parameter] public string SectionTitle { get; set; } = string.Empty;
     [Parameter] public string? SectionSubtitle { get; set; }
