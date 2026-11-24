@@ -31,6 +31,60 @@ public static class BaselinePrepare
         ("videos", "Videos"),
     ];
 
+    /// <summary>The library kind (<c>library_kinds.json</c>) each catalogue category is made from on a checkout that ships no libraries.</summary>
+    private static readonly Dictionary<string, string> KindKeyByCategory = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Books"] = "books",
+        ["Audiobooks"] = "audiobooks",
+        ["Movies"] = "movies",
+        ["TV"] = "tv",
+        ["Music"] = "music",
+        ["Comics"] = "comics",
+        ["Videos"] = "other_videos",
+    };
+
+    /// <summary>The sample folders (<see cref="CatalogueFolders"/>) that exist under <paramref name="sampleRoot"/>.</summary>
+    public static IReadOnlyList<string> CatalogueFoldersPresent(string sampleRoot) =>
+        CatalogueFolders.Where(entry => Directory.Exists(Path.Combine(sampleRoot, entry.Folder))).Select(entry => entry.Folder).ToList();
+
+    /// <summary>
+    /// The library for <paramref name="category"/> from the copied libraries.json, or, on a fresh checkout whose shipped
+    /// config has no libraries, a new empty one built from <c>library_kinds.json</c> (the same shape the setup wizard makes).
+    /// </summary>
+    internal static LibraryFolderConfig FindOrCreateLibrary(LibrariesConfiguration libraries, string configDirectory, string category)
+    {
+        var existing = libraries.Libraries.FirstOrDefault(l => string.Equals(l.Category, category, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var kindsPath = Path.Combine(configDirectory, "library_kinds.json");
+        if (!KindKeyByCategory.TryGetValue(category, out var kindKey) || !File.Exists(kindsPath))
+        {
+            throw new InvalidOperationException($"The copied libraries.json has no {category} library and library_kinds.json cannot supply one.");
+        }
+
+        var kind = JsonNode.Parse(File.ReadAllText(kindsPath))!["kinds"]!.AsArray()
+            .FirstOrDefault(k => string.Equals(k?["key"]?.GetValue<string>(), kindKey, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"library_kinds.json has no '{kindKey}' kind, so no {category} library can be made.");
+        var created = new LibraryFolderConfig
+        {
+            // A fixed id per category keeps two runs of the same samples comparable.
+            Id = new Guid(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes("baseline-library/" + kindKey))).ToString(),
+            Name = category,
+            Category = category,
+            Kind = LibraryKinds.Catalogued,
+            KindKey = kindKey,
+            Area = kind["area"]!.GetValue<string>(),
+            MetadataPolicy = LibraryMetadataPolicies.Enriched,
+            MediaTypes = [kind["format"]!.GetValue<string>()],
+            YoutubeLookup = false,
+        };
+        libraries.Libraries.Add(created);
+        return created;
+    }
+
     public static readonly string[] ViewFolders = ["personal_photos", "personal_videos"];
 
     /// <summary>Written by <c>--run-baseline</c> into its run folder; prepare refuses any folder without it.</summary>
@@ -113,8 +167,7 @@ public static class BaselinePrepare
         var kept = new List<LibraryFolderConfig>();
         foreach (var (folder, category) in catalogue)
         {
-            var library = libraries.Libraries.FirstOrDefault(l => string.Equals(l.Category, category, StringComparison.OrdinalIgnoreCase))
-                ?? throw new InvalidOperationException($"The copied libraries.json has no {category} library.");
+            var library = FindOrCreateLibrary(libraries, configDirectory, category);
             library.Sources =
             [
                 new LibrarySourceConfig
