@@ -110,6 +110,63 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ProfilePinRow_OnAPersonsProfileTab_LetsAnAdministratorSetTheirPin()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-pin]")));
+
+        Assert.Contains("Not set", cut.Find("[data-pin-status]").TextContent);
+        cut.Find("[data-pin-change]").Click();
+        foreach (var digit in "4321")
+        {
+            cut.Find($"button.pin-pad__key[aria-label='{digit}']").Click();
+        }
+
+        cut.Find("[data-pin-save]").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            var request = Assert.Single(_requests, r => r.Method == HttpMethod.Put && r.Path.EndsWith("/pin", StringComparison.Ordinal));
+            Assert.Equal($"/auth/profiles/{SamId:D}/pin", request.Path);
+            Assert.Contains("4321", request.Body);
+        });
+    }
+
+    [Fact]
+    public void ProfilePinRow_ForAMemberOnTheirOwnProfile_ShowsTheStateWithNoButtons()
+    {
+        Setup(actions: [], navigation: []);
+        _ownHasPin = true;
+
+        var cut = RenderFor(OwnId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-pin]")));
+
+        Assert.Contains("PIN set", cut.Find("[data-pin-status]").TextContent);
+        Assert.Empty(cut.FindAll("[data-pin-change]"));
+        Assert.Empty(cut.FindAll("[data-pin-remove]"));
+    }
+
+    [Fact]
+    public void InsideMyProfile_TheAccessTabHasNoBackLinkAndNoSecondHeaderCard()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false)]);
+        _protections[OwnId] = Protection(protectionEnabled: false);
+
+        var cut = Render<ProfileDetailPage>(parameters => parameters
+            .Add(page => page.ProfileId, OwnId)
+            .Add(page => page.Tab, "access")
+            .Add(page => page.Embedded, true));
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='access']")));
+        Assert.Empty(cut.FindAll(".profile-detail__back"));
+        Assert.Empty(cut.FindAll(".profile-detail__header"));
+    }
+
+    [Fact]
     public void PreferencesTab_OnSomeoneElsesProfile_HasNoHomeSection()
     {
         Setup(actions: ["household.manage"], navigation: []);
@@ -251,7 +308,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal("Edit profile", cut.Find("#profile-editor-title").TextContent);
+            Assert.Equal("Edit name and picture", cut.Find("#profile-editor-title").TextContent);
             Assert.Equal("Sam", cut.Find(".profile-editor__name").GetAttribute("value"));
         });
     }

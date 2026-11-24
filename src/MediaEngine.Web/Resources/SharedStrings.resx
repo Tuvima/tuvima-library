@@ -5826,7 +5826,7 @@
     <value>Joined {0}</value>
   </data>
   <data name="OverviewPage_NothingHereYetWatchRead" xml:space="preserve">
-    <value>Nothing here yet. Watch, read or listen to something and this page fills in.</value>
+    <value>Nothing yet. What you watch, read and listen to will show up here.</value>
   </data>
   <data name="OverviewPage_SeeYourTaste" xml:space="preserve">
     <value>See your taste</value>
@@ -5837,8 +5837,59 @@
   <data name="OverviewPage_YourProfileCouldnTBe" xml:space="preserve">
     <value>Your profile couldn't be loaded</value>
   </data>
-  <data name="OverviewPage_EditProfile" xml:space="preserve">
-    <value>Edit profile</value>
+  <data name="Common_EditNameAndPicture" xml:space="preserve">
+    <value>Edit name and picture</value>
+  </data>
+  <data name="OverviewPage_SignInAndSafety" xml:space="preserve">
+    <value>Sign-in and safety</value>
+  </data>
+  <data name="OverviewPage_PasswordAndEmail" xml:space="preserve">
+    <value>Password and email</value>
+  </data>
+  <data name="OverviewPage_PasswordAndEmailStatus" xml:space="preserve">
+    <value>Your password, email and extra protection, in Security &amp; Devices</value>
+  </data>
+  <data name="OverviewPage_Devices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="OverviewPage_DevicesStatus" xml:space="preserve">
+    <value>Phones, TVs and browsers signed in to Library</value>
+  </data>
+  <data name="ProfilePinRow_Title" xml:space="preserve">
+    <value>Profile PIN</value>
+  </data>
+  <data name="ProfilePinRow_IsSet" xml:space="preserve">
+    <value>PIN set. It is asked for when this profile is opened.</value>
+  </data>
+  <data name="ProfilePinRow_NotSet" xml:space="preserve">
+    <value>Not set. Anyone at home can open this profile.</value>
+  </data>
+  <data name="ProfilePinRow_NotSetAskAnAdministrator" xml:space="preserve">
+    <value>Not set. An administrator can set a PIN for this profile.</value>
+  </data>
+  <data name="ProfilePinRow_Set" xml:space="preserve">
+    <value>Set a PIN</value>
+  </data>
+  <data name="ProfilePinRow_Change" xml:space="preserve">
+    <value>Change</value>
+  </data>
+  <data name="ProfilePinRow_Save" xml:space="preserve">
+    <value>Save PIN</value>
+  </data>
+  <data name="ProfilePinRow_ChooseDigits" xml:space="preserve">
+    <value>Choose 4 to 12 digits.</value>
+  </data>
+  <data name="ProfilePinRow_LooksGood" xml:space="preserve">
+    <value>Looks good.</value>
+  </data>
+  <data name="ProfilePinRow_NeedFour" xml:space="preserve">
+    <value>A PIN needs at least 4 digits.</value>
+  </data>
+  <data name="ProfilePinRow_ConfirmRemove" xml:space="preserve">
+    <value>Remove this PIN? Anyone at home will be able to open this profile.</value>
+  </data>
+  <data name="ProfilePinRow_KeepIt" xml:space="preserve">
+    <value>Keep it</value>
   </data>
   <data name="OverviewPage_YourTaste" xml:space="preserve">
     <value>Your taste</value>

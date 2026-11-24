@@ -98,10 +98,6 @@ else if (_settings is not null)
                     </SettingsSectionPanel>
                 </div>
 
-                @* These three choices are about the browser in front of the person, so they sit with their own preferences only. *@
-                <div id="on-this-device" data-playback-section="on-this-device">
-                    <ThisBrowserVideoSection />
-                </div>
             }
 
             <div id="subtitles" class="playback-subtitles-group" data-playback-section="subtitles">
@@ -149,6 +145,15 @@ else if (_settings is not null)
                         wide: true)
                 </SettingsSectionPanel>
             </div>
+
+            @if (!IsOtherProfile)
+            {
+                @* Last, under their own heading: these three choices are about the browser in front of the person and do not follow them to other
+                   devices, so they sit apart from the choices that do (profile-and-household D4). *@
+                <div id="on-this-device" data-playback-section="on-this-device">
+                    <ThisBrowserVideoSection />
+                </div>
+            }
         </div>
     </div>
 }

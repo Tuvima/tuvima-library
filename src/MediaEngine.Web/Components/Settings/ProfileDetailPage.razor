@@ -18,7 +18,7 @@
    subtitles, Home) and Access & safety (Kid's profile, Vault, administrator PIN, delete). The same for your own profile and, for
    administrators, anyone in the household. *@
 <div class="profile-detail" data-profile-section="detail" data-profile-tab="@(Tab.Length == 0 ? "profile" : Tab)">
-    @if (IsAdministrator)
+    @if (IsAdministrator && !Embedded)
     {
         <a class="profile-detail__back" href="/settings/household">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" aria-hidden="true" />
@@ -42,6 +42,8 @@
     }
     else
     {
+        @if (!Embedded)
+        {
         <header class="profile-detail__header">
             <span class="profile-detail__avatar"><ProfileAvatar DisplayName="@_person.DisplayName" ImageUrl="@_person.AvatarImageUrl" Color="@_person.AvatarColor" Icon="@_person.AvatarIcon" /></span>
             <div class="profile-detail__who">
@@ -71,6 +73,7 @@
                 </ul>
             </div>
         </header>
+        }
 
         @if (!string.IsNullOrWhiteSpace(_notice))
         {
@@ -89,6 +92,10 @@
                         <SettingsNavRow Key="details" Icon="@AppMaterialIcons.Outlined.Person" Title="@L["ProfileDetailPage_ProfileDetails"].Value" Status="@DetailsStatus" OnClick="OpenEditor" />
                     </li>
                 }
+                <li class="profile-detail__item" data-profile-pin-item>
+                    @* The profile PIN has its own row (profile-and-household D5): set, change or remove it here, for your own profile or, as an administrator, anyone's. *@
+                    <ProfilePinRow ProfileId="@ProfileId" HasPin="@(_person.HasPin)" CanChange="@IsAdministrator" OnChanged="PinChangedAsync" />
+                </li>
                 <li class="profile-detail__item">
                     @if (IsSelf)
                     {
@@ -121,47 +128,8 @@
 
         @if (OnPreferencesTab)
         {
-            @if (_forbidden)
-            {
-                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["Common_YouCanTChangeThis"]</AppAlert>
-            }
-            else
-            {
-                @* Each part is the page it used to be, shown one at a time behind a section switch (D18). *@
-                <AppSegmentedControl Options="PreferenceSections"
-                                     Value="@PreferenceSection"
-                                     ValueChanged="OnPreferenceSectionChanged"
-                                     AriaLabel="@L["ProfileDetailPage_PreferenceSections"].Value"
-                                     Class="profile-detail__section-switch" />
-                @switch (PreferenceSection)
-                {
-                    case "listening":
-                        <section id="listening" class="profile-detail__preferences" aria-labelledby="profile-prefs-listening">
-                            <h2 id="profile-prefs-listening" class="profile-detail__section-heading">@L["ProfileDetailPage_Listening"]</h2>
-                            <ListeningSettingsPage ProfileId="@ProfileId" Embedded="true" />
-                        </section>
-                        break;
-                    case "reading":
-                        <section id="reading" class="profile-detail__preferences" aria-labelledby="profile-prefs-reading">
-                            <h2 id="profile-prefs-reading" class="profile-detail__section-heading">@L["ProfileDetailPage_Reading"]</h2>
-                            <ReadingSettingsPage ProfileId="@ProfileId" Embedded="true" />
-                        </section>
-                        break;
-                    case "home":
-                        <section id="home" class="profile-detail__preferences" aria-labelledby="profile-prefs-home">
-                            <h2 id="profile-prefs-home" class="profile-detail__section-heading">@L["Nav_Home"]</h2>
-                            <HomeSettingsPage />
-                            <HomeLanesSettings />
-                        </section>
-                        break;
-                    default:
-                        <section id="playback" class="profile-detail__preferences" aria-labelledby="profile-prefs-watching">
-                            <h2 id="profile-prefs-watching" class="profile-detail__section-heading">@L["ProfileDetailPage_Watching"]</h2>
-                            <PlaybackSettingsPage ProfileId="@ProfileId" Embedded="true" />
-                        </section>
-                        break;
-                }
-            }
+            @* The same preference parts My profile uses, so a person's page and your own never drift apart (profile-and-household D4). *@
+            <ProfilePreferencesPanel ProfileId="@ProfileId" IsSelf="@IsSelf" Forbidden="@_forbidden" />
         }
 
         @if (OnAccessTab && !_forbidden)
@@ -345,21 +313,15 @@
 
     private bool OnPreferencesTab => Tab == "preferences";
 
-    private string _preferenceSection = "watching";
-
-    /// <summary>The one open Preferences section. Home is offered on your own profile only (it shows what your own top banner may show).</summary>
-    private string PreferenceSection => _preferenceSection == "home" && !IsSelf ? "watching" : _preferenceSection;
-
-    private IReadOnlyList<AppSelectOption> PreferenceSections =>
-        IsSelf
-            ? [new("watching", L["ProfileDetailPage_Watching"].Value), new("listening", L["ProfileDetailPage_Listening"].Value), new("reading", L["ProfileDetailPage_Reading"].Value), new("home", L["Nav_Home"].Value)]
-            : [new("watching", L["ProfileDetailPage_Watching"].Value), new("listening", L["ProfileDetailPage_Listening"].Value), new("reading", L["ProfileDetailPage_Reading"].Value)];
-
-    private void OnPreferenceSectionChanged(string section) => _preferenceSection = section;
-
     private bool OnAccessTab => Tab == "access";
 
     private bool OnProfileTab => !OnPreferencesTab && !OnAccessTab;
+
+    /// <summary>
+    /// True when the page sits inside My profile (Access &amp; safety of your own profile): the back link and the header card are left out,
+    /// because My profile has its own title and tabs.
+    /// </summary>
+    [Parameter] public bool Embedded { get; set; }
 
     /// <summary>Raised with the person's name once it is known (and after a rename) so the page title and breadcrumb can use it.</summary>
     [Parameter] public EventCallback<string> NameChanged { get; set; }
@@ -418,7 +380,7 @@
     private string ProtectionDescription() =>
         _person?.HasPin == true
             ? "Uses the profile PIN, the same one that protects the profile. Off unless you turn it on."
-            : "Needs a PIN on this profile. Set one in Profile details first.";
+            : "Needs a PIN on this profile. Set one under Profile PIN on the Profile tab first.";
 
     private async Task ToggleProtectionAsync(bool on)
     {
@@ -569,6 +531,13 @@
         _forbidden = _settings is null
             && !IsSelf
             && ApiClient.LastError?.Contains("403", StringComparison.Ordinal) == true;
+    }
+
+    // A PIN was set, changed or removed from the PIN row: refresh who the Dashboard knows and show the new state.
+    private async Task PinChangedAsync()
+    {
+        await RefreshPeopleAsync();
+        await LoadAsync();
     }
 
     private async Task RefreshPeopleAsync()

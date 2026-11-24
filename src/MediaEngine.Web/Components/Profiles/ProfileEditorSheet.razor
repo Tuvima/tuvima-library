@@ -2,15 +2,17 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IStringLocalizer<SharedStrings> L
-@* The one sheet for adding and editing a profile: name, avatar (colour, icon or photo), Kids switch, PIN and delete.
-   It is a bottom sheet on phones and a centred dialog on larger screens. It only gathers choices and reports them through
-   OnSave / OnDelete; the page that opens it talks to the Engine. *@
+@* The one sheet for adding and editing a profile (profile-and-household D5). Editing is "Edit name and picture": the name and the avatar
+   (colour, icon or photo), the same window from My profile and from a person's page, with no PIN (the PIN has its own row, ProfilePinRow,
+   under Sign-in and safety). Adding also asks for the Kids switch and an optional PIN, because the person does not exist yet to have a row.
+   A person's page can also open it on Delete. It is a bottom sheet on phones and a centred dialog on larger screens. It only gathers
+   choices and reports them through OnSave / OnDelete; the page that opens it talks to the Engine. *@
 @if (Open)
 {
     @* The shared Window (a Sheet on phones): Escape and a press outside ask CloseAsync, which does nothing while a save is running. *@
-    <AppDialogFrame Open="true" Title="@(IsAdd ? "Add profile" : "Edit profile")" DialogOptions="FrameOptions" OnCancel="CloseAsync">
+    <AppDialogFrame Open="true" Title="@(IsAdd ? "Add profile" : L["Common_EditNameAndPicture"].Value)" DialogOptions="FrameOptions" OnCancel="CloseAsync">
         <div @ref="_root" class="profile-editor" tabindex="-1">
-            <h2 id="profile-editor-title" class="profile-editor__title">@(IsAdd ? "Add profile" : "Edit profile")</h2>
+            <h2 id="profile-editor-title" class="profile-editor__title">@(IsAdd ? "Add profile" : L["Common_EditNameAndPicture"].Value)</h2>
 
             <div class="profile-editor__preview">
                 <span class="profile-editor__avatar">
@@ -39,20 +41,18 @@
                 <AppNativeInput Type="text" Class="who-dialog__input profile-editor__name" Value="@_name" Placeholder="@L["Users_ColName"].Value" AriaLabel="@L["Users_ColName"].Value" maxlength="50" Disabled="@Saving" OnInput="OnNameInput" />
             </label>
 
-            @if (!SelfEdit)
+            @if (IsAdd)
             {
+            @* Only while adding: on an existing person the Kid's profile switch lives on their own page (library access D9) and the PIN has
+               its own row under Sign-in and safety, so "Edit name and picture" never shows either. *@
             <div class="profile-editor__settings">
-                @if (IsAdd)
-                {
-                    @* Only while adding: on an existing person the Kid's profile switch lives on their own page (library access D9). *@
-                    <label class="profile-editor__setting">
-                        <span class="profile-editor__setting-text">
-                            <strong>@L["Common_KidSProfile"]</strong>
-                            <small>@L["ProfileEditorSheet_ACalmerSimplerLibraryThat"]</small>
-                        </span>
-                        <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_isChild" Disabled="@Saving" AriaLabel="@L["Common_KidSProfile"].Value" OnChange="OnKidsChanged" />
-                    </label>
-                }
+                <label class="profile-editor__setting">
+                    <span class="profile-editor__setting-text">
+                        <strong>@L["Common_KidSProfile"]</strong>
+                        <small>@L["ProfileEditorSheet_ACalmerSimplerLibraryThat"]</small>
+                    </span>
+                    <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_isChild" Disabled="@Saving" AriaLabel="@L["Common_KidSProfile"].Value" OnChange="OnKidsChanged" />
+                </label>
 
                 <div class="profile-editor__setting">
                     <span class="profile-editor__setting-text">
@@ -161,9 +161,9 @@
     [Parameter] public string? Error { get; set; }
 
     /// <summary>
-    /// A person editing themselves (their Overview): only the name and the picture (a colour or a photo) are offered, because
-    /// those are what the Engine lets a person save for themselves. The Kid's profile switch, what they may watch, the PIN, the icons and
-    /// Delete stay with the administrators, who change them from the person's page in Profiles.
+    /// A person editing themselves (My profile): the picture is a colour or a photo only, because those are what the Engine lets a person
+    /// save for themselves. The icons and Delete stay with the administrators, who use the person's page. The window is otherwise the same
+    /// one a person's page opens: the name and the picture, never a PIN.
     /// </summary>
     [Parameter] public bool SelfEdit { get; set; }
 
