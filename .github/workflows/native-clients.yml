@@ -1,42 +1,44 @@
 name: Native clients
 
+# Builds and checks the phone, TV and car apps. It has no triggers of its own for pushes and pull requests: the CI
+# workflow calls it, and its result is part of the required "Build & Test" check, so a change that breaks an app
+# cannot merge. It can also be started by hand (Actions, Native clients, Run workflow).
+#
+# The first job decides whether the change touches the apps or the Engine routes and wire types they use
+# (.github/scripts/ci-scope.sh). When it does not, the other jobs are skipped and the check passes at once.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "clients/**"
-      - "src/MediaEngine.Api/Endpoints/ClientAuthorizationEndpoints.cs"
-      - "src/MediaEngine.Api/Endpoints/DisplayEndpoints.cs"
-      - "src/MediaEngine.Api/Endpoints/DetailEndpoints.cs"
-      - "src/MediaEngine.Api/Endpoints/PlaybackEndpoints.cs"
-      - "src/MediaEngine.Api/Endpoints/PlayerEndpoints.cs"
-      - "src/MediaEngine.Api/Endpoints/ProgressEndpoints.cs"
-      - "src/MediaEngine.Contracts/Authentication/**"
-      - "src/MediaEngine.Contracts/Display/**"
-      - "src/MediaEngine.Contracts/Details/**"
-      - "src/MediaEngine.Contracts/Playback/**"
-      - "tests/fixtures/native-client-v1/**"
-      - "tests/native/**"
-      - ".github/workflows/native-clients.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "clients/**"
-      - "src/MediaEngine.Api/Endpoints/**"
-      - "src/MediaEngine.Contracts/**"
-      - "tests/fixtures/native-client-v1/**"
-      - "tests/native/**"
-      - ".github/workflows/native-clients.yml"
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  contract:
-    name: API v1 conformance
+  scope:
+    name: Decide whether the apps are affected
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      native: ${{ steps.scope.outputs.native }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Decide whether the apps are affected
+        id: scope
+        run: bash .github/scripts/ci-scope.sh "${{ github.event_name }}" "${{ github.base_ref }}" "${{ github.event.before }}"
+
+  contract:
+    name: API v1 conformance
+    needs: scope
+    if: needs.scope.outputs.native == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.2xx"
@@ -53,9 +55,14 @@ jobs:
 
   tv-web:
     name: TV web client (Tizen and webOS shell)
+    needs: scope
+    if: needs.scope.outputs.native == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -65,9 +72,14 @@ jobs:
 
   android:
     name: Android TV, mobile, and Auto
+    needs: scope
+    if: needs.scope.outputs.native == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -94,9 +106,14 @@ jobs:
 
   apple:
     name: iOS and CarPlay
+    needs: scope
+    if: needs.scope.outputs.native == 'true'
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
