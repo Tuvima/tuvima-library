@@ -729,9 +729,10 @@ public sealed class DetailComposerServiceTests
         var source = ReadDetailComposerSource();
 
         Assert.Contains("series_qid", source);
-        // The rows come from the shelf of the media being shown, so a book Series and an audiobook Series never meet.
+        // The rows come from the shelf of the media family being shown (books and audiobooks are one Series), so a book
+        // Series and a TV Series never meet.
         Assert.Contains("LoadManifestItemsForSequenceContainerAsync(normalizedContainerId, mediaType, ct)", source);
-        Assert.Contains("AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))", source);
+        Assert.Contains("AND (@mediaType IS NULL OR LOWER(media_type) IN @mediaTypes)", source);
         Assert.Contains("WHERE series_qid = @containerId", source);
         Assert.Contains("GetItemsBySeriesQidAsync(containerId, ct)", source);
         Assert.Contains("WHERE parent_collection_qid = @containerId", source);

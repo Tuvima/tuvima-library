@@ -138,7 +138,8 @@ public sealed class CollectionCatalogReadService(
     public async Task<List<CollectionManagementCatalogDto>> GetCatalogAsync(
         Profile? activeProfile,
         CancellationToken ct = default,
-        IReadOnlySet<Guid>? allowedWorkIds = null)
+        IReadOnlySet<Guid>? allowedWorkIds = null,
+        bool listSingleFilmSeries = false)
     {
         var collections = await GetAccessibleCollectionsAsync(activeProfile, ct).ConfigureAwait(false);
         var allowedMemberIds = await ExpandAllowedMembersAsync(allowedWorkIds, ct).ConfigureAwait(false);
@@ -201,7 +202,8 @@ public sealed class CollectionCatalogReadService(
                     classification,
                     mediaCounts,
                     hasKnownSeriesManifest,
-                    collections))
+                    collections,
+                    listSingleFilmSeries))
             {
                 continue;
             }
@@ -289,7 +291,7 @@ public sealed class CollectionCatalogReadService(
         CancellationToken ct = default,
         IReadOnlySet<Guid>? allowedWorkIds = null)
     {
-        var catalog = await GetCatalogAsync(activeProfile, ct, allowedWorkIds).ConfigureAwait(false);
+        var catalog = await GetCatalogAsync(activeProfile, ct, allowedWorkIds, listSingleFilmSeries: true).ConfigureAwait(false);
         return catalog.FirstOrDefault(collection => collection.Id == collectionId);
     }
 
@@ -946,7 +948,8 @@ public sealed class CollectionCatalogReadService(
         CollectionCatalogClassification classification,
         CollectionMediaCounts mediaCounts,
         bool hasKnownSeriesManifest,
-        IReadOnlyList<Collection> accessibleCollections)
+        IReadOnlyList<Collection> accessibleCollections,
+        bool listSingleFilmSeries)
     {
         if (IsPlaylistCatalogCollection(collection))
         {
@@ -973,6 +976,20 @@ public sealed class CollectionCatalogReadService(
             ? GetCollectionCatalogAggregation(collection, accessibleCollections)
             : null;
         if (IsGeneratedSeriesCollection(collection) && generatedAggregation is null)
+        {
+            return false;
+        }
+
+        // A film Series stays hidden until two of its films are owned: the single film shows on its own, whatever the
+        // Series says it contains (decision 228A). Other kinds keep showing a Series whose manifest lists several.
+        // Opening one by its own link (the summary read) still works; only the lists leave it out.
+        if (!listSingleFilmSeries
+            && IsGeneratedSeriesCollection(collection)
+            && collection.CollectionType != CollectionType.Universe
+            && collection.ParentCollectionId is null
+            && mediaCounts.TotalCount > 0
+            && mediaCounts.MovieCount == mediaCounts.TotalCount
+            && mediaCounts.TotalCount < 2)
         {
             return false;
         }

@@ -34,7 +34,8 @@ public sealed record SeriesManifestMembership(
     IReadOnlyList<SeriesParentListing>? ListedInSeries = null);
 
 /// <summary>
-/// The identity of a Series shelf. Series identity is the Wikidata Series QID plus the media type; only when no QID
+/// The identity of a Series shelf. Series identity is the Wikidata Series QID plus the media type family (books and
+/// audiobooks share one Series, see <see cref="SeriesMediaFamily"/>); only when no QID
 /// exists does it fall back to a provider key (TMDB collection, TVDB show, ComicVine volume) or the local
 /// <c>local:{type}:{label}</c> key.
 /// </summary>
@@ -42,7 +43,7 @@ public sealed record SeriesShelfIdentity(string MediaType, string Label, string?
 {
     /// <summary>Stable key: the same Series always yields the same key, a Series of another media type never does.</summary>
     public string Key => !string.IsNullOrWhiteSpace(Qid)
-        ? $"qid:{Qid.Trim().ToUpperInvariant()}|{MediaType.Trim().ToLowerInvariant()}"
+        ? $"qid:{Qid.Trim().ToUpperInvariant()}|{SeriesMediaFamily.Normalize(MediaType).ToLowerInvariant()}"
         : $"key:{ProviderKey?.Trim().ToLowerInvariant()}";
 }
 
@@ -265,8 +266,7 @@ public static class SeriesPlacementRule
 
     /// <summary>Whether a Series of <paramref name="seriesMediaType"/> may hold a Work of <paramref name="workMediaType"/>.</summary>
     public static bool MediaMatches(string? seriesMediaType, string? workMediaType)
-        => !string.IsNullOrWhiteSpace(seriesMediaType)
-           && string.Equals(seriesMediaType.Trim(), workMediaType?.Trim(), StringComparison.OrdinalIgnoreCase);
+        => SeriesMediaFamily.Same(seriesMediaType, workMediaType);
 
     /// <summary>Lower is stronger. Unknown scope names rank last.</summary>
     public static int ScopeRank(string? scope) => NormalizeScope(scope) switch
@@ -287,7 +287,7 @@ public static class SeriesPlacementRule
         // The same Series reached twice (two manifest rows, or a parent listed in two rows) counts once, at its
         // strongest scope.
         var collapsed = targets
-            .GroupBy(t => $"{t.SeriesQid.Trim().ToUpperInvariant()}|{t.MediaType.Trim().ToLowerInvariant()}")
+            .GroupBy(t => $"{t.SeriesQid.Trim().ToUpperInvariant()}|{SeriesMediaFamily.Normalize(t.MediaType).ToLowerInvariant()}")
             .Select(group => group.OrderBy(t => ScopeRank(t.Scope)).ThenBy(t => t.CollectionId).First())
             .ToList();
 

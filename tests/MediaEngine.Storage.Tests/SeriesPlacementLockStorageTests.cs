@@ -76,7 +76,7 @@ public sealed class SeriesPlacementLockStorageTests : IDisposable
     [Fact]
     public async Task ChoosingAShelfOfAnotherMediaTypeOrNotASeries_IsRefused_AndNothingChanges()
     {
-        var audiobookShelf = await CreateShelfAsync("QA", "Series A", mediaType: "Audiobooks");
+        var audiobookShelf = await CreateShelfAsync("QA", "Series A", mediaType: "TV");
         var universe = await CreateShelfAsync("QU", "A Universe", CollectionType.Universe);
         var work = await CreateWorkAsync();
 
@@ -194,7 +194,7 @@ public sealed class SeriesPlacementLockStorageTests : IDisposable
         var current = await CreateShelfAsync("QCurrent", "Dune Novels");
         var listing = await CreateShelfAsync("QListing", "Dune Universe Reading Order");
         await CreateShelfAsync("QSpice", "Spice Wars");
-        await CreateShelfAsync("QAudio", "Dune Audio", mediaType: "Audiobooks");
+        await CreateShelfAsync("QAudio", "Dune Audio", mediaType: "TV");
         var work = await CreateWorkAsync();
         await LinkAsync(listing, "QListing", work, "Item", sortOrder: 3, scope: SeriesMembershipScopeNames.Supplementary);
         await _placements.SetChoiceAsync(work, current);

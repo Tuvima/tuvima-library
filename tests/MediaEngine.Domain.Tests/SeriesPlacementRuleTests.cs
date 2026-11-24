@@ -61,30 +61,29 @@ public sealed class SeriesPlacementRuleTests
     }
 
     [Fact]
-    public void ASeriesOfAnotherMediaType_IsNeverACandidate()
+    public void ASeriesOfAnotherMediaFamily_IsNeverACandidate()
     {
         var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
             nameof(MediaType.Audiobooks),
-            [Series(BookSeriesShelf, "QExpanse", "Books")],
+            [Series(BookSeriesShelf, "QExpanse", "TV")],
             Retail: null));
 
         Assert.Equal(SeriesPlacementKind.Unplaced, decision.Kind);
     }
 
     [Fact]
-    public void BookAndAudiobookSeriesWithTheSameQid_EachWorkGoesToItsOwnMediaTypesSeries()
+    public void ABookAndAnAudiobookOfTheSameSeries_GoToTheOneSharedSeries()
     {
         SeriesManifestMembership[] memberships =
         [
             Series(BookSeriesShelf, "QExpanse", "Books"),
-            Series(AudiobookSeriesShelf, "QExpanse", "Audiobooks"),
         ];
 
         var book = SeriesPlacementRule.Decide(new SeriesPlacementInput(nameof(MediaType.Books), memberships, null));
         var audiobook = SeriesPlacementRule.Decide(new SeriesPlacementInput(nameof(MediaType.Audiobooks), memberships, null));
 
         Assert.Equal(BookSeriesShelf, book.ShelfCollectionId);
-        Assert.Equal(AudiobookSeriesShelf, audiobook.ShelfCollectionId);
+        Assert.Equal(BookSeriesShelf, audiobook.ShelfCollectionId);
     }
 
     [Fact]
@@ -211,12 +210,13 @@ public sealed class SeriesPlacementRuleTests
     }
 
     [Fact]
-    public void SeriesIdentityKey_IncludesTheMediaType_SoTwoMediaTypesAreTwoSeries()
+    public void SeriesIdentityKey_SharesBooksAndAudiobooks_ButKeepsOtherMediaTypesApart()
     {
         var book = new SeriesShelfIdentity("Books", "The Expanse", "Q19610143", null);
         var audiobook = new SeriesShelfIdentity("Audiobooks", "The Expanse", "q19610143", null);
 
-        Assert.NotEqual(book.Key, audiobook.Key);
+        Assert.Equal(book.Key, audiobook.Key);
+        Assert.NotEqual(book.Key, new SeriesShelfIdentity("TV", "The Expanse", "Q19610143", null).Key);
         Assert.Equal(book.Key, new SeriesShelfIdentity("books", "x", "Q19610143", "tvdb:tv:1").Key);
     }
 }

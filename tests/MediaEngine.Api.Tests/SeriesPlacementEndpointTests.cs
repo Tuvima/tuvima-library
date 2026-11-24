@@ -116,7 +116,7 @@ public sealed class SeriesPlacementEndpointTests : IDisposable
         var current = AddShelf("QCurrent", "Dune Novels");
         var listing = AddShelf("QListing", "Dune Reading Order");
         AddShelf("QSpice", "Spice Wars");
-        AddShelf("QAudio", "Dune Audio", mediaType: "Audiobooks");
+        AddShelf("QAudio", "Dune Audio", mediaType: "TV");
         var work = AddWork("Dune");
         await _placements.SetChoiceAsync(work.WorkId, current);
         StoreListing(listing, "QListing", work.WorkId, "Supplementary");
@@ -130,7 +130,7 @@ public sealed class SeriesPlacementEndpointTests : IDisposable
         var listed = Assert.Single(body.GetProperty("listed").EnumerateArray());
         Assert.Equal("Dune Reading Order", listed.GetProperty("label").GetString());
         Assert.Equal("Supplementary", listed.GetProperty("scope").GetString());
-        // "dune" matches no other Series of this kind that is not already shown; the Audiobooks Series is never offered.
+        // "dune" matches no other Series of this kind that is not already shown; a Series of another media type is never offered.
         Assert.Empty(body.GetProperty("candidates").EnumerateArray());
 
         var (_, found) = await SendAsync("GET", work.WorkId, query: "?q=spi");
@@ -244,11 +244,11 @@ public sealed class SeriesPlacementEndpointTests : IDisposable
     [Fact]
     public async Task Choosing_AShelfOfAnotherMediaTypeOrNotASeries_IsA400_AndNothingChanges()
     {
-        var audiobookShelf = AddShelf("QAudio", "Audio", mediaType: "Audiobooks");
+        var audiobookShelf = AddShelf("QAudio", "Audio", mediaType: "TV");
         var work = AddWork("Dune");
 
         var (status, _) = await SendAsync("PUT", work.WorkId, new { collection_id = audiobookShelf, locked = true });
-        var tv = AddWork("Episode", mediaType: "TV");
+        var tv = AddWork("Film", mediaType: "Movies");
         var (tvStatus, _) = await SendAsync("PUT", tv.WorkId, new { collection_id = audiobookShelf, locked = true });
 
         Assert.Equal(StatusCodes.Status400BadRequest, status);

@@ -179,7 +179,7 @@ public sealed class UniverseRecordTests : IDisposable
         var television = (await _collections.FindSeriesShelfAsync(ExpanseTv, "TV"))!;
         Assert.Equal(ExpanseUniverse, television.UniverseQid);
         Assert.Equal(universe.Id, television.ParentCollectionId);
-        Assert.Equal(3, (await _collections.GetChildCollectionsAsync(universe.Id)).Count);
+        Assert.Equal(2, (await _collections.GetChildCollectionsAsync(universe.Id)).Count);
         foreach (var (workId, _) in _works.Values)
         {
             Assert.Equal(ExpanseUniverse, (await _narrativeRoots.ResolveAsync(workId))!.Qid);
@@ -251,14 +251,16 @@ public sealed class UniverseRecordTests : IDisposable
         var books = (await _collections.FindSeriesShelfAsync(Expanse, "Books"))!;
         var audiobooks = (await _collections.FindSeriesShelfAsync(Expanse, "Audiobooks"))!;
         var television = (await _collections.FindSeriesShelfAsync(ExpanseTv, "TV"))!;
-        Assert.Equal(3, new[] { books.Id, audiobooks.Id, television.Id }.Distinct().Count());
-        foreach (var shelf in new[] { books, audiobooks, television })
+        // A book and its audiobook are one Series; the show is the second Series of the Universe.
+        Assert.Equal(books.Id, audiobooks.Id);
+        Assert.Equal(2, new[] { books.Id, audiobooks.Id, television.Id }.Distinct().Count());
+        foreach (var shelf in new[] { books, television })
         {
             Assert.Equal(Expanse, shelf.UniverseQid);
             Assert.Equal(universe.Id, shelf.ParentCollectionId);
         }
 
-        Assert.Equal(3, (await _collections.GetChildCollectionsAsync(universe.Id)).Count);
+        Assert.Equal(2, (await _collections.GetChildCollectionsAsync(universe.Id)).Count);
 
         // The graph roots every Work at the same record the Library presents.
         foreach (var (workId, _) in _works.Values)
