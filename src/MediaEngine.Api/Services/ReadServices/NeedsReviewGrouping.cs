@@ -38,15 +38,46 @@ public static class NeedsReviewGrouping
         ReviewTrigger.WikidataBridgeFailed,
     };
 
-    /// <summary>The triggers the list hides, as an array for queries.</summary>
+    // Books and audiobooks are the exception (spec needs-review-canonical-filter D1, D2): their missing Wikidata link is shown, in its own group.
+    private static readonly string[] CanonicalShownMediaTypes = ["Books", "Audiobooks"];
+
+    /// <summary>The triggers the list hides for every media type except books and audiobooks, as an array for queries.</summary>
     public static IReadOnlyList<string> HiddenTriggers { get; } = [.. WikidataOnlyTriggers];
 
-    /// <summary>True for a review item the list never shows or counts (matched, only its Wikidata link is missing).</summary>
-    public static bool IsHidden(string? trigger) => trigger is not null && WikidataOnlyTriggers.Contains(trigger);
+    /// <summary>The media types whose Wikidata-only items the list shows, as an array for queries.</summary>
+    public static IReadOnlyList<string> CanonicalShownTypes => CanonicalShownMediaTypes;
+
+    /// <summary>
+    /// The SQL condition (for a <c>review_queue</c> row aliased <paramref name="alias"/>) that keeps a row out of the list: a Wikidata-only
+    /// trigger on anything but a book or audiobook. Needs the query parameters <c>@hidden</c> and <c>@canonicalTypes</c>.
+    /// </summary>
+    public static string NotHiddenSql(string alias) => $"""
+        ({alias}.trigger NOT IN @hidden OR EXISTS (
+            SELECT 1 FROM works wcm -- readiness: media type lookup for a review row, not a display query
+            WHERE wcm.media_type IN @canonicalTypes
+              AND (wcm.id = {alias}.entity_id
+                   OR wcm.id IN (SELECT e.work_id FROM media_assets mac JOIN editions e ON e.id = mac.edition_id WHERE mac.id = {alias}.entity_id))))
+        """;
+
+    /// <summary>True for a trigger that means "matched, only the Wikidata link is missing".</summary>
+    public static bool IsWikidataOnly(string? trigger) => trigger is not null && WikidataOnlyTriggers.Contains(trigger);
+
+    /// <summary>True for a review item the list never shows or counts (matched, only its Wikidata link is missing, and not a book or audiobook).</summary>
+    public static bool IsHidden(string? trigger, string? mediaType) =>
+        IsWikidataOnly(trigger) && !ShowsCanonicalMissing(mediaType);
+
+    /// <summary>True for a media type whose missing Wikidata link the list shows.</summary>
+    public static bool ShowsCanonicalMissing(string? mediaType) =>
+        mediaType is not null && CanonicalShownMediaTypes.Contains(mediaType, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The group of a review item; <paramref name="hasBestGuess"/> is whether the Engine has one suggestion to offer for it.</summary>
-    public static string GroupFor(string? trigger, bool hasBestGuess)
+    public static string GroupFor(string? trigger, bool hasBestGuess, string? mediaType = null)
     {
+        if (IsWikidataOnly(trigger) && ShowsCanonicalMissing(mediaType))
+        {
+            return NeedsReviewGroups.CanonicalMissing;
+        }
+
         if (trigger is not null && FileProblemTriggers.Contains(trigger))
         {
             return NeedsReviewGroups.FileProblem;
@@ -71,7 +102,8 @@ public static class NeedsReviewGrouping
         NeedsReviewGroups.Ready => 0,
         NeedsReviewGroups.Choose => 1,
         NeedsReviewGroups.NoMatch => 2,
-        NeedsReviewGroups.FileProblem => 3,
-        _ => 4,
+        NeedsReviewGroups.CanonicalMissing => 3,
+        NeedsReviewGroups.FileProblem => 4,
+        _ => 5,
     };
 }

@@ -66,7 +66,7 @@ public sealed class NeedsReviewListReadService(
             : library is null
                 ? await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false)
                 : await reviews.GetPendingForLibraryAsync(int.MaxValue, library, ct).ConfigureAwait(false);
-        var shownReviews = reviewItems.Where(item => !IsVaultItem(item, vaultIds) && !NeedsReviewGrouping.IsHidden(item.Trigger)).ToList();
+        var shownReviews = reviewItems.Where(item => !IsVaultItem(item, vaultIds) && !NeedsReviewGrouping.IsHidden(item.Trigger, item.MediaType)).ToList();
 
         var files = new List<(UnmatchedAssetListItem File, string LibraryId, string LibraryName)>();
         if (includeFiles)
@@ -132,7 +132,7 @@ public sealed class NeedsReviewListReadService(
                 BestGuess = bestGuess,
                 Choices = choices,
                 Review = item,
-                Group = NeedsReviewGrouping.GroupFor(item.Trigger, bestGuess is not null),
+                Group = NeedsReviewGrouping.GroupFor(item.Trigger, bestGuess is not null, item.MediaType),
                 CoverUrl = string.IsNullOrWhiteSpace(item.CoverUrl) ? itemContext?.CoverUrl : item.CoverUrl,
                 FamilyKey = itemContext?.FamilyWorkId?.ToString("D"),
                 FamilyTitle = itemContext?.FamilyTitle,
@@ -248,7 +248,7 @@ public sealed class NeedsReviewListReadService(
         // the list shows.
         var vaultIds = await vault.GetIdsAsync(ct).ConfigureAwait(false);
         var pending = (await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false))
-            .Where(item => !IsVaultItem(item, vaultIds) && !NeedsReviewGrouping.IsHidden(item.Trigger))
+            .Where(item => !IsVaultItem(item, vaultIds) && !NeedsReviewGrouping.IsHidden(item.Trigger, item.MediaType))
             .ToList();
         var reviewNotMatched = pending.Count(item => IsFailedRetailMatch(item.Trigger));
         var reviewTotal = pending.Count;
@@ -305,6 +305,7 @@ public sealed class NeedsReviewListReadService(
         [NeedsReviewGroups.Choose] = rows.Count(row => row.Group == NeedsReviewGroups.Choose),
         [NeedsReviewGroups.NoMatch] = rows.Count(row => row.Group == NeedsReviewGroups.NoMatch),
         [NeedsReviewGroups.FileProblem] = rows.Count(row => row.Group == NeedsReviewGroups.FileProblem),
+        [NeedsReviewGroups.CanonicalMissing] = rows.Count(row => row.Group == NeedsReviewGroups.CanonicalMissing),
     };
 
     private static NeedsReviewRowContext? ContextFor(NeedsReviewRowContexts context, ReviewItemDto item)

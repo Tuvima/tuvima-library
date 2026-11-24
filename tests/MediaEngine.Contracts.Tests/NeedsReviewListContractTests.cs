@@ -100,7 +100,7 @@ public sealed class NeedsReviewListContractTests
         var json = JsonSerializer.Serialize(new NeedsReviewListDto { Total = 3, Skip = 0, Take = 100 });
 
         Assert.Equal(
-            "{\"items\":[],\"total\":3,\"group_totals\":{\"ready\":0,\"choose\":0,\"no_match\":0,\"file_problem\":0},\"kept_total\":0,\"skip\":0,\"take\":100}",
+            "{\"items\":[],\"total\":3,\"group_totals\":{\"ready\":0,\"choose\":0,\"no_match\":0,\"file_problem\":0,\"canonical_missing\":0},\"kept_total\":0,\"skip\":0,\"take\":100}",
             json);
     }
 

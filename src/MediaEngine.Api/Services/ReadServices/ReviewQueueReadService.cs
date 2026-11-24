@@ -81,7 +81,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             WHERE rq.status = @status
               AND rq.resolved_by = @resolvedBy
               AND rq.review_ready_at IS NOT NULL
-              AND rq.trigger NOT IN @hidden
+              AND {{NeedsReviewGrouping.NotHiddenSql("rq")}}
               AND (
                     (rq.entity_type = 'MediaAsset' AND EXISTS (SELECT 1 FROM media_assets ma WHERE ma.id = rq.entity_id))
                  OR (rq.entity_type = 'Work' AND EXISTS (SELECT 1 FROM works w WHERE w.id = rq.entity_id))
@@ -102,6 +102,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             status = ReviewStatus.Dismissed,
             resolvedBy = ReviewStatus.KeptByUser,
             hidden = NeedsReviewGrouping.HiddenTriggers.ToArray(),
+            canonicalTypes = NeedsReviewGrouping.CanonicalShownTypes.ToArray(),
             libraryId = string.IsNullOrWhiteSpace(libraryId) ? null : libraryId.Trim(),
         }).ConfigureAwait(false);
     }
@@ -124,11 +125,16 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                 END
             WHERE rq.status = @status
               AND rq.review_ready_at IS NOT NULL
-              AND rq.trigger NOT IN @hidden
+              AND {{NeedsReviewGrouping.NotHiddenSql("rq")}}
               AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
               AND ma.library_id IS NOT NULL AND ma.library_id <> ''
             GROUP BY lower(ma.library_id)
-            """, new { status = ReviewStatus.Pending, hidden = NeedsReviewGrouping.HiddenTriggers.ToArray() }).ConfigureAwait(false);
+            """, new
+        {
+            status = ReviewStatus.Pending,
+            hidden = NeedsReviewGrouping.HiddenTriggers.ToArray(),
+            canonicalTypes = NeedsReviewGrouping.CanonicalShownTypes.ToArray()
+        }).ConfigureAwait(false);
         return rows.ToDictionary(row => row.LibraryId, row => row.Count, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -383,9 +389,14 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     ))
                  OR (rq.entity_type NOT IN ('MediaAsset', 'Work'))
               )
-              AND rq.trigger NOT IN @hidden
+              AND {{NeedsReviewGrouping.NotHiddenSql("rq")}}
               AND {{VaultSql.NotVaultEntity("rq.entity_id")}};
-            """, new { status = ReviewStatus.Pending, hidden = NeedsReviewGrouping.HiddenTriggers.ToArray() });
+            """, new
+        {
+            status = ReviewStatus.Pending,
+            hidden = NeedsReviewGrouping.HiddenTriggers.ToArray(),
+            canonicalTypes = NeedsReviewGrouping.CanonicalShownTypes.ToArray()
+        });
     }
 
     public async Task<IReadOnlyList<ReviewReasonCount>> GetPendingReasonCountsAsync(CancellationToken ct = default)
@@ -407,10 +418,15 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     ))
                  OR (rq.entity_type NOT IN ('MediaAsset', 'Work'))
               )
-              AND rq.trigger NOT IN @hidden
+              AND {{NeedsReviewGrouping.NotHiddenSql("rq")}}
               AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
             GROUP BY rq.trigger, rq.detail;
-            """, new { status = ReviewStatus.Pending, hidden = NeedsReviewGrouping.HiddenTriggers.ToArray() });
+            """, new
+        {
+            status = ReviewStatus.Pending,
+            hidden = NeedsReviewGrouping.HiddenTriggers.ToArray(),
+            canonicalTypes = NeedsReviewGrouping.CanonicalShownTypes.ToArray()
+        });
 
         return rows
             .Select(row => new ReviewReasonCount(row.Trigger, row.Detail, ToInt(row.Count)))

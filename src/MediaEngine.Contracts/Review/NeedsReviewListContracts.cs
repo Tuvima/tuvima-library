@@ -20,6 +20,9 @@ public static class NeedsReviewGroups
 
     /// <summary>The file could not be read, written to, named or changed.</summary>
     public const string FileProblem = "file_problem";
+
+    /// <summary>A book that matched a listing but could not be linked to Wikidata (its canonical information is missing).</summary>
+    public const string CanonicalMissing = "canonical_missing";
 }
 
 /// <summary>The Engine's best guess for a row, with the one action "Use this" runs.</summary>
@@ -171,7 +174,7 @@ public sealed class NeedsReviewListDto
     [JsonPropertyName("total")]
     public int Total { get; init; }
 
-    /// <summary>How many rows each <see cref="NeedsReviewGroups"/> group holds in the list, before paging. All four keys are present.</summary>
+    /// <summary>How many rows each <see cref="NeedsReviewGroups"/> group holds in the list, before paging. All five keys are present.</summary>
     [JsonPropertyName("group_totals")]
     public Dictionary<string, int> GroupTotals { get; init; } = new()
     {
@@ -179,6 +182,7 @@ public sealed class NeedsReviewListDto
         [NeedsReviewGroups.Choose] = 0,
         [NeedsReviewGroups.NoMatch] = 0,
         [NeedsReviewGroups.FileProblem] = 0,
+        [NeedsReviewGroups.CanonicalMissing] = 0,
     };
 
     /// <summary>How many kept items exist for the same library filter (the "hidden items" line), whichever view this page is.</summary>

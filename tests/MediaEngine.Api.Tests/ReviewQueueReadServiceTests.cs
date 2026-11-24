@@ -175,6 +175,33 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         Assert.Equal(1, Assert.Single(await service.GetPendingReasonCountsAsync(CancellationToken.None)).Count);
     }
 
+    // Books and audiobooks are the exception (spec needs-review-canonical-filter D2): their missing Wikidata link is listed and counted.
+    [Fact]
+    public async Task PendingCounts_IncludeABookMissingItsWikidataLink_ButNotAMovie()
+    {
+        var (workBook, editionBook, assetBook) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (workAudio, editionAudio, assetAudio) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (workFilm, editionFilm, assetFilm) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        SeedMediaAsset(workBook, editionBook, assetBook, mediaType: "Books");
+        SeedMediaAsset(workAudio, editionAudio, assetAudio, mediaType: "Audiobooks");
+        SeedMediaAsset(workFilm, editionFilm, assetFilm);
+        SetLibrary(assetBook, "books");
+        SetLibrary(assetAudio, "books");
+        SetLibrary(assetFilm, "films");
+
+        var repository = new ReviewQueueRepository(_db);
+        await repository.InsertAsync(Review(Guid.NewGuid(), assetBook, "MediaAsset", "Dune", ReviewTrigger.MissingQid));
+        await repository.InsertAsync(Review(Guid.NewGuid(), workAudio, "Work", "Emma", ReviewTrigger.WikidataBridgeFailed));
+        await repository.InsertAsync(Review(Guid.NewGuid(), assetFilm, "MediaAsset", "Arrival", ReviewTrigger.MissingQid));
+
+        var service = new ReviewQueueReadService(_db);
+        var counts = await service.GetPendingCountsByLibraryAsync(CancellationToken.None);
+
+        Assert.Equal(2, counts["books"]);
+        Assert.False(counts.ContainsKey("films"));
+        Assert.Equal(2, await service.GetPendingCountAsync(CancellationToken.None));
+    }
+
     // A kept row stops being kept once the item has been fixed: the kept view and its total never list an item that is no longer a problem.
     [Fact]
     public async Task AKeptItem_WhoseEntityIsThenResolved_IsNoLongerInTheKeptViewOrItsTotal()
@@ -481,13 +508,13 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         SourceCapabilityId = "identity.retail-match",
     };
 
-    private void SeedMediaAsset(Guid workId, Guid editionId, Guid assetId, string? path = null)
+    private void SeedMediaAsset(Guid workId, Guid editionId, Guid assetId, string? path = null, string mediaType = "Movies")
     {
         using var conn = _db.CreateConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             INSERT INTO works (id, media_type, work_kind)
-            VALUES ($workId, 'Movies', 'standalone');
+            VALUES ($workId, $mediaType, 'standalone');
             INSERT INTO editions (id, work_id)
             VALUES ($editionId, $workId);
             INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
@@ -496,6 +523,7 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         AddGuid(cmd, "$workId", workId);
         AddGuid(cmd, "$editionId", editionId);
         AddGuid(cmd, "$assetId", assetId);
+        cmd.Parameters.AddWithValue("$mediaType", mediaType);
         cmd.Parameters.AddWithValue("$hash", $"review-{assetId:N}");
         cmd.Parameters.AddWithValue("$path", path ?? $"C:/library/{assetId:N}.mkv");
         cmd.ExecuteNonQuery();

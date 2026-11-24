@@ -97,6 +97,14 @@
                            Options="@_libraryOptions"
                            FullWidth="false" />
             }
+            @if (_model.HasCanonicalMissing || _model.GroupFilter is not null)
+            {
+                <AppSegmentedControl Class="needs-review-page__kind"
+                                     AriaLabel="@L["NeedsReviewFilter_Label"].Value"
+                                     Options="@KindOptions"
+                                     Value="@(_model.GroupFilter ?? EverythingKey)"
+                                     ValueChanged="OnKindChanged" />
+            }
             <div class="needs-review-page__search">
                 <AppTextField Value="@_search"
                               ValueChanged="OnSearchChanged"
@@ -185,7 +193,24 @@
     // Deleting is for an administrator on a desktop, tablet or phone; the Engine checks again on every call.
     private bool CanRemove => LibraryItemDeletionFlow.CanDelete(Device, Session);
 
-    private bool HasFilter => !string.IsNullOrWhiteSpace(Library) || !string.IsNullOrWhiteSpace(_search);
+    private bool HasFilter => !string.IsNullOrWhiteSpace(Library) || !string.IsNullOrWhiteSpace(_search) || _model.GroupFilter is not null;
+
+    private const string EverythingKey = "everything";
+
+    // Everything, items not found at all, items found but missing their Wikidata link (spec needs-review-canonical-filter D3, D5).
+    private IReadOnlyList<AppSelectOption> KindOptions =>
+    [
+        new(EverythingKey, L["NeedsReviewFilter_Everything", _model.WaitingTotal.ToString("N0")].Value),
+        new(NeedsReviewGroups.NoMatch, L["NeedsReviewFilter_NotFound", _model.CountOf(NeedsReviewGroups.NoMatch).ToString("N0")].Value),
+        new(NeedsReviewGroups.CanonicalMissing, L["NeedsReviewFilter_CanonicalMissing", _model.CountOf(NeedsReviewGroups.CanonicalMissing).ToString("N0")].Value),
+    ];
+
+    private Task OnKindChanged(string? value)
+    {
+        _model.GroupFilter = value is null || value == EverythingKey ? null : value;
+        PruneSelection();
+        return Task.CompletedTask;
+    }
 
     private string SummaryText
     {

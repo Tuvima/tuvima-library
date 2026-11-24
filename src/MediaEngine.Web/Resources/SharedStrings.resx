@@ -14198,6 +14198,21 @@
   <data name="NeedsReviewGroup_FileProblem" xml:space="preserve">
     <value>File problems</value>
   </data>
+  <data name="NeedsReviewGroup_CanonicalMissing" xml:space="preserve">
+    <value>Canonical information missing</value>
+  </data>
+  <data name="NeedsReviewFilter_Label" xml:space="preserve">
+    <value>Show items</value>
+  </data>
+  <data name="NeedsReviewFilter_Everything" xml:space="preserve">
+    <value>Everything ({0})</value>
+  </data>
+  <data name="NeedsReviewFilter_NotFound" xml:space="preserve">
+    <value>Not found at all ({0})</value>
+  </data>
+  <data name="NeedsReviewFilter_CanonicalMissing" xml:space="preserve">
+    <value>Canonical information missing ({0})</value>
+  </data>
   <data name="NeedsReviewKind_Movie" xml:space="preserve">
     <value>Movie</value>
   </data>

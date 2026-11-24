@@ -1387,9 +1387,9 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         return await conn.ExecuteScalarAsync<int>(new CommandDefinition($"""
             SELECT COUNT(*) FROM review_queue
             WHERE status = 'Pending' AND review_ready_at IS NOT NULL
-              AND trigger NOT IN @hidden
+              AND {NeedsReviewGrouping.NotHiddenSql("review_queue")}
               AND {VaultSql.NotVaultEntity("review_queue.entity_id")};
-            """, new { hidden = NeedsReviewGrouping.HiddenTriggers.ToArray() }, cancellationToken: ct)).ConfigureAwait(false);
+            """, new { hidden = NeedsReviewGrouping.HiddenTriggers.ToArray(), canonicalTypes = NeedsReviewGrouping.CanonicalShownTypes.ToArray() }, cancellationToken: ct)).ConfigureAwait(false);
     }
 
     private static PagedResponse<T> Page<T>(IReadOnlyList<T> items, PagedRequest request)
