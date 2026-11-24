@@ -10,7 +10,7 @@ Follow the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md) in project
 
 Open an [issue](https://github.com/Tuvima/tuvima-library/issues) to discuss substantial changes before implementing them. Check existing issues so related work can be coordinated.
 
-The project uses the [AGPLv3](LICENSE). Contributions use those terms. New tools must have compatible licenses, and new assets must retain their notices. Record added dependencies in the relevant package manifest and [attributions](https://docs.tuvima.com/products/library/policies/attributions/).
+The project uses the [AGPLv3](LICENSE). Contributions use those terms. The phone, TV and car apps under `clients/` are the exception: they use the Mozilla Public License 2.0 and ask for a sign-off line on each commit; read [clients/CONTRIBUTING.md](https://github.com/Tuvima/tuvima-library/blob/main/clients/CONTRIBUTING.md) before changing them. New tools must have compatible licenses, and new assets must retain their notices. Record added dependencies in the relevant package manifest and [attributions](https://docs.tuvima.com/products/library/policies/attributions/).
 
 ## Set up development
 
@@ -50,15 +50,17 @@ Use a branch and keep unrelated changes separate.
 | `chore/` | Tooling or CI |
 | `refactor/` | Reorganization with unchanged behavior |
 
-Before submitting code changes, run the repository gate:
+Before submitting code changes, build with warnings as errors and run the tests for the projects you changed. Each source project has one test project with the same name:
 
 ```sh
 dotnet restore MediaEngine.slnx
-dotnet build MediaEngine.slnx --no-restore
-dotnet test MediaEngine.slnx --no-build
+dotnet build MediaEngine.slnx --no-restore --warnaserror
+dotnet test tests/MediaEngine.Storage.Tests --no-build --filter "Category!=LiveProvider"
 ```
 
-CI additionally treats build warnings as errors, verifies formatting and checks dependencies:
+You do not need to run every test yourself. The whole suite takes over twenty minutes on one machine; the pull request runs it for you on several machines at once (see [What happens when you open a pull request](#what-happens-when-you-open-a-pull-request)). To run it anyway, use `dotnet test MediaEngine.slnx --no-build --filter "Category!=LiveProvider"`.
+
+The pull request also verifies formatting and checks dependencies. To check those first:
 
 ```sh
 dotnet format MediaEngine.slnx --verify-no-changes --no-restore
@@ -102,7 +104,31 @@ Stage specific files, keep secrets and generated outputs out of the change, and 
 
 ## Pull requests and review
 
-Open a pull request against `main`. Explain the problem, resulting behavior and verification. Note any check you could not run and why. `CODEOWNERS` identifies `@shyfaruqi` as the repository owner.
+Open a pull request against `main`, from a branch in your own fork. Explain the problem, resulting behavior and verification. Note any check you could not run and why. `CODEOWNERS` identifies `@shyfaruqi` as the repository owner.
+
+## What happens when you open a pull request
+
+The checks start by themselves and need nothing from you: no account, key or secret. Pull requests from forks run with read-only access and never see the project's secrets, so nothing in them can publish, sign or merge. If this is your first contribution, a maintainer approves the first run before it starts.
+
+| Check | What it does | Typical time |
+| --- | --- | --- |
+| **Build & Test** (required) | Builds with warnings as errors, checks the format of the C# files you changed, publishes the Dashboard, checks for vulnerable libraries and runs every test over six machines at once. It passes only when all of that passes. | about 8 minutes |
+| Native clients | Builds the phone, TV and car apps. Runs only when you change `clients/` or the Engine routes they use. | about 5 minutes |
+| Docker image | Builds the container image and starts it. Runs only when something the image is made from changed. | 10 to 15 minutes |
+
+A change that only touches `engineering/` skips the build and tests and passes in under a minute.
+
+`Build & Test` is the only check `main` requires. A maintainer reviews the change and merges it once that check is green; the automatic merge used for the Tuvima team's own branches never applies to forks. If a check fails, open it on the pull request page: the failing step prints what went wrong. Push a fix to the same branch and the checks run again.
+
+The deeper checks run at set points, not on your pull request, so they never slow you down:
+
+| When | What runs |
+| --- | --- |
+| Every merge to `main` | Everything above again, plus a format check of the whole solution, code coverage and the coverage threshold |
+| Every night (06:00 UTC) | The same deeper run, so a problem that slipped past is seen within a day |
+| On demand | A maintainer can start the deeper run on any branch (Actions, CI, Run workflow) |
+| Weekly | Read-only checks against live metadata providers, which need the project's keys |
+| Before a batch of work is called verified | A full run on Windows with real media, by the Tuvima team |
 
 The application is Early Access; avoid claiming that code presence alone proves a deployment or user journey is accepted. Update affected docs and current repository guidance in the same change. The retired `.agent/` mirror is not synchronized.
 

@@ -962,7 +962,7 @@
 }
 
 /* The title is never under the covers (issues 1190, 1252, 1299). The covers keep the right 44vw (GroupHeroCovers), so the copy column is
-   40vw wide and the title wraps inside it. The hero has many width, padding and title-size rules that each carry several classes; the
+   36vw wide (a clear gap before the covers at 1024) and the title wraps inside it. The hero has many width, padding and title-size rules that each carry several classes; the
    collection-art class is repeated below so these rules outrank them all (the repeat adds weight and nothing else). */
 .tl-detail-hero__inner.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art .tl-detail-hero__identity {
     min-width: 0;
@@ -978,8 +978,8 @@
 
 @media (width >= 840px) {
     .tl-detail-hero__inner.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art.tl-detail-hero--collection-art .tl-detail-hero__copy {
-        width: min(43rem, 40vw);
-        max-width: 40vw;
+        width: min(43rem, 36vw);
+        max-width: 36vw;
     }
 }
 

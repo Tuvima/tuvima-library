@@ -1,48 +1,37 @@
 ## Summary
 
-<!-- What does this PR do? 1-3 bullet points. -->
+<!-- What does this change do? 1-3 bullet points. -->
 
 -
 
-## Motivation
+## Why
 
-<!-- Why is this change needed? Link bugs this delivers, one per line: Fixes #123 (or Part of #123 if only partly fixed). After merge, post the closure note on each issue. -->
-
-## Changes
-
-<!-- List the key changes. Group by area if touching multiple parts. -->
-
-### Engine (`src/MediaEngine.Api`, `Domain`, `Storage`, etc.)
-
--
-
-### Dashboard (`src/MediaEngine.Web`)
-
--
-
-### Configuration (`config/`)
-
--
+<!-- The problem this solves. Link issues, one per line: Fixes #123 (or Part of #123 if only partly fixed). -->
 
 ## How to test
 
-<!-- Step-by-step instructions for reviewers to verify this works. -->
+<!-- Steps a reviewer can follow to see it working. Say which checks you could not run and why. -->
 
 1.
 
 ## Checklist
 
-- [ ] `dotnet build MediaEngine.slnx --no-restore` passes with 0 errors
-- [ ] `dotnet test MediaEngine.slnx --no-build` passes
-- [ ] Product docs updated if behavior, navigation, or product concepts changed
+- [ ] It builds with warnings as errors: `dotnet build MediaEngine.slnx --no-restore --warnaserror`
+- [ ] The tests for the projects I changed pass (the pull request runs every test; see [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md#what-happens-when-you-open-a-pull-request))
+- [ ] New or changed behavior has a test
+- [ ] No secrets, API keys, local paths or private media are included
+- [ ] New libraries are AGPLv3-compatible and credited (`clients/`: MPL 2.0 compatible, commits signed off)
+- [ ] Documentation: linked the companion change in [tuvima-docs](https://github.com/Tuvima/tuvima-docs), or none is needed
+
+<details>
+<summary>Project rules a reviewer checks (tick what applies)</summary>
+
 - [ ] No Vault/LibraryPage workflow, route, nav label, or media-management workbench was reintroduced
-- [ ] Media editing uses the universal editor on the item's own page
-- [ ] Review-only problems stay in the Review Queue
+- [ ] Media editing uses the universal editor on the item's own page; review-only problems stay in Needs Review
 - [ ] Database code uses `CreateConnection()` except startup/schema initialization
-- [ ] Documentation updated in tuvima-docs when behavior changed (link the proposed change there)
-- [ ] Dashboard visual evidence reviewed; capture images stay under ignored `.tmp/` and are not committed
-- [ ] Docker build succeeds (`docker build -t test .`)
-- [ ] New dependencies are AGPLv3-compatible (see `CLAUDE.md` section 6.1)
-- [ ] No secrets, API keys, or local paths committed
-- [ ] Closure note posted on each linked issue (plain English; UI bugs also mock and live side by side)
-- [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`)
+- [ ] Engine-to-Dashboard contract changes include the updated `*.approved.txt` snapshots
+- [ ] Dashboard changes have visual evidence reviewed; capture images stay under ignored `.tmp/` and are not committed
+- [ ] Docker changes were built (`docker build -t test .`)
+- [ ] Tracked bugs: closure note posted on each linked issue after merge (plain English; UI bugs also mock and live side by side)
+
+</details>

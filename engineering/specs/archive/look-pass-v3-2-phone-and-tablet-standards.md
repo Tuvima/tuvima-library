@@ -1,6 +1,6 @@
 # Spec: Phone and tablet standards (Look v3.2)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-20 · **Related docs:** [Look v3.1](archive/look-pass-v3-1-controls-and-type.md) · [Design system](../design/design-system.md) · Locked by Shy 2026-11-20 (answers 110 to 119, all A)
+> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-11-20 · **Related docs:** [Look v3.1](look-pass-v3-1-controls-and-type.md) · [Design system](../../design/design-system.md) · Locked by Shy 2026-11-20 (answers 110 to 119, all A)
 
 ## 1. Goal
 The phone and tablet apps follow one written set of sizes, spacing and patterns that is checked automatically, every Settings page works fully on a phone, and the same set feeds the future Android and iOS apps. Most people use only a phone, so it has to feel complete and consistent.
