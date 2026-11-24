@@ -63,6 +63,32 @@ public sealed class ConcurrencyGuard
         }
     }
 
+    /// <summary>
+    /// The lock the work-resolution step holds from "find the existing Work" through "register the asset": the folder for
+    /// a Books file (the EPUB beside the AZW3) and the film's title and year for a film (two cuts of one film), so siblings
+    /// cannot both create a Work. Null for every other kind.
+    /// </summary>
+    public async Task<IDisposable?> AcquireChainLockAsync(
+        MediaEngine.Domain.Enums.MediaType mediaType,
+        string path,
+        IReadOnlyDictionary<string, string>? metadata,
+        CancellationToken ct)
+    {
+        string? key = null;
+        if (mediaType == MediaEngine.Domain.Enums.MediaType.Books)
+        {
+            key = Path.GetDirectoryName(path) is { Length: > 0 } folder ? folder : null;
+        }
+        else if (mediaType == MediaEngine.Domain.Enums.MediaType.Movies)
+        {
+            key = MediaEngine.Domain.Services.FilmEditionLabels.LockKey(
+                metadata?.GetValueOrDefault(MediaEngine.Domain.MetadataFieldConstants.Title),
+                metadata?.GetValueOrDefault(MediaEngine.Domain.MetadataFieldConstants.Year));
+        }
+
+        return key is null ? null : await AcquireFolderLockAsync(key, ct).ConfigureAwait(false);
+    }
+
     /// <summary>Acquires (or creates) the hash-level lock.</summary>
     public SemaphoreSlim GetHashLock(string hashHex)
         => _hashLocks.GetOrAdd(hashHex, _ => new SemaphoreSlim(1, 1));

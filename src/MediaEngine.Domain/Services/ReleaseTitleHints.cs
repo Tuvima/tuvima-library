@@ -48,6 +48,11 @@ public static class ReleaseTitleHints
         var trimmed = value.Trim();
         var stripped = compiled.TechnicalSuffix.Replace(trimmed, "");
         var cleaned = stripped.TrimEnd(' ', '-', '.', '_');
+        // A cut named after the year ("Blade Runner (1982) - Final Cut") is not part of the title; the Edition label keeps it.
+        if (rules.FindEdition(cleaned) is { } edition)
+        {
+            cleaned = rules.RemoveEditionAfterYear(cleaned, edition).TrimEnd(' ', '-', '.', '_', '(', '[').Trim();
+        }
         var match = compiled.YearSuffix.Match(cleaned);
         // Only dotted or underscored release names ("Movie.2019.1080p"): "Blade Runner 2049 1080p" keeps its title.
         if (!match.Success && stripped.Length < trimmed.Length && !cleaned.Contains(' '))

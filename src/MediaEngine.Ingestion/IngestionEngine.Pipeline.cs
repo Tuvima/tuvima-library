@@ -859,10 +859,12 @@ public sealed partial class IngestionEngine
         // Books: siblings in one folder (the EPUB beside the AZW3) must resolve one at a time,
         // from "find the existing Work" through "register the asset" (the lookup reads registered
         // assets), otherwise both create a Work. The folder lock covers exactly that span.
-        var folderLock = resolvedMediaType == MediaType.Books
-            && Path.GetDirectoryName(candidate.Path) is { Length: > 0 } bookFolder
-                ? await _concurrencyGuard.AcquireFolderLockAsync(bookFolder, ct).ConfigureAwait(false)
-                : null;
+        //
+        // Films: two cuts or qualities of one film arriving together must not both start a new film, so the
+        // film's own key (title and year) is locked over the same span.
+        var folderLock = await _concurrencyGuard
+            .AcquireChainLockAsync(resolvedMediaType, candidate.Path, candidate.Metadata, ct)
+            .ConfigureAwait(false);
         Guid editionId;
         MediaAsset asset;
         bool inserted;

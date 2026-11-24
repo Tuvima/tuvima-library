@@ -261,6 +261,9 @@ public sealed class FilenameCleaningRules
     }
 
     // A marker written after the year ("Movie.2019.Remastered") is not part of the title, so it leaves with the noise.
+    /// <summary>Takes an edition marker written after the year ("Movie (1982) - Final Cut") out of a name, leaving the title and year.</summary>
+    public string RemoveEditionAfterYear(string text, string marker) => RemoveMarkerAfterYear(text, marker);
+
     private string RemoveMarkerAfterYear(string text, string marker)
     {
         var yearMatch = MatchYear(text);
