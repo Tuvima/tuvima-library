@@ -130,6 +130,76 @@ public sealed class HierarchyResolverTests : IDisposable
     }
 
     [Fact]
+    public async Task ResolveTv_FileWithNoYear_JoinsTheOnlyShowOfThatNameThatHasAYear()
+    {
+        var withYear = await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
+        {
+            ["show_name"] = "Severance",
+            ["show_year"] = "2022",
+            ["season_number"] = "1",
+            ["episode_number"] = "1",
+        });
+        var noYear = await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
+        {
+            ["show_name"] = "Severance",
+            ["season_number"] = "1",
+            ["episode_number"] = "2",
+        });
+
+        Assert.Equal(withYear.ParentWorkId, noYear.ParentWorkId);
+    }
+
+    [Fact]
+    public async Task ResolveTv_FileWithNoYearAndTwoYearedShows_DoesNotGuess()
+    {
+        foreach (var year in new[] { "1963", "2005" })
+        {
+            await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
+            {
+                ["show_name"] = "Doctor Who",
+                ["show_year"] = year,
+                ["season_number"] = "1",
+                ["episode_number"] = "1",
+            });
+        }
+
+        var noYear = await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
+        {
+            ["show_name"] = "Doctor Who",
+            ["season_number"] = "1",
+            ["episode_number"] = "1",
+        });
+        var again = await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
+        {
+            ["show_name"] = "Doctor Who",
+            ["season_number"] = "1",
+            ["episode_number"] = "2",
+        });
+
+        Assert.Equal(noYear.ParentWorkId, again.ParentWorkId);
+        Assert.NotNull(await _works.FindParentByKeyAsync(MediaType.TV, "doctor who"));
+    }
+
+    [Fact]
+    public async Task ResolveTv_ShowsWithOneNameAndDifferentFolderYears_StayTwoShows()
+    {
+        static Dictionary<string, string> Episode(string year) => new()
+        {
+            ["show_name"] = "Doctor Who",
+            ["show_year"] = year,
+            ["season_number"] = "1",
+            ["episode_number"] = "1",
+        };
+
+        var classic = await _resolver.ResolveAsync(MediaType.TV, Episode("1963"));
+        var modern = await _resolver.ResolveAsync(MediaType.TV, Episode("2005"));
+        var modernAgain = await _resolver.ResolveAsync(MediaType.TV, Episode("2005"));
+
+        Assert.NotEqual(classic.WorkId, modern.WorkId);
+        Assert.Equal(modern.WorkId, modernAgain.WorkId);
+    }
+
+    [Fact]
     public async Task Maintenance_RemovesEmptyAutoParentsAndDerivedArtwork_WhenLastChildDeleted()
     {
         var resolved = await _resolver.ResolveAsync(

@@ -29,6 +29,14 @@ public interface IWorkRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// When a TV show already exists under a year-suffixed key (<c>name|2019</c>) and no show
+    /// without a year exists, returns that year so a file that carries no year joins the show
+    /// instead of creating a second one. Null when there is no single unambiguous year.
+    /// </summary>
+    Task<string?> FindTvShowYearAsync(string showKey, CancellationToken ct = default)
+        => Task.FromResult<string?>(null);
+
+    /// <summary>
     /// Atomically finds or creates a parent Work. Implementations should use
     /// insert-or-select semantics so concurrent ingestion cannot create
     /// duplicate local shelves.
