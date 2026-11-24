@@ -36,10 +36,15 @@
                               AriaLabel="@($"Browse {Title}")" />
     }
 
+    @if (VisibleShelves.Count > 0)
+    {
+        <AreaPartlyReadyLine Area="@AreaName" />
+    }
+
     <div class="media-hub__shelves">
         @if (VisibleShelves.Count == 0)
         {
-            <EmptyShelfState Title="@EmptyTitle" Message="@EmptyMessage" ActionLabel="@L["Common_AddALibrary"].Value" ActionHref="@AddLibraryHref" />
+            <AreaEmptyState Area="@AreaName" />
         }
         else
         {
@@ -72,6 +77,8 @@
 
     private string _activeMode = "all";
     private string _activeGenre = "all";
+
+    private string AreaName => SectionName;
 
     private string SectionName => SectionType.ToString().ToLowerInvariant();
 

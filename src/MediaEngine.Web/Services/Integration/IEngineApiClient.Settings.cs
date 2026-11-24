@@ -247,6 +247,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /library/libraries/{libraryId}/activity — what has happened in one library, newest first, in plain sentences (administrators); null when the Engine refused, the library is unknown or it could not be read.</summary>
     Task<MediaEngine.Contracts.Library.LibraryActivityDto?> GetLibraryActivityAsync(string libraryId, int take = 50, CancellationToken ct = default);
 
+    /// <summary>GET /library/areas/{area}/readiness — why Home, Watch, Read or Listen may be empty (honest waiting messages); an administrator gets the facts, anyone else only that they are not shown; null when the Engine refused or could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.AreaReadinessDto?> GetAreaReadinessAsync(string area, CancellationToken ct = default);
+
     /// <summary>What is being watched and prepared right now, across every account (administrators only); null when it could not be read.</summary>
     Task<PlayingNowDto?> GetPlayingNowAsync(CancellationToken ct = default);
 

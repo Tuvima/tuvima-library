@@ -1,0 +1,59 @@
+@namespace MediaEngine.Web.Components.MediaHub
+@using MediaEngine.Contracts.Library
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+@inject UIOrchestratorService Orchestrator
+
+@* One quiet line under the tabs when some titles show but other files still wait (honest waiting messages D5). Administrators only; nothing is drawn when nothing waits. No toast. *@
+@if (_count > 0)
+{
+    <p class="area-partly-ready" data-area-partly-ready>
+        <a href="@AreaEmptyMessagePresenter.ReviewRoute">@_phrase</a>
+    </p>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Area { get; set; } = AreaReadinessAreas.Watch;
+
+    private int _count;
+    private string _phrase = string.Empty;
+    private readonly CancellationTokenSource _lifetime = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Orchestrator.OnReviewCountChanged += OnChanged;
+        await ReadAsync();
+    }
+
+    private void OnChanged() => _ = InvokeAsync(async () =>
+    {
+        await ReadAsync();
+        StateHasChanged();
+    });
+
+    private async Task ReadAsync()
+    {
+        try
+        {
+            var readiness = await ApiClient.GetAreaReadinessAsync(Area, _lifetime.Token);
+            // Only an administrator is told; a member's answer carries no counts.
+            var waiting = readiness is { Audience: AreaReadinessAudiences.Administrator }
+                ? readiness.FilesWaitingForSource
+                : 0;
+            _count = waiting;
+            _phrase = waiting == 1 ? L["AreaEmpty_PartlyOne"].Value : L["AreaEmpty_PartlyMany", waiting].Value;
+        }
+        catch (OperationCanceledException)
+        {
+            // The page closed.
+        }
+    }
+
+    public void Dispose()
+    {
+        Orchestrator.OnReviewCountChanged -= OnChanged;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

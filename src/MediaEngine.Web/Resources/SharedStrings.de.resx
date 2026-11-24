@@ -264,9 +264,6 @@
     <value>Personen</value>
   </data>
   <!-- Home Page -->
-  <data name="Home_EmptyTitle" xml:space="preserve">
-    <value>Ihre Bibliothek ist leer</value>
-  </data>
   <data name="Home_Seeding" xml:space="preserve">
     <value>Wird befüllt...</value>
   </data>

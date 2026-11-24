@@ -1,0 +1,76 @@
+@namespace MediaEngine.Web.Components.MediaHub
+@using MediaEngine.Contracts.Library
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+@inject UIOrchestratorService Orchestrator
+
+@* While first-time setup is unfinished Library scans nothing; this says so out loud at the top of Library activity (honest waiting messages D7).
+   Administrators only (the Engine tells nobody else), and gone without a reload once setup completes. *@
+@if (_unfinished)
+{
+    <AppAlert Tone="AppUiTone.Warning" data-setup-unfinished-notice>
+        @L["AreaEmpty_FinishSetupLine"]
+        <AppButton Label="@L["AreaEmpty_ContinueSetup"].Value" Href="@AreaEmptyMessagePresenter.SetupRoute" />
+    </AppAlert>
+}
+
+@code {
+    private bool _unfinished;
+    private readonly CancellationTokenSource _lifetime = new();
+    private PeriodicTimer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Orchestrator.OnActivityChanged += OnChanged;
+        await ReadAsync();
+        _ = PollAsync(_lifetime.Token);
+    }
+
+    private async Task PollAsync(CancellationToken ct)
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await _timer.WaitForNextTickAsync(ct))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await ReadAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page closed.
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(async () =>
+    {
+        await ReadAsync();
+        StateHasChanged();
+    });
+
+    private async Task ReadAsync()
+    {
+        try
+        {
+            var readiness = await ApiClient.GetAreaReadinessAsync(AreaReadinessAreas.Home, _lifetime.Token);
+            _unfinished = readiness is { Audience: AreaReadinessAudiences.Administrator, SetupFinished: false };
+        }
+        catch (OperationCanceledException)
+        {
+            // The page closed.
+        }
+    }
+
+    public void Dispose()
+    {
+        Orchestrator.OnActivityChanged -= OnChanged;
+        _lifetime.Cancel();
+        _timer?.Dispose();
+        _lifetime.Dispose();
+    }
+}

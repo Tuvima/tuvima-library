@@ -538,6 +538,10 @@ public sealed partial class EngineApiClient
         GetAsync<MediaEngine.Contracts.Library.LibraryActivityDto>(
             "GET /library/libraries/{libraryId}/activity", $"/library/libraries/{Uri.EscapeDataString(libraryId)}/activity?take={take}", ct: ct);
 
+    public Task<MediaEngine.Contracts.Library.AreaReadinessDto?> GetAreaReadinessAsync(string area, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Library.AreaReadinessDto>(
+            "GET /library/areas/{area}/readiness", $"/library/areas/{Uri.EscapeDataString(area)}/readiness", logAsWarning: false, ct: ct);
+
     public Task<PlayingNowDto?> GetPlayingNowAsync(CancellationToken ct = default) =>
         GetAsync<PlayingNowDto>("GET /playback/playing-now", "/playback/playing-now", logAsWarning: false, ct: ct);
 
