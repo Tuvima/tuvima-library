@@ -300,9 +300,16 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
     }
 
     /// <summary>
+    /// HTTP 429 and 420 (Comic Vine's "velocity" answer) both mean "slow down and try again later",
+    /// not "your request was wrong", so they never use up a job's attempts.
+    /// </summary>
+    private static bool IsSlowDownStatus(System.Net.HttpStatusCode status) =>
+        status == System.Net.HttpStatusCode.TooManyRequests || (int)status == 420;
+
+    /// <summary>
     /// Logs a failed provider request and records how it should be classified. Only provider-side
-    /// failures (timeouts, connection errors, 5xx, 429) count towards the provider being Down;
-    /// a rejected request (non-429 4xx) means our request was wrong, not that the provider is.
+    /// failures (timeouts, connection errors, 5xx, 429, 420) count towards the provider being Down;
+    /// a rejected request (a 4xx other than 429/420) means our request was wrong, not that the provider is.
     /// </summary>
     private async Task RecordTransportFailureAsync(
         Exception ex,
@@ -313,7 +320,7 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
     {
         if (ex is HttpRequestException { StatusCode: { } status }
             && (int)status is >= 400 and < 500
-            && status != System.Net.HttpStatusCode.TooManyRequests)
+            && !IsSlowDownStatus(status))
         {
             _logger.LogWarning(ex,
                 "{Provider}/{Strategy}: {Context} — request rejected (HTTP {StatusCode})",

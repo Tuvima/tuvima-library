@@ -339,6 +339,16 @@ public sealed class VideoProcessor : IMediaProcessor
             else if (!string.IsNullOrWhiteSpace(basicTitle))
             {
                 var hints = MediaEngine.Domain.Services.ReleaseTitleHints.Parse(basicTitle);
+                if (!stem.Contains(' '))
+                {
+                    // Scene-style name (Dune.2021.1080p.BluRay.x264-GRP): the dots are what tell the
+                    // hint parser the year is a release year, so read the raw stem, then tidy the title.
+                    var raw = MediaEngine.Domain.Services.ReleaseTitleHints.Parse(StripTrailingOrganizerTokens(stem.Replace('_', '.')));
+                    if (raw.Year is not null && !string.IsNullOrWhiteSpace(raw.Title))
+                    {
+                        hints = (FileStemTitleCleaner.Clean(raw.Title.Replace('.', ' ')), raw.Year);
+                    }
+                }
                 claims.Add(Claim("title", hints.Title ?? basicTitle, 0.50));
                 if (hints.Year is not null)
                 {

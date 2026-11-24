@@ -267,7 +267,10 @@ public class VideoProcessorTests
     [Theory]
     [InlineData("Dr. Horrible's Sing-Along Blog (2008) - x264 DTS.mp4", "Dr. Horrible's Sing-Along Blog", "2008")]
     [InlineData("Mr. Smith Goes to Washington (1939).mp4", "Mr. Smith Goes to Washington", "1939")]
-    [InlineData("The.Matrix.1999.1080p.mp4", "The Matrix 1999", null)]
+    [InlineData("The.Matrix.1999.1080p.mp4", "The Matrix", "1999")]
+    [InlineData("Dune.2021.1080p.BluRay.x264-GRP.mkv", "Dune", "2021")]
+    [InlineData("Blade.Runner.2049.2017.2160p.WEB-DL.mkv", "Blade Runner 2049", "2017")]
+    [InlineData("Ocean's.Eleven.1960.720p.BluRay.mkv", "Ocean's Eleven", "1960")]
     public async Task ProcessAsync_KeepsAbbreviationFullStopsInSpacedFileNames(
         string fileName,
         string expectedTitle,
