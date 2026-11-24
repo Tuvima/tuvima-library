@@ -264,10 +264,63 @@ public class VideoProcessorTests
         }
     }
 
+    [Fact]
+    public async Task ProcessAsync_ReadsRunningEpisodeNumbersWithoutSeasonsWhenSiblingsShareTheShow()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"video_processor_{Guid.NewGuid():N}", "Cowboy Bebop (1998)");
+        Directory.CreateDirectory(dir);
+        foreach (var n in new[] { "01", "02", "03" })
+        {
+            await File.WriteAllBytesAsync(Path.Combine(dir, $"Cowboy Bebop - {n}.mp4"), MinimalMp4Header());
+        }
+        await File.WriteAllBytesAsync(Path.Combine(dir, "Blade Runner - 2049.mp4"), MinimalMp4Header());
+
+        try
+        {
+            var processor = new VideoProcessor(new StubVideoMetadataExtractor());
+            var episode = await processor.ProcessAsync(Path.Combine(dir, "Cowboy Bebop - 02.mp4"));
+            var stray = await processor.ProcessAsync(Path.Combine(dir, "Blade Runner - 2049.mp4"));
+
+            Assert.Contains(episode.Claims, c => c.Key == "show_name" && c.Value == "Cowboy Bebop");
+            Assert.Contains(episode.Claims, c => c.Key == "episode_number" && c.Value == "2");
+            Assert.Contains(episode.Claims, c => c.Key == "show_year" && c.Value == "1998");
+            Assert.DoesNotContain(episode.Claims, c => c.Key == "season_number");
+            Assert.DoesNotContain(stray.Claims, c => c.Key == "episode_number");
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(dir)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ProcessAsync_GivesAShowFolderYearToEveryEpisodeSoSameNamedShowsStayApart()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"video_processor_{Guid.NewGuid():N}");
+        var old = Path.Combine(root, "Doctor Who (1963)", "Season 1");
+        Directory.CreateDirectory(old);
+        var file = Path.Combine(old, "Doctor Who - S01E01.mp4");
+        await File.WriteAllBytesAsync(file, MinimalMp4Header());
+
+        try
+        {
+            var result = await new VideoProcessor(new StubVideoMetadataExtractor()).ProcessAsync(file);
+
+            Assert.Contains(result.Claims, c => c.Key == "show_year" && c.Value == "1963");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData("Dr. Horrible's Sing-Along Blog (2008) - x264 DTS.mp4", "Dr. Horrible's Sing-Along Blog", "2008")]
     [InlineData("Mr. Smith Goes to Washington (1939).mp4", "Mr. Smith Goes to Washington", "1939")]
-    [InlineData("The.Matrix.1999.1080p.mp4", "The Matrix 1999", null)]
+    [InlineData("The.Matrix.1999.1080p.mp4", "The Matrix", "1999")]
+    [InlineData("Dune.2021.1080p.BluRay.x264-GRP.mkv", "Dune", "2021")]
+    [InlineData("Blade.Runner.2049.2017.2160p.WEB-DL.mkv", "Blade Runner 2049", "2017")]
+    [InlineData("Ocean's.Eleven.1960.720p.BluRay.mkv", "Ocean's Eleven", "1960")]
     public async Task ProcessAsync_KeepsAbbreviationFullStopsInSpacedFileNames(
         string fileName,
         string expectedTitle,

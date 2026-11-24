@@ -79,6 +79,49 @@ public sealed class WorkRepository : IWorkRepository
     }
 
     /// <inheritdoc/>
+    public Task<string?> FindTvShowYearAsync(string showKey, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        return Task.FromResult(FindTvShowYear(conn, null, showKey));
+    }
+
+    internal static string? FindTvShowYear(SqliteConnection conn, SqliteTransaction? tx, string showKey)
+    {
+        if (string.IsNullOrWhiteSpace(showKey))
+        {
+            return null;
+        }
+
+        var keys = conn.Query<string>(
+            """
+            SELECT parent_key
+            FROM   works
+            WHERE  media_type = 'TV'
+              AND  work_kind  = 'parent'
+              AND  parent_work_id IS NULL
+              AND  (parent_key = @key OR substr(parent_key, 1, length(@key) + 1) = @key || '|');
+            """,
+            new { key = showKey },
+            tx).ToList();
+
+        if (keys.Contains(showKey, StringComparer.Ordinal))
+        {
+            return null;
+        }
+
+        var prefix = showKey + "|";
+        var years = keys
+            .Where(k => k.Length == prefix.Length + 4
+                        && k.StartsWith(prefix, StringComparison.Ordinal)
+                        && k.AsSpan(prefix.Length).IndexOfAnyExceptInRange('0', '9') < 0)
+            .Select(k => k[prefix.Length..])
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        return years.Count == 1 ? years[0] : null;
+    }
+
+    /// <inheritdoc/>
     public Task<Guid?> FindChildByOrdinalAsync(
         Guid parentWorkId,
         int ordinal,

@@ -36,6 +36,7 @@ public sealed class ProviderFailureClassificationTests
     [InlineData(HttpStatusCode.InternalServerError)]
     [InlineData(HttpStatusCode.ServiceUnavailable)]
     [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData((HttpStatusCode)420)]
     public async Task FetchAsync_OnProviderSideHttpFailure_ThrowsUnavailableAndReportsFailure(HttpStatusCode status)
     {
         var health = new RecordingHealthMonitor();

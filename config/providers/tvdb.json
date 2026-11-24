@@ -853,7 +853,8 @@
                     "confidence": 0.6,
                     "type": "show",
                     "extra": {
-                      "tvdb_id": "$show_id"
+                      "tvdb_id": "$show_id",
+                      "original_title": "$show.name"
                     }
                   }
                 }

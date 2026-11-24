@@ -212,7 +212,7 @@ function renderHotspots(state) {
       if (northEast.lng === southWest.lng && northEast.lat === southWest.lat)
         state.map.easeTo({ center: [longitude, latitude], zoom: Math.min(14, zoom + 2), duration: reducedMotion() ? 0 : 650 });
       else
-        state.map.fitBounds(bounds, { padding: 92, maxZoom: state.detailedStyle ? 10 : 4.25, duration: reducedMotion() ? 0 : 700 });
+        state.map.fitBounds(bounds, { padding: atlasFitPadding(state.map, 92), maxZoom: state.detailedStyle ? 10 : 4.25, duration: reducedMotion() ? 0 : 700 });
     });
     state.markers.push(new maplibregl.Marker({ element: anchor, anchor: 'center' }).setLngLat([longitude, latitude]).addTo(state.map));
   }
@@ -220,6 +220,23 @@ function renderHotspots(state) {
 
 function reducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
+
+// Room the date strip takes at the bottom of the map, so clusters near the bottom are never hidden behind it (issue 1373).
+function atlasOverlayBottom(map) {
+  const shell = map.getContainer().closest('.view-atlas__map-shell');
+  const strip = shell?.querySelector('.places-timeline');
+  if (!strip) return 0;
+  const mapRect = map.getContainer().getBoundingClientRect();
+  const stripRect = strip.getBoundingClientRect();
+  return Math.max(0, mapRect.bottom - stripRect.top);
+}
+
+function atlasFitPadding(map, base) {
+  const height = Math.max(1, map.getContainer().clientHeight);
+  // Never let the strip eat more than 60% of the map's height.
+  const overlay = Math.min(atlasOverlayBottom(map) + 16, height * .6);
+  return { top: base, right: base, left: base, bottom: Math.max(base, overlay) };
 }
 
 function atlasWorldPadding(map) {
@@ -392,7 +409,7 @@ export function fitHotspots(container) {
   if (!state?.map || state.hotspots.length === 0) return;
   const bounds = new maplibregl.LngLatBounds();
   for (const item of state.hotspots) bounds.extend([item.longitude, item.latitude]);
-  state.map.fitBounds(bounds, { padding: 110, maxZoom: state.detailedStyle ? 9 : 4.25, duration: reducedMotion() ? 0 : 700 });
+  state.map.fitBounds(bounds, { padding: atlasFitPadding(state.map, 110), maxZoom: state.detailedStyle ? 9 : 4.25, duration: reducedMotion() ? 0 : 700 });
 }
 
 export function zoomBy(container, delta) {

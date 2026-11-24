@@ -35,6 +35,30 @@ public sealed class AudiobookFolderHintsTests : IDisposable
     }
 
     [Fact]
+    public void TwoWholeBookFilesInOneAuthorFolderAreSeparateRecordings()
+    {
+        var leviathanPath = Create("James S. A. Corey/Leviathan Wakes.m4b");
+        var cibolaPath = Create("James S. A. Corey/Cibola Burn.m4b");
+        var leviathan = Apply(leviathanPath);
+        var cibola = Apply(cibolaPath);
+
+        Assert.NotEqual(Value(leviathan, "audiobook_recording_key"), Value(cibola, "audiobook_recording_key"));
+        Assert.Equal("1", Value(leviathan, "audiobook_part_count"));
+        Assert.Equal("James S. A. Corey", Value(leviathan, "author"));
+    }
+
+    [Fact]
+    public void PartFilesOfOneBookStayOneRecording()
+    {
+        var firstPath = Create("Author/Book/Part 1.m4b");
+        var secondPath = Create("Author/Book/Part 2.m4b");
+        var first = Apply(firstPath);
+        var second = Apply(secondPath);
+
+        Assert.Equal(Value(first, "audiobook_recording_key"), Value(second, "audiobook_recording_key"));
+    }
+
+    [Fact]
     public void LooseFilesDoNotBecomeOneRecording()
     {
         Assert.Null(Value(Apply(Create("one.mp3")), "audiobook_recording_key"));
