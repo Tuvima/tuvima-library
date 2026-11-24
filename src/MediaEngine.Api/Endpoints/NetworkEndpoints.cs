@@ -53,8 +53,6 @@ public static class NetworkEndpoints
 
             var current = configuration.LoadNetwork();
             var proposed = NetworkContractMapper.ToStorage(request);
-            // allow_browser_apps is edited in the config file only; saving from the settings page must not reset it.
-            proposed.NativeAppAccess.AllowBrowserApps = current.NativeAppAccess.AllowBrowserApps;
             // The strict public-address rule applies when saving, so a hand-edited older value never stops startup.
             if (!string.IsNullOrWhiteSpace(proposed.Remote.PublicHostname)
                 && !PublicAddress.IsValid(proposed.Remote.PublicHostname))

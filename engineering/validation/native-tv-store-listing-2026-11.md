@@ -47,7 +47,7 @@ How to connect
 2. The TV shows a short code.
 3. On your phone or computer, an administrator opens Library and approves the TV. No password is typed on the TV.
 
-(Samsung and LG only, OPEN DECISION for Shy before submitting: today the packaged app runs from a non-web origin, so the server refuses it until `native_app_access.enabled` and `native_app_access.allow_browser_apps` are both `true` in `config/network.json`. There is no switch for this in the Dashboard. A person who installs the store version would have to edit a file. Either the listing says so, or a Settings switch is built first. Roku is not affected. Do not submit Samsung or LG until this is decided.)
+(Samsung and LG only: the packaged app runs from a non-web origin, so the server answers it only while an administrator has turned on "Allow Samsung and LG TV apps" in Settings > Network & Remote Access > Home network. It is off by default, applies right away with no restart, and needs no file edit. The listing should tell people to turn it on before pairing. Roku is not affected.)
 
 Your media stays on your network. This app talks only to the server address you type. It has no ads and no tracking.
 

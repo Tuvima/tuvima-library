@@ -18,8 +18,9 @@ Packaging for the shared TV web client in `clients/tv-web`. Nothing here is a se
 
 ## Before you install: turn on app access
 
-The packaged app runs from a non-web origin, so the Dashboard rejects it until you set, in `config/network.json`,
-`native_app_access.allow_browser_apps` to `true`. Do this FIRST, then restart the Dashboard.
+The packaged app runs from a non-web origin, so the Dashboard rejects it until an administrator turns on
+**Allow Samsung and LG TV apps** in Settings > Network & Remote Access > Home network. Do this FIRST; it applies right
+away, with no restart. (The switch stores `native_app_access.allow_browser_apps` as `true` in `config/network.json`.)
 
 ## TV setup
 

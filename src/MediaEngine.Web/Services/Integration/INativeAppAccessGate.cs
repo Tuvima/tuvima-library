@@ -4,12 +4,12 @@ namespace MediaEngine.Web.Services.Integration;
 
 /// <summary>
 /// Phone, TV and tablet apps always reach the Engine through the Dashboard's app door; there is no on/off switch.
-/// This gate answers the one remaining setting: the config-file opt-in for packaged TV web apps.
+/// This gate answers the one remaining setting: the opt-in for packaged TV web apps (Samsung and LG).
 /// </summary>
 public interface INativeAppAccessGate
 {
     /// <summary>
-    /// The config-file-only opt-in (<c>native_app_access.allow_browser_apps</c>) that lets packaged TV web apps
+    /// The opt-in (<c>native_app_access.allow_browser_apps</c>, the Settings switch "Allow Samsung and LG TV apps") that lets packaged TV web apps
     /// call the app door cross-origin. Off unless the gate says otherwise.
     /// </summary>
     bool AllowBrowserApps => false;

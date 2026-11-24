@@ -33,14 +33,14 @@ public sealed class NetworkSettings
 
 /// <summary>
 /// Phone, TV and tablet apps always reach this Library through the Dashboard's app door; there is no on/off switch.
-/// The only setting is the config-file opt-in for packaged TV web apps.
+/// The only setting is the opt-in for packaged TV web apps (Settings > Network > Home network, "Allow Samsung and LG TV apps").
 /// </summary>
 public sealed class NativeAppAccessSettings
 {
     /// <summary>
-    /// Config file only, off by default: lets packaged TV web apps (origin <c>null</c> or an app scheme)
+    /// Off by default: lets packaged TV web apps (origin <c>null</c> or an app scheme)
     /// call the app door cross-origin. Any web page can claim those origins, so leave it off unless a
-    /// Tizen or webOS TV web app is in use.
+    /// Tizen or webOS TV web app is in use. Set from Settings; the Dashboard re-reads it when the file changes.
     /// </summary>
     [JsonPropertyName("allow_browser_apps")]
     public bool AllowBrowserApps { get; set; }
