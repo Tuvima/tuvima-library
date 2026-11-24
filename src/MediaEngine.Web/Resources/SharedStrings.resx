@@ -245,9 +245,6 @@
   <data name="Wikidata_PeopleGroupTitle" xml:space="preserve">
     <value>People</value>
   </data>
-  <data name="Home_EmptyTitle" xml:space="preserve">
-    <value>Your library is empty</value>
-  </data>
   <data name="Home_Seeding" xml:space="preserve">
     <value>Seeding...</value>
   </data>
@@ -2062,18 +2059,6 @@
   </data>
   <data name="ForMe_SortForMeItems" xml:space="preserve">
     <value>Sort For Me items</value>
-  </data>
-  <data name="LibraryBrowsePage_YourLibraryIsBeingPrepared" xml:space="preserve">
-    <value>Your library is being prepared</value>
-  </data>
-  <data name="LibraryBrowsePage_LibraryIsFindingAndMatching" xml:space="preserve">
-    <value>Library is finding and matching your media. Items appear here as they're ready.</value>
-  </data>
-  <data name="LibraryBrowsePage_ViewProgress" xml:space="preserve">
-    <value>View progress</value>
-  </data>
-  <data name="LibraryBrowsePage_PointLibraryAtTheFolders" xml:space="preserve">
-    <value>Point Library at the folders where your books, films, shows and music live. It will find them, identify them and lay them out here.</value>
   </data>
   <data name="LibraryBrowsePage_DevelopmentTools" xml:space="preserve">
     <value>Development tools</value>
@@ -16312,5 +16297,158 @@
   </data>
   <data name="PickResult_UntitledResult" xml:space="preserve">
     <value>Untitled result</value>
+  </data>
+  <data name="AreaEmpty_SetupTitle" xml:space="preserve">
+    <value>Finish setup to start scanning</value>
+  </data>
+  <data name="AreaEmpty_SetupMessage" xml:space="preserve">
+    <value>Library has not looked at your folders yet.</value>
+  </data>
+  <data name="AreaEmpty_ContinueSetup" xml:space="preserve">
+    <value>Continue setup</value>
+  </data>
+  <data name="AreaEmpty_NoLibraryTitle" xml:space="preserve">
+    <value>Nothing to {0} yet</value>
+  </data>
+  <data name="AreaEmpty_HomeNoLibraryTitle" xml:space="preserve">
+    <value>Nothing here yet</value>
+  </data>
+  <data name="AreaEmpty_NoLibraryMessage" xml:space="preserve">
+    <value>Add a library for {0} and they appear here.</value>
+  </data>
+  <data name="AreaEmpty_FolderTitle" xml:space="preserve">
+    <value>Library can't reach {0}</value>
+  </data>
+  <data name="AreaEmpty_FolderMessage" xml:space="preserve">
+    <value>Check that the drive is connected.</value>
+  </data>
+  <data name="AreaEmpty_OpenLibraries" xml:space="preserve">
+    <value>Open Libraries</value>
+  </data>
+  <data name="AreaEmpty_LookingTitle" xml:space="preserve">
+    <value>Looking through {0}</value>
+  </data>
+  <data name="AreaEmpty_LookingMessage" xml:space="preserve">
+    <value>Titles appear here as they are identified.</value>
+  </data>
+  <data name="AreaEmpty_SeeProgress" xml:space="preserve">
+    <value>See progress</value>
+  </data>
+  <data name="AreaEmpty_WaitingTitle" xml:space="preserve">
+    <value>{0} found, none identified yet</value>
+  </data>
+  <data name="AreaEmpty_WaitingMessage" xml:space="preserve">
+    <value>{0} need a metadata source before Library can name them and fetch covers. Connect one and they appear here by themselves.</value>
+  </data>
+  <data name="AreaEmpty_ConnectSource" xml:space="preserve">
+    <value>Connect a metadata source</value>
+  </data>
+  <data name="AreaEmpty_SeeFiles" xml:space="preserve">
+    <value>See the {0}</value>
+  </data>
+  <data name="AreaEmpty_ReviewTitle" xml:space="preserve">
+    <value>{0} found</value>
+  </data>
+  <data name="AreaEmpty_ReviewMessage" xml:space="preserve">
+    <value>Library isn't sure what they are.</value>
+  </data>
+  <data name="AreaEmpty_OpenReview" xml:space="preserve">
+    <value>Open Needs Review</value>
+  </data>
+  <data name="AreaEmpty_NothingTitle" xml:space="preserve">
+    <value>No {0} found</value>
+  </data>
+  <data name="AreaEmpty_NothingMessage" xml:space="preserve">
+    <value>Library found nothing it can use in this area's folders.</value>
+  </data>
+  <data name="AreaEmpty_ElsewhereLine" xml:space="preserve">
+    <value>Your {0} need no source and are in {1}.</value>
+  </data>
+  <data name="AreaEmpty_MemberTitle" xml:space="preserve">
+    <value>Nothing here yet</value>
+  </data>
+  <data name="AreaEmpty_MemberMessage" xml:space="preserve">
+    <value>An administrator is still setting this up.</value>
+  </data>
+  <data name="AreaEmpty_ErrorTitle" xml:space="preserve">
+    <value>Can't reach Library</value>
+  </data>
+  <data name="AreaEmpty_ErrorMessage" xml:space="preserve">
+    <value>The Dashboard could not ask the Engine what is happening. Try again in a moment.</value>
+  </data>
+  <data name="AreaEmpty_PartlyOne" xml:space="preserve">
+    <value>1 more file is waiting for a metadata source.</value>
+  </data>
+  <data name="AreaEmpty_PartlyMany" xml:space="preserve">
+    <value>{0} more files are waiting for a metadata source.</value>
+  </data>
+  <data name="AreaEmpty_FinishSetupLine" xml:space="preserve">
+    <value>Finish setup to start scanning. Library has not looked at your folders yet.</value>
+  </data>
+  <data name="AreaEmpty_FolderFallback" xml:space="preserve">
+    <value>a folder</value>
+  </data>
+  <data name="AreaEmpty_VideosTab" xml:space="preserve">
+    <value>Videos</value>
+  </data>
+  <data name="AreaEmpty_OneFile" xml:space="preserve">
+    <value>1 file</value>
+  </data>
+  <data name="AreaEmpty_ManyFiles" xml:space="preserve">
+    <value>{0} files</value>
+  </data>
+  <data name="AreaEmpty_OnePersonalVideo" xml:space="preserve">
+    <value>personal video</value>
+  </data>
+  <data name="AreaEmpty_ManyPersonalVideos" xml:space="preserve">
+    <value>{0} personal videos</value>
+  </data>
+  <data name="AreaEmpty_Counted" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="AreaEmpty_NounWatch" xml:space="preserve">
+    <value>videos</value>
+  </data>
+  <data name="AreaEmpty_NounRead" xml:space="preserve">
+    <value>books and comics</value>
+  </data>
+  <data name="AreaEmpty_NounListen" xml:space="preserve">
+    <value>music and audiobooks</value>
+  </data>
+  <data name="AreaEmpty_NounHome" xml:space="preserve">
+    <value>files</value>
+  </data>
+  <data name="AreaEmpty_VerbWatch" xml:space="preserve">
+    <value>watch</value>
+  </data>
+  <data name="AreaEmpty_VerbRead" xml:space="preserve">
+    <value>read</value>
+  </data>
+  <data name="AreaEmpty_VerbListen" xml:space="preserve">
+    <value>listen to</value>
+  </data>
+  <data name="AreaEmpty_KindsWatch" xml:space="preserve">
+    <value>films, TV shows or videos</value>
+  </data>
+  <data name="AreaEmpty_KindsRead" xml:space="preserve">
+    <value>books or comics</value>
+  </data>
+  <data name="AreaEmpty_KindsListen" xml:space="preserve">
+    <value>music or audiobooks</value>
+  </data>
+  <data name="AreaEmpty_KindsHome" xml:space="preserve">
+    <value>films, books, music or anything else you own</value>
+  </data>
+  <data name="AreaEmpty_NeedSourceWatch" xml:space="preserve">
+    <value>films and TV shows</value>
+  </data>
+  <data name="AreaEmpty_NeedSourceRead" xml:space="preserve">
+    <value>books and comics</value>
+  </data>
+  <data name="AreaEmpty_NeedSourceListen" xml:space="preserve">
+    <value>music and audiobooks</value>
+  </data>
+  <data name="AreaEmpty_NeedSourceHome" xml:space="preserve">
+    <value>your titles</value>
   </data>
 </root>

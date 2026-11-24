@@ -1,0 +1,11 @@
+.area-partly-ready {
+    margin: 4px clamp(18px, 3.2vw, 52px) 0;
+    font-family: var(--font-ui);
+    font-size: var(--tl-type-caption-size);
+    color: var(--tl-text-secondary);
+}
+
+.area-partly-ready a {
+    color: inherit;
+    text-decoration: underline;
+}

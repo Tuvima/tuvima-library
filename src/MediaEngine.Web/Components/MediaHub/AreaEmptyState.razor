@@ -1,0 +1,125 @@
+@namespace MediaEngine.Web.Components.MediaHub
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Contracts.Realtime
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+@inject UIOrchestratorService Orchestrator
+@inject UniverseStateContainer State
+@inject DeviceContextService Device
+
+@* Honest waiting messages (spec honest-waiting-messages WP3): says why Home, Watch, Read or Listen has nothing to show, and offers the action that fixes it. It refreshes by itself when the cause clears (D8). *@
+@if (_message is not null)
+{
+    <EmptyShelfState Title="@_message.Title"
+                     Message="@_message.Message"
+                     Actions="@_message.Actions"
+                     ExtraLine="@_message.ExtraLine"
+                     ExtraHref="@_message.ExtraHref" />
+}
+else if (_failed)
+{
+    @* Never the "add a library" message when the Engine cannot be reached. *@
+    <AppErrorState Title="@L["AreaEmpty_ErrorTitle"].Value"
+                   Message="@L["AreaEmpty_ErrorMessage"].Value"
+                   Retry="@RetryAsync" />
+}
+
+@code {
+    private static readonly TimeSpan SlowRefresh = TimeSpan.FromSeconds(30);
+
+    /// <summary>The area this page shows: home, watch, read or listen.</summary>
+    [Parameter, EditorRequired] public string Area { get; set; } = AreaReadinessAreas.Home;
+
+    private AreaEmptyMessage? _message;
+    private AreaEmptyMessagePresenter? _presenter;
+    private bool _failed;
+    private CancellationTokenSource _lifetime = new();
+    private PeriodicTimer? _timer;
+    private int _reading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _presenter = new AreaEmptyMessagePresenter(L);
+        Orchestrator.OnActivityChanged += OnSomethingChanged;
+        Orchestrator.OnReviewCountChanged += OnSomethingChanged;
+        State.MediaAddedReceived += OnMediaAdded;
+        await ReadAsync();
+        _ = PollAsync(_lifetime.Token);
+    }
+
+    // A source connected in Plugins raises no event of its own, so a quiet re-read every 30 seconds covers it while the page is empty.
+    private async Task PollAsync(CancellationToken ct)
+    {
+        _timer = new PeriodicTimer(SlowRefresh);
+        try
+        {
+            while (await _timer.WaitForNextTickAsync(ct))
+            {
+                await InvokeAsync(ReadAsync);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page closed; nothing more to read.
+        }
+    }
+
+    private void OnSomethingChanged() => _ = InvokeAsync(ReadAsync);
+
+    private void OnMediaAdded(MediaAddedEvent ev) => OnSomethingChanged();
+
+    private async Task RetryAsync()
+    {
+        _failed = false;
+        await ReadAsync();
+    }
+
+    private async Task ReadAsync()
+    {
+        if (Interlocked.Exchange(ref _reading, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            var readiness = await ApiClient.GetAreaReadinessAsync(Area, _lifetime.Token);
+            if (readiness is null)
+            {
+                if (_message is null)
+                {
+                    _failed = true;
+                }
+            }
+            else
+            {
+                _failed = false;
+                _message = _presenter!.Build(readiness, Device.IsTelevision);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page closed while the answer was on its way.
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _reading, 0);
+        }
+
+        if (!_lifetime.IsCancellationRequested)
+        {
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        Orchestrator.OnActivityChanged -= OnSomethingChanged;
+        Orchestrator.OnReviewCountChanged -= OnSomethingChanged;
+        State.MediaAddedReceived -= OnMediaAdded;
+        _lifetime.Cancel();
+        _timer?.Dispose();
+        _lifetime.Dispose();
+    }
+}

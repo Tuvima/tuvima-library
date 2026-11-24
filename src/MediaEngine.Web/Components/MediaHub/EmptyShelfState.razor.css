@@ -28,3 +28,36 @@
     font-family: var(--font-ui);
     color: var(--tl-text-secondary);
 }
+
+.empty-shelf-state__extra {
+    font-size: var(--tl-type-caption-size);
+}
+
+.empty-shelf-state__extra a {
+    color: var(--tl-accent-primary);
+}
+
+.empty-shelf-state__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+/* Phone: the buttons stack at full width, 44 px tall. */
+@media (max-width: 600px) {
+    .empty-shelf-state {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .empty-shelf-state__actions {
+        flex-direction: column;
+    }
+
+    .empty-shelf-state__actions > * {
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+    }
+}

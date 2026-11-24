@@ -1,6 +1,6 @@
 # Spec: Profile and Household
 
-> **Status:** In progress (Locked by Shy, 2026-11-24; build started 2026-11-24) · **Version:** 1 · **Last updated:** 2026-11-24 · **Related docs:** [Product overview](../product/overview.md) · [Users, profiles and households](users-profiles-households.md) · [Library access](library-access.md) · [Settings and top navigation fixes](settings-and-top-navigation.md) · [Look v3.2 phone and tablet standards](look-pass-v3-2-phone-and-tablet-standards.md) · [Mockups](../design/mockups/profile-and-household.html) (screens 1 to 6)
+> **Status:** Locked (Shy, 2026-11-24) · **Version:** 1 · **Last updated:** 2026-11-24 · **Related docs:** [Product overview](../product/overview.md) · [Users, profiles and households](users-profiles-households.md) · [Library access](library-access.md) · [Settings and top navigation fixes](settings-and-top-navigation.md) · [Look v3.2 phone and tablet standards](archive/look-pass-v3-2-phone-and-tablet-standards.md) · [Mockups](../design/mockups/profile-and-household.html) (screens 1 to 6)
 
 ## 1. Goal
 

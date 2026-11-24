@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaHub
 
-<section class="empty-shelf-state">
+<section class="empty-shelf-state" data-empty-shelf-state>
     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" />
     <div>
         <h2>@Title</h2>
@@ -8,9 +8,33 @@
         {
             <p>@Message</p>
         }
+        @if (!string.IsNullOrWhiteSpace(ExtraLine))
+        {
+            <p class="empty-shelf-state__extra" data-empty-extra>
+                @if (!string.IsNullOrWhiteSpace(ExtraHref))
+                {
+                    <a href="@ExtraHref">@ExtraLine</a>
+                }
+                else
+                {
+                    @ExtraLine
+                }
+            </p>
+        }
         @if (!string.IsNullOrWhiteSpace(ActionLabel) && !string.IsNullOrWhiteSpace(ActionHref))
         {
             <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.CreateNewFolder" Href="@ActionHref">@ActionLabel</AppButton>
+        }
+        @if (Actions.Count > 0)
+        {
+            <div class="empty-shelf-state__actions">
+                @foreach (var action in Actions)
+                {
+                    <AppButton ButtonStyle="@(action.Primary ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
+                               Tone="@(action.Primary ? AppUiTone.Primary : AppUiTone.Neutral)"
+                               Href="@action.Href">@action.Label</AppButton>
+                }
+            </div>
         }
     </div>
 </section>
@@ -20,4 +44,11 @@
     [Parameter] public string? Message { get; set; }
     [Parameter] public string? ActionLabel { get; set; }
     [Parameter] public string? ActionHref { get; set; }
+
+    /// <summary>Up to two buttons, side by side on a desktop and stacked full width on a phone (honest waiting messages D3).</summary>
+    [Parameter] public IReadOnlyList<AreaEmptyAction> Actions { get; set; } = [];
+
+    /// <summary>One line pointing at what does work, for example the personal videos that need no source (D4).</summary>
+    [Parameter] public string? ExtraLine { get; set; }
+    [Parameter] public string? ExtraHref { get; set; }
 }

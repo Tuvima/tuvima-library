@@ -52,6 +52,11 @@ public sealed partial class UiShellRenderTests
                     WorkCount = 1,
                 }).ToList());
             });
+            // Why Watch is empty: with no library of the kind the answer is "no library" (honest waiting messages).
+            stub.SetHandler(nameof(IEngineApiClient.GetAreaReadinessAsync), _ =>
+                Task.FromResult<MediaEngine.Contracts.Library.AreaReadinessDto?>(new(
+                    "watch", MediaEngine.Contracts.Library.AreaReadinessAudiences.Administrator,
+                    MediaEngine.Contracts.Library.AreaReadinessReasons.NoLibrary, true, 0, [], 0, 0, 0, 0, 0, 0, [])));
             stub.SetHandler(nameof(IEngineApiClient.GetBrowseLibrariesAsync), _ =>
                 pending?.Task ?? Task.FromResult<IReadOnlyList<BrowseLibraryDto>?>(libraries));
             stub.SetHandler(nameof(IEngineApiClient.GetDisplayBrowseAsync), args =>
@@ -295,7 +300,7 @@ public sealed partial class UiShellRenderTests
 
         var cut = RenderLanePage<WatchPage>("/watch", null);
 
-        cut.WaitForAssertion(() => Assert.Contains("No movies or shows yet", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("Nothing to watch yet", cut.Markup));
         Assert.Empty(TabRoutes(cut, "/watch"));
         Assert.Empty(cut.FindAll(".media-section-shell__rail-item"));
         Assert.Empty(cut.FindAll(".browse-shell"));
@@ -308,7 +313,7 @@ public sealed partial class UiShellRenderTests
 
         var cut = RenderLanePage<WatchPage>("/watch/movies", "movies");
 
-        cut.WaitForAssertion(() => Assert.Contains("No movies or shows yet", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("Nothing to watch yet", cut.Markup));
         Assert.Empty(cut.FindAll(".browse-shell"));
         Assert.Empty(_browseCalls);
     }

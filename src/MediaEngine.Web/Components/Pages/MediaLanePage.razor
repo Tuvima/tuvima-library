@@ -33,9 +33,7 @@
 
     @if (NoTabs)
     {
-        <AppPageState Kind="AppPageStateKind.Empty"
-                      Title="@EmptyTitle"
-                      Message="@EmptyMessage" />
+        <AreaEmptyState Area="@AreaName" />
     }
     else if (TabsLoading && !string.IsNullOrWhiteSpace(Tab))
     {
@@ -75,9 +73,7 @@
         }
         else
         {
-            <AppPageState Kind="AppPageStateKind.Empty"
-                          Title="@EmptyTitle"
-                          Message="@EmptyMessage" />
+            <AreaEmptyState Area="@AreaName" />
         }
     }
     else if (CustomTabContent is not null && string.Equals(Tab, CustomTabId, StringComparison.OrdinalIgnoreCase))
@@ -119,6 +115,8 @@
     [Parameter] public IReadOnlyList<MediaHubShelfViewModel> Shelves { get; set; } = [];
     [Parameter] public bool Loading { get; set; }
     [Parameter] public bool LoadFailed { get; set; }
+    private string AreaName => SectionType.ToString().ToLowerInvariant();
+
     [Parameter] public bool IsSupportedBrowseTab { get; set; } = true;
 
     /// <summary>True while the lane's tabs are being read: the header shows a skeleton tab strip and no rail, and the page content waits for the tabs.</summary>
