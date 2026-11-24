@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>The profile editor sheet: avatar choices, Kids switch, PIN and delete, reported through callbacks.</summary>
+/// <summary>The profile editor sheet: avatar choices, the Kids switch and PIN when adding, and delete, reported through callbacks. Editing is "Edit name and picture" with no PIN.</summary>
 public sealed class ProfileEditorSheetTests
 {
     private static readonly object Owner = new();
@@ -135,12 +135,12 @@ public sealed class ProfileEditorSheetTests
     }
 
     [Fact]
-    public void PinRow_ShowsStatus_AndTheButtonsToggleTheInlinePad()
+    public void Adding_ShowsThePinStatus_AndTheButtonTogglesTheInlinePad()
     {
         using var ctx = new LocalizedBunitContext();
-        var cut = Render(ctx, Existing(hasPin: true));
+        var cut = Render(ctx);
 
-        Assert.Contains("PIN set", cut.Find(".profile-editor__setting-actions").ParentElement!.TextContent);
+        Assert.Contains("No PIN", cut.Find(".profile-editor__setting-actions").ParentElement!.TextContent);
         Assert.Empty(cut.FindAll(".pin-pad"));
 
         cut.Find(".profile-editor__setting-actions button").Click();
@@ -148,9 +148,34 @@ public sealed class ProfileEditorSheetTests
 
         cut.Find(".profile-editor__setting-actions button").Click();
         Assert.Empty(cut.FindAll(".pin-pad"));
+    }
 
-        ButtonWithText(cut, "Remove").Click();
-        Assert.Contains("No PIN", cut.Find(".profile-editor__setting-actions").ParentElement!.TextContent);
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EditingAPerson_HasNoPinField_FromMyProfileOrFromAPersonsPage(bool selfEdit)
+    {
+        using var ctx = new LocalizedBunitContext();
+        var cut = Render(ctx, Existing(hasPin: true), selfEdit: selfEdit);
+
+        Assert.Equal("Edit name and picture", cut.Find("#profile-editor-title").TextContent);
+        Assert.Empty(cut.FindAll(".profile-editor__setting-actions"));
+        Assert.Empty(cut.FindAll(".pin-pad"));
+        Assert.DoesNotContain("PIN", cut.Markup);
+    }
+
+    [Fact]
+    public void EditingAPerson_NeverReportsAPinChange()
+    {
+        using var ctx = new LocalizedBunitContext();
+        ProfileEditorResult? result = null;
+        var cut = Render(ctx, Existing(hasPin: true), saved: r => result = r);
+
+        cut.Find("button.profile-editor__save").Click();
+
+        Assert.NotNull(result);
+        Assert.Null(result!.NewPin);
+        Assert.False(result.RemovePin);
     }
 
     [Fact]
@@ -204,12 +229,13 @@ public sealed class ProfileEditorSheetTests
     }
 
     [Fact]
-    public void Pin_CanBeSetFromTheNumberPad_AndOnlyWhenLongEnough()
+    public void Adding_CanSetAPinFromTheNumberPad_AndOnlyWhenLongEnough()
     {
         using var ctx = new LocalizedBunitContext();
         ProfileEditorResult? result = null;
-        var cut = Render(ctx, Existing(), saved: r => result = r);
+        var cut = Render(ctx, saved: r => result = r);
 
+        cut.Find("input.profile-editor__name").Input("Maya");
         ButtonWithText(cut, "Set").Click();
         foreach (var digit in "123")
         {
@@ -222,20 +248,6 @@ public sealed class ProfileEditorSheetTests
         cut.Find("button.profile-editor__save").Click();
 
         Assert.Equal("1234", result!.NewPin);
-    }
-
-    [Fact]
-    public void Pin_CanBeRemoved()
-    {
-        using var ctx = new LocalizedBunitContext();
-        ProfileEditorResult? result = null;
-        var cut = Render(ctx, Existing(hasPin: true), saved: r => result = r);
-
-        ButtonWithText(cut, "Remove").Click();
-        cut.Find("button.profile-editor__save").Click();
-
-        Assert.True(result!.RemovePin);
-        Assert.Null(result.NewPin);
     }
 
     [Fact]
@@ -356,12 +368,12 @@ public sealed class ProfileEditorSheetTests
     }
 
     [Fact]
-    public void SelfEdit_OffersOnlyTheNameAndThePicture_NotKidsLimitPinOrDelete()
+    public void SelfEdit_OffersOnlyTheNameAndThePicture_NotKidsPinOrDelete()
     {
         using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing(hasPin: true), selfEdit: true, canDelete: true);
 
-        Assert.Equal("Edit profile", cut.Find("#profile-editor-title").TextContent);
+        Assert.Equal("Edit name and picture", cut.Find("#profile-editor-title").TextContent);
         Assert.NotEmpty(cut.FindAll(".profile-editor__name"));
         Assert.Empty(cut.FindAll(".profile-editor__settings"));
         Assert.DoesNotContain("Kid's profile", cut.Markup);
@@ -381,14 +393,14 @@ public sealed class ProfileEditorSheetTests
     }
 
     [Fact]
-    public void NormalEdit_StillOffersTheIconTab_KidsLimitAndPin()
+    public void NormalEdit_StillOffersTheIconTab_ButNoKidsSwitchOrPin()
     {
         using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing());
         OpenPicker(cut);
 
         Assert.Equal(["Colour", "Icon", "Photo"], cut.FindAll("[aria-label='Avatar type'] button").Select(button => button.TextContent.Trim()));
-        Assert.NotEmpty(cut.FindAll(".profile-editor__settings"));
+        Assert.Empty(cut.FindAll(".profile-editor__settings"));
     }
 
     [Fact]

@@ -129,15 +129,17 @@ public sealed class ProfileQuickSwitchTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AccountMenu_OffersTheSwitcherOnlyWithSeveralProfiles_AndKeepsTheFullPickerLink()
+    public void AccountMenu_OffersTheSwitcherOnlyWithOtherPeople_AndNoLongerLinksTheFullPicker()
     {
         var menu = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));
         var switcher = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavProfileSwitcher.razor"));
 
-        Assert.Contains("@if (Profiles.Count > 1)", menu, StringComparison.Ordinal);
+        Assert.Contains("@if (HasOtherProfiles)", menu, StringComparison.Ordinal);
         Assert.Contains("<TopNavProfileSwitcher", menu, StringComparison.Ordinal);
-        Assert.Contains("Who's watching?", menu, StringComparison.Ordinal);
-        Assert.Contains("ProfilePickerRoute.Path", menu, StringComparison.Ordinal);
+        // The "Who's watching?" row is gone from the menu (profile and household D9); the full-screen picker itself still exists at /who.
+        Assert.DoesNotContain("Who's watching?", menu, StringComparison.Ordinal);
+        Assert.DoesNotContain("WhoSWatching", menu, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProfilePickerRoute", menu, StringComparison.Ordinal);
 
         // It reuses the list the page shell already loaded: no Engine reads of its own, and the same PIN pad and switch rules as the picker.
         Assert.DoesNotContain("GetProfilesAsync", switcher, StringComparison.Ordinal);

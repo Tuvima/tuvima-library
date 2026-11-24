@@ -45,7 +45,7 @@ public sealed class TasteNavTests
         var location = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.TasteSubsection);
 
         Assert.NotNull(location);
-        Assert.Equal(["Profile", "Taste"], [location.Page.Label, location.Tab!.Label]);
+        Assert.Equal(["My profile", "Taste"], [location.Page.Label, location.Tab!.Label]);
     }
 }
 

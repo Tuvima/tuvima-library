@@ -32,6 +32,17 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     private string? _addPersonDetail;
     private HouseholdKidSettingsResponse _kidSettings = new(HouseholdId, "PG", "PG", "PG", true, ["G", "PG", "PG-13", "R"]);
     private string? _kidSettingsRefusal;
+    private string? _renameRefusal;
+    private string? _ceilingRefusal;
+    private static readonly Guid MoviesId = Guid.NewGuid();
+    private static readonly Guid MusicId = Guid.NewGuid();
+    private static readonly Guid BooksId = Guid.NewGuid();
+    private static readonly List<AccessLibraryOptionDto> Libraries =
+    [
+        new(MoviesId, "Movies", null, "watch"),
+        new(MusicId, "Music", null, "listen"),
+        new(BooksId, "Books", null, "read"),
+    ];
     private ConfirmedActionRunnerTests.SpyConfirmer _confirmer = new(confirmed: false);
 
     public ProfilesTabTests()
@@ -50,15 +61,32 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Member_IsTakenToTheirOwnProfile_AndNoListOfPeopleIsRequested()
+    public void Member_IsToldThePageIsNotAvailable_AndIsNotMoved_AndNoListOfPeopleIsRequested()
     {
         Setup(serverAdministrator: false, householdAdministrator: false);
+        var before = Services.GetRequiredService<NavigationManager>().Uri;
 
         var cut = Render<ProfilesTab>();
 
-        cut.WaitForAssertion(() => Assert.EndsWith($"/settings/profiles/{OwnId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
+        Assert.Contains("Not available", cut.Find(".app-page-state").TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll(".profiles-tab__list"));
+        Assert.Empty(cut.FindAll("[data-household-wide]"));
+        Assert.Equal(before, Services.GetRequiredService<NavigationManager>().Uri);
         Assert.DoesNotContain(_requests, request => request.Path.StartsWith("/access/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ThePage_TellsItsHostTheHouseholdsName_ForTheTitle()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Shy's household", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
+        var names = new List<string?>();
+
+        var cut = Render<ProfilesTab>(parameters => parameters.Add(component => component.HouseholdNameChanged,
+            EventCallback.Factory.Create<string?>(this, name => names.Add(name))));
+
+        cut.WaitForAssertion(() => Assert.Equal("Shy's household", names.LastOrDefault()));
     }
 
     [Fact]
@@ -135,7 +163,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void HouseholdAdministrator_SeesOnlyTheirHouseholdsPeople_WithBadges_EditAndAddProfile_ButNoAddHousehold()
+    public void HouseholdAdministrator_SeesOnePlainRowPerPerson_WithOneLineOfWords_AndNoBadgesOrEditButtons()
     {
         Setup(serverAdministrator: false, householdAdministrator: true);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 3, 1, DateTimeOffset.UtcNow));
@@ -144,25 +172,44 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var cut = Render<ProfilesTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
-        var rows = cut.FindAll(".profiles-tab__line");
-        Assert.Contains("PIN", rows[2].TextContent);
-        Assert.Contains("You", rows[0].TextContent);
-        Assert.Contains("Household administrator", rows[0].TextContent);
-        Assert.DoesNotContain("Server administrator", rows[0].TextContent);
-        Assert.Contains("Kids", rows[1].TextContent);
-        Assert.DoesNotContain("You", rows[1].TextContent);
-        Assert.Equal(["Home"], cut.FindAll(".profiles-tab__group .app-settings-group__heading").Select(title => title.TextContent));
+        Assert.Equal("Administrator · no sign-in", cut.Find($"[data-profile-line='{OwnId}']").TextContent);
+        Assert.Equal("Kids", cut.Find($"[data-profile-line='{KidId}']").TextContent);
+        Assert.Equal("Member · no sign-in · PIN", cut.Find($"[data-profile-line='{SamId}']").TextContent);
         Assert.Equal("list", cut.Find(".profiles-tab__list").GetAttribute("role"));
-        Assert.All(rows, row => Assert.Single(row.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Edit"));
         Assert.Single(cut.FindAll(".profiles-tab__row--add"));
+
+        // Your own row is the only one marked, and the words "Household administrator" never appear in the list.
+        var rows = cut.FindAll(".profiles-tab__line");
+        Assert.Contains("You", rows[0].TextContent);
+        Assert.DoesNotContain("You", rows[1].TextContent);
+        Assert.DoesNotContain("Household administrator", cut.Markup, StringComparison.Ordinal);
+        Assert.All(cut.FindAll(".app-chip"), chip => Assert.Equal("You", chip.TextContent.Trim()));
+
+        // No Edit button, no second control on a row: the whole row is the link.
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Edit");
+        Assert.All(rows, row => Assert.Single(row.QuerySelectorAll("a")));
 
         // Only a server administrator adds households, and nobody switches profile from this page.
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Add household", StringComparison.Ordinal));
         Assert.DoesNotContain(cut.FindAll("button, a"), control => control.TextContent.Contains("Switch", StringComparison.OrdinalIgnoreCase));
+        Assert.Empty(cut.FindAll("[data-profiles-households-link]"));
     }
 
     [Fact]
-    public void ServerAdministrator_SeesEveryHouseholdGroupedByName_OwnFirst_WithALinkToHouseholds()
+    public void EachRow_OpensThatPersonsPage_AndYourOwnRowOpensMyProfile()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
+
+        Assert.Equal($"/settings/household/{SamId:D}", cut.Find($"[data-profile-id='{SamId}'] a").GetAttribute("href"));
+        Assert.Equal("/settings/overview", cut.Find($"[data-profile-id='{OwnId}'] a").GetAttribute("href"));
+    }
+
+    [Fact]
+    public void ServerAdministrator_SeesEveryHousehold_OwnFirstWithoutAHeading_OthersUnderTheirName_WithALinkToUsersAndHouseholds()
     {
         Setup(serverAdministrator: true, householdAdministrator: false);
         _households.AddRange([
@@ -174,40 +221,47 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var cut = Render<ProfilesTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
-        Assert.Equal(["Home", "Cabin"], cut.FindAll(".profiles-tab__group .app-settings-group__heading").Select(title => title.TextContent));
+        Assert.Equal(["For everyone in this household", "Cabin", "For everyone in Cabin"],
+            cut.FindAll(".profiles-tab__group .app-settings-group__heading").Select(title => title.TextContent));
         var cabin = cut.Find($"[data-household-group='{OtherHouseholdId}']");
         Assert.Contains("Alex", cabin.TextContent);
         Assert.DoesNotContain("Sam", cabin.TextContent);
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Add household", StringComparison.Ordinal));
-        Assert.NotEmpty(cut.FindAll("[data-profiles-households-link] a"));
+        Assert.Equal("/settings/access/households", cut.Find("[data-profiles-households-link] a").GetAttribute("href"));
         Assert.Equal(2, cut.FindAll(".profiles-tab__row--add").Count);
         Assert.DoesNotContain(cut.FindAll("button, a"), control => control.TextContent.Contains("Switch", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void OnAPhone_ThePeopleCanBeAddedAndEdited_LikeOnADesktop()
+    public void OnAPhone_ThePeopleCanBeAdded_ThereAreNoDragHandles_AndReorderIsInThePagesMenu()
     {
         UsePhone();
         Setup(serverAdministrator: true, householdAdministrator: false);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
-        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+        _managed.AddRange([Person(OwnId, "Test User", false) with { SortPosition = 0 }, Person(SamId, "Sam", false) with { SortPosition = 1 }]);
 
         var cut = Render<ProfilesTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
-        Assert.DoesNotContain("computer or tablet", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Add household");
-        Assert.Single(cut.FindAll("button"), button => button.TextContent.Trim() == "Add person");
-        Assert.Equal(2, cut.FindAll(".profiles-tab__edit").Count);
-        Assert.All(cut.FindAll(".profiles-tab__edit"), edit =>
-        {
-            Assert.Equal("Edit", edit.TextContent.Trim());
-            Assert.Contains("tl-full-width", edit.ClassName, StringComparison.Ordinal);
-        });
         Assert.Empty(cut.FindAll(".profiles-tab__drag"));
+        Assert.Empty(cut.FindAll("[data-testid^='move-up-']"));
 
-        // The add button is the same action as the row on a larger screen: it opens the profile editor sheet.
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add person").Click();
+        // Reorder is in the page's "..." menu; it swaps the rows to move-up and move-down buttons, and Done puts them away again.
+        cut.Find("[data-household-actions] button[aria-label='More actions']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Reorder").Click();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid^='move-up-']").Count));
+        cut.Find($"[data-testid='move-down-{OwnId}']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            var request = Assert.Single(_requests, request => request.Path.EndsWith("/people/order", StringComparison.Ordinal));
+            Assert.True(request.Body.IndexOf(SamId.ToString("D"), StringComparison.Ordinal) < request.Body.IndexOf(OwnId.ToString("D"), StringComparison.Ordinal));
+        });
+
+        // The add row is the same action as on a larger screen: it opens the profile editor sheet.
+        cut.Find(".profiles-tab__row--add").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='dialog']")));
     }
 
@@ -265,19 +319,6 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EditButton_OpensThatPersonsProfilePage()
-    {
-        Setup(serverAdministrator: false, householdAdministrator: true);
-        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
-
-        var cut = Render<ProfilesTab>();
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
-        cut.Find("button[aria-label='Edit Sam']").Click();
-
-        Assert.EndsWith($"/settings/profiles/{SamId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void AddRow_OpensTheSheet_AndAddsThePersonToTheHouseholdAdministratorsOwnHousehold()
     {
         Setup(serverAdministrator: false, householdAdministrator: true);
@@ -331,7 +372,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EachPerson_ShowsTheirSignInEmailReadOnly_OrSaysTheyHaveNone()
+    public void EachPersonsLine_SaysTheirSignInEmailOrThatTheyHaveNone_ReadOnly()
     {
         Setup(serverAdministrator: false, householdAdministrator: true);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 3, 2, DateTimeOffset.UtcNow));
@@ -340,19 +381,17 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var cut = Render<ProfilesTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
-        Assert.Equal("me@home.test", cut.Find($"[data-profile-signin='{OwnId}']").TextContent);
-        Assert.Equal("No sign-in", cut.Find($"[data-profile-signin='{KidId}']").TextContent);
-        Assert.Equal("sam@home.test", cut.Find($"[data-profile-signin='{SamId}']").TextContent);
+        Assert.Equal("Administrator · me@home.test", cut.Find($"[data-profile-line='{OwnId}']").TextContent);
+        Assert.Equal("Kids", cut.Find($"[data-profile-line='{KidId}']").TextContent);
+        Assert.Equal("Member · sam@home.test · PIN", cut.Find($"[data-profile-line='{SamId}']").TextContent);
 
         // Read-only: no control on the row changes a sign-in.
         var line = cut.Find($"[data-profile-id='{SamId}']");
-        var buttons = line.QuerySelectorAll("button").Where(button => !button.ClassList.Contains("profiles-tab__drag")).ToList();
-        Assert.Single(buttons);
-        Assert.Equal("Edit", buttons[0].TextContent.Trim());
+        Assert.All(line.QuerySelectorAll("button"), button => Assert.Contains("profiles-tab__drag", button.ClassName, StringComparison.Ordinal));
     }
 
     [Fact]
-    public void ServerAdministrator_SeesTheRoleBadgesOfEveryHouseholdsPeople()
+    public void HouseholdAndServerAdministrators_BothReadAdministrator_InEveryHouseholdsList()
     {
         Setup(serverAdministrator: true, householdAdministrator: false);
         _households.AddRange([
@@ -367,13 +406,201 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var cut = Render<ProfilesTab>();
 
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
-        var own = cut.Find($"[data-profile-id='{OwnId}']");
-        Assert.NotNull(own.QuerySelector("[data-role='server-administrator']"));
-        Assert.NotNull(own.QuerySelector("[data-role='household-administrator']"));
-        var alex = cut.Find($"[data-profile-id='{AlexId}']");
-        Assert.NotNull(alex.QuerySelector("[data-role='household-administrator']"));
-        Assert.Null(alex.QuerySelector("[data-role='server-administrator']"));
-        Assert.Null(cut.Find($"[data-profile-id='{SamId}']").QuerySelector("[data-role]"));
+        Assert.StartsWith("Administrator", cut.Find($"[data-profile-line='{OwnId}']").TextContent, StringComparison.Ordinal);
+        Assert.StartsWith("Administrator", cut.Find($"[data-profile-line='{AlexId}']").TextContent, StringComparison.Ordinal);
+        Assert.StartsWith("Member", cut.Find($"[data-profile-line='{SamId}']").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-role]"));
+    }
+
+    // ---- The household's name is the page's title; only a server administrator, the one the Engine lets rename it, gets the pencil
+
+    [Fact]
+    public void ServerAdministrator_RenamesTheirHousehold_FromThePencil_AndTheTitleFollows()
+    {
+        Setup(serverAdministrator: true, householdAdministrator: false);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false));
+        var names = new List<string?>();
+        var cut = Render<ProfilesTab>(parameters => parameters.Add(component => component.HouseholdNameChanged,
+            EventCallback.Factory.Create<string?>(this, name => names.Add(name))));
+        cut.WaitForAssertion(() => Assert.Equal("Home", names.LastOrDefault()));
+
+        cut.Find("[data-household-actions] button[aria-label='Rename Home']").Click();
+        cut.Find("[data-household-rename] input").Input("Lake house");
+        cut.FindAll("[data-household-rename] button").Single(button => button.TextContent.Trim() == "Save").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("Lake house", names.LastOrDefault()));
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/households/{HouseholdId:D}");
+        Assert.Equal("Lake house", System.Text.Json.JsonSerializer.Deserialize<RenameHouseholdRequest>(put.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!.Name);
+        Assert.Empty(cut.FindAll("[data-household-rename]"));
+    }
+
+    [Fact]
+    public void HouseholdAdministrator_SeesTheNameOnly_NoPencil()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profiles-tab__line")));
+        Assert.Empty(cut.FindAll("[data-testid='rename-household']"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => (button.GetAttribute("aria-label") ?? string.Empty).StartsWith("Rename", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Rename_RefusedByTheEngine_ShowsItsSentenceBesideTheField_AndKeepsTheName()
+    {
+        Setup(serverAdministrator: true, householdAdministrator: false);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false));
+        _renameRefusal = "That name is already used.";
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profiles-tab__line")));
+
+        cut.Find("[data-household-actions] button[aria-label='Rename Home']").Click();
+        cut.Find("[data-household-rename] input").Input("Cabin");
+        cut.FindAll("[data-household-rename] button").Single(button => button.TextContent.Trim() == "Save").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("That name is already used.", cut.Find("[data-household-rename-error]").TextContent));
+        Assert.NotEmpty(cut.FindAll("[data-household-rename] input"));
+    }
+
+    [Fact]
+    public void InsideTheSettingsFrame_TheActionsGoToTheFramesHeader_NotIntoThePage()
+    {
+        Setup(serverAdministrator: true, householdAdministrator: false);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false));
+        var header = new SettingsHeaderActions();
+
+        var cut = Render<ProfilesTab>(parameters => parameters.AddCascadingValue(header));
+
+        cut.WaitForAssertion(() => Assert.NotNull(header.Content));
+        Assert.Empty(cut.FindAll("[data-household-actions]"));
+    }
+
+    // ---- Libraries this household can use sits with What Kids can see, for the person the Engine lets change it (a server administrator)
+
+    [Fact]
+    public void ServerAdministrator_SeesLibrariesThisHouseholdCanUse_BesideWhatKidsCanSee()
+    {
+        Setup(serverAdministrator: true, householdAdministrator: false);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false));
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-household-wide='{HouseholdId}'] [data-household-ceiling='{HouseholdId}']")));
+        var wide = cut.Find($"[data-household-wide='{HouseholdId}']");
+        Assert.NotNull(wide.QuerySelector("[data-kid-settings]"));
+        Assert.Contains("Libraries this household can use", wide.TextContent, StringComparison.Ordinal);
+        Assert.Contains("For everyone in this household", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Ask who", cut.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void HouseholdAdministrator_SeesWhatKidsCanSee_ButNotTheLibrariesRow_AndNoLibraryListIsRequested()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-household-wide='{HouseholdId}'] [data-kid-settings]")));
+        Assert.Empty(cut.FindAll("[data-household-ceiling]"));
+        Assert.DoesNotContain(_requests, request => request.Path == "/access/libraries");
+    }
+
+    private IRenderedComponent<ProfilesTab> OpenCeiling()
+    {
+        Setup(serverAdministrator: true, householdAdministrator: false);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false));
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-household-ceiling] .household-ceiling__toggle")));
+        cut.Find("[data-household-ceiling] .household-ceiling__toggle").Click();
+        return cut;
+    }
+
+    private static AngleSharp.Dom.IElement Tick(IRenderedComponent<ProfilesTab> cut, Guid libraryId) =>
+        cut.Find($"[data-household-ceiling] [data-library-id='{libraryId}'] input");
+
+    [Fact]
+    public void Ceiling_ListsLibrariesUnderTheirAreas_AllTickedByDefault_AndNeverTheVault()
+    {
+        var cut = OpenCeiling();
+
+        var ceiling = cut.Find("[data-household-ceiling]");
+        Assert.Equal(["watch", "listen", "read"], ceiling.QuerySelectorAll("[data-ceiling-area]").Select(area => area.GetAttribute("data-ceiling-area")!).ToArray());
+        Assert.All(ceiling.QuerySelectorAll("[data-library-id] input"), tick => Assert.NotNull(tick.GetAttribute("checked")));
+        Assert.DoesNotContain("Vault", ceiling.TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Ceiling_UntickingALibrary_AndSaving_SavesThatHouseholdsHiddenList()
+    {
+        var cut = OpenCeiling();
+
+        Tick(cut, MoviesId).Change(false);
+        Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/libraries", StringComparison.Ordinal));
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Save changes").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Saved · 1 hidden", cut.Find("[data-household-ceiling-saved]").TextContent));
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/libraries", StringComparison.Ordinal));
+        Assert.Equal($"/access/households/{HouseholdId:D}/libraries", put.Path);
+        Assert.Equal([MoviesId], System.Text.Json.JsonSerializer.Deserialize<ReplaceHouseholdLibrariesRequest>(put.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!.HiddenLibraryIds);
+        Assert.Empty(cut.FindAll(".app-save-bar"));
+    }
+
+    [Fact]
+    public void Ceiling_RefusedByTheEngine_ShowsItsSentence_AndKeepsTheTicksForAnotherTry()
+    {
+        _ceilingRefusal = "That library can't be hidden for a household.";
+        var cut = OpenCeiling();
+
+        Tick(cut, BooksId).Change(false);
+        cut.FindAll(".app-save-bar button").Single(button => button.TextContent.Trim() == "Save changes").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("That library can't be hidden for a household.", cut.Find("[data-household-ceiling-error]").TextContent));
+        Assert.NotEmpty(cut.FindAll(".app-save-bar"));
+        Assert.Null(Tick(cut, BooksId).GetAttribute("checked"));
+    }
+
+    // ---- Loading, error and empty
+
+    [Fact]
+    public void WhenTheEngineCannotBeReached_ThePageShowsTheUnreachableState_WithTryAgain_ThatReadsThePeopleAgain()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Can't reach the Engine", cut.Find(".app-page-state").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll(".profiles-tab__list"));
+
+        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Try again").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".profiles-tab__line")));
+        Assert.Empty(cut.FindAll(".app-page-state"));
+    }
+
+    [Fact]
+    public void OnlyYou_ShowsYourOwnRowAndAddProfile()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".profiles-tab__line")));
+        Assert.Contains("You", cut.Find($"[data-profile-id='{OwnId}']").TextContent, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll(".profiles-tab__row--add"));
     }
 
     [Fact]
@@ -519,17 +746,25 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Assert.All(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select, [data-kid-settings='{HouseholdId}'] input"), control => Assert.False(control.HasAttribute("disabled")));
     }
 
-    // Look v3.2 D3: at 390 px each person is a card (avatar and name on top, role chips under them, a full-width Edit button of at least
-    // 44 px), so the name is never squeezed to a letter and Edit is never cut to "E...". With no browser to measure, the stylesheet is read.
+    // Profile and household D7: the row is one link with no Edit button and no badges, so the stylesheet has no cell for either.
     [Fact]
-    public void OnAPhone_EachPersonIsACard_WithAFullWidthEditButton()
+    public void TheStylesheet_HasNoEditButtonOrBadgeCell_BecauseTheWholeRowIsTheLink()
     {
         var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ProfilesTab.razor.css"));
-        var phone = css[css.IndexOf("@media (max-width: 600px)", StringComparison.Ordinal)..];
 
-        Assert.Contains("grid-template-areas: \"avatar who\" \"badges badges\" \"edit edit\"", phone, StringComparison.Ordinal);
-        Assert.Contains(".profiles-tab__edit-cell { grid-area: edit; display: block; }", phone, StringComparison.Ordinal);
-        Assert.Contains(".profiles-tab__badges { grid-area: badges; justify-content: flex-start; }", phone, StringComparison.Ordinal);
+        Assert.DoesNotContain("profiles-tab__edit", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("profiles-tab__badges", css, StringComparison.Ordinal);
+        Assert.Contains(".profiles-tab__open { flex: 1; min-width: 0; display: flex;", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheHouseholdPage_HasNoAskWhosWatchingSwitch_AndNoMemberRedirect()
+    {
+        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ProfilesTab.razor"));
+
+        Assert.DoesNotContain("Nav.NavigateTo", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("AskWho", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("who's watching when", source, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -540,10 +775,10 @@ public sealed class ProfilesTabTests : AsyncBunitContext
 
         Assert.Contains("OnClick=\"StartManagingAsync\"", picker, StringComparison.Ordinal);
         Assert.Contains("Navigation.NavigateTo(ProfilePageHref(profile));", picker, StringComparison.Ordinal);
-        Assert.Contains("/settings/profiles/{profile.Id:D}", picker, StringComparison.Ordinal);
+        Assert.Contains("/settings/household/{profile.Id:D}", picker, StringComparison.Ordinal);
         Assert.Contains("_managing = true;", picker, StringComparison.Ordinal);
         Assert.Contains("\"television\"", picker, StringComparison.Ordinal);
-        Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", menu, StringComparison.Ordinal);
+        Assert.Contains("ManageProfilesHref = \"/settings/household\"", menu, StringComparison.Ordinal);
     }
 
     private void UsePhone()
@@ -614,6 +849,39 @@ public sealed class ProfilesTabTests : AsyncBunitContext
             if (request.Method == HttpMethod.Get && path == "/access/households")
             {
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._households) };
+            }
+
+            if (request.Method == HttpMethod.Get && path == "/access/libraries")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(Libraries) };
+            }
+
+            if (request.Method == HttpMethod.Put && path.EndsWith("/libraries", StringComparison.Ordinal))
+            {
+                if (owner._ceilingRefusal is { } ceilingRefusal)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = JsonContent.Create(new { title = "Bad request.", status = 400, detail = ceilingRefusal }) };
+                }
+
+                var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+                var householdId = Guid.Parse(path["/access/households/".Length..^"/libraries".Length]);
+                var hidden = System.Text.Json.JsonSerializer.Deserialize<ReplaceHouseholdLibrariesRequest>(body, options)!.HiddenLibraryIds;
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new HouseholdLibraryAccessResponse(householdId, hidden)) };
+            }
+
+            if (request.Method == HttpMethod.Put && path.StartsWith("/access/households/", StringComparison.Ordinal) && path.Count(character => character == '/') == 3)
+            {
+                if (owner._renameRefusal is { } renameRefusal)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.Conflict) { Content = JsonContent.Create(new { title = "Conflict.", status = 409, detail = renameRefusal }) };
+                }
+
+                var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+                var id = Guid.Parse(path["/access/households/".Length..]);
+                var name = System.Text.Json.JsonSerializer.Deserialize<RenameHouseholdRequest>(body, options)!.Name;
+                var index = owner._households.FindIndex(household => household.Id == id);
+                owner._households[index] = owner._households[index] with { Name = name };
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._households[index]) };
             }
 
             if (path.EndsWith("/kid-settings", StringComparison.Ordinal))

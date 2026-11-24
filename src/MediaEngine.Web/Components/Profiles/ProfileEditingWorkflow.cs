@@ -31,6 +31,13 @@ public sealed class ProfileEditingWorkflow(DashboardIdentityClient identity, Con
             : await ChangeAsync(editing, result, afterUnlock).ConfigureAwait(false);
     }
 
+    /// <summary>Sets a person's profile PIN, or removes it when <paramref name="pin"/> is empty. The PIN row on My profile and on a person's page uses this.</summary>
+    public async Task<ProfileEditOutcome> SetPinAsync(Guid profileId, string? pin, bool afterUnlock = false)
+    {
+        var result = await confirmed.RunAsync(() => identity.SetProfilePinResultAsync(profileId, pin ?? string.Empty)).ConfigureAwait(false);
+        return result.Succeeded ? new ProfileEditOutcome(true) : Fail(result.Failure, afterUnlock);
+    }
+
     public async Task<ProfileEditOutcome> RemoveAsync(ProfileViewModel profile, bool keepPhotos, bool afterUnlock = false)
     {
         var removed = await confirmed.RunAsync(() => identity.DeleteManagedProfileResultAsync(profile.Id, keepPhotos)).ConfigureAwait(false);

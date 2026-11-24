@@ -1,0 +1,220 @@
+@namespace MediaEngine.Web.Components.Profiles
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Integration
+@inject DashboardIdentityClient Identity
+@inject ConfirmedActionRunner Confirmed
+@inject ILogger<ProfilePinRow> Logger
+@inject IStringLocalizer<SharedStrings> L
+@* The Profile PIN row of "Sign-in and safety" (profile-and-household D5): the PIN is visible without opening anything, with Set a PIN or
+   Change beside it, and Remove once one is set. It is the one place a PIN is set, changed or removed, for your own profile (My profile)
+   and for anyone's page. Only an administrator can change a PIN (the Engine decides); everyone else sees the state and who can set it. *@
+<div class="profile-pin-row" data-profile-pin="@ProfileId">
+    <div class="profile-pin-row__line">
+        <span class="settings-nav-row__icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /></span>
+        <span class="settings-nav-row__copy">
+            <span class="settings-nav-row__title">@L["ProfilePinRow_Title"]</span>
+            <span class="settings-nav-row__status" data-pin-status>@StatusText</span>
+        </span>
+        @if (CanChange && !_changing && !_confirmingRemove)
+        {
+            <span class="profile-pin-row__actions">
+                <AppButton Label="@(HasPin ? L["ProfilePinRow_Change"].Value : L["ProfilePinRow_Set"].Value)"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Disabled="@_busy"
+                           OnClick="StartChange"
+                           data-pin-change />
+                @if (HasPin)
+                {
+                    <AppButton Label="@L["Common_Remove"].Value"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Tone="AppUiTone.Error"
+                               Disabled="@_busy"
+                               OnClick="AskRemove"
+                               data-pin-remove />
+                }
+            </span>
+        }
+    </div>
+
+    @if (_changing)
+    {
+        <div class="profile-pin-row__entry" data-pin-entry>
+            <PinPad @bind-Value="_pin" Disabled="@_busy" MaxLength="12" Label="@L["ProfileEditorSheet_NewPIN"].Value" OnSubmit="SaveAsync" OnCancel="CancelChange" />
+            <small class="profile-pin-row__hint">@Hint</small>
+            <span class="profile-pin-row__entry-actions">
+                <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="CancelChange" />
+                <AppButton Label="@L["ProfilePinRow_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(_busy || !ValidPin(_pin))" OnClick="SaveAsync" data-pin-save />
+            </span>
+        </div>
+    }
+
+    @if (_confirmingRemove)
+    {
+        <div class="profile-pin-row__entry" role="group" aria-label="@L["ProfilePinRow_ConfirmRemove"].Value" data-pin-confirm-remove>
+            <p class="profile-pin-row__confirm">@L["ProfilePinRow_ConfirmRemove"]</p>
+            <span class="profile-pin-row__entry-actions">
+                <AppButton Label="@L["ProfilePinRow_KeepIt"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="CancelRemove" />
+                <AppButton Label="@L["Common_Remove"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error"
+                           Disabled="@_busy" OnClick="ConfirmRemoveAsync" data-pin-confirm />
+            </span>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p class="who-page__error" role="alert" data-pin-error>@_error</p>
+    }
+</div>
+
+<AdministratorUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+
+@code {
+    private ProfileEditingWorkflow? _workflow;
+    private string _pin = string.Empty;
+    private bool _changing;
+    private bool _confirmingRemove;
+    private bool _busy;
+    private string? _error;
+    private bool _needsUnlock;
+    private bool _unlocking;
+    private bool _justUnlocked;
+    private string? _unlockError;
+    private Func<Task>? _afterUnlock;
+
+    /// <summary>The person whose PIN this is.</summary>
+    [Parameter, EditorRequired] public Guid ProfileId { get; set; }
+
+    /// <summary>Whether the profile has a PIN now.</summary>
+    [Parameter] public bool HasPin { get; set; }
+
+    /// <summary>True for an administrator: the Set, Change and Remove buttons are drawn. Everyone else sees the state only.</summary>
+    [Parameter] public bool CanChange { get; set; }
+
+    /// <summary>Raised after a PIN was saved or removed, so the page can read the person again.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private ProfileEditingWorkflow Workflow => _workflow ??= new ProfileEditingWorkflow(Identity, Confirmed);
+
+    private string StatusText => HasPin
+        ? L["ProfilePinRow_IsSet"].Value
+        : CanChange ? L["ProfilePinRow_NotSet"].Value : L["ProfilePinRow_NotSetAskAnAdministrator"].Value;
+
+    private static bool ValidPin(string value) => value.Length is >= 4 and <= 12 && value.All(char.IsAsciiDigit);
+
+    private string Hint => _pin.Length == 0
+        ? L["ProfilePinRow_ChooseDigits"].Value
+        : ValidPin(_pin) ? L["ProfilePinRow_LooksGood"].Value : L["ProfilePinRow_NeedFour"].Value;
+
+    private void StartChange()
+    {
+        _pin = string.Empty;
+        _error = null;
+        _changing = true;
+    }
+
+    private void CancelChange()
+    {
+        _pin = string.Empty;
+        _changing = false;
+    }
+
+    private void AskRemove()
+    {
+        _error = null;
+        _confirmingRemove = true;
+    }
+
+    private void CancelRemove() => _confirmingRemove = false;
+
+    private Task SaveAsync() => ValidPin(_pin) ? ApplyAsync(_pin) : Task.CompletedTask;
+
+    private Task ConfirmRemoveAsync() => ApplyAsync(null);
+
+    // One call for both a new PIN and a removal; a refusal until the administrator PIN is entered asks for it once and tries again.
+    private async Task ApplyAsync(string? pin)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var outcome = await Workflow.SetPinAsync(ProfileId, pin, _justUnlocked);
+            _justUnlocked = false;
+            if (outcome.NeedsUnlock)
+            {
+                _needsUnlock = true;
+                _unlockError = null;
+                _afterUnlock = () => ApplyAsync(pin);
+                return;
+            }
+
+            if (!outcome.Done)
+            {
+                _error = outcome.Error;
+                return;
+            }
+
+            _pin = string.Empty;
+            _changing = false;
+            _confirmingRemove = false;
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task UnlockAsync(string pin)
+    {
+        if (_unlocking)
+        {
+            return;
+        }
+
+        _unlocking = true;
+        _unlockError = null;
+        try
+        {
+            var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin));
+            if (unlocked?.Unlocked != true)
+            {
+                _unlockError = L["Common_ThatPINDidnTWork"].Value;
+                return;
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not unlock administrator access from the profile PIN row.");
+            _unlockError = L["Common_TheEngineIsUnavailableTry"].Value;
+            return;
+        }
+        finally
+        {
+            _unlocking = false;
+        }
+
+        var retry = _afterUnlock;
+        _needsUnlock = false;
+        _afterUnlock = null;
+        _justUnlocked = true;
+        if (retry is not null)
+        {
+            await retry();
+        }
+    }
+
+    private void CancelUnlock()
+    {
+        _needsUnlock = false;
+        _afterUnlock = null;
+        _unlockError = null;
+    }
+}

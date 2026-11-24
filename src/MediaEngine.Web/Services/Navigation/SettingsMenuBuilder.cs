@@ -15,8 +15,10 @@ namespace MediaEngine.Web.Services.Navigation;
 /// <param name="IntegrationsBroken">A webhook that is switched on keeps failing; the Integrations row shows red with "Broken".</param>
 /// <param name="ToolsMissingReason">A required tool is missing or broken (not merely downloading): the Tools row shows red with this short reason, for example "FFmpeg missing".</param>
 /// <param name="PluginsBroken">A plugin that is switched on cannot do its job; the Plugins row shows red with "Broken". Nothing switched off counts.</param>
-/// <param name="RestrictedProfile">A Kids profile: the menu lists Profile and nothing else.</param>
-/// <param name="AccountsOffered">An installed plugin asks this profile to link an account; Profile's Linked accounts tab is listed only then.</param>
+/// <param name="RestrictedProfile">A Kids profile: the menu lists My profile and nothing else.</param>
+/// <param name="AccountsOffered">An installed plugin asks this profile to link an account; My profile's Linked accounts tab is listed only then.</param>
+/// <param name="AccessAndSafetyOffered">This profile has Vault mode (the Engine says so): My profile lists Access &amp; safety so a member can reach their own Vault switch even without household management.</param>
+/// <param name="HouseholdManagementAllowed">A household or server administrator: Household is listed, and My profile gets its Access &amp; safety tab (profile-and-household D3, D8).</param>
 public sealed record SettingsMenuContext(
     bool AdministrationAllowed,
     bool IsMobile,
@@ -29,7 +31,9 @@ public sealed record SettingsMenuContext(
     bool IntegrationsBroken = false,
     string? ToolsMissingReason = null,
     bool RestrictedProfile = false,
-    bool AccountsOffered = false);
+    bool AccountsOffered = false,
+    bool HouseholdManagementAllowed = false,
+    bool AccessAndSafetyOffered = false);
 
 /// <summary>One line of the phone page selector: a page.</summary>
 public sealed record SettingsPhoneMenuOption(string Route, string Label);
@@ -116,16 +120,26 @@ public static class SettingsMenuBuilder
             return false;
         }
 
+        // Household is for administrators; for a member it is in no menu (profile-and-household D6, D7).
+        if (node.Section == SettingsSection.Profiles && !context.HouseholdManagementAllowed)
+        {
+            return false;
+        }
+
         return !context.IsMobile || node.HasTabs || IsOfferedOnMobile(node.Section, null);
     }
 
     private static bool IsTabOffered(SettingsPageTab tab, SettingsMenuContext context) =>
         (context.AccountsOffered || !IsLinkedAccountsTab(tab))
+        && (context.HouseholdManagementAllowed || context.AccessAndSafetyOffered || !IsAccessAndSafetyTab(tab))
         && (context.IsSectionEnabled is null || context.IsSectionEnabled(tab.Section))
         && (!context.IsMobile || IsOfferedOnMobile(tab.Section, tab.Subsection));
 
     private static bool IsLinkedAccountsTab(SettingsPageTab tab) =>
         tab.Section == SettingsSection.Overview && string.Equals(tab.Subsection, SettingsNav.AccountsSubsection, StringComparison.Ordinal);
+
+    private static bool IsAccessAndSafetyTab(SettingsPageTab tab) =>
+        tab.Section == SettingsSection.Overview && string.Equals(tab.Subsection, SettingsNav.AccessSubsection, StringComparison.Ordinal);
 
     private static bool IsOfferedOnMobile(SettingsSection section, string? subsection) =>
         SettingsNav.IsVisibleOnMobile(section) && SettingsNav.IsMobileRouteAvailable(section, subsection);

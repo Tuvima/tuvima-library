@@ -60,7 +60,7 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
         {
             new MediaSectionNavigationGroup("Personal",
             [
-                new("Profiles", "/settings/profiles", AppMaterialIcons.Outlined.Group, Exact: true),
+                new("Profiles", "/settings/household", AppMaterialIcons.Outlined.Group, Exact: true),
                 new("Security", "/settings/security", AppMaterialIcons.Outlined.Lock, Exact: true, AttentionDot: true),
             ]),
         };
@@ -71,7 +71,7 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
             .AddChildContent("<section>Settings content</section>"));
 
         Assert.Single(cut.Find("a.media-section-shell__rail-item[href='/settings/security']").QuerySelectorAll(".media-section-shell__attention-dot"));
-        Assert.Empty(cut.Find("a.media-section-shell__rail-item[href='/settings/profiles']").QuerySelectorAll(".media-section-shell__attention-dot"));
+        Assert.Empty(cut.Find("a.media-section-shell__rail-item[href='/settings/household']").QuerySelectorAll(".media-section-shell__attention-dot"));
     }
 
     [Fact]
