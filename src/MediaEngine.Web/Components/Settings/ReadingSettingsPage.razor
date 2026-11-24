@@ -63,7 +63,7 @@ else if (_settings is not null)
         <div class="reading-settings-grid">
             <SettingsSectionPanel Title="@L["ReadingSettingsPage_Look"].Value"
                                   Description="@L["ReadingSettingsPage_ThePaperTypefaceAndSize"].Value">
-                <AppSettingRow Label="@L["Common_Theme"].Value" Helper="@L["ReadingSettingsPage_ThePageColourMatchApp"].Value">
+                <AppSettingRow StackOnPhone="true" Label="@L["Common_Theme"].Value" Helper="@L["ReadingSettingsPage_ThePageColourMatchApp"].Value">
                     <Control>
                     <AppSegmentedControl Options="ThemeOptions"
                                          Value="@Reading.Theme"
@@ -72,7 +72,7 @@ else if (_settings is not null)
                                          Class="reading-preference-row__control" />
                     </Control>
                 </AppSettingRow>
-                <AppSettingRow Label="@L["Common_Typeface"].Value" Helper="@L["ReadingSettingsPage_UseTheBookSOwn"].Value">
+                <AppSettingRow StackOnPhone="true" Label="@L["Common_Typeface"].Value" Helper="@L["ReadingSettingsPage_UseTheBookSOwn"].Value">
                     <Control>
                     <AppSegmentedControl Options="FontOptions"
                                          Value="@Reading.Font"
@@ -81,7 +81,7 @@ else if (_settings is not null)
                                          Class="reading-preference-row__control" />
                     </Control>
                 </AppSettingRow>
-                <AppSettingRow Label="@L["Common_TextSize"].Value" Helper="@($"{Reading.FontSizePx} px")">
+                <AppSettingRow StackOnPhone="true" Label="@L["Common_TextSize"].Value" Helper="@($"{Reading.FontSizePx} px")">
                     <Control>
                     <AppRangeSlider Class="reading-preference-row__control"
                                     Value="@((double)Reading.FontSizePx)"
@@ -95,7 +95,7 @@ else if (_settings is not null)
                                     AriaLabel="@L["Common_TextSize"].Value" />
                     </Control>
                 </AppSettingRow>
-                <AppSettingRow Label="@L["Common_LineSpacing"].Value" Helper="@(FormatLineHeight(Reading.LineHeight))">
+                <AppSettingRow StackOnPhone="true" Label="@L["Common_LineSpacing"].Value" Helper="@(FormatLineHeight(Reading.LineHeight))">
                     <Control>
                     <AppRangeSlider Class="reading-preference-row__control"
                                     Value="@((double)Reading.LineHeight)"
@@ -113,7 +113,7 @@ else if (_settings is not null)
 
             <SettingsSectionPanel Title="@L["Common_Layout"].Value"
                                   Description="@L["ReadingSettingsPage_HowThePagesAreSet"].Value">
-                <AppSettingRow Label="@L["Common_PageWidth"].Value" Helper="@L["ReadingSettingsPage_HowWideAPageOf"].Value">
+                <AppSettingRow StackOnPhone="true" Label="@L["Common_PageWidth"].Value" Helper="@L["ReadingSettingsPage_HowWideAPageOf"].Value">
                     <Control>
                     <AppSegmentedControl Options="WidthOptions"
                                          Value="@Reading.PageWidth"
@@ -122,7 +122,7 @@ else if (_settings is not null)
                                          Class="reading-preference-row__control" />
                     </Control>
                 </AppSettingRow>
-                <AppSettingRow Label="@L["Common_Layout"].Value" Helper="@L["ReadingSettingsPage_TurnPagesOrScrollOne"].Value">
+                <AppSettingRow StackOnPhone="true" Label="@L["Common_Layout"].Value" Helper="@L["ReadingSettingsPage_TurnPagesOrScrollOne"].Value">
                     <Control>
                     <AppSegmentedControl Options="LayoutOptions"
                                          Value="@Reading.ReadingMode"

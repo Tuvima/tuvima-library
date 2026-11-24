@@ -179,7 +179,7 @@ else if (_settings is not null)
         string description,
         int value,
         IReadOnlyList<int> options,
-        Func<int, Task> changed) => @<AppSettingRow Label="@title" Helper="@description">
+        Func<int, Task> changed) => @<AppSettingRow StackOnPhone="true" Label="@title" Helper="@description">
         <Control>
         <AppIntSelect Value="@value"
                       ValueChanged="@changed"

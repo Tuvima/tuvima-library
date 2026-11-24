@@ -85,6 +85,12 @@
 
 @media (max-width: 600px) {
     .settings-frame__header ::deep .sidebar-page-header { flex-direction: column; align-items: stretch; }
+
+    /* The one back arrow on a phone (a person's page back to Household): a full 44 px target. */
+    .settings-frame__back {
+        min-height: var(--tl-tap-target-min, 44px);
+        margin-bottom: 0;
+    }
 }
 
 .settings-frame__header ::deep .sidebar-page-header h1 {

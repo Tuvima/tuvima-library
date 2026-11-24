@@ -77,7 +77,7 @@ else if (_settings is not null)
                 @* Only the person themselves chooses this; an administrator editing another profile does not see it. *@
                 <SettingsSectionPanel Title="@L["Common_Spoilers"].Value"
                                       Description="@L["PlaybackSettingsPage_HowMuchOfAStory"].Value">
-                    <AppSettingRow Label="@L["Universe_GuideFilterCharacters"].Value" Helper="@L["PlaybackSettingsPage_UpToWhereIAm"].Value" data-spoiler-level>
+                    <AppSettingRow StackOnPhone="true" Label="@L["Universe_GuideFilterCharacters"].Value" Helper="@L["PlaybackSettingsPage_UpToWhereIAm"].Value" data-spoiler-level>
 <Control>
 <AppSegmentedControl Options="SpoilerLevelOptions"
                                              Value="@SpoilerLevelValue"
@@ -305,7 +305,7 @@ else if (_settings is not null)
         string value,
         IReadOnlyList<AppSelectOption> options,
         Func<string, Task> changed,
-        bool wide = false) => @<AppSettingRow Label="@title" Helper="@description">
+        bool wide = false) => @<AppSettingRow StackOnPhone="true" Label="@title" Helper="@description">
         <Control>
         <AppSelect Value="@value"
                    ValueChanged="@(selected => changed(selected ?? value))"
