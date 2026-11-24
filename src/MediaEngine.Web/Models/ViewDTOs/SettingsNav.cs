@@ -236,6 +236,19 @@ public static class SettingsNav
     /// <summary>The Import sub-page of Overview: drop a file and Library says what it is (a list, a collection pack, a bookmark pack, plugin settings) and where it goes.</summary>
     public const string ImportSubsection = "import";
 
+    /// <summary>The Preferences tab of My profile: Watching, Listening, Reading and Home, one at a time, for the signed-in person's own profile.</summary>
+    public const string PreferencesSubsection = "preferences";
+
+    /// <summary>The Access &amp; safety tab of My profile: the administrator's own roles, library access and PIN protection.</summary>
+    public const string AccessSubsection = "access";
+
+    /// <summary>The Household page (profile-and-household D2): the people you live with. Replaces Manage Profiles; the old address is not found.</summary>
+    public const string HouseholdRoute = "/settings/household";
+
+    /// <summary>One person's page inside Household, with an optional tab (<c>preferences</c>, <c>access</c> or <c>activity</c>).</summary>
+    public static string HouseholdPersonRoute(Guid profileId, string? tab = null) =>
+        string.IsNullOrWhiteSpace(tab) ? $"{HouseholdRoute}/{profileId:D}" : $"{HouseholdRoute}/{profileId:D}/{tab}";
+
     /// <summary>The Linked accounts sub-page of Overview: the accounts on other sites this profile has linked for plugins (Trakt), signed in to by approving a code on another device.</summary>
     public const string AccountsSubsection = "accounts";
 
@@ -314,11 +327,11 @@ public static class SettingsNav
 
     public static readonly SettingsItemDef[] AllItems =
     [
-        // Profile is the page everyone lands on, a Kids profile included (D12): your own profile, counts, recent activity and taste.
-        new(SettingsSection.Overview, "personal", "overview", AppMaterialIcons.Outlined.AccountCircle, "Profile", false, null, "sqlite", Status: SettingsStatusKind.Live),
-        // Manage Profiles opens the household list for an administrator and your own profile for everyone else. Playback, Listening,
-        // Reading and Home are sections of a profile's Preferences tab, not pages of their own.
-        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Manage Profiles", false, null, "sqlite", Status: SettingsStatusKind.Live),
+        // My profile is the page everyone lands on, a Kids profile included (D12): your own profile, counts, recent activity and taste.
+        new(SettingsSection.Overview, "personal", "overview", AppMaterialIcons.Outlined.AccountCircle, "My profile", false, null, "sqlite", Status: SettingsStatusKind.Live),
+        // Household is the page about the people you live with (administrators only in the menu). Watching, Listening, Reading and Home are
+        // sections of Preferences, a tab of My profile (and of a person's page), not pages of their own.
+        new(SettingsSection.Profiles, "personal", "household", AppMaterialIcons.Outlined.Group, "Household", false, null, "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security & Devices", false, null, "sqlite", Status: SettingsStatusKind.Live),
 
         // Library: the media and how it is matched and played. Libraries, Activity, Needs Review, Matching and Rules are the five tabs of one page.
@@ -357,14 +370,16 @@ public static class SettingsNav
     [
         new("personal", "Personal", AppMaterialIcons.Outlined.Person,
         [
-            Page("Profile", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview,
+            Page("My profile", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview,
             [
-                Tab("Overview", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview),
+                Tab("Profile", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview),
+                Tab("Preferences", AppMaterialIcons.Outlined.Tune, SettingsSection.Overview, PreferencesSubsection),
                 Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
                 Tab("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
                 Tab("Linked accounts", AppMaterialIcons.Outlined.Link, SettingsSection.Overview, AccountsSubsection),
+                Tab("Access & safety", AppMaterialIcons.Outlined.Shield, SettingsSection.Overview, AccessSubsection),
             ]),
-            Page("Manage Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
+            Page("Household", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
             Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
             [
                 Tab("Sign-in", AppMaterialIcons.Outlined.Key, SettingsSection.Security),
@@ -460,6 +475,8 @@ public static class SettingsNav
         {
             [SettingsSection.Overview] =
             [
+                new(PreferencesSubsection, "Preferences", AppMaterialIcons.Outlined.Tune),
+                new(AccessSubsection, "Access & safety", AppMaterialIcons.Outlined.Shield),
                 new(ActivitySubsection, "Activity", AppMaterialIcons.Outlined.History),
                 new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
                 new(ImportSubsection, "Import", AppMaterialIcons.Outlined.UploadFile),
@@ -647,7 +664,7 @@ public static class SettingsNav
 
     /// <summary>
     /// Sub-pages that have their own route but no tab, because a link on their page's main tab opens them. They sit beneath
-    /// that tab in the breadcrumb. Import opens from the Import button on Profile &gt; Overview. Slugs are in their normalised form.
+    /// that tab in the breadcrumb. Import opens from the Import button on My profile &gt; Profile. Slugs are in their normalised form.
     /// </summary>
     public static readonly IReadOnlySet<(SettingsSection Section, string Subsection)> OffMenuSubsections =
         new HashSet<(SettingsSection, string)> { (SettingsSection.Overview, ImportSubsection) };
@@ -695,7 +712,7 @@ public static class SettingsNav
 
     /// <summary>
     /// Whether this person may open the page. Profile is everyone's own page. A Kids profile (<paramref name="restricted"/>) never
-    /// reaches Settings (the page sends it Home). Manage Profiles and Security &amp; Devices are
+    /// reaches Settings (the page sends it Home). Household and Security &amp; Devices are
     /// everyone's own to look after; the Engine still limits what a member can change to their own profile. Everything else in
     /// Settings is for server administrators.
     /// </summary>

@@ -49,7 +49,7 @@ else if (_settings is not null)
                     <ProfileAvatar DisplayName="@_target.DisplayName" ImageUrl="@_target.AvatarImageUrl" Color="@_target.AvatarColor" Icon="@_target.AvatarIcon" />
                 </span>
                 <AppText Typo="AppTypo.h6">@L["PlaybackSettingsPage_HowWatches", _target.DisplayName]</AppText>
-                <a class="playback-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">@L["Common_BackTo", _target.DisplayName]</a>
+                <a class="playback-profile-heading__back" href="@($"/settings/household/{ProfileId}")">@L["Common_BackTo", _target.DisplayName]</a>
             </div>
         }
 

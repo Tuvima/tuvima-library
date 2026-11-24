@@ -209,7 +209,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId);
 
-        cut.WaitForAssertion(() => Assert.EndsWith("/settings/profiles", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.EndsWith("/settings/household", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
         Assert.DoesNotContain("Sam", cut.Markup);
     }
 
@@ -221,7 +221,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         RenderFor(SamId);
 
-        Assert.EndsWith("/settings/profiles", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+        Assert.EndsWith("/settings/household", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -239,7 +239,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("How Mira watches.", cut.Markup);
-            Assert.Contains("/settings/profiles/" + OtherId, cut.Markup);
+            Assert.Contains("/settings/household/" + OtherId, cut.Markup);
         });
 
         cut.Find("input[aria-label='Resume where you left off']").Change(false);

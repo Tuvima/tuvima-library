@@ -115,7 +115,7 @@ public sealed class ListeningSettingsPageTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("How Mira listens.", cut.Markup);
-            Assert.Contains("/settings/profiles/" + OtherId, cut.Markup);
+            Assert.Contains("/settings/household/" + OtherId, cut.Markup);
         });
 
         cut.Find("input[aria-label='Offer end of chapter']").Change(false);

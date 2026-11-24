@@ -157,6 +157,11 @@ else
                                 {
                                     <OverviewAccountsPage />
                                 }
+                                else if (_activeSubsection is SettingsNav.PreferencesSubsection or SettingsNav.AccessSubsection && _activeProfile is not null)
+                                {
+                                    @* Your own Preferences and Access & safety: the same parts as a person's page, opened for the signed-in profile (profile-and-household D3). *@
+                                    <ProfileDetailPage ProfileId="@_activeProfile!.Id" Tab="@_activeSubsection" NameChanged="OnProfileNameChanged" />
+                                }
                                 else
                                 {
                                     <OverviewPage />
@@ -378,7 +383,8 @@ else
         Attention.IntegrationsBroken,
         ToolsMissingReason,
         _restricted,
-        _accountsOffered);
+        _accountsOffered,
+        CanManageHousehold);
 
     // Red on Tools and requirements only for a required tool that is missing or broken; one being downloaded is not a problem.
     private string? ToolsMissingReason => Attention.MissingTools switch
@@ -442,7 +448,7 @@ else
     private string TabLabel(SettingsPageTab tab) => tab.LabelKey is { } key ? L[key].Value : tab.Label;
 
     private string BrowserTitle => IsProfileDetailRoute
-        ? $"{_profileBreadcrumbName ?? "Profile"} - Manage Profiles - Library"
+        ? $"{_profileBreadcrumbName ?? "Profile"} - Household - Library"
         : _activeSection == SettingsSection.Libraries
         ? LibrariesBrowserTitle
         : CurrentLocation?.Tab is { } tab && !string.Equals(TabLabel(tab), GetHeroTitle(), StringComparison.Ordinal)
@@ -690,6 +696,9 @@ else
 
     private bool CanManageAdministration => Session.HasNavigation("settings.administration");
 
+    // A household or server administrator: Household is in their menu and My profile has Access & safety.
+    private bool CanManageHousehold => Session.HasAction("household.manage") || Session.Authority?.EffectiveAdministrator == true || CanManageAdministration;
+
     // Administration pages need the administrator gate.
     private bool RequiresAdministratorSurface => SettingsNav.GetItem(_activeSection).AdminOnly;
 
@@ -899,7 +908,7 @@ else
         if (IsProfileDetailRoute)
         {
             return ProfileTab.Length > 0
-                ? new SettingsBackLink(_profileBreadcrumbName ?? "Profile", $"/settings/profiles/{ProfileDetailId:D}")
+                ? new SettingsBackLink(_profileBreadcrumbName ?? "Profile", $"{SettingsNav.HouseholdRoute}/{ProfileDetailId:D}")
                 : new SettingsBackLink(pageLabel, pageRoute);
         }
 
@@ -926,6 +935,10 @@ else
                 ? "What the Library has learned you enjoy. Remove what is not you, or add what is."
             : _activeSubsection == SettingsNav.ImportSubsection
                 ? "Drop a list, a collection pack, a bookmark pack or a plugin settings file. Library says what it is and where it goes."
+            : _activeSubsection == SettingsNav.PreferencesSubsection
+                ? "These choices are yours and follow you to every device."
+            : _activeSubsection == SettingsNav.AccessSubsection
+                ? "Your roles, the libraries you can use, and PIN protection."
             : _activeSubsection == SettingsNav.AccountsSubsection
                 ? "Sign in to your own accounts on other sites, such as Trakt, so plugins can read your private lists."
                 : "You, what you have been watching, reading and listening to, and your taste.",

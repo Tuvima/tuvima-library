@@ -20,7 +20,7 @@
 <div class="profile-detail" data-profile-section="detail" data-profile-tab="@(Tab.Length == 0 ? "profile" : Tab)">
     @if (IsAdministrator)
     {
-        <a class="profile-detail__back" href="/settings/profiles">
+        <a class="profile-detail__back" href="/settings/household">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" aria-hidden="true" />
             <span>@L["ProfileDetailPage_ManageProfiles"]</span>
         </a>
@@ -303,7 +303,7 @@
 <AdministratorUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
 
 @code {
-    private const string SettingsProfilesRoute = "/settings/profiles";
+    private const string SettingsProfilesRoute = "/settings/household";
 
     private ProfileEditingWorkflow? _workflow;
     private ProfileViewModel? _active;

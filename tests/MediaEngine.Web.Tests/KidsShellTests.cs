@@ -26,7 +26,7 @@ public sealed class KidsShellTests : AsyncBunitContext
         var cut = RenderOpenMenu(kids: true, canReview: false);
 
         Assert.Empty(cut.FindAll("a[href='/settings']"));
-        Assert.Empty(cut.FindAll("a[href='/settings/profiles']"));
+        Assert.Empty(cut.FindAll("a[href='/settings/household']"));
         Assert.Empty(cut.FindAll("a[href^='/settings/overview']"));
         Assert.Empty(cut.FindAll("a[href^='/settings/recently-added']"));
         Assert.NotEmpty(cut.FindAll(".app-chip"));
@@ -50,7 +50,7 @@ public sealed class KidsShellTests : AsyncBunitContext
 
         Assert.NotEmpty(cut.FindAll("a[href='/settings']"));
         Assert.NotEmpty(cut.FindAll("a[href='/settings/overview']"));
-        Assert.Empty(cut.FindAll("a[href='/settings/profiles']"));
+        Assert.Empty(cut.FindAll("a[href='/settings/household']"));
         Assert.Empty(cut.FindAll(".app-chip"));
     }
 
@@ -63,7 +63,7 @@ public sealed class KidsShellTests : AsyncBunitContext
         Assert.Contains(items, item => item.Href == "/settings/overview" && item.Text == "Profile");
         Assert.DoesNotContain(items, item => item.Text == "My activity");
         Assert.DoesNotContain(items, item => item.Text == "Profile settings");
-        Assert.DoesNotContain(items, item => item.Text == "Manage profiles");
+        Assert.DoesNotContain(items, item => item.Text == "Household");
     }
 
     [Fact]

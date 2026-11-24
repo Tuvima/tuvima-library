@@ -343,7 +343,7 @@
     }
 
     /// <summary>A person's own settings page (the pencil in Manage profiles mode).</summary>
-    public static string ProfilePageHref(ProfileViewModel profile) => $"/settings/profiles/{profile.Id:D}";
+    public static string ProfilePageHref(ProfileViewModel profile) => $"/settings/household/{profile.Id:D}";
 
     private Task ChooseAsync(ProfileViewModel profile)
     {

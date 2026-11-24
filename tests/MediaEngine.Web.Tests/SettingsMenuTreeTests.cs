@@ -40,7 +40,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         Assert.All(Flatten(groups), row => Assert.True(row.Children is null || row.Children.Count == 0, row.Label));
         Assert.Equal(
-            ["Profile", "Manage Profiles", "Security & Devices"],
+            ["My profile", "Household", "Security & Devices"],
             groups[0].Items.Select(row => row.Label));
         Assert.Equal(["Libraries", "Playback"], groups.Single(group => group.Label == "Library").Items.Select(row => row.Label));
         Assert.Equal(
@@ -48,8 +48,8 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
             groups.Single(group => group.Label == "Server").Items.Select(row => row.Label));
         Assert.Equal(["Developer Tools"], groups.Single(group => group.Label == "Developer").Items.Select(row => row.Label));
 
-        Assert.Equal("/settings/overview", Flatten(groups).Single(row => row.Label == "Profile").Route);
-        Assert.Equal("/settings/profiles", Flatten(groups).Single(row => row.Label == "Manage Profiles").Route);
+        Assert.Equal("/settings/overview", Flatten(groups).Single(row => row.Label == "My profile").Route);
+        Assert.Equal("/settings/household", Flatten(groups).Single(row => row.Label == "Household").Route);
         Assert.Equal("/settings/libraries", Flatten(groups).Single(row => row.Label == "Libraries").Route);
         Assert.Equal("/settings/general", Flatten(groups).Single(row => row.Label == "General").Route);
         Assert.Equal("/settings/backups", Flatten(groups).Single(row => row.Label == "Backups").Route);
@@ -71,14 +71,14 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.Contains("/settings/review", libraries.ActiveRoutes!);
         Assert.Contains("/settings/rules", libraries.ActiveRoutes!);
 
-        var profiles = Flatten(groups).Single(row => row.Label == "Manage Profiles");
-        Assert.Contains("/settings/profiles", profiles.ActiveRoutes!);
+        var profiles = Flatten(groups).Single(row => row.Label == "Household");
+        Assert.Contains("/settings/household", profiles.ActiveRoutes!);
     }
 
     [Fact]
     public void ProfileRow_StandsForTheBareSettingsAddress()
     {
-        var profile = Flatten(SettingsMenuBuilder.Build(Context(administrator: true))).Single(row => row.Label == "Profile");
+        var profile = Flatten(SettingsMenuBuilder.Build(Context(administrator: true))).Single(row => row.Label == "My profile");
         Assert.Contains("=/settings", profile.ActiveRoutes!);
     }
 
@@ -87,11 +87,12 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     {
         var member = SettingsMenuBuilder.Build(Context(administrator: false));
         Assert.Equal(["Personal"], member.Select(group => group.Label));
-        Assert.Equal(["Profile", "Manage Profiles", "Security & Devices"], member[0].Items.Select(row => row.Label));
+        // A member has no Household row in any menu (profile-and-household D7).
+        Assert.Equal(["My profile", "Security & Devices"], member[0].Items.Select(row => row.Label));
 
         var kids = SettingsMenuBuilder.Build(Context(administrator: false) with { RestrictedProfile = true });
         Assert.Equal(["Personal"], kids.Select(group => group.Label));
-        Assert.Equal(["Profile"], kids[0].Items.Select(row => row.Label));
+        Assert.Equal(["My profile"], kids[0].Items.Select(row => row.Label));
     }
 
     [Fact]
@@ -105,7 +106,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         var users = server.Single(row => row.Label == "Users & Households");
         Assert.Equal("/settings/access/users", users.Route);
         Assert.Contains("/settings/access", users.ActiveRoutes!);
-        Assert.Equal("/settings/profiles", server.Single(row => row.Label == "Manage Profiles").Route);
+        Assert.Equal("/settings/household", server.Single(row => row.Label == "Household").Route);
     }
 
     [Fact]
@@ -252,7 +253,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     [Fact]
     public void Shell_DrawsEveryRowWithIconLabelAndBadgeSlots_AndNoChevron()
     {
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/profiles");
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/household");
 
         Assert.Contains("media-section-shell__tree--flat", cut.Find(".media-section-shell__tree").ClassList);
         var rows = cut.FindAll(".media-section-shell__tree-row");
@@ -269,7 +270,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     [Fact]
     public void Shell_EveryRowShowsItsFullLabelOnHover_SoATruncatedLabelCanStillBeRead()
     {
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/profiles");
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/household");
 
         var links = cut.FindAll("a.media-section-shell__tree-link");
         Assert.NotEmpty(links);
@@ -284,7 +285,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     public void Shell_ClickingARowOpensItsPage_AndTheRowIsHighlighted()
     {
         var navigation = Services.GetRequiredService<NavigationManager>();
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/profiles");
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/household");
 
         cut.Find("a[href='/settings/security']").Click();
 
@@ -413,7 +414,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     [Fact]
     public void ReviewPill_ShowsTheCountBesideLibraries_ForAnAdministrator()
     {
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8 }), "/settings/profiles");
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8 }), "/settings/household");
 
         var pill = cut.Find("a[href='/settings/libraries'] .media-section-shell__rail-meta--notification");
         Assert.Equal("8", pill.TextContent.Trim());
@@ -423,7 +424,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     [Fact]
     public void ReviewPill_IsHidden_WhenNothingIsWaiting()
     {
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 0 }), "/settings/profiles");
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 0 }), "/settings/household");
 
         Assert.Empty(cut.FindAll(".media-section-shell__rail-meta--notification"));
         Assert.Null(cut.Find("a[href='/settings/libraries']").GetAttribute("aria-label"));
@@ -457,7 +458,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     [InlineData(250, "Libraries, 99+ items need review")]
     public void ReviewPill_GivesTheRowASpokenName_WithSingularAndPluralWording(int count, string expected)
     {
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = count }), "/settings/profiles");
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = count }), "/settings/household");
 
         Assert.Equal(expected, cut.Find("a[href='/settings/libraries']").GetAttribute("aria-label"));
     }
@@ -466,7 +467,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     public void ReviewPill_IsPartOfTheLibrariesRow_SoTheRowStillOpensLibraries()
     {
         var navigation = Services.GetRequiredService<NavigationManager>();
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8 }), "/settings/profiles");
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8 }), "/settings/household");
 
         var link = cut.Find("a[href='/settings/libraries']");
         Assert.NotNull(link.QuerySelector(".media-section-shell__rail-meta--notification"));
@@ -481,7 +482,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     {
         // Settings rebuilds the menu from the shared attention state on every draw and redraws when that state changes,
         // so the shell only has to show whatever groups it is handed.
-        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8 }), "/settings/profiles");
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 8 }), "/settings/household");
         Assert.Equal("8", cut.Find(".media-section-shell__rail-meta--notification").TextContent.Trim());
 
         cut.Render(parameters => parameters
@@ -509,18 +510,18 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         var none = SettingsMenuBuilder.FilteredGroups(Context(administrator: true));
         var offered = SettingsMenuBuilder.FilteredGroups(Context(administrator: true) with { AccountsOffered = true });
 
-        Assert.Equal(["Overview", "Activity", "Taste"], ProfileTabs(none));
-        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], ProfileTabs(offered));
+        Assert.Equal(["Profile", "Preferences", "Activity", "Taste", "Access & safety"], ProfileTabs(none));
+        Assert.Equal(["Profile", "Preferences", "Activity", "Taste", "Linked accounts", "Access & safety"], ProfileTabs(offered));
         // Everyone sees it the same way: it follows the plugins, not the person's rights.
-        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], ProfileTabs(SettingsMenuBuilder.FilteredGroups(Context(administrator: false) with { AccountsOffered = true })));
-        Assert.Equal(["Overview", "Activity", "Taste"], ProfileTabs(SettingsMenuBuilder.FilteredGroups(Context(administrator: false))));
+        Assert.Equal(["Profile", "Preferences", "Activity", "Taste", "Linked accounts"], ProfileTabs(SettingsMenuBuilder.FilteredGroups(Context(administrator: false) with { AccountsOffered = true })));
+        Assert.Equal(["Profile", "Preferences", "Activity", "Taste"], ProfileTabs(SettingsMenuBuilder.FilteredGroups(Context(administrator: false))));
     }
 
     private static string[] ProfileTabs(IEnumerable<SettingsMenuGroup> groups) =>
-        groups.SelectMany(group => group.Nodes).Single(node => node.Label == "Profile").Tabs.Select(tab => tab.Label).ToArray();
+        groups.SelectMany(group => group.Nodes).Single(node => node.Label == "My profile").Tabs.Select(tab => tab.Label).ToArray();
 
     private static SettingsMenuContext Context(bool administrator) =>
-        new(administrator, IsMobile: false, ReviewCount: 0, SecurityNeedsAttention: false);
+        new(administrator, IsMobile: false, ReviewCount: 0, SecurityNeedsAttention: false, HouseholdManagementAllowed: administrator);
 
     private static IEnumerable<MediaSectionNavigationItem> Flatten(IEnumerable<MediaSectionNavigationGroup> groups) =>
         groups.SelectMany(group => Flatten(group.Items));

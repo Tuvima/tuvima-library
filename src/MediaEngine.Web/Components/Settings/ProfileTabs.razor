@@ -16,8 +16,8 @@
     [Parameter] public string Active { get; set; } = string.Empty;
 
     private string RouteFor(string tab) => tab.Length == 0
-        ? $"/settings/profiles/{ProfileId:D}"
-        : $"/settings/profiles/{ProfileId:D}/{tab}";
+        ? $"/settings/household/{ProfileId:D}"
+        : $"/settings/household/{ProfileId:D}/{tab}";
 
     private string ActiveRoute => RouteFor(Active is "preferences" or "access" ? Active : string.Empty);
 

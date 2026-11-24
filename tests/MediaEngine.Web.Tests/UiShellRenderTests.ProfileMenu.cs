@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The top-bar profile menu (profile menu and Who's watching spec): the other people first, then Manage profiles (administrators),
+/// The top-bar profile menu (profile menu and Who's watching spec): the other people first, then Household (administrators),
 /// Profile, Settings and Help; Needs Review and My activity have left the adult menu. Each person's avatar sits beside their name
 /// in the switcher, and the Secure account card stays on top.
 /// </summary>
@@ -45,9 +45,9 @@ public sealed partial class UiShellRenderTests
         Assert.DoesNotContain(items, item => item.Href == "/settings/review");
         Assert.DoesNotContain(items, item => item.Text == "Who's watching?");
         Assert.Contains(items, item => item.Href == "/settings" && item.Text == "Settings");
-        Assert.DoesNotContain(items, item => item.Text == "Manage profiles");
+        Assert.DoesNotContain(items, item => item.Text == "Household");
         Assert.DoesNotContain(items, item => item.Text == "Profile settings");
-        Assert.DoesNotContain(items, item => item.Href == "/settings/profiles");
+        Assert.DoesNotContain(items, item => item.Href == "/settings/household");
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed partial class UiShellRenderTests
 
         var items = MenuItems(cut);
         Assert.Contains(items, item => item == ("/settings/overview", "Profile"));
-        Assert.Contains(items, item => item == ("/settings/profiles", "Manage profiles"));
+        Assert.Contains(items, item => item == ("/settings/household", "Household"));
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed partial class UiShellRenderTests
                 : item.TextContent.Trim())
             .ToArray();
 
-        Assert.Equal(["person:Sam", "Who's watching?", "Manage profiles", "Profile", "Settings", "Recycle bin", "Help"],
+        Assert.Equal(["person:Sam", "Who's watching?", "Household", "Profile", "Settings", "Recycle bin", "Help"],
             order.Take(7).ToArray());
         Assert.DoesNotContain("person:Shy", order);
     }

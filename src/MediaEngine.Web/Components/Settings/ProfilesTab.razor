@@ -212,7 +212,7 @@ else
                 Logger.LogWarning(exception, "Could not find the active profile to open.");
             }
 
-            Nav.NavigateTo(_active is null ? SettingsNav.RouteFor(SettingsSection.Overview) : $"/settings/profiles/{_active.Id:D}", replace: true);
+            Nav.NavigateTo(_active is null ? SettingsNav.RouteFor(SettingsSection.Overview) : $"/settings/household/{_active.Id:D}", replace: true);
             return;
         }
 
@@ -371,7 +371,7 @@ else
     }
 
     // Each person has their own page; the sheet here is only for adding someone.
-    private void OpenProfile(Guid profileId) => Nav.NavigateTo($"/settings/profiles/{profileId:D}");
+    private void OpenProfile(Guid profileId) => Nav.NavigateTo($"/settings/household/{profileId:D}");
 
     public void Dispose()
     {

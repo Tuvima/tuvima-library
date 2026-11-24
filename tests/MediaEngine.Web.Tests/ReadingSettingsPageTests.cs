@@ -151,7 +151,7 @@ public sealed class ReadingSettingsPageTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("How Mira reads.", cut.Markup);
-            Assert.Contains("/settings/profiles/" + OtherId, cut.Markup);
+            Assert.Contains("/settings/household/" + OtherId, cut.Markup);
         });
 
         cut.FindAll(".app-segmented-control button")

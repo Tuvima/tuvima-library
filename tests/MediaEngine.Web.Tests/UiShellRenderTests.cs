@@ -249,7 +249,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".profile-switcher__item"));
         Assert.DoesNotContain("Who's watching?", cut.Markup);
         Assert.Contains(cut.FindAll("a[role=menuitem]"), link =>
-            link.GetAttribute("href") == "/settings/profiles" && link.TextContent.Contains("Manage profiles"));
+            link.GetAttribute("href") == "/settings/household" && link.TextContent.Contains("Household"));
     }
 
     [Fact]
@@ -267,7 +267,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Equal("Shy", cut.Find(".top-nav-account-menu__header strong").TextContent);
         Assert.NotEmpty(cut.FindAll(".profile-switcher__item"));
         Assert.Contains("Who's watching?", cut.Markup);
-        Assert.DoesNotContain("Manage profiles", cut.Markup);
+        Assert.DoesNotContain("Household", cut.Markup);
         Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
     }
 
@@ -337,7 +337,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("top-nav-account-menu__trigger-copy", accountSource);
         Assert.Contains("href=\"@(IsKids ? KidsProfileHref : MyProfileHref)\"", accountSource);
         Assert.Contains("MyProfileHref = \"/settings/overview\"", accountSource);
-        Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", accountSource);
+        Assert.Contains("ManageProfilesHref = \"/settings/household\"", accountSource);
         // Switching people now happens on the full-screen "Who's using Tuvima?" page.
         Assert.Contains("ProfilePickerRoute.Path", accountSource);
         Assert.DoesNotContain("Switch profile?", accountSource);
@@ -725,12 +725,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         // The router has already moved the address to Profiles, but this page still holds the Overview parameters (an access
         // re-check can run in that gap). Redirecting from the stale parameters used to bounce the page between the two.
         var navigation = Services.GetRequiredService<NavigationManager>();
-        navigation.NavigateTo("/settings/profiles");
+        navigation.NavigateTo("/settings/household");
 
         Render<Settings>(parameters => parameters.Add(page => page.Section, "overview"));
         await Task.Delay(1500);
 
-        Assert.Equal("http://localhost/settings/profiles", navigation.Uri);
+        Assert.Equal("http://localhost/settings/household", navigation.Uri);
     }
 
     // The Libraries levels are real addresses: a library's own page must not be redirected to the overview or /not-found.
@@ -832,7 +832,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
     [Theory]
     [InlineData("/settings/playback", "playback")]
-    [InlineData("/settings/profiles", "profiles")]
+    [InlineData("/settings/household", "household")]
     public void SettingsPage_ForAKidsProfile_RedirectsToHomeAndDrawsNothing(string typedAddress, string? section)
     {
         var kidsApi = EngineApiClientStub.Create(stub =>

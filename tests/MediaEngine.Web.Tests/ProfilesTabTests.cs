@@ -56,7 +56,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
 
         var cut = Render<ProfilesTab>();
 
-        cut.WaitForAssertion(() => Assert.EndsWith($"/settings/profiles/{OwnId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.EndsWith($"/settings/household/{OwnId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
         Assert.Empty(cut.FindAll(".profiles-tab__list"));
         Assert.DoesNotContain(_requests, request => request.Path.StartsWith("/access/", StringComparison.Ordinal));
     }
@@ -274,7 +274,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
         cut.Find("button[aria-label='Edit Sam']").Click();
 
-        Assert.EndsWith($"/settings/profiles/{SamId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+        Assert.EndsWith($"/settings/household/{SamId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -540,10 +540,10 @@ public sealed class ProfilesTabTests : AsyncBunitContext
 
         Assert.Contains("OnClick=\"StartManagingAsync\"", picker, StringComparison.Ordinal);
         Assert.Contains("Navigation.NavigateTo(ProfilePageHref(profile));", picker, StringComparison.Ordinal);
-        Assert.Contains("/settings/profiles/{profile.Id:D}", picker, StringComparison.Ordinal);
+        Assert.Contains("/settings/household/{profile.Id:D}", picker, StringComparison.Ordinal);
         Assert.Contains("_managing = true;", picker, StringComparison.Ordinal);
         Assert.Contains("\"television\"", picker, StringComparison.Ordinal);
-        Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", menu, StringComparison.Ordinal);
+        Assert.Contains("ManageProfilesHref = \"/settings/household\"", menu, StringComparison.Ordinal);
     }
 
     private void UsePhone()

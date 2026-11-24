@@ -1716,7 +1716,7 @@
     <value>Who's watching?</value>
   </data>
   <data name="Common_ManageProfiles" xml:space="preserve">
-    <value>Manage profiles</value>
+    <value>Household</value>
   </data>
   <data name="Common_Profile" xml:space="preserve">
     <value>Profile</value>
@@ -4221,7 +4221,7 @@
     <value>Households</value>
   </data>
   <data name="HouseholdsTab_EachHouseholdHasItsOwn" xml:space="preserve">
-    <value>Each household has its own people, library access and Shared Library. Look after its people from Manage Profiles.</value>
+    <value>Each household has its own people, library access and Shared Library. Look after its people from Household.</value>
   </data>
   <data name="Common_AddHousehold" xml:space="preserve">
     <value>Add household</value>
@@ -6012,7 +6012,7 @@
     <value>Upload</value>
   </data>
   <data name="ProfileDetailPage_ManageProfiles" xml:space="preserve">
-    <value>Manage Profiles</value>
+    <value>Household</value>
   </data>
   <data name="ProfileDetailPage_ThisProfileCouldnTBe" xml:space="preserve">
     <value>This profile couldn't be loaded. Reload the page to try again.</value>
@@ -7983,7 +7983,7 @@
     <value>Reader</value>
   </data>
   <data name="ProfilePickerPage_ManageProfiles" xml:space="preserve">
-    <value>Manage profiles</value>
+    <value>Household</value>
   </data>
   <data name="ProfilePickerPage_WhoSWatching" xml:space="preserve">
     <value>Who's watching?</value>
