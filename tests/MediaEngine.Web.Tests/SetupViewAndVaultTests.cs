@@ -470,7 +470,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     {
         var cut = RenderRevisit(alreadyOn: false);
         await cut.ClickAsync(page => Button(page, "Turn on the Vault"));
-        cut.WaitForAssertion(() => Assert.Equal("Protect it with a PIN?", Text(cut.Find("h2"))));
+        cut.WaitForAssertion(() => Assert.Equal("Set a PIN for your profile", Text(cut.Find("h2"))));
         cut.FindAll("input")[0].Input(RightPin);
         cut.FindAll("input")[1].Input(RightPin);
 
@@ -547,7 +547,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     {
         var cut = RenderOffer();
         await cut.ClickAsync(page => Button(page, "Turn on the Vault"));
-        cut.WaitForAssertion(() => Assert.Equal("Protect it with a PIN?", Text(cut.Find("h2"))));
+        cut.WaitForAssertion(() => Assert.Equal("Set a PIN for your profile", Text(cut.Find("h2"))));
         Assert.Contains("A PIN is strongly suggested", cut.Markup, StringComparison.Ordinal);
         Assert.True(Button(cut, "Turn on the Vault").HasAttribute("disabled"));
 
@@ -561,7 +561,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.False(Button(cut, "Turn on the Vault").HasAttribute("disabled"));
 
         await cut.ClickAsync(page => Button(page, "Skip PIN"));
-        cut.WaitForAssertion(() => Assert.Equal("Without a PIN, anyone using this profile can open the Vault. Skip anyway?", Text(cut.Find("[data-pin-skip-warning]"))));
+        cut.WaitForAssertion(() => Assert.Equal("Without a PIN, anyone using this profile can open the Vault and your admin pages. Skip anyway?", Text(cut.Find("[data-pin-skip-warning]"))));
         Assert.Empty(_accessSaves);
     }
 
@@ -570,7 +570,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     {
         var cut = RenderOffer();
         await cut.ClickAsync(page => Button(page, "Turn on the Vault"));
-        cut.WaitForAssertion(() => Assert.Equal("Protect it with a PIN?", Text(cut.Find("h2"))));
+        cut.WaitForAssertion(() => Assert.Equal("Set a PIN for your profile", Text(cut.Find("h2"))));
         cut.FindAll("input")[0].Input(RightPin);
         cut.FindAll("input")[1].Input(RightPin);
 
