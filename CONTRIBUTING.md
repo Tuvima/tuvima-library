@@ -10,7 +10,7 @@ Follow the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md) in project
 
 Open an [issue](https://github.com/Tuvima/tuvima-library/issues) to discuss substantial changes before implementing them. Check existing issues so related work can be coordinated.
 
-The project uses the [AGPLv3](LICENSE). Contributions use those terms. The phone, TV and car apps under `clients/` are the exception: they use the Mozilla Public License 2.0 and ask for a sign-off line on each commit; read [clients/CONTRIBUTING.md](clients/CONTRIBUTING.md) before changing them. New tools must have compatible licenses, and new assets must retain their notices. Record added dependencies in the relevant package manifest and [attributions](https://docs.tuvima.com/products/library/policies/attributions/).
+The project uses the [AGPLv3](LICENSE). Contributions use those terms. The phone, TV and car apps under `clients/` are the exception: they use the Mozilla Public License 2.0 and ask for a sign-off line on each commit; read [clients/CONTRIBUTING.md](https://github.com/Tuvima/tuvima-library/blob/main/clients/CONTRIBUTING.md) before changing them. New tools must have compatible licenses, and new assets must retain their notices. Record added dependencies in the relevant package manifest and [attributions](https://docs.tuvima.com/products/library/policies/attributions/).
 
 ## Set up development
 
