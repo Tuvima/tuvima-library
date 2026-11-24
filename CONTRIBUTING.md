@@ -112,8 +112,7 @@ The checks start by themselves and need nothing from you: no account, key or sec
 
 | Check | What it does | Typical time |
 | --- | --- | --- |
-| **Build & Test** (required) | Builds with warnings as errors, checks the format of the C# files you changed, publishes the Dashboard, checks for vulnerable libraries and runs every test over six machines at once. It passes only when all of that passes. | about 8 minutes |
-| Native clients | Builds the phone, TV and car apps. Runs only when you change `clients/` or the Engine routes they use. | about 5 minutes |
+| **Build & Test** (required) | Builds with warnings as errors, checks the format of the C# files you changed, publishes the Dashboard, checks for vulnerable libraries and runs every test over six machines at once. When you change `clients/` or the Engine routes and wire types the apps use, it also builds the phone, TV and car apps (the Native clients jobs). It passes only when all of that passes. | about 6 minutes |
 | Docker image | Builds the container image and starts it. Runs only when something the image is made from changed. | 10 to 15 minutes |
 
 A change that only touches `engineering/` skips the build and tests and passes in under a minute.
