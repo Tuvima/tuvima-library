@@ -6636,19 +6636,19 @@
     <value>Enter your PIN</value>
   </data>
   <data name="SetupVaultOffer_YourProfilePINAlsoProtects" xml:space="preserve">
-    <value>Your profile PIN also protects the Vault. Enter it once to turn the Vault on for you.</value>
+    <value>Your profile PIN protects the Vault and your admin pages. Enter it once to turn the Vault on for you.</value>
   </data>
   <data name="SetupVaultOffer_ProtectItWithAPIN" xml:space="preserve">
-    <value>Protect it with a PIN?</value>
+    <value>Set a PIN for your profile</value>
   </data>
   <data name="SetupVaultOffer_APINIsStronglySuggested" xml:space="preserve">
-    <value>A PIN is strongly suggested. It is asked for before the Vault opens, and it is the same PIN that protects your profile. Type it twice.</value>
+    <value>A PIN is strongly suggested. It is your profile's PIN, so it protects the Vault and your admin pages. Type it twice.</value>
   </data>
   <data name="SetupVaultOffer_SkipThePIN" xml:space="preserve">
-    <value>Skip the PIN?</value>
+    <value>Skip the profile PIN?</value>
   </data>
   <data name="SetupVaultOffer_WithoutAPINAnyoneUsing" xml:space="preserve">
-    <value>Without a PIN, anyone using this profile can open the Vault. Skip anyway?</value>
+    <value>Without a PIN, anyone using this profile can open the Vault and your admin pages. Skip anyway?</value>
   </data>
   <data name="SetupVaultOffer_YourVaultIsOn" xml:space="preserve">
     <value>Your Vault is on</value>
