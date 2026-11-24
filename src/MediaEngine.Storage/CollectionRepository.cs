@@ -1523,10 +1523,10 @@ public sealed class CollectionRepository : ICollectionRepository
             FROM   collections
             WHERE  wikidata_qid = @qid
               AND  collection_type = 'ContentGroup'
-              AND  LOWER(media_type) = LOWER(@mediaType)
+              AND  LOWER(media_type) IN @mediaTypes
             ORDER  BY created_at, id
             LIMIT  1;
-            """, new { qid, mediaType });
+            """, new { qid, mediaTypes = MediaEngine.Domain.Services.SeriesMediaFamily.Members(mediaType).Select(m => m.ToLowerInvariant()).ToArray() });
 
         if (collection is not null)
         {

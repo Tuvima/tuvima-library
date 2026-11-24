@@ -112,7 +112,10 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
         var bookSeries = (await _collections.FindSeriesShelfAsync(Expanse, "Books"))!;
         var audiobookSeries = (await _collections.FindSeriesShelfAsync(Expanse, "Audiobooks"))!;
         var tvSeries = (await _collections.FindSeriesShelfAsync(Expanse, "TV"))!;
-        Assert.Equal(3, new[] { bookSeries.Id, audiobookSeries.Id, tvSeries.Id }.Distinct().Count());
+
+        // A book and an audiobook of the same Series are one Series; the TV show stays its own.
+        Assert.Equal(bookSeries.Id, audiobookSeries.Id);
+        Assert.NotEqual(bookSeries.Id, tvSeries.Id);
 
         // The nine novels and every novella are on the one book Series.
         foreach (var title in NovelTitles.Concat(["The Churn", "Gods of Risk", "The Vital Abyss", "The Butcher of Anderson Station", "Strange Dog"]))
@@ -127,12 +130,11 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
             Assert.Equal(0, await CountWorksOnShelfAsync(memorysLegion.Id));
         }
 
-        // The audiobook and the TV show are separate Series, not merged into the book Series.
-        Assert.Equal(audiobookSeries.Id, await ShelfOfAsync("Leviathan Wakes (audiobook)"));
+        // The audiobook joins the book Series; the TV show is a separate Series.
+        Assert.Equal(bookSeries.Id, await ShelfOfAsync("Leviathan Wakes (audiobook)"));
         Assert.Equal(tvSeries.Id, await ShelfOfAsync("The Expanse (TV)"));
-        Assert.Equal(1, await CountWorksOnShelfAsync(audiobookSeries.Id));
+        Assert.Equal(NovelTitles.Length + 6, await CountWorksOnShelfAsync(audiobookSeries.Id));
         Assert.Equal(1, await CountWorksOnShelfAsync(tvSeries.Id));
-        Assert.Equal("Audiobooks", audiobookSeries.MediaType);
         Assert.Equal("TV", tvSeries.MediaType);
         Assert.Equal("Books", bookSeries.MediaType);
     }
@@ -223,17 +225,20 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
     }
 
     [Fact]
-    public async Task ASeriesOfAnotherMediaType_IsNeverFoundForAWork()
+    public async Task ASeriesOfAnotherMediaFamily_IsNeverFoundForAWork_ButABookSeriesIsFoundForAnAudiobook()
     {
         var bookSeries = await CreateSeriesShelfAsync(Expanse, "The Expanse", "Books");
         var audiobook = AddWork("Leviathan Wakes (audiobook)", "Audiobooks", seriesQid: Expanse, seriesLabel: "The Expanse");
+        var show = AddWork("The Expanse (TV)", "TV", seriesQid: Expanse, seriesLabel: "The Expanse");
 
         var result = await _assignment.AssignAsync(audiobook.AssetId);
+        var tvResult = await _assignment.AssignAsync(show.AssetId);
 
         Assert.Equal(CollectionAssignmentOutcome.Assigned, result.Outcome);
-        Assert.NotEqual(bookSeries, result.CollectionId);
-        Assert.True(result.CreatedCollection);
-        Assert.Equal("Audiobooks", (await _collections.GetByIdAsync(result.CollectionId!.Value))!.MediaType);
+        Assert.Equal(bookSeries, result.CollectionId);
+        Assert.False(result.CreatedCollection);
+        Assert.NotEqual(bookSeries, tvResult.CollectionId);
+        Assert.Equal("TV", (await _collections.GetByIdAsync(tvResult.CollectionId!.Value))!.MediaType);
     }
 
     [Fact]

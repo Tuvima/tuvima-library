@@ -40,13 +40,12 @@ public sealed class SeriesIdentityTests : IDisposable
     }
 
     [Fact]
-    public async Task FindSeriesShelf_ReturnsOnlyTheSeriesOfTheAskedMediaType()
+    public async Task FindSeriesShelf_GivesBooksAndAudiobooksTheSameSeries_ButNeverAnotherMediaType()
     {
         var books = await CreateSeriesAsync(Expanse, "The Expanse", "Books");
-        var audiobooks = await CreateSeriesAsync(Expanse, "The Expanse", "Audiobooks");
 
         Assert.Equal(books, (await _collections.FindSeriesShelfAsync(Expanse, "Books"))!.Id);
-        Assert.Equal(audiobooks, (await _collections.FindSeriesShelfAsync(Expanse, "audiobooks"))!.Id);
+        Assert.Equal(books, (await _collections.FindSeriesShelfAsync(Expanse, "audiobooks"))!.Id);
         Assert.Null(await _collections.FindSeriesShelfAsync(Expanse, "TV"));
     }
 
@@ -75,38 +74,41 @@ public sealed class SeriesIdentityTests : IDisposable
     }
 
     [Fact]
-    public async Task ABookSeriesAndAnAudiobookSeriesOfTheSameQid_KeepTheirOwnManifests()
+    public async Task ABookAndAnAudiobookOfTheSameSeries_ShareOneSeriesAndOneManifest()
     {
-        var books = await CreateSeriesAsync(Expanse, "The Expanse", "Books");
-        var audiobooks = await CreateSeriesAsync(Expanse, "The Expanse", "Audiobooks");
+        var series = await CreateSeriesAsync(Expanse, "The Expanse", "Books");
         var book = await CreateWorkAsync("QLeviathan", "Books");
-        var audiobook = await CreateWorkAsync("QLeviathan", "Audiobooks");
+        var audiobook = await CreateWorkAsync("QLeviathanAudio", "Audiobooks");
         var now = DateTimeOffset.UtcNow;
 
-        await UpsertAndLinkAsync(books, Expanse, now, Item(books, Expanse, "QLeviathan", "Leviathan Wakes", "Books", linked: book, parsed: 1));
-        await UpsertAndLinkAsync(audiobooks, Expanse, now, Item(audiobooks, Expanse, "QLeviathan", "Leviathan Wakes", "Audiobooks", linked: audiobook, parsed: 1));
+        await UpsertAndLinkAsync(
+            series,
+            Expanse,
+            now,
+            Item(series, Expanse, "QLeviathan", "Leviathan Wakes", "Books", linked: book, parsed: 1),
+            Item(series, Expanse, "QLeviathanAudio", "Leviathan Wakes (audiobook)", "Books", linked: audiobook, parsed: 1));
 
-        Assert.Equal(books, (await _manifests.GetHydrationAsync(Expanse, "Books"))!.CollectionId);
-        Assert.Equal(audiobooks, (await _manifests.GetHydrationAsync(Expanse, "Audiobooks"))!.CollectionId);
-        Assert.Equal(book, Assert.Single(await _manifests.GetItemsBySeriesQidAsync(Expanse, "Books")).LinkedWorkId);
-        Assert.Equal(audiobook, Assert.Single(await _manifests.GetItemsBySeriesQidAsync(Expanse, "Audiobooks")).LinkedWorkId);
-        Assert.Equal(2, (await _manifests.GetItemsBySeriesQidAsync(Expanse)).Count);
-        Assert.Equal(books, await ShelfOfAsync(book));
-        Assert.Equal(audiobooks, await ShelfOfAsync(audiobook));
+        Assert.Equal(series, (await _manifests.GetHydrationAsync(Expanse, "Audiobooks"))!.CollectionId);
+        Assert.Equal(series, (await _manifests.GetHydrationAsync(Expanse, "Books"))!.CollectionId);
+        Assert.Equal(2, (await _manifests.GetItemsBySeriesQidAsync(Expanse, "Audiobooks")).Count);
+        Assert.Equal(series, await ShelfOfAsync(book));
+        Assert.Equal(series, await ShelfOfAsync(audiobook));
     }
 
     [Fact]
-    public async Task FindWorkIdsByQids_CanBeLimitedToOneMediaType()
+    public async Task FindWorkIdsByQids_CanBeLimitedToOneMediaType_WhereBooksAndAudiobooksCountAsOne()
     {
         var book = await CreateWorkAsync("QLeviathan", "Books");
         var audiobook = await CreateWorkAsync("QLeviathan", "Audiobooks");
+        var film = await CreateWorkAsync("QLeviathan", "Movies");
 
         var all = await _manifests.FindWorkIdsByQidsAsync(["QLeviathan"]);
-        var onlyAudio = await _manifests.FindWorkIdsByQidsAsync(["QLeviathan"], "Audiobooks");
+        var onlyFilms = await _manifests.FindWorkIdsByQidsAsync(["QLeviathan"], "Movies");
+        var bookFormats = await _manifests.FindWorkIdsByQidsAsync(["QLeviathan"], "Audiobooks");
 
-        Assert.Equal(2, all["QLeviathan"].Count);
-        Assert.Equal([audiobook], onlyAudio["QLeviathan"]);
-        Assert.DoesNotContain(book, onlyAudio["QLeviathan"]);
+        Assert.Equal(3, all["QLeviathan"].Count);
+        Assert.Equal([film], onlyFilms["QLeviathan"]);
+        Assert.Equal(new[] { book, audiobook }.Order().ToArray(), bookFormats["QLeviathan"].Order().ToArray());
     }
 
     [Theory]
@@ -212,14 +214,14 @@ public sealed class SeriesIdentityTests : IDisposable
     [Fact]
     public async Task ASeriesListingOfADifferentMediaType_DoesNotMakeTheParentAParent()
     {
-        var audiobookSeries = await CreateSeriesAsync(Expanse, "The Expanse", "Audiobooks");
+        var tvSeries = await CreateSeriesAsync(Expanse, "The Expanse", "TV");
         var parent = await CreateSeriesAsync(MemorysLegion, "Memory's Legion", "Books");
         var gods = await CreateWorkAsync("QGodsOfRisk", "Books");
         var now = DateTimeOffset.UtcNow;
 
         await UpsertAndLinkAsync(parent, MemorysLegion, now, Item(parent, MemorysLegion, "QGodsOfRisk", "Gods of Risk", "Books", linked: gods, parsed: 3));
-        await UpsertAndLinkAsync(audiobookSeries, Expanse, now,
-            Item(audiobookSeries, Expanse, MemorysLegion, "Memory's Legion", "Audiobooks", isCollection: true));
+        await UpsertAndLinkAsync(tvSeries, Expanse, now,
+            Item(tvSeries, Expanse, MemorysLegion, "Memory's Legion", "TV", isCollection: true));
 
         Assert.Equal(parent, await ShelfOfAsync(gods));
     }
@@ -317,10 +319,10 @@ public sealed class SeriesIdentityTests : IDisposable
     }
 
     [Fact]
-    public async Task LinkOwnedWorks_NeverPutsAnAudiobookInTheBookSeries()
+    public async Task LinkOwnedWorks_NeverPutsAFilmInTheBookSeries()
     {
         var books = await CreateSeriesAsync(Expanse, "The Expanse", "Books");
-        var audiobook = await CreateWorkAsync("QLeviathan", "Audiobooks");
+        var audiobook = await CreateWorkAsync("QLeviathan", "Movies");
         var now = DateTimeOffset.UtcNow;
 
         await UpsertAndLinkAsync(books, Expanse, now, Item(books, Expanse, "QLeviathan", "Leviathan Wakes", "Books", linked: audiobook, parsed: 1));

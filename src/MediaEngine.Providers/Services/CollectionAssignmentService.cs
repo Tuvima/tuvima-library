@@ -247,7 +247,7 @@ public sealed class CollectionAssignmentService
                     WikidataQid = retail.Qid,
                     RuleHash = retail.ProviderKey,
                     GroupByField = GetGroupByField(retail.MediaType),
-                    MediaType = retail.MediaType.ToString(),
+                    MediaType = SeriesMediaFamily.Normalize(retail.MediaType.ToString()),
                     CreatedAt = DateTimeOffset.UtcNow,
                 };
                 collection.RestoreDefinition(
@@ -418,7 +418,7 @@ public sealed class CollectionAssignmentService
     {
         if (!string.IsNullOrWhiteSpace(shelf.Qid))
         {
-            // A Series is its QID plus its media type: a Series of another media type is never found here.
+            // A Series is its QID plus its media type family: books and audiobooks share one, other media types never do.
             var bySeries = await _collectionRepo.FindSeriesShelfAsync(shelf.Qid, shelf.MediaType.ToString(), ct);
             if (bySeries is not null)
             {
@@ -441,7 +441,7 @@ public sealed class CollectionAssignmentService
 
         if (string.IsNullOrWhiteSpace(collection.MediaType) && mediaType != MediaType.Unknown)
         {
-            collection.MediaType = mediaType.ToString();
+            collection.MediaType = SeriesMediaFamily.Normalize(mediaType.ToString());
             changed = true;
         }
 
@@ -746,7 +746,7 @@ public sealed class CollectionAssignmentService
             return null;
         }
 
-        var localKey = $"local:{mediaType.ToString().ToLowerInvariant()}:{NormalizeKey(localLabel)}";
+        var localKey = $"local:{SeriesMediaFamily.Normalize(mediaType.ToString()).ToLowerInvariant()}:{NormalizeKey(localLabel)}";
         return new ShelfIdentity(mediaType, localLabel, null, localKey, relationshipKeys);
     }
 

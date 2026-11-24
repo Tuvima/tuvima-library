@@ -370,13 +370,13 @@ public sealed class SeriesPlacementRepository : ISeriesPlacementRepository
                        media_type AS MediaType
                 FROM collections
                 WHERE collection_type = 'ContentGroup'
-                  AND LOWER(COALESCE(media_type, '')) = LOWER(@mediaType)
+                  AND LOWER(COALESCE(media_type, '')) IN @mediaTypes
                   AND id NOT IN @excluded
                   AND (@pattern IS NULL OR display_name LIKE @pattern ESCAPE '\' COLLATE NOCASE)
                 ORDER BY display_name COLLATE NOCASE, id
                 LIMIT @limit;
                 """,
-                new { mediaType = work.MediaType ?? string.Empty, excluded, pattern, limit })
+                new { mediaTypes = SeriesMediaFamily.Members(work.MediaType ?? string.Empty).Select(m => m.ToLowerInvariant()).ToArray(), excluded, pattern, limit })
             .Select(r => new SeriesPlacementShelf(
                 r.CollectionId,
                 r.Label ?? string.Empty,

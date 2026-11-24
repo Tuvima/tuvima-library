@@ -96,7 +96,9 @@ public sealed class ParentCollectionResolver : IParentCollectionResolver
         }
 
         var relationships = await _collectionRepo.GetRelationshipsAsync(collectionId, ct).ConfigureAwait(false);
-        var choice = UniverseIdentityRule.Choose(BuildInput(shelf, relationships, GetRollupRelationshipTypes()));
+        var rollupTypes = GetRollupRelationshipTypes();
+        var choice = UniverseIdentityRule.Choose(BuildInput(shelf, relationships, rollupTypes));
+        choice = await StrongestChoiceInBasedOnGroupAsync(shelf, relationships, rollupTypes, choice, ct).ConfigureAwait(false);
         UniverseIdentity? identity = null;
         if (choice is not null)
         {
@@ -152,6 +154,82 @@ public sealed class ParentCollectionResolver : IParentCollectionResolver
         {
             await ResolveDependentsAsync(shelf, visited, ct).ConfigureAwait(false);
         }
+    }
+
+    private static readonly string[] SeriesMediaTypesToSearch = ["Books", "TV", "Movies", "Comics", "Music"];
+
+    /// <summary>
+    /// A TV show based on a book Series and that book Series are one story: a franchise the show names (The Expanse) is
+    /// the Universe of the book Series too, even though the book Series names nothing broader than itself. This looks
+    /// at the Series shelves joined to this one by a "based on" relationship (in either direction) and returns the
+    /// strongest Universe choice among them and this shelf's own, so every shelf of the group lands on the same
+    /// Universe whichever was ingested first. Stronger means earlier in the rule's order, then the lowest QID.
+    /// </summary>
+    private async Task<UniverseChoice?> StrongestChoiceInBasedOnGroupAsync(
+        Collection shelf,
+        IReadOnlyList<CollectionRelationship> relationships,
+        HashSet<string> rollupTypes,
+        UniverseChoice? own,
+        CancellationToken ct)
+    {
+        var linked = new Dictionary<Guid, Collection>();
+        foreach (var target in relationships.Where(rel => string.Equals(rel.RelType, "based_on", StringComparison.OrdinalIgnoreCase)))
+        {
+            foreach (var mediaType in SeriesMediaTypesToSearch)
+            {
+                var found = await _collectionRepo.FindSeriesShelfAsync(target.RelQid, mediaType, ct).ConfigureAwait(false);
+                if (found is not null && found.Id != shelf.Id)
+                {
+                    linked[found.Id] = found;
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(shelf.WikidataQid))
+        {
+            var dependents = await _collectionRepo
+                .ListShelvesWithRollupRelationshipQidAsync(shelf.WikidataQid, ct).ConfigureAwait(false);
+            foreach (var dependent in dependents.Where(candidate => candidate.Id != shelf.Id))
+            {
+                var dependentRelationships = await _collectionRepo.GetRelationshipsAsync(dependent.Id, ct).ConfigureAwait(false);
+                if (dependentRelationships.Any(rel =>
+                        string.Equals(rel.RelType, "based_on", StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(rel.RelQid, shelf.WikidataQid, StringComparison.OrdinalIgnoreCase)))
+                {
+                    linked[dependent.Id] = dependent;
+                }
+            }
+        }
+
+        var best = own;
+        foreach (var other in linked.Values)
+        {
+            var otherRelationships = await _collectionRepo.GetRelationshipsAsync(other.Id, ct).ConfigureAwait(false);
+            var candidate = UniverseIdentityRule.Choose(BuildInput(other, otherRelationships, rollupTypes));
+            if (candidate is null)
+            {
+                continue;
+            }
+
+            if (best is null
+                || candidate.Step < best.Step
+                || (candidate.Step == best.Step
+                    && UniverseIdentityRule.CompareQids(
+                        UniverseIdentityRule.NormaliseQid(candidate.Qid) ?? candidate.Qid,
+                        UniverseIdentityRule.NormaliseQid(best.Qid) ?? best.Qid) < 0))
+            {
+                best = candidate;
+            }
+        }
+
+        if (best is not null && !ReferenceEquals(best, own))
+        {
+            _logger.LogInformation(
+                "ParentCollectionResolver: Series shelf {CollectionId} '{Name}' joins the Universe {Universe} named by a Series it is based on or that is based on it.",
+                shelf.Id, shelf.DisplayName, best.Qid);
+        }
+
+        return best;
     }
 
     /// <summary>

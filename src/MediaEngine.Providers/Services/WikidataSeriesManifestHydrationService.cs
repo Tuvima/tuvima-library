@@ -99,7 +99,7 @@ public sealed class WikidataSeriesManifestHydrationService
             var ttlDays = Math.Max(1, _configLoader.LoadHydration().SeriesManifestRefreshDays);
             var language = NormalizeLanguage(_configLoader.LoadCore().Language.Metadata);
             var now = DateTimeOffset.UtcNow;
-            var mediaType = context.MediaType.ToString();
+            var mediaType = SeriesMediaFamily.Normalize(context.MediaType.ToString());
             var cachedHydration = await _manifestRepo.GetHydrationAsync(seriesQid, mediaType, ct).ConfigureAwait(false);
 
             if (cachedHydration is not null
@@ -281,7 +281,7 @@ public sealed class WikidataSeriesManifestHydrationService
         int ttlDays,
         CancellationToken ct)
     {
-        var mediaType = context.MediaType.ToString();
+        var mediaType = SeriesMediaFamily.Normalize(context.MediaType.ToString());
         var cachedHydration = await _manifestRepo.GetHydrationAsync(parent.Qid, mediaType, ct).ConfigureAwait(false);
         if (cachedHydration is not null
             && IsCachedHydrationCurrent(cachedHydration)
@@ -813,11 +813,27 @@ public sealed class WikidataSeriesManifestHydrationService
 
     private async Task<Collection> UpsertCollectionAsync(string seriesQid, string label, string mediaType, CancellationToken ct)
     {
-        // A Series is its QID plus its media type: a book Series and an audiobook Series of the same QID are two shelves.
+        // A Series is its QID plus its media type family: a book Series and an audiobook Series of the same QID are one shelf.
         var existing = await _collectionRepo.FindSeriesShelfAsync(seriesQid, mediaType, ct).ConfigureAwait(false);
         if (existing is not null)
         {
             return existing;
+        }
+
+        // A shelf made earlier from a name alone (a retail or tag Series with the same name and no Wikidata id) is this
+        // Series: give it the QID instead of making a second shelf with the same name.
+        if (!string.IsNullOrWhiteSpace(label))
+        {
+            var sameName = await _collectionRepo.FindByDisplayNameAsync(label, ct).ConfigureAwait(false);
+            if (sameName is not null
+                && sameName.CollectionType == CollectionType.ContentGroup
+                && string.IsNullOrWhiteSpace(sameName.WikidataQid)
+                && SeriesMediaFamily.Same(sameName.MediaType, mediaType))
+            {
+                sameName.WikidataQid = seriesQid;
+                await _collectionRepo.UpsertAsync(sameName, ct).ConfigureAwait(false);
+                return sameName;
+            }
         }
 
         var collection = new Collection
@@ -825,7 +841,7 @@ public sealed class WikidataSeriesManifestHydrationService
             Id = Guid.NewGuid(),
             DisplayName = string.IsNullOrWhiteSpace(label) ? seriesQid : label,
             WikidataQid = seriesQid,
-            MediaType = mediaType,
+            MediaType = SeriesMediaFamily.Normalize(mediaType),
             IconName = "collections_bookmark",
             CreatedAt = DateTimeOffset.UtcNow,
             SortField = "sort_order",
