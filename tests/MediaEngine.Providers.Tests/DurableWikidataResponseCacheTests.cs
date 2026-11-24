@@ -59,6 +59,29 @@ public sealed class DurableWikidataResponseCacheTests
         Assert.Equal("{}", await cache.GetAsync(Key));
     }
 
+    [Fact]
+    public async Task FailingDataStore_NeverFailsTheRequest()
+    {
+        var cache = new DurableWikidataResponseCache();
+        cache.Attach(new ThrowingStore());
+
+        await cache.SetAsync(Key, "{}", TimeSpan.FromHours(1));
+
+        Assert.Equal("{}", await cache.GetAsync(Key));
+        Assert.Null(await cache.GetAsync(new WikidataResponseCacheKey("h", "e", "other")));
+    }
+
+    private sealed class ThrowingStore : IProviderResponseCacheRepository
+    {
+        public Task<CachedResponse?> FindAsync(string cacheKey, CancellationToken ct = default) => throw new InvalidOperationException("database is locked");
+        public Task UpsertAsync(string cacheKey, string providerId, string queryHash, string responseJson, string? etag, int ttlHours, CancellationToken ct = default) => throw new InvalidOperationException("database is locked");
+        public Task<string?> FindExpiredEtagAsync(string cacheKey, CancellationToken ct = default) => Task.FromResult<string?>(null);
+        public Task RefreshExpiryAsync(string cacheKey, int ttlHours, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> PurgeExpiredAsync(CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> ClearAllAsync(CancellationToken ct = default) => Task.FromResult(0);
+        public Task<CacheStats> GetStatsAsync(CancellationToken ct = default) => Task.FromResult(new CacheStats(0, 0, null));
+    }
+
     private sealed class SpyStore : IProviderResponseCacheRepository
     {
         public Dictionary<string, string> Entries { get; } = [];

@@ -78,7 +78,8 @@ public sealed class EnrichmentService : IEnrichmentService
                 EntityKind = "media_asset",
                 QueueName = "people",
                 Status = MediaOperationStatus.Queued,
-                IdempotencyKey = $"people:quick:{entityId}:v1",
+                SubKey = qid,
+                IdempotencyKey = $"people:quick:{entityId}:{qid}:v1",
             }, ct);
         }
         else

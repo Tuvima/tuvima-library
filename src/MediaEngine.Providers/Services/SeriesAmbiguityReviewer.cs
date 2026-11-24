@@ -57,10 +57,7 @@ public sealed class SeriesAmbiguityReviewer
         CancellationToken ct = default)
     {
         var signature = string.Join('|', candidates.Select(c => c.SeriesQid).OrderBy(q => q, StringComparer.OrdinalIgnoreCase));
-        if (_raised.TryGetValue(workId, out var already) && string.Equals(already, signature, StringComparison.Ordinal))
-        {
-            return DescribeFromCandidates(candidates);
-        }
+        var alreadyReported = _raised.TryGetValue(workId, out var already) && string.Equals(already, signature, StringComparison.Ordinal);
 
         var names = new List<string>();
         foreach (var candidate in candidates)
@@ -71,6 +68,14 @@ public sealed class SeriesAmbiguityReviewer
 
         var detail = $"Wikidata lists this {candidates.FirstOrDefault()?.MediaType ?? "work"} in the main sequence of more than one Series "
             + $"({string.Join(", ", names)}) and nothing says which one it belongs to. It is not on any Series until you choose.";
+
+        if (!alreadyReported)
+        {
+            _logger.LogWarning(
+                "Series ambiguity: work {WorkId} is in the main sequence of {Series}; leaving it unplaced",
+                workId,
+                string.Join(", ", candidates.Select(c => c.SeriesQid)));
+        }
 
         var entityId = fallbackEntityId;
         if (_placements is not null)
@@ -101,11 +106,6 @@ public sealed class SeriesAmbiguityReviewer
             }
         }
 
-        _logger.LogWarning(
-            "Series ambiguity: work {WorkId} is in the main sequence of {Series}; leaving it unplaced",
-            workId,
-            string.Join(", ", candidates.Select(c => c.SeriesQid)));
-
         var candidatesJson = JsonSerializer.Serialize(candidates.Select((c, index) => new
         {
             series_qid = c.SeriesQid,
@@ -118,10 +118,6 @@ public sealed class SeriesAmbiguityReviewer
         _raised[workId] = signature;
         return detail;
     }
-
-    private static string DescribeFromCandidates(IReadOnlyList<SeriesPlacementCandidate> candidates) =>
-        $"Wikidata lists this {candidates.FirstOrDefault()?.MediaType ?? "work"} in the main sequence of more than one Series "
-        + $"({string.Join(", ", candidates.Select(c => c.SeriesQid))}) and nothing says which one it belongs to. It is not on any Series until you choose.";
 
     /// <summary>Closes the "which Series?" questions of many works at once: a few statements, not a few per work.</summary>
     public async Task ResolveManyAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default)

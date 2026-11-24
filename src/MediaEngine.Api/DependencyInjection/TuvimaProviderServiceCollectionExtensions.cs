@@ -310,7 +310,9 @@ public static class TuvimaProviderServiceCollectionExtensions
         {
             var client = sp.GetRequiredService<IHttpClientFactory>()
                 .CreateClient("WikidataReconciliation");
-            durableCache.Attach(sp.GetService<IProviderResponseCacheRepository>());
+            durableCache.Attach(
+                sp.GetService<IProviderResponseCacheRepository>(),
+                sp.GetService<ILoggerFactory>()?.CreateLogger("DurableWikidataResponseCache"));
             return new Tuvima.Wikidata.WikidataReconciler(client, options);
         });
         services.AddSingleton(sp => sp.GetRequiredService<Tuvima.Wikidata.WikidataReconciler>().Reconcile);

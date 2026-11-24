@@ -1,4 +1,5 @@
 using MediaEngine.Domain.Contracts;
+using Microsoft.Extensions.Logging;
 using Tuvima.Wikidata;
 
 namespace MediaEngine.Providers.Services;
@@ -18,6 +19,7 @@ public sealed class DurableWikidataResponseCache : IWikidataResponseCache
 
     private readonly IWikidataResponseCache _memory;
     private volatile IProviderResponseCacheRepository? _store;
+    private volatile ILogger? _logger;
 
     public DurableWikidataResponseCache(IWikidataResponseCache? memory = null)
     {
@@ -25,7 +27,11 @@ public sealed class DurableWikidataResponseCache : IWikidataResponseCache
     }
 
     /// <summary>Connects the data store once the app's services exist (the library is configured before they do).</summary>
-    public void Attach(IProviderResponseCacheRepository? store) => _store = store;
+    public void Attach(IProviderResponseCacheRepository? store, ILogger? logger = null)
+    {
+        _logger = logger;
+        _store = store;
+    }
 
     public async ValueTask<string?> GetAsync(WikidataResponseCacheKey key, CancellationToken cancellationToken = default)
     {
@@ -41,7 +47,18 @@ public sealed class DurableWikidataResponseCache : IWikidataResponseCache
             return null;
         }
 
-        var stored = await store.FindAsync(StoreKey(key), cancellationToken).ConfigureAwait(false);
+        CachedResponse? stored;
+        try
+        {
+            stored = await store.FindAsync(StoreKey(key), cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The data store is only a second memory: a busy or failing store must never fail the Wikidata request itself.
+            _logger?.LogWarning(ex, "Wikidata answer could not be read from the data store; asking Wikidata instead");
+            return null;
+        }
+
         if (stored is null)
         {
             return null;
@@ -66,8 +83,16 @@ public sealed class DurableWikidataResponseCache : IWikidataResponseCache
         }
 
         var hours = Math.Max(1, (int)Math.Ceiling(ttl.TotalHours));
-        await store.UpsertAsync(
-            StoreKey(key), ProviderId, StoreKey(key), response, null, hours, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await store.UpsertAsync(
+                StoreKey(key), ProviderId, StoreKey(key), response, null, hours, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Same rule as reading: the answer is already in memory, so a store failure only costs a later repeat request.
+            _logger?.LogWarning(ex, "Wikidata answer could not be saved to the data store; kept in memory only");
+        }
     }
 
     private static string StoreKey(WikidataResponseCacheKey key) => $"{ProviderId}:{key.Host}:{key.Endpoint}:{key.Key}";
