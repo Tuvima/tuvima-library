@@ -134,11 +134,16 @@ public sealed class HierarchyResolverTests : IDisposable
     {
         var withYear = await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
         {
-            ["show_name"] = "Severance", ["show_year"] = "2022", ["season_number"] = "1", ["episode_number"] = "1",
+            ["show_name"] = "Severance",
+            ["show_year"] = "2022",
+            ["season_number"] = "1",
+            ["episode_number"] = "1",
         });
         var noYear = await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
         {
-            ["show_name"] = "Severance", ["season_number"] = "1", ["episode_number"] = "2",
+            ["show_name"] = "Severance",
+            ["season_number"] = "1",
+            ["episode_number"] = "2",
         });
 
         Assert.Equal(withYear.ParentWorkId, noYear.ParentWorkId);
@@ -151,17 +156,24 @@ public sealed class HierarchyResolverTests : IDisposable
         {
             await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
             {
-                ["show_name"] = "Doctor Who", ["show_year"] = year, ["season_number"] = "1", ["episode_number"] = "1",
+                ["show_name"] = "Doctor Who",
+                ["show_year"] = year,
+                ["season_number"] = "1",
+                ["episode_number"] = "1",
             });
         }
 
         var noYear = await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
         {
-            ["show_name"] = "Doctor Who", ["season_number"] = "1", ["episode_number"] = "1",
+            ["show_name"] = "Doctor Who",
+            ["season_number"] = "1",
+            ["episode_number"] = "1",
         });
         var again = await _resolver.ResolveAsync(MediaType.TV, new Dictionary<string, string>
         {
-            ["show_name"] = "Doctor Who", ["season_number"] = "1", ["episode_number"] = "2",
+            ["show_name"] = "Doctor Who",
+            ["season_number"] = "1",
+            ["episode_number"] = "2",
         });
 
         Assert.Equal(noYear.ParentWorkId, again.ParentWorkId);
