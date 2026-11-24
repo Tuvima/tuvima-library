@@ -216,6 +216,58 @@ public sealed class VideoProcessor : IMediaProcessor
         ".mp4", ".mkv", ".avi", ".mov", ".m4v", ".webm", ".ts",
     };
 
+    /// <summary>"Show - 07" or "Show - E07 - Title": a show name, then a running episode number, no season.</summary>
+    private static readonly Regex AbsoluteEpisodeRegex = new(
+        @"^(?<series>.+?)\s+[-–]\s+(?:E(?:p(?:isode)?)?\s*)?(?<ep>\d{1,4})(?:\s+[-–]\s+(?<title>.+))?$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private sealed record AbsoluteEpisode(string Series, int Episode, string? EpisodeTitle);
+
+    /// <summary>
+    /// Reads a season-less running episode number, only when at least three video files in the same folder
+    /// share the show name and carry such a number, so a lone "Blade Runner - 2049" is never read as an episode.
+    /// </summary>
+    private static AbsoluteEpisode? TryReadAbsoluteEpisode(string filePath, string basicTitle)
+    {
+        var match = AbsoluteEpisodeRegex.Match(basicTitle);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var series = CleanSeriesTitle(match.Groups["series"].Value);
+        if (series.Length == 0 || !int.TryParse(match.Groups["ep"].Value, out var episode))
+        {
+            return null;
+        }
+
+        try
+        {
+            var dir = Path.GetDirectoryName(filePath);
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                return null;
+            }
+
+            var numbered = Directory.EnumerateFiles(dir)
+                .Where(f => NumberedVideoExtensions.Contains(Path.GetExtension(f)))
+                .Select(f => AbsoluteEpisodeRegex.Match(StripTrailingOrganizerTokens(FileStemTitleCleaner.Clean(Path.GetFileNameWithoutExtension(f)))))
+                .Count(m => m.Success && string.Equals(CleanSeriesTitle(m.Groups["series"].Value), series, StringComparison.OrdinalIgnoreCase));
+            if (numbered < 3)
+            {
+                return null;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Folder cannot be listed: do not guess an episode.
+            return null;
+        }
+
+        var title = match.Groups["title"].Success ? CleanEpisodeTitle(match.Groups["title"].Value) : null;
+        return new AbsoluteEpisode(series, episode, title);
+    }
+
     /// <summary>True when at least two video files in the file's folder (this one included) start with an ordinal.</summary>
     private static bool SiblingsAreNumbered(string filePath)
     {
@@ -296,6 +348,8 @@ public sealed class VideoProcessor : IMediaProcessor
                 if (!string.IsNullOrWhiteSpace(folderYear))
                 {
                     claims.Add(Claim("year", folderYear, 0.55));
+                    // The show folder's own year tells two shows with one name apart (Doctor Who 1963 / 2005).
+                    claims.Add(Claim("show_year", folderYear, 0.55));
                 }
             }
             else if (seasonNum.HasValue)
@@ -334,6 +388,28 @@ public sealed class VideoProcessor : IMediaProcessor
                 if (!string.IsNullOrWhiteSpace(folderYear))
                 {
                     claims.Add(Claim("year", folderYear, 0.55));
+                    // The show folder's own year tells two shows with one name apart (Doctor Who 1963 / 2005).
+                    claims.Add(Claim("show_year", folderYear, 0.55));
+                }
+            }
+            else if (TryReadAbsoluteEpisode(filePath, basicTitle) is { } absolute)
+            {
+                // "Cowboy Bebop - 07 - Heavy Metal Queen": a run of numbered episodes with no seasons.
+                claims.Add(Claim("title", string.IsNullOrWhiteSpace(absolute.EpisodeTitle) ? absolute.Series : absolute.EpisodeTitle!, 0.45));
+                claims.Add(Claim("show_name", absolute.Series, 0.45));
+                claims.Add(Claim("series", absolute.Series, 0.45));
+                claims.Add(Claim("episode_number", absolute.Episode.ToString(), 0.45));
+                claims.Add(Claim("episode", absolute.Episode.ToString(), 0.45));
+                if (!string.IsNullOrWhiteSpace(absolute.EpisodeTitle))
+                {
+                    claims.Add(Claim("episode_title", absolute.EpisodeTitle!, 0.45));
+                }
+
+                var folderYear = InferYearFromPath(filePath);
+                if (!string.IsNullOrWhiteSpace(folderYear))
+                {
+                    claims.Add(Claim("year", folderYear, 0.45));
+                    claims.Add(Claim("show_year", folderYear, 0.45));
                 }
             }
             else if (!string.IsNullOrWhiteSpace(basicTitle))

@@ -130,6 +130,25 @@ public sealed class HierarchyResolverTests : IDisposable
     }
 
     [Fact]
+    public async Task ResolveTv_ShowsWithOneNameAndDifferentFolderYears_StayTwoShows()
+    {
+        static Dictionary<string, string> Episode(string year) => new()
+        {
+            ["show_name"] = "Doctor Who",
+            ["show_year"] = year,
+            ["season_number"] = "1",
+            ["episode_number"] = "1",
+        };
+
+        var classic = await _resolver.ResolveAsync(MediaType.TV, Episode("1963"));
+        var modern = await _resolver.ResolveAsync(MediaType.TV, Episode("2005"));
+        var modernAgain = await _resolver.ResolveAsync(MediaType.TV, Episode("2005"));
+
+        Assert.NotEqual(classic.WorkId, modern.WorkId);
+        Assert.Equal(modern.WorkId, modernAgain.WorkId);
+    }
+
+    [Fact]
     public async Task Maintenance_RemovesEmptyAutoParentsAndDerivedArtwork_WhenLastChildDeleted()
     {
         var resolved = await _resolver.ResolveAsync(

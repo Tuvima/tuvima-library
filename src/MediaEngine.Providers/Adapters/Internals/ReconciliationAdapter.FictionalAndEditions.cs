@@ -75,9 +75,54 @@ public sealed partial class ReconciliationAdapter
             return true;
         }
 
+        // A book's store year is the year of the edition in hand (a 2009 ebook of a 1989 novel), and the
+        // resolved year is the book's first publication. A later edition is normal; only an edition that
+        // claims to be older than the book itself is a mismatch.
+        if (IsBookLike(mediaType))
+        {
+            return hintYear.Value >= resolvedYear.Value - 2;
+        }
+
         var maxDifference = mediaType is MediaType.Movies or MediaType.TV ? 1 : 2;
         return Math.Abs(hintYear.Value - resolvedYear.Value) <= maxDifference;
     }
+
+    private static bool IsBookLike(MediaType mediaType) => mediaType is MediaType.Books or MediaType.Audiobooks;
+
+    private static readonly string[] WrittenWorkClasses =
+    [
+        "Q7725634", "Q571", "Q8261", "Q47461344", "Q277759", "Q1238720", "Q149537", "Q12308", "Q35760", "Q386724", "Q17518461",
+    ];
+
+    /// <summary>True when the item is only an edition, version or translation record (Q3331189) and not a written work.</summary>
+    private static bool IsBareEditionRecord(IReadOnlyList<string> instanceOfQids) =>
+        instanceOfQids.Contains("Q3331189", StringComparer.OrdinalIgnoreCase)
+        && !instanceOfQids.Any(q => WrittenWorkClasses.Contains(q, StringComparer.OrdinalIgnoreCase));
+
+    private static bool IsSeriesClaimKey(string key) =>
+        key.StartsWith("series", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True when the Wikidata name (or the candidate label) resembles the title in the file, or when there is
+    /// nothing to compare. A foreign-language or unrelated record fails.
+    /// </summary>
+    private bool TitleAgreesWithFile(string? fileTitle, IReadOnlyList<ProviderClaim> claims, string? candidateLabel)
+    {
+        if (string.IsNullOrWhiteSpace(fileTitle))
+        {
+            return true;
+        }
+
+        var names = claims
+            .Where(c => string.Equals(c.Key, MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase))
+            .Select(c => c.Value)
+            .Append(candidateLabel)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToList();
+        return names.Count == 0 || names.Any(n => _fuzzy.ComputeTokenSetRatio(fileTitle, n!) >= TitleAgreementThreshold);
+    }
+
+    private const double TitleAgreementThreshold = 0.8;
 
     private static string? GetResolvedClaimsYear(IReadOnlyList<ProviderClaim> claims) =>
         claims.FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.OriginalReleaseYear, StringComparison.OrdinalIgnoreCase))?.Value

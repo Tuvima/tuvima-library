@@ -80,6 +80,12 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         {
             titleScore = Math.Min(titleScore.Value, RetailTextSimilarity.ComputeWordOverlap(fileTitle!, candidate.Title!));
         }
+        if (candidate.MediaType == MediaType.TV && candidate.Scope == "series" && Present(fileTitle))
+        {
+            // A show filed under its original-language name (La casa de papel) is the same show as its
+            // English listing (Money Heist); compare with the original name as well.
+            titleScore = Best(titleScore, Text(fileTitle, Remote("original_title")));
+        }
         if (placeholderTitle)
         {
             titleScore = 0;

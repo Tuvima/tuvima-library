@@ -27,6 +27,20 @@ internal static class RetailCandidateQualityGuard
         "review guide",
     ];
 
+    /// <summary>Words that make a store listing a bundle of several books, not the one book in the file.</summary>
+    private static readonly string[] BoxSetPhrases =
+    [
+        "box set",
+        "boxed set",
+        "boxset",
+        "trilogy",
+        "omnibus",
+        "complete collection",
+        "complete series",
+        "book set",
+        "books 1",
+    ];
+
     private static readonly string[] DescriptionDerivativePhrases =
     [
         "analysis of",
@@ -56,6 +70,14 @@ internal static class RetailCandidateQualityGuard
         if (mediaType is not (MediaType.Books or MediaType.Audiobooks))
         {
             return [];
+        }
+
+        // A store bundle ("The Hunger Games Trilogy", "... Box Set") never stands for the single book in the
+        // file, unless the file itself is named as a bundle.
+        var fileTitle = fileHints.GetValueOrDefault(MetadataFieldConstants.Title);
+        if (ContainsAny(Normalize(candidateTitle), BoxSetPhrases) && !ContainsAny(Normalize(fileTitle), BoxSetPhrases))
+        {
+            return ["box_set_candidate"];
         }
 
         var sourceLooksDerivative = LooksDerivative(

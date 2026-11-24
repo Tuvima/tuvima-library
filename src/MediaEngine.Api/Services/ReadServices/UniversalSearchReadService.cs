@@ -323,6 +323,7 @@ public sealed class UniversalSearchReadService(
                    p.name AS Name,
                    p.biography AS Biography,
                    p.occupation AS Occupation,
+                   p.date_of_birth AS DateOfBirth,
                    p.local_headshot_path AS LocalHeadshotPath,
                    GROUP_CONCAT(DISTINCT pr.role) AS Roles,
                    (SELECT GROUP_CONCAT(DISTINCT COALESCE(NULLIF(user.label, ''), entity.label))
@@ -334,7 +335,7 @@ public sealed class UniversalSearchReadService(
             FROM persons p
             LEFT JOIN person_roles pr ON pr.person_id = p.id
             WHERE p.id IN (SELECT person_id FROM allowed_people_credits)
-            GROUP BY p.id, p.name, p.biography, p.occupation, p.local_headshot_path
+            GROUP BY p.id, p.name, p.biography, p.occupation, p.date_of_birth, p.local_headshot_path
             ORDER BY CASE WHEN lower(p.name) = lower(@Query) THEN 0
                           WHEN lower(p.name) LIKE lower(@Prefix) THEN 1
                           WHEN EXISTS (
@@ -368,6 +369,13 @@ public sealed class UniversalSearchReadService(
             },
             cancellationToken: ct)).ConfigureAwait(false)).AsList();
 
+        // Two different people can share a name; each then carries a line that tells them apart (job and birth year).
+        var sharedNames = rows
+            .GroupBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         return rows.Select(row =>
         {
             var roles = Split(row.Roles);
@@ -376,6 +384,10 @@ public sealed class UniversalSearchReadService(
             var subtitle = matchedByCharacter
                 ? $"Plays {string.Join(", ", matchedCharacters.Take(2))}"
                 : roles.Count > 0 ? string.Join(", ", roles.Take(3)) : row.Occupation;
+            if (sharedNames.Contains(row.Name.Trim()))
+            {
+                subtitle = DistinguishingLine(row.Occupation, row.DateOfBirth, subtitle);
+            }
             return new UniversalSearchResultDto(
                 row.Id,
                 "person",
@@ -815,12 +827,28 @@ public sealed class UniversalSearchReadService(
     private static bool SameText(string? left, string? right) =>
         string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>"Actor, born 1981": what tells two people with one name apart.</summary>
+    internal static string? DistinguishingLine(string? occupation, string? dateOfBirth, string? fallback)
+    {
+        var year = !string.IsNullOrWhiteSpace(dateOfBirth) && dateOfBirth.Trim().TrimStart('+') is { Length: >= 4 } born
+            && int.TryParse(born[..4], out var parsed) ? parsed.ToString() : null;
+        var job = string.IsNullOrWhiteSpace(occupation) ? null : occupation.Trim();
+        return (job, year) switch
+        {
+            ({ } j, { } y) => $"{j}, born {y}",
+            ({ } j, null) => j,
+            (null, { } y) => $"Born {y}",
+            _ => fallback,
+        };
+    }
+
     private sealed class PersonSearchRow
     {
         public Guid Id { get; init; }
         public string Name { get; init; } = string.Empty;
         public string? Biography { get; init; }
         public string? Occupation { get; init; }
+        public string? DateOfBirth { get; init; }
         public string? LocalHeadshotPath { get; init; }
         public string? Roles { get; init; }
         public string? MatchedCharacters { get; init; }
