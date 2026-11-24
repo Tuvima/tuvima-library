@@ -512,7 +512,33 @@ public sealed class VideoProcessor : IMediaProcessor
             }
         }
 
+        AddFilmEditionClaims(claims, stem, meta);
+
         return claims;
+    }
+
+    /// <summary>
+    /// The cut ("Director's Cut") and picture quality ("4K") the file name states, kept as claims so ingestion can file
+    /// a film's other cuts and qualities as Editions of one film instead of dropping them with the other noise words.
+    /// </summary>
+    private static void AddFilmEditionClaims(List<ExtractedClaim> claims, string? stem, VideoMetadata? meta)
+    {
+        if (string.IsNullOrWhiteSpace(stem))
+        {
+            return;
+        }
+
+        if (MediaEngine.Domain.Services.FilenameCleaner.Rules.FindEdition(stem) is { } cut)
+        {
+            claims.Add(Claim(MediaEngine.Domain.Services.FilmEditionLabels.CutKey, MediaEngine.Domain.Services.FilmEditionLabels.CutDisplay(cut), 0.6));
+        }
+
+        var quality = MediaEngine.Domain.Services.FilmEditionLabels.QualityFromName(stem)
+            ?? MediaEngine.Domain.Services.FilmEditionLabels.QualityFromHeight(meta?.HeightPx, meta?.WidthPx);
+        if (quality is not null)
+        {
+            claims.Add(Claim(MediaEngine.Domain.Services.FilmEditionLabels.QualityKey, quality, 0.6));
+        }
     }
 
     // -------------------------------------------------------------------------
