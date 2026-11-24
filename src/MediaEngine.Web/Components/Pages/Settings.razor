@@ -174,7 +174,7 @@ else
                                 }
                                 else
                                 {
-                                    <ProfilesTab />
+                                    <ProfilesTab HouseholdNameChanged="OnHouseholdNameChanged" />
                                 }
                                 break;
                             case SettingsSection.Security:
@@ -318,6 +318,17 @@ else
     private bool IsPluginDetailRoute => _activeSection == SettingsSection.Plugins && !string.IsNullOrWhiteSpace(_activeSubsection);
     private string? PluginDetailId => IsPluginDetailRoute ? _activeSubsection : null;
     private string PluginDetailTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
+    // The Household page is titled with the household's name (profile and household D6); the page tells us once it has read it.
+    private string? _householdName;
+    private void OnHouseholdNameChanged(string? name)
+    {
+        if (_householdName != name)
+        {
+            _householdName = name;
+            StateHasChanged();
+        }
+    }
+
     private void OnProfileNameChanged(string name)
     {
         if (_profileBreadcrumbName != name)
@@ -830,6 +841,8 @@ else
     {
         _ = InvokeAsync(async () =>
         {
+            // Another person may not look after a household at all; the Household page names itself again when it is shown.
+            _householdName = null;
             await LoadAuthorityAsync();
             await LoadDevelopmentToolsAsync();
             ResolveSection();
@@ -921,6 +934,9 @@ else
     {
         if (_activeSection == SettingsSection.Libraries)
             return LibrariesLevel.Title;
+        // The Household page is named after the household; until its name is read (or when it cannot be), it is just "Household".
+        if (_activeSection == SettingsSection.Profiles && !IsProfileDetailRoute && !string.IsNullOrWhiteSpace(_householdName))
+            return _householdName;
         // Needs Review is named by its own heading (universal editor v3 mock, screen 2), not by the Libraries page it is a tab of.
         if (_activeSection == SettingsSection.Review)
             return CurrentLocation?.Tab is { } reviewTab ? TabLabel(reviewTab) : SettingsNav.GetItem(_activeSection).Label;
@@ -944,7 +960,7 @@ else
                 : "You, what you have been watching, reading and listening to, and your taste.",
         SettingsSection.Profiles => IsProfileDetailRoute
             ? "Details, preferences, and access and safety for this profile."
-            : "Add and look after the people in your household. Switch profile from the profile menu.",
+            : "The people you live with, and the choices that apply to all of them.",
         SettingsSection.Security => _activeSubsection == SettingsNav.DevicesSubsection
             ? "The phones, TVs and browsers signed in to Library, and who they belong to."
             : "Password, email and extra protection.",
@@ -978,7 +994,7 @@ else
         SettingsSection.Access => _activeSubsection switch
         {
             SettingsNav.AdvancedSubsection => "How people sign in, and the rules for passwords, sessions and invitations.",
-            SettingsNav.HouseholdsSubsection => "Add, rename and remove households. Each has its own people, library access and Shared Library.",
+            SettingsNav.HouseholdsSubsection => "Add, rename and remove households. Each has its own people and Shared Library.",
             _ => "Who can sign in, and which profile each sign-in opens.",
         },
         SettingsSection.Backups => "Protect your Library configuration and recover it when needed.",

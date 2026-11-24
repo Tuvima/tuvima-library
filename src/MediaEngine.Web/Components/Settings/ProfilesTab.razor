@@ -9,32 +9,51 @@
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject ConfirmedActionRunner Confirmed
-@inject NavigationManager Nav
 @inject ILogger<ProfilesTab> Logger
 @inject DeviceContextService DeviceContext
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
-@* Settings > Personal > Profiles: the editing page for administrators. A household administrator sees the people in their own
-   household; a server administrator sees every household. Each person opens on their own page. Switching profile is only done
-   from the profile menu in the top bar, never here. *@
+@* Settings > Personal > Household: the page about the people you live with (profile and household D6 to D8, D11). The page is titled with the
+   household's name (the Settings frame draws it from HouseholdNameChanged); a server administrator, who is the only one the Engine lets
+   rename it, gets a pencil for it. One plain row per person opens that person's page and your own row opens My profile: no Edit button and
+   no badges. "For everyone in this household" holds What Kids can see and Libraries this household can use. A household administrator sees
+   their own household; a server administrator sees every household, own first. Anyone who looks after nobody is told the page is not
+   available. Switching profile is only done from the profile menu in the top bar, never here. *@
 @if (!IsAdministrator)
 {
-    @* Not an administrator: Manage Profiles opens your own profile, which is the only one you can look after. *@
-    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ProfilesTab_OpeningYourProfile"].Value" Class="tl-sp-py-8" />
+    <AppPageState Kind="AppPageStateKind.Unavailable"
+                  Icon="@AppMaterialIcons.Outlined.Lock"
+                  Title="@L["HouseholdsTab_NotAvailable"].Value"
+                  Message="@L["ProfilesTab_NotAvailableForMembers"].Value" />
 }
 else
 {
     <div class="profiles-tab" data-profile-section="overview">
-        <section class="profiles-tab__people" aria-label="@L["Wikidata_PeopleGroupTitle"].Value">
-            @if (IsServerAdministrator)
-            {
-                <p class="profiles-tab__households-note" data-profiles-households-link>
-                    @L["ProfilesTab_HouseholdsAreManagedOn"]
-                    <AppLink Href="@SettingsNav.RouteFor(SettingsSection.Access, SettingsNav.HouseholdsSubsection)">@L["ProfilesTab_OpenHouseholds"]</AppLink>
-                </p>
-            }
+        @if (HeaderActions is null && HasHeaderActions)
+        {
+            @* Drawn on its own, with no Settings frame around it, the page's actions keep a row of their own. *@
+            <div class="profiles-tab__header-actions" data-household-actions>@BuildHeaderActions()</div>
+        }
 
+        @if (_renaming)
+        {
+            <div class="profiles-tab__rename" data-household-rename>
+                <AppTextField Label="@L["HouseholdsTab_HouseholdName"].Value" Value="@_renameText" ValueChanged="@(value => _renameText = value ?? string.Empty)"
+                              MaxLength="@MaximumNameLength" Disabled="@_renameBusy" AutoFocus="true" />
+                <div class="profiles-tab__rename-actions">
+                    <AppButton Label="@L["Common_Save"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
+                               Disabled="@(_renameBusy || string.IsNullOrWhiteSpace(_renameText))" OnClick="SaveRenameAsync" />
+                    <AppButton Label="@L["Search_Cancel"].Value" Disabled="@_renameBusy" OnClick="CancelRename" />
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_renameError))
+                {
+                    <p class="profiles-tab__error" role="alert" data-household-rename-error>@_renameError</p>
+                }
+            </div>
+        }
+
+        <section class="profiles-tab__people" aria-label="@L["Wikidata_PeopleGroupTitle"].Value">
             @if (_loadingPeople)
             {
                 <div class="profiles-tab__loading" role="status" aria-label="@L["ProfilesTab_LoadingThePeople"].Value">
@@ -45,9 +64,14 @@ else
             }
             else if (_peopleFailed)
             {
-                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">
-                    @L["ProfilesTab_ThePeopleCouldnTBe"]
-                </AppAlert>
+                <AppPageState Kind="AppPageStateKind.Error"
+                              Icon="@AppMaterialIcons.Outlined.CloudOff"
+                              Title="@L["Common_CanTReachTheEngine"].Value"
+                              Message="@L["ProfilesTab_ThePeopleCouldnTBe"].Value">
+                    <Actions>
+                        <AppButton Label="@L["Common_TryAgain"].Value" OnClick="LoadPeopleAsync" />
+                    </Actions>
+                </AppPageState>
             }
             else
             {
@@ -59,85 +83,43 @@ else
                 @foreach (var group in Groups)
                 {
                     <div class="profiles-tab__group" @key="group.Id" data-household-group="@group.Id">
-                        <SettingsSectionPanel Title="@group.Title">
-                            <ChildContent>
-                        <ul class="profiles-tab__list" role="list">
-                            @foreach (var person in group.People)
-                            {
-                                <li class="profiles-tab__item @(person.Id == _draggingId ? "is-dragging" : null)" @key="person.Id" data-profile-id="@person.Id"
-                                    @ondragover:preventDefault="@CanReorder(group)"
-                                    @ondrop="@(() => DropAsync(group, person.Id))">
-                                    <div class="profiles-tab__line">
-                                        @if (CanReorder(group))
-                                        {
-                                            @* Drag to put people in the order Who's watching and the profile menu list them; the arrow keys do the same. *@
-                                            <AppNativeButton Type="button" Class="profiles-tab__drag" draggable="true" data-testid="@($"reorder-{person.Id}")"
-                                                             AriaLabel="@($"Reorder {person.DisplayName}. Drag, or use the up and down arrow keys.")"
-                                                             @ondragstart="@(() => _draggingId = person.Id)" @ondragend="@(() => _draggingId = null)"
-                                                             @onkeydown="@(args => ReorderByKeyAsync(group, person.Id, args))">
-                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
-                                            </AppNativeButton>
-                                        }
-                                        <span class="profiles-tab__row-avatar"><ProfileAvatar DisplayName="@person.DisplayName" ImageUrl="@person.AvatarImageUrl" Color="@person.AvatarColor" Icon="@person.AvatarIcon" /></span>
-                                        <span class="profiles-tab__who">
-                                            <span class="profiles-tab__row-name">@person.DisplayName</span>
-                                            @* Read-only here: a sign-in is attached and removed by the server administrator in Users & Households. *@
-                                            <small class="profiles-tab__signin" data-profile-signin="@person.Id">@SignInText(person.Id)</small>
-                                        </span>
-                                        <span class="profiles-tab__badges">
-                                            @if (person.Id == _active?.Id)
-                                            {
-                                                <AppChip Text="@L["Common_You"].Value" Tone="AppUiTone.Primary" />
-                                            }
-                                            @if (Managed(person.Id)?.IsHouseholdAdmin == true)
-                                            {
-                                                <AppChip Text="@L["Common_HouseholdAdministrator"].Value" data-role="household-administrator" />
-                                            }
-                                            @if (Managed(person.Id)?.IsServerAdmin == true)
-                                            {
-                                                <AppChip Text="@L["Common_ServerAdministrator"].Value" data-role="server-administrator" />
-                                            }
-                                            @if (person.IsRestricted)
-                                            {
-                                                <AppChip Text="@L["Common_Kids"].Value" />
-                                            }
-                                            @if (person.HasPin)
-                                            {
-                                                <AppChip Text="@L["Common_PIN"].Value" />
-                                            }
-                                        </span>
-                                        <span class="profiles-tab__edit-cell">
-                                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="profiles-tab__edit" FullWidth="@DeviceContext.IsPhone" aria-label="@($"Edit {person.DisplayName}")" OnClick="@(() => OpenProfile(person.Id))" Label="@L["Common_Edit"].Value" />
-                                        </span>
-                                    </div>
-                                </li>
-                            }
-                            @if (ProfileManageRules.CanAdd(CanManage, group.People.Count) && DeviceContext.IsPhone)
-                            {
-                                @* On a phone the add row is a full-width button (Look v3.2 D3): the same action as the row on a larger screen. *@
-                                <li class="profiles-tab__item profiles-tab__item--add">
-                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="profiles-tab__add" FullWidth="true" data-testid="@($"add-person-{group.Id}")"
-                                               aria-label="@AddLabel(group)" StartIcon="@AppMaterialIcons.Outlined.Add" Label="@L["ProfilesTab_AddPerson"].Value"
-                                               OnClick="@(() => OpenAdd(group.Id))" />
-                                </li>
-                            }
-                            else if (ProfileManageRules.CanAdd(CanManage, group.People.Count))
-                            {
-                                <li class="profiles-tab__item">
-                                    <AppNativeButton Type="button" Class="profiles-tab__row profiles-tab__row--add" aria-label="@AddLabel(group)" OnClick="@(() => OpenAdd(group.Id))">
-                                        <span class="profiles-tab__row-avatar profiles-tab__row-avatar--add" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /></span>
-                                        <span class="profiles-tab__row-name">@L["Common_AddProfile"]</span>
-                                    </AppNativeButton>
-                                </li>
-                            }
-                        </ul>
+                        @if (group.IsOwn)
+                        {
+                            @* The page's own title is this household's name, so its people need no heading of their own. *@
+                            @PeopleList(group)
+                        }
+                        else
+                        {
+                            <SettingsSectionPanel Title="@group.Title">
+                                <ChildContent>@PeopleList(group)</ChildContent>
+                            </SettingsSectionPanel>
+                        }
+
                         @if (group.Id != Guid.Empty)
                         {
-                            <HouseholdKidSettings HouseholdId="@group.Id" HouseholdName="@group.Title" OnSave="SaveKidSettingsAsync" />
+                            <SettingsSectionPanel Title="@(group.IsOwn ? L["ProfilesTab_ForEveryoneInThisHousehold"].Value : L["ProfilesTab_ForEveryoneIn", group.Title].Value)">
+                                <ChildContent>
+                                    <div data-household-wide="@group.Id">
+                                        <HouseholdKidSettings HouseholdId="@group.Id" HouseholdName="@group.Title" OnSave="SaveKidSettingsAsync" />
+                                        @if (CanChangeLibraries && FindHousehold(group.Id) is { } household)
+                                        {
+                                            @* Only a server administrator can change this (the Engine refuses anyone else), so only they are offered it. *@
+                                            <HouseholdLibraryCeiling Household="@household" Libraries="@_libraries"
+                                                                     LibrariesUnavailable="@_librariesUnavailable" OnSave="SaveCeilingAsync" />
+                                        }
+                                    </div>
+                                </ChildContent>
+                            </SettingsSectionPanel>
                         }
-                            </ChildContent>
-                        </SettingsSectionPanel>
                     </div>
+                }
+
+                @if (IsServerAdministrator)
+                {
+                    <p class="profiles-tab__households-note" data-profiles-households-link>
+                        @L["ProfilesTab_HouseholdsAreManagedOn"]
+                        <AppLink Href="@SettingsNav.RouteFor(SettingsSection.Access, SettingsNav.HouseholdsSubsection)">@L["ProfilesTab_OpenHouseholds"]</AppLink>
+                    </p>
                 }
             }
         </section>
@@ -153,11 +135,21 @@ else
 }
 
 @code {
+    private const int MaximumNameLength = 60;
+
+    /// <summary>The Settings frame's header slot; null when this page is drawn without that frame.</summary>
+    [CascadingParameter] public SettingsHeaderActions? HeaderActions { get; set; }
+
+    /// <summary>Raised with the household's name once it is known and after a rename, so the page can be titled with it.</summary>
+    [Parameter] public EventCallback<string?> HouseholdNameChanged { get; set; }
+
     private ProfileEditingWorkflow? _workflow;
     private ProfileViewModel? _active;
     private List<ProfileViewModel> _profiles = [];
     private List<ManagedProfileResponse> _managed = [];
     private List<HouseholdResponse> _households = [];
+    private List<AccessLibraryOptionDto> _libraries = [];
+    private bool _librariesUnavailable;
     private bool _loadingPeople = true;
     private bool _peopleFailed;
     private string? _notice;
@@ -173,6 +165,12 @@ else
     private readonly CancellationTokenSource _lifetime = new();
     private Guid? _draggingId;
     private bool _reordering;
+    // On a phone there is no drag handle: "Reorder" in the page's "..." menu switches the rows to move-up and move-down buttons.
+    private bool _reorderMode;
+    private bool _renaming;
+    private bool _renameBusy;
+    private string _renameText = string.Empty;
+    private string? _renameError;
 
     private ProfileEditingWorkflow Workflow => _workflow ??= new ProfileEditingWorkflow(Identity, Confirmed);
 
@@ -180,16 +178,40 @@ else
 
     private bool IsAdministrator => Session.HasAction("household.manage") || IsServerAdministrator;
 
+    // The Engine lets only a server administrator rename a household or change the libraries it can use, so only they are offered either.
+    private bool CanChangeHousehold => Session.Authority?.EffectiveAdministrator == true;
+
+    private bool CanChangeLibraries => CanChangeHousehold;
+
     // Add profile is for administrators, and never from inside a Kids (restricted) profile.
     private bool CanManage => ProfileManageRules.CanManage(_active?.IsRestricted == true, IsAdministrator);
 
     private Guid? OwnHouseholdId => _managed.FirstOrDefault(person => person.Id == _active?.Id)?.HouseholdId;
 
+    private HouseholdResponse? OwnHousehold => OwnHouseholdId is { } id ? FindHousehold(id) : null;
+
     private IReadOnlyList<Household> Groups => BuildGroups();
+
+    private HouseholdResponse? FindHousehold(Guid id) => _households.FirstOrDefault(household => household.Id == id);
 
     private ManagedProfileResponse? Managed(Guid profileId) => _managed.FirstOrDefault(person => person.Id == profileId);
 
-    private string SignInText(Guid profileId) => Managed(profileId)?.User?.Email is { Length: > 0 } email ? email : "No sign-in";
+    private bool CanRename => CanChangeHousehold && CanManage && OwnHousehold is not null;
+
+    private bool CanReorderFromMenu => DeviceContext.IsPhone && Groups.Any(CanReorderPeople);
+
+    private bool HasHeaderActions => !_loadingPeople && !_peopleFailed && (CanRename || CanReorderFromMenu);
+
+    // Your own row opens My profile; everyone else's opens their page in the household.
+    private string RowHref(Guid personId) => personId == _active?.Id
+        ? SettingsNav.RouteFor(SettingsSection.Overview)
+        : SettingsNav.HouseholdPersonRoute(personId);
+
+    private string PersonLine(ProfileViewModel person)
+    {
+        var managed = Managed(person.Id);
+        return ProfileManageRules.PersonLine(managed?.IsHouseholdAdmin == true || managed?.IsServerAdmin == true, person.IsRestricted, managed?.User?.Email, person.HasPin);
+    }
 
     private static string AddLabel(Household group) => $"Add profile to {group.Title}";
 
@@ -203,16 +225,6 @@ else
         if (!IsAdministrator)
         {
             _loadingPeople = false;
-            try
-            {
-                _active = await Orchestrator.GetActiveProfileAsync();
-            }
-            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-            {
-                Logger.LogWarning(exception, "Could not find the active profile to open.");
-            }
-
-            Nav.NavigateTo(_active is null ? SettingsNav.RouteFor(SettingsSection.Overview) : $"/settings/household/{_active.Id:D}", replace: true);
             return;
         }
 
@@ -224,9 +236,23 @@ else
             var profiles = Orchestrator.GetProfilesAsync();
             var managed = Identity.GetManagedProfilesAsync();
             var households = Identity.GetManagedHouseholdsAsync();
+            var libraries = CanChangeLibraries ? Identity.GetAccessLibrariesAsync() : null;
             _profiles = await profiles;
             _managed = await managed;
             _households = await households;
+            if (libraries is not null)
+            {
+                var listed = await libraries;
+                _librariesUnavailable = listed is null;
+                _libraries = listed ?? [];
+            }
+
+            // The Engine's own client answers an unreachable Engine with an empty list; an administrator is always one of the people, so
+            // an empty list is the "can't reach" state, never a household of nobody.
+            if (_managed.Count == 0)
+            {
+                _peopleFailed = true;
+            }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -237,6 +263,45 @@ else
         {
             _loadingPeople = false;
         }
+
+        await PublishAsync();
+    }
+
+    // The page's title is the household's name and its actions sit at the top right of the Settings frame; both follow what was loaded.
+    private async Task PublishAsync()
+    {
+        HeaderActions?.Set(HasHeaderActions ? BuildHeaderActions() : null);
+        await HouseholdNameChanged.InvokeAsync(_peopleFailed ? null : OwnHousehold?.Name);
+    }
+
+    // A new fragment each time, so the frame redraws its header when the label of an action changes.
+    private RenderFragment BuildHeaderActions() => @<text>
+        @if (CanRename && OwnHousehold is { } own)
+        {
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Text" Tooltip="@L["Common_Rename"].Value"
+                           AriaLabel="@($"{L["Common_Rename"].Value} {own.Name}")" Disabled="@(_renaming || _renameBusy)" OnClick="BeginRename"
+                           data-testid="rename-household" />
+        }
+        @if (CanReorderFromMenu)
+        {
+            <AppRowMenu AriaLabel="@L["ProfilesTab_MoreActions"].Value" Items="@MenuItems" />
+        }
+    </text>;
+
+    private IReadOnlyList<AppRowMenuItem> MenuItems =>
+    [
+        new AppRowMenuItem
+        {
+            Label = _reorderMode ? L["ProfilesTab_DoneReordering"].Value : L["ProfilesTab_Reorder"].Value,
+            Icon = AppMaterialIcons.Outlined.SwapVert,
+            OnClick = EventCallback.Factory.Create(this, ToggleReorderMode),
+        },
+    ];
+
+    private async Task ToggleReorderMode()
+    {
+        _reorderMode = !_reorderMode;
+        await PublishAsync();
     }
 
     private async Task ReloadAsync()
@@ -275,7 +340,9 @@ else
             var title = group.Key is { } id && names.TryGetValue(id, out var name)
                 ? name
                 : group.Key == ownId ? "Your household" : "Household";
-            result.Add(new Household(group.Key ?? Guid.Empty, title, group.People));
+            // Each person's circle differs from the people before them in the household's order (profile and household D13).
+            var colors = ProfileAvatarPalette.Distinct([.. group.People.Select(person => (string?)person.AvatarColor)]);
+            result.Add(new Household(group.Key ?? Guid.Empty, title, group.People, colors, group.Key == ownId));
         }
 
         return result;
@@ -290,15 +357,19 @@ else
             AvatarIcon: person.AvatarIcon);
     }
 
-    // The order is shared by the whole household, so only an administrator changes it, and only when there is more than one person
-    // to put in order. Dragging is for a mouse, so a phone does not offer it.
-    private bool CanReorder(Household group) => CanManage && !DeviceContext.IsPhone && group.Id != Guid.Empty && group.People.Count > 1 && !_reordering;
+    // The order is shared by the whole household, so only an administrator changes it, and only when there is more than one person to put in order.
+    private bool CanReorderPeople(Household group) => CanManage && group.Id != Guid.Empty && group.People.Count > 1 && !_reordering;
+
+    // Dragging is for a mouse, so a phone does not offer it; it has Reorder in the "..." menu instead.
+    private bool CanDrag(Household group) => CanReorderPeople(group) && !DeviceContext.IsPhone;
+
+    private bool ShowMoveButtons(Household group) => CanReorderPeople(group) && DeviceContext.IsPhone && _reorderMode;
 
     private Task DropAsync(Household group, Guid targetId)
     {
         var dragged = _draggingId;
         _draggingId = null;
-        if (dragged is not { } id || id == targetId || !CanReorder(group))
+        if (dragged is not { } id || id == targetId || !CanDrag(group))
         {
             return Task.CompletedTask;
         }
@@ -319,7 +390,12 @@ else
     private Task ReorderByKeyAsync(Household group, Guid personId, KeyboardEventArgs args)
     {
         var step = args.Key switch { "ArrowUp" => -1, "ArrowDown" => 1, _ => 0 };
-        if (step == 0 || !CanReorder(group))
+        return step == 0 || !CanDrag(group) ? Task.CompletedTask : MoveAsync(group, personId, step);
+    }
+
+    private Task MoveAsync(Household group, Guid personId, int step)
+    {
+        if (!CanReorderPeople(group))
         {
             return Task.CompletedTask;
         }
@@ -370,11 +446,9 @@ else
         }
     }
 
-    // Each person has their own page; the sheet here is only for adding someone.
-    private void OpenProfile(Guid profileId) => Nav.NavigateTo($"/settings/household/{profileId:D}");
-
     public void Dispose()
     {
+        HeaderActions?.Set(null);
         _lifetime.Cancel();
         _lifetime.Dispose();
     }
@@ -398,6 +472,123 @@ else
             _editorOpen = false;
             _editorError = null;
         }
+    }
+
+    private void BeginRename()
+    {
+        if (!CanRename || OwnHousehold is not { } household)
+        {
+            return;
+        }
+
+        _renameText = household.Name;
+        _renameError = null;
+        _renaming = true;
+    }
+
+    private void CancelRename()
+    {
+        _renaming = false;
+        _renameError = null;
+    }
+
+    private Task SaveRenameAsync()
+    {
+        _justUnlocked = false;
+        return SaveRenameCoreAsync();
+    }
+
+    // Renames this household. A missing administrator PIN opens the unlock prompt and the save is tried again once it is granted; any other
+    // refusal is told beside the name field, which stays open with what was typed.
+    private async Task SaveRenameCoreAsync()
+    {
+        var name = _renameText.Trim();
+        if (_renameBusy || !CanRename || OwnHousehold is not { } household || name.Length == 0)
+        {
+            return;
+        }
+
+        _renameBusy = true;
+        _renameError = null;
+        try
+        {
+            var result = await Confirmed.RunAsync(() => Identity.RenameManagedHouseholdResultAsync(household.Id, name));
+            if (result.Succeeded)
+            {
+                var index = _households.FindIndex(other => other.Id == household.Id);
+                if (index >= 0)
+                {
+                    _households[index] = _households[index] with { Name = result.Value?.Name ?? name };
+                }
+
+                _renaming = false;
+                await PublishAsync();
+                return;
+            }
+
+            if (result.Failure == DashboardAccessMutationFailure.Forbidden && !_justUnlocked)
+            {
+                _needsUnlock = true;
+                _unlockError = null;
+                _afterUnlock = SaveRenameCoreAsync;
+                return;
+            }
+
+            _renameError = !string.IsNullOrWhiteSpace(result.Message)
+                ? result.Message
+                : result.Failure switch
+                {
+                    DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
+                    DashboardAccessMutationFailure.Validation => "Check the name and try again.",
+                    DashboardAccessMutationFailure.NotFound => "That household is no longer there.",
+                    DashboardAccessMutationFailure.Forbidden => "You can't rename this household.",
+                    DashboardAccessMutationFailure.Unauthorized => "Sign in again to continue.",
+                    DashboardAccessMutationFailure.Transient => "The server is unavailable. Try again.",
+                    _ => "That couldn't be saved. Try again.",
+                };
+        }
+        finally
+        {
+            _renameBusy = false;
+        }
+    }
+
+    // Saves one household's library ceiling. Answers null when it went through, or the sentence to show beside the ticks. A missing
+    // administrator PIN opens the unlock prompt; the person saves again once it is granted, so the ticks are never lost.
+    private async Task<string?> SaveCeilingAsync(Guid householdId, IReadOnlyList<Guid> hiddenLibraryIds)
+    {
+        _justUnlocked = false;
+        var result = await Confirmed.RunAsync(() => Identity.ReplaceHouseholdLibraryAccessResultAsync(householdId, hiddenLibraryIds));
+        if (result.Succeeded)
+        {
+            var index = _households.FindIndex(household => household.Id == householdId);
+            if (index >= 0)
+            {
+                _households[index] = _households[index] with { HiddenLibraryIds = hiddenLibraryIds };
+            }
+
+            return null;
+        }
+
+        if (result.Failure == DashboardAccessMutationFailure.Forbidden)
+        {
+            _needsUnlock = true;
+            _unlockError = null;
+            _afterUnlock = null;
+            return "Confirm it's you, then save again.";
+        }
+
+        return !string.IsNullOrWhiteSpace(result.Message)
+            ? result.Message
+            : result.Failure switch
+            {
+                DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
+                DashboardAccessMutationFailure.NotFound => "That household is no longer there.",
+                DashboardAccessMutationFailure.Validation => "One of those libraries is no longer available. Reload and try again.",
+                DashboardAccessMutationFailure.Unauthorized => "Sign in again to continue.",
+                DashboardAccessMutationFailure.Transient => "The server is unavailable. Try again.",
+                _ => "That couldn't be saved. Try again.",
+            };
     }
 
     // Saves one household's Kid settings (library access D9, D10). Answers null when it went through, or the sentence to show beside the choices.
@@ -526,5 +717,65 @@ else
         _unlockError = null;
     }
 
-    private sealed record Household(Guid Id, string Title, IReadOnlyList<ProfileViewModel> People);
+    // One plain row per person: picture, name and one line of words. The whole row opens that person's page (yours opens My profile);
+    // the handle on the left only sets the order the profile menu and Who's watching list people in.
+    private RenderFragment PeopleList(Household group) => @<ul class="profiles-tab__list" role="list">
+        @for (var index = 0; index < group.People.Count; index++)
+        {
+            var person = group.People[index];
+            var position = index;
+            <li class="profiles-tab__item @(person.Id == _draggingId ? "is-dragging" : null)" @key="person.Id" data-profile-id="@person.Id"
+                @ondragover:preventDefault="@CanDrag(group)"
+                @ondrop="@(() => DropAsync(group, person.Id))">
+                <div class="profiles-tab__line">
+                    @if (CanDrag(group))
+                    {
+                        @* Drag to put people in the order Who's watching and the profile menu list them; the arrow keys do the same. *@
+                        <AppNativeButton Type="button" Class="profiles-tab__drag" draggable="true" data-testid="@($"reorder-{person.Id}")"
+                                         AriaLabel="@($"Reorder {person.DisplayName}. Drag, or use the up and down arrow keys.")"
+                                         @ondragstart="@(() => _draggingId = person.Id)" @ondragend="@(() => _draggingId = null)"
+                                         @onkeydown="@(args => ReorderByKeyAsync(group, person.Id, args))">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
+                        </AppNativeButton>
+                    }
+                    <a class="profiles-tab__open" href="@RowHref(person.Id)" data-testid="@($"open-{person.Id}")">
+                        <span class="profiles-tab__row-avatar"><ProfileAvatar DisplayName="@person.DisplayName" ImageUrl="@person.AvatarImageUrl" Color="@group.Colors[position]" Icon="@person.AvatarIcon" /></span>
+                        <span class="profiles-tab__who">
+                            <span class="profiles-tab__name-line">
+                                <span class="profiles-tab__row-name">@person.DisplayName</span>
+                                @if (person.Id == _active?.Id)
+                                {
+                                    <AppChip Text="@L["Common_You"].Value" Tone="AppUiTone.Primary" />
+                                }
+                            </span>
+                            <small class="profiles-tab__signin" data-profile-line="@person.Id">@PersonLine(person)</small>
+                        </span>
+                        <span class="profiles-tab__go" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+                    </a>
+                    @if (ShowMoveButtons(group))
+                    {
+                        <span class="profiles-tab__move">
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" ButtonStyle="AppButtonStyle.Text" Disabled="@(position == 0)"
+                                           Tooltip="@L["ProfilesTab_MoveUp", person.DisplayName].Value" OnClick="@(() => MoveAsync(group, person.Id, -1))"
+                                           data-testid="@($"move-up-{person.Id}")" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" ButtonStyle="AppButtonStyle.Text" Disabled="@(position == group.People.Count - 1)"
+                                           Tooltip="@L["ProfilesTab_MoveDown", person.DisplayName].Value" OnClick="@(() => MoveAsync(group, person.Id, 1))"
+                                           data-testid="@($"move-down-{person.Id}")" />
+                        </span>
+                    }
+                </div>
+            </li>
+        }
+        @if (ProfileManageRules.CanAdd(CanManage, group.People.Count))
+        {
+            <li class="profiles-tab__item">
+                <AppNativeButton Type="button" Class="profiles-tab__row profiles-tab__row--add" aria-label="@AddLabel(group)" OnClick="@(() => OpenAdd(group.Id))">
+                    <span class="profiles-tab__row-avatar profiles-tab__row-avatar--add" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /></span>
+                    <span class="profiles-tab__row-name">@L["Common_AddProfile"]</span>
+                </AppNativeButton>
+            </li>
+        }
+    </ul>;
+
+    private sealed record Household(Guid Id, string Title, IReadOnlyList<ProfileViewModel> People, IReadOnlyList<string> Colors, bool IsOwn);
 }

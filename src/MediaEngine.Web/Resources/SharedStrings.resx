@@ -4218,7 +4218,7 @@
     <value>Households</value>
   </data>
   <data name="HouseholdsTab_EachHouseholdHasItsOwn" xml:space="preserve">
-    <value>Each household has its own people, library access and Shared Library. Look after its people from Household.</value>
+    <value>Each household has its own people and Shared Library. Look after its people and the libraries it can use from Household.</value>
   </data>
   <data name="Common_AddHousehold" xml:space="preserve">
     <value>Add household</value>
@@ -6078,13 +6078,31 @@
     <value>Profile sections</value>
   </data>
   <data name="ProfilesTab_ThePeopleCouldnTBe" xml:space="preserve">
-    <value>The people couldn't be loaded. Reload the page to try again.</value>
+    <value>The people couldn't be loaded.</value>
   </data>
-  <data name="ProfilesTab_AddPerson" xml:space="preserve">
-    <value>Add person</value>
+  <data name="ProfilesTab_NotAvailableForMembers" xml:space="preserve">
+    <value>Household is looked after by the administrators of your household.</value>
   </data>
-  <data name="ProfilesTab_OpeningYourProfile" xml:space="preserve">
-    <value>Opening your profile</value>
+  <data name="ProfilesTab_ForEveryoneInThisHousehold" xml:space="preserve">
+    <value>For everyone in this household</value>
+  </data>
+  <data name="ProfilesTab_ForEveryoneIn" xml:space="preserve">
+    <value>For everyone in {0}</value>
+  </data>
+  <data name="ProfilesTab_MoreActions" xml:space="preserve">
+    <value>More actions</value>
+  </data>
+  <data name="ProfilesTab_Reorder" xml:space="preserve">
+    <value>Reorder</value>
+  </data>
+  <data name="ProfilesTab_DoneReordering" xml:space="preserve">
+    <value>Done reordering</value>
+  </data>
+  <data name="ProfilesTab_MoveUp" xml:space="preserve">
+    <value>Move {0} up</value>
+  </data>
+  <data name="ProfilesTab_MoveDown" xml:space="preserve">
+    <value>Move {0} down</value>
   </data>
   <data name="ProfilesTab_LoadingThePeople" xml:space="preserve">
     <value>Loading the people</value>
@@ -15288,10 +15306,10 @@
     <value>Optional. Extra address ranges to treat as your home network, separated by commas, such as 192.168.1.0/24. Library already knows the usual home network addresses.</value>
   </data>
   <data name="ProfilesTab_HouseholdsAreManagedOn" xml:space="preserve">
-    <value>Households are created, renamed and removed on the Households page.</value>
+    <value>More than one household on this server?</value>
   </data>
   <data name="ProfilesTab_OpenHouseholds" xml:space="preserve">
-    <value>Open Households</value>
+    <value>Open Users &amp; Households</value>
   </data>
   <data name="VideoOptions_OnThisDevice" xml:space="preserve">
     <value>On this device</value>
