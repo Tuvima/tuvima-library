@@ -6110,9 +6110,6 @@
   <data name="ProfileDetailPage_Devices" xml:space="preserve">
     <value>Devices</value>
   </data>
-  <data name="ProfileDetailPage_ViewActivity" xml:space="preserve">
-    <value>View activity</value>
-  </data>
   <data name="ProfileDetailPage_Roles" xml:space="preserve">
     <value>Roles</value>
   </data>

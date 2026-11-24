@@ -2,7 +2,7 @@
 @inject NavigationManager Nav
 @inject IStringLocalizer<SharedStrings> L
 
-@* The tabs of one person's page in Manage Profiles: Profile, Preferences, and Access & safety. Same shared tab, one link per tab. *@
+@* The tabs of one person's page on the Household page: Profile, Preferences, Access & safety and Activity. Same shared tab, one link per tab. *@
 <AppCountTabs Tabs="@Items"
               Selected="@ActiveRoute"
               SelectedChanged="OpenAsync"
@@ -12,20 +12,19 @@
 @code {
     [Parameter, EditorRequired] public Guid ProfileId { get; set; }
 
-    /// <summary>The open tab: empty for Profile, otherwise <c>preferences</c> or <c>access</c>.</summary>
+    /// <summary>The open tab: empty for Profile, otherwise <c>preferences</c>, <c>access</c> or <c>activity</c>.</summary>
     [Parameter] public string Active { get; set; } = string.Empty;
 
-    private string RouteFor(string tab) => tab.Length == 0
-        ? $"/settings/household/{ProfileId:D}"
-        : $"/settings/household/{ProfileId:D}/{tab}";
+    private string RouteFor(string tab) => SettingsNav.HouseholdPersonRoute(ProfileId, tab);
 
-    private string ActiveRoute => RouteFor(Active is "preferences" or "access" ? Active : string.Empty);
+    private string ActiveRoute => RouteFor(Active is "preferences" or "access" or "activity" ? Active : string.Empty);
 
     private IReadOnlyList<AppCountTab> Items =>
     [
         new(RouteFor(string.Empty), "Profile", null, AppMaterialIcons.Outlined.Person, RouteFor(string.Empty)),
         new(RouteFor("preferences"), "Preferences", null, AppMaterialIcons.Outlined.Tune, RouteFor("preferences")),
         new(RouteFor("access"), "Access & safety", null, AppMaterialIcons.Outlined.Shield, RouteFor("access")),
+        new(RouteFor("activity"), "Activity", null, AppMaterialIcons.Outlined.History, RouteFor("activity")),
     ];
 
     private Task OpenAsync(string route)

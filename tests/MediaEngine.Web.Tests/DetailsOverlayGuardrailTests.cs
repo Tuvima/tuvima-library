@@ -86,11 +86,10 @@ public sealed partial class DetailsOverlayGuardrailTests
         ["Components/Settings/NeedsReviewPageContent.razor"] = (1, "The Needs Review list rewriting its own filter address (library) so Back leaves the list."),
         ["Components/Pages/ProfilePickerPage.razor"] = (1, "Full reload to the sanitized same-site return address after choosing a profile (ProfilePickerRoute)."),
         ["Components/Pages/SearchPage.razor"] = (1, "The search page rewriting its own query."),
-        ["Components/Pages/Settings.razor"] = (2, "A Kids profile or a page switched off for this device goes Home (an address that is not a Settings page shows the not-found page in place, with no replace)."),
+        ["Components/Pages/Settings.razor"] = (3, "A Kids profile or a page switched off for this device goes Home; your own id under Household opens My profile, replacing the entry so Back does not return to a page that does not exist (an address that is not a Settings page shows the not-found page in place, with no replace)."),
         ["Components/Pages/SetupPage.razor"] = (1, "Full reload to Home or the sign-in page when setup ends."),
         ["Components/Pages/MyListPage.razor.cs"] = (4, "My List rewriting its own kind and sort address."),
         ["Components/Pages/ShelfGridPage.razor.cs"] = (4, "The View all grid rewriting its own sort and filter address."),
-        ["Components/Settings/ProfileDetailPage.razor"] = (2, "Redirect to the Settings profiles list."),
         ["Shared/MainLayout.razor"] = (1, "Full reload to the profile picker."),
         ["Services/Navigation/DetailsOverlayState.cs"] = (4, "The overlay's own replaces (DetailsOverlayNavigation and dismissal), which carry their history state."),
     };

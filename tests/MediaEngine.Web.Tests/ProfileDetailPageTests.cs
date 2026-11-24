@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Bunit;
+using MediaEngine.Contracts.Activity;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Settings;
@@ -74,8 +75,10 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(OwnId);
 
-        cut.WaitForAssertion(() => Assert.Equal("Test User", cut.Find(".profile-detail__name").TextContent));
+        cut.WaitForAssertion(() => Assert.Equal("Test User", cut.Find(".profile-detail__header").GetAttribute("aria-label")));
         Assert.Equal("Profile", cut.Find(".profile-detail__role").TextContent);
+        // The name is the page title above the tabs (drawn by Settings), so this card does not repeat it.
+        Assert.Empty(cut.FindAll(".profile-detail__name"));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='devices']")));
         // A member's own Profile tab has no Profile details row: the editor saves through administrator-only Engine actions.
         Assert.Equal("sign-in,devices",
@@ -234,7 +237,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(KidId);
 
-        cut.WaitForAssertion(() => Assert.Equal("Robin", cut.Find(".profile-detail__name").TextContent));
+        cut.WaitForAssertion(() => Assert.Equal("Robin", cut.Find(".profile-detail__header").GetAttribute("aria-label")));
         Assert.Equal("Kids profile", cut.Find(".profile-detail__role").TextContent);
         Assert.Contains("Kids", Row(cut, "details").TextContent);
         Assert.DoesNotContain(cut.FindAll(".profile-detail__badges .app-chip"), badge => badge.TextContent == "You");
@@ -250,35 +253,61 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
 
-        var cut = RenderFor(OwnId, "access");
+        var cut = RenderFor(OwnId);
 
         cut.WaitForAssertion(() => Assert.Equal("Household administrator", cut.Find(".profile-detail__role").TextContent));
-        Assert.Empty(cut.FindAll("[data-nav-row='delete']"));
         Assert.Contains("Household administrator", cut.FindAll(".profile-detail__badges .app-chip").Select(badge => badge.TextContent));
         Assert.DoesNotContain("?profile=", cut.Markup);
+
+        var access = RenderFor(OwnId, "access");
+        access.WaitForAssertion(() => Assert.Empty(access.FindAll(".profile-detail__loading")));
+        Assert.Empty(access.FindAll("[data-nav-row='delete']"));
     }
 
     [Fact]
-    public void NonAdministrator_OpeningAnotherPerson_IsSentBackToTheProfilesList()
+    public void NonAdministrator_OpeningAnotherPerson_SeesTheNotAvailableStateWithALinkBackToHousehold()
     {
         Setup(actions: [], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
 
         var cut = RenderFor(SamId);
 
-        cut.WaitForAssertion(() => Assert.EndsWith("/settings/household", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-unavailable='not-allowed']")));
+        Assert.Contains("Not available", cut.Find(".app-page-state__title").TextContent);
+        Assert.Equal("/settings/household", cut.Find(".profile-detail__unavailable-link").GetAttribute("href"));
+        Assert.Equal("Household", cut.Find(".profile-detail__unavailable-link").TextContent.Trim());
+        // The page stays where it was opened: nothing was forwarded, and nothing about Sam is shown.
+        Assert.EndsWith("/", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
         Assert.DoesNotContain("Sam", cut.Markup);
     }
 
     [Fact]
-    public void Administrator_OpeningSomeoneTheyCannotSee_IsSentBackToTheProfilesList()
+    public void Administrator_OpeningSomeoneWhoNoLongerExists_SeesTheNoLongerExistsStateWithALinkBackToHousehold()
     {
         Setup(actions: ["household.manage"], navigation: []);
         _managed.Add(Person(OwnId, "Test User", false));
 
-        RenderFor(SamId);
+        var cut = RenderFor(SamId);
 
-        Assert.EndsWith("/settings/household", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-unavailable='gone']")));
+        Assert.Contains("no longer exists", cut.Find(".app-page-state__title").TextContent);
+        Assert.Equal("/settings/household", cut.Find(".profile-detail__unavailable-link").GetAttribute("href"));
+        Assert.Empty(cut.FindAll(".profile-detail__header"));
+    }
+
+    [Fact]
+    public void PersonsPage_HasNoBackLinkOfItsOwn_BecauseTheSettingsFrameDrawsTheOneLinkToHousehold()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        foreach (var tab in new[] { string.Empty, "preferences", "access", "activity" })
+        {
+            var cut = RenderFor(SamId, tab);
+            cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".profile-detail__loading")));
+            Assert.Empty(cut.FindAll("a[href='/settings/household']"));
+            Assert.Empty(cut.FindAll(".profile-detail__back"));
+        }
     }
 
     [Fact]
@@ -292,7 +321,6 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var cut = RenderFor(SamId, "preferences");
 
         cut.WaitForAssertion(() => Assert.Contains("You can't change this person's settings.", cut.Markup));
-        Assert.Equal("Sam", cut.Find(".profile-detail__name").TextContent);
         Assert.Empty(cut.FindAll("section#playback"));
     }
 
@@ -399,42 +427,42 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ViewActivity_ForAnAdministrator_OpensTheActivityPageNarrowedToThatPerson()
+    public void ActivityTab_ForAnAdministrator_ShowsTheActivityPageNarrowedToThatPerson_AndThereIsNoViewActivityRow()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId, "activity");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='activity']")));
+        Assert.Equal($"profile:{SamId:D}", cut.FindComponent<ActivityPage>().Instance.Scope);
+        Assert.Empty(cut.FindAll("[data-profile-section='detail'] [data-nav-row]"));
+        Assert.Empty(cut.FindAll(".profile-detail__header"));
+    }
+
+    [Fact]
+    public void ProfileTab_HasNoViewActivityRow_ForAnyoneBecauseActivityIsATab()
     {
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
 
         var cut = RenderFor(SamId);
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='activity']")));
-        var activity = Row(cut, "activity");
-        Assert.Equal("a", activity.TagName.ToLowerInvariant());
-        Assert.Contains("View activity", activity.TextContent, StringComparison.Ordinal);
-        Assert.Equal($"/settings/overview/activity?scope=profile:{SamId:D}", activity.GetAttribute("href"));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='devices']")));
+        Assert.Empty(cut.FindAll("[data-nav-row='activity']"));
+        Assert.DoesNotContain("View activity", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ViewActivity_OnAnAdministratorsOwnPage_OpensTheirOwnActivityWithNoScope()
+    public void ActivityTab_OnYourOwnPage_UsesNoScope_BecauseMeIsTheDefault()
     {
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false)]);
 
-        var cut = RenderFor(OwnId);
+        var cut = RenderFor(OwnId, "activity");
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='activity']")));
-        Assert.Equal("/settings/overview/activity", Row(cut, "activity").GetAttribute("href"));
-    }
-
-    [Fact]
-    public void ViewActivity_IsNotOfferedToAMember()
-    {
-        Setup(actions: [], navigation: []);
-
-        var cut = RenderFor(OwnId);
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='devices']")));
-        Assert.Empty(cut.FindAll("[data-nav-row='activity']"));
-        Assert.DoesNotContain("View activity", cut.Markup, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='activity']")));
+        Assert.Null(cut.FindComponent<ActivityPage>().Instance.Scope);
     }
 
     // ---- sign-in: read-only here, managed by the server administrator in Users & Households
@@ -797,6 +825,31 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Delete_AsksOnce_ThenHappensAtOnce_AndLeavesForHousehold()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, signInEmail: "me@home.test"), Person(SamId, "Sam", false, signInEmail: "sam@home.test")]);
+
+        var cut = RenderFor(SamId, "access");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
+        // Delete sits at the bottom of Access & safety: after the roles and access, and nothing follows it.
+        Assert.Equal("delete", cut.FindAll("[data-nav-row]").Last().GetAttribute("data-nav-row"));
+
+        Row(cut, "delete").Click();
+
+        // One question, naming what goes, and nothing is deleted yet.
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".profile-editor__confirm")));
+        Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Delete);
+
+        cut.Find(".profile-editor__confirm .profile-editor__confirm-delete").Click();
+
+        // The one answer deletes, with no second prompt, and the page leaves for Household.
+        cut.WaitForAssertion(() => Assert.EndsWith("/settings/household", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
+        Assert.Single(_requests, request => request.Method == HttpMethod.Delete && request.Path == $"/access/profiles/{SamId:D}");
+        Assert.Empty(cut.FindAll(".profile-editor__confirm"));
+    }
+
+    [Fact]
     public void Deleting_WithTheDeleteChoice_AsksTheEngineToDeleteThePhotos()
     {
         Setup(actions: ["household.manage"], navigation: []);
@@ -973,7 +1026,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(OwnId, "access");
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-detail__name")));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".profile-detail__loading")));
         Assert.Empty(cut.FindAll("[data-profile-section='pin-protection']"));
         Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
     }
@@ -995,7 +1048,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(OwnId, "access");
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-detail__name")));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".profile-detail__loading")));
         foreach (var token in NsfwTokens)
         {
             Assert.DoesNotContain(token, cut.Markup, StringComparison.OrdinalIgnoreCase);
@@ -1009,7 +1062,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _managed.AddRange([Person(OwnId, "Test User", false), Person(KidId, "Robin", true), Person(SamId, "Sam", false)]);
 
         var kid = RenderFor(KidId, "access");
-        kid.WaitForAssertion(() => Assert.NotEmpty(kid.FindAll(".profile-detail__name")));
+        kid.WaitForAssertion(() => Assert.Empty(kid.FindAll(".profile-detail__loading")));
         foreach (var token in NsfwTokens)
         {
             Assert.DoesNotContain(token, kid.Markup, StringComparison.OrdinalIgnoreCase);
@@ -1077,6 +1130,11 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
                     ? UserPlaybackSettingsDto.CreateDefaults((Guid)args![0]!)
                     : null));
             stub.SetHandler("get_LastError", _ => _lastError);
+            // The Activity tab draws the shared Activity page, which reads an empty list here.
+            stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivityAsync), _ =>
+                Task.FromResult(PersonalActivityOutcome<PersonalActivityPageDto>.Ok(new PersonalActivityPageDto([], null, false))));
+            stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivityPeriodsAsync), _ =>
+                Task.FromResult(PersonalActivityOutcome<PersonalActivityPeriodsDto>.Ok(new PersonalActivityPeriodsDto([]))));
         });
         Services.AddSingleton(api);
 
