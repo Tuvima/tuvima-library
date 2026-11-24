@@ -482,6 +482,17 @@ public sealed class ThisComputerAccessTests : IDisposable
     }
 
     [Fact]
+    public void ANetworkSettingsRequestWithNoTvAppObject_MapsToSwitchOff()
+    {
+        var request = NetworkWith(NetworkConnectionModes.LocalOnly);
+        request.NativeAppAccess = null!; // "native_app_access": null on the wire
+
+        var stored = NetworkContractMapper.ToStorage(request);
+
+        Assert.False(stored.NativeAppAccess.AllowBrowserApps);
+    }
+
+    [Fact]
     public async Task ResettingNetworkSettings_TurnsTheTvAppSwitchOff()
     {
         await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");

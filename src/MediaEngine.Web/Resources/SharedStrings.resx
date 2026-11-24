@@ -14742,7 +14742,7 @@
     <value>Allow Samsung and LG TV apps</value>
   </data>
   <data name="TvApps_AllowHelp" xml:space="preserve">
-    <value>These TV apps run as web apps, so they only connect while this is on. Applies right away.</value>
+    <value>These TV apps run as web apps, so they only connect while this is on. Leave it off unless you use a Samsung or LG TV app. Applies right away.</value>
   </data>
   <data name="ReachDevices_ContainerNote" xml:space="preserve">
     <value>This install already shares its port with your network. Change who can reach it in your container port settings.</value>
