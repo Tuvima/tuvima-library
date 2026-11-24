@@ -41,7 +41,7 @@ def main():
     lines = []
     say = lines.append
 
-    def group_of(item, kinds=("series",)):
+    def group_of(item, kinds=("series", "contentgroup")):
         for g in item.get("groups", []):
             if any(k in (g.get("type") or "").lower() for k in kinds):
                 return g.get("name") or g.get("qid")
@@ -250,7 +250,7 @@ def main():
             sc = (i or {}).get("values", {}).get("asset", {}).get("scalars", {})
             got.append(f"{f.get('year')}->{(sc.get('year') or {}).get('value') if i else 'not registered'}")
         say(f"- {fs[0].get('title')}: {', '.join(got)}")
-    grp = collections.Counter(group_of(items[f['path']], ("series", "collection", "universe", "franchise"))
+    grp = collections.Counter(group_of(items[f['path']], ("series", "contentgroup", "collection", "universe", "franchise"))
                               for f in films if f["path"] in items)
     say(f"\nFilm groups found (name: films): {dict(grp.most_common(40))}")
     for kind in ("film-extra",):
