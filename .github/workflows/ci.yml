@@ -156,8 +156,9 @@ jobs:
   # is split over three runners by the first letter of the test class name. Lanes one and two each take the letters
   # listed in "only"; lane three takes every test the other two did not ("except" lists their letters), so a test
   # can never fall between lanes, whatever it is called. To rebalance, move letters between "only" lists and keep
-  # "except" equal to both lists together. Lane one is small on purpose: AuthorizedDisplayProjectionReadServiceTests
-  # runs its 460-odd tests one after another and takes about five minutes by itself (measured 2026-11-24).
+  # "except" equal to both lists together. Two classes set the floor: AuthorizedDisplayProjectionReadServiceTests
+  # (lane one) and UserPlaybackSettingsServiceTests (lane three) run their tests one after another for minutes
+  # (measured 2026-11-24), so they sit in different lanes.
   # Code coverage is collected only outside pull requests: it slows the instrumented tests by roughly a fifth,
   # and the threshold is enforced where it is collected.
   test:
@@ -170,13 +171,13 @@ jobs:
         include:
           - name: Api 1 of 3
             projects: tests/MediaEngine.Api.Tests
-            only: "A B"
+            only: "A B V W Y"
           - name: Api 2 of 3
             projects: tests/MediaEngine.Api.Tests
             only: "C D E F G H I J K L M N O"
           - name: Api 3 of 3
             projects: tests/MediaEngine.Api.Tests
-            except: "A B C D E F G H I J K L M N O"
+            except: "A B C D E F G H I J K L M N O V W Y"
           - name: Storage
             projects: tests/MediaEngine.Storage.Tests
           - name: Web
