@@ -10,8 +10,8 @@ namespace MediaEngine.Ingestion;
 /// ──────────────────────────────────────────────────────────────────
 /// Lock hierarchy (must acquire in this order to prevent deadlocks):
 /// ──────────────────────────────────────────────────────────────────
-///   1. Folder lock — broadest scope: serializes files in the same directory. Currently used only by
-///      the Books work-resolution step (<see cref="AcquireFolderLockAsync"/>), which takes it briefly
+///   1. Folder lock — broadest scope: serializes files in the same directory. Used by the Books and
+///      Movies work-resolution steps (<see cref="AcquireFolderLockAsync"/>), which takes it briefly
 ///      while already holding the hash lock; nothing holds a folder lock while waiting for a hash lock.
 ///   2. Hash lock   — within folder lock: prevents duplicate-check races on the same content.
 ///   3. QID lock    — independent (hydration pipeline only): serializes person merge per Wikidata QID.
@@ -82,8 +82,7 @@ public sealed class ConcurrencyGuard
         else if (mediaType == MediaEngine.Domain.Enums.MediaType.Movies)
         {
             key = MediaEngine.Domain.Services.FilmEditionLabels.LockKey(
-                metadata?.GetValueOrDefault(MediaEngine.Domain.MetadataFieldConstants.Title),
-                metadata?.GetValueOrDefault(MediaEngine.Domain.MetadataFieldConstants.Year));
+                metadata?.GetValueOrDefault(MediaEngine.Domain.MetadataFieldConstants.Title));
         }
 
         return key is null ? null : await AcquireFolderLockAsync(key, ct).ConfigureAwait(false);

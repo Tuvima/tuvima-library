@@ -384,7 +384,8 @@ public sealed class HierarchyResolver
         if (_movieSiblings is not null
             && !string.IsNullOrWhiteSpace(sourceFilePath)
             && await _movieSiblings.FindSiblingWorkAsync(
-                sourceFilePath, Get(meta, "title"), Get(meta, "year"), ct) is { } siblingWorkId)
+                sourceFilePath, Get(meta, "title"), Get(meta, "year"),
+                Get(meta, FilmEditionLabels.LibraryKey), ct) is { } siblingWorkId)
         {
             _logger?.LogDebug(
                 "HierarchyResolver: attached {File} to existing film Work {WorkId} as another Edition",

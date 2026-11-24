@@ -107,6 +107,37 @@ public sealed class FilmEditionSiblingTests : IDisposable
         Assert.Empty(Labels(film.WorkId));
     }
 
+    [Fact]
+    public async Task SameFilmInAnotherLibrary_StaysSeparate()
+    {
+        var publicFilm = await IngestAsync(Folder + "Heat (1995).mkv", title: "Heat", year: "1995", library: Guid.NewGuid().ToString());
+        var vaultFilm = await IngestAsync(@"C:\vault\Heat (1995).mkv", title: "Heat", year: "1995", library: Guid.NewGuid().ToString());
+
+        Assert.NotEqual(publicFilm.WorkId, vaultFilm.WorkId);
+    }
+
+    [Fact]
+    public async Task AccentsAndPunctuationInTheTitle_DoNotHideTheMatch()
+    {
+        var first = await IngestAsync(Folder + "a.mkv", title: "Amélie", year: "2001");
+        var second = await IngestAsync(Folder + "b.mkv", title: "Amelie", year: "2001", cut: "Director's Cut");
+        var third = await IngestAsync(Folder + "c.mkv", title: "Spider-Man", year: "2002");
+        var fourth = await IngestAsync(Folder + "d.mkv", title: "Spiderman", year: "2002");
+
+        Assert.Equal(first.WorkId, second.WorkId);
+        Assert.Equal(third.WorkId, fourth.WorkId);
+    }
+
+    [Fact]
+    public async Task MissingYear_WithTwoFilmsOfThatTitleInTheFolder_DoesNotGuess()
+    {
+        await IngestAsync(Folder + "Dune (1984).mkv", title: "Dune", year: "1984");
+        await IngestAsync(Folder + "Dune (2021).mkv", title: "Dune", year: "2021");
+        var undated = await IngestAsync(Folder + "Dune.mkv", title: "Dune", year: null);
+
+        Assert.Equal(1, Count("SELECT COUNT(*) FROM editions WHERE work_id = @w", new { w = undated.WorkId }));
+    }
+
     private string[] Labels(Guid workId)
     {
         using var conn = _db.CreateConnection();
@@ -121,7 +152,8 @@ public sealed class FilmEditionSiblingTests : IDisposable
         string title = "Blade Runner",
         string? year = "1982",
         string? cut = null,
-        string? quality = null)
+        string? quality = null,
+        string? library = null)
     {
         var assetId = Guid.NewGuid();
         var metadata = new Dictionary<string, string> { ["title"] = title };
@@ -149,12 +181,13 @@ public sealed class FilmEditionSiblingTests : IDisposable
             }
         }
 
-        var editionId = await _factory.EnsureEntityChainAsync(MediaType.Movies, metadata, path);
+        var editionId = await _factory.EnsureEntityChainAsync(
+            MediaType.Movies, MediaEngine.Domain.Services.FilmEditionLabels.WithLibrary(metadata, library), path);
 
         using var conn2 = _db.CreateConnection();
         conn2.Execute(
-            "INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status) VALUES (@asset, @edition, @hash, @path, 'Normal');",
-            new { asset = assetId, edition = editionId, hash = assetId.ToString("N"), path });
+            "INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status, library_id) VALUES (@asset, @edition, @hash, @path, 'Normal', @library);",
+            new { asset = assetId, edition = editionId, hash = assetId.ToString("N"), path, library });
         var workId = conn2.QuerySingle<Guid>("SELECT work_id FROM editions WHERE id = @edition;", new { edition = editionId });
         return new Ingested(workId, editionId);
     }

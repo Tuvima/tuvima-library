@@ -59,8 +59,8 @@ public static class FilmEditionLabels
         }
     }
 
-    /// <summary>The quality the picture itself has, from its height in pixels, or null when unknown.</summary>
-    public static string? QualityFromHeight(int? height) => height switch
+    /// <summary>The quality the picture itself has, from its height (or, for a widescreen crop, its width) in pixels, or null when unknown.</summary>
+    public static string? QualityFromHeight(int? height, int? width = null) => (width is > 0 && height is > 0 ? Math.Max(height.Value, (int)(width.Value * 9L / 16)) : height) switch
     {
         null or <= 0 => null,
         >= 2000 => "4K",
@@ -103,11 +103,20 @@ public static class FilmEditionLabels
     }
 
     /// <summary>The key ingestion locks on while it files one film, so two cuts arriving together cannot both start a new film.</summary>
-    public static string? LockKey(string? title, string? year)
+    public static string? LockKey(string? title)
     {
         var key = IdentityKey(title);
-        return key.Length == 0 ? null : $"film:{key}|{IdentityKey(year)}";
+        return key.Length == 0 ? null : $"film:{key}";
     }
+
+    /// <summary>Key the pipeline adds to a film's metadata so grouping stays inside the file's own library (never across the Vault).</summary>
+    public const string LibraryKey = "library_id";
+
+    /// <summary>The metadata with the file's library id added, or the metadata itself when there is none.</summary>
+    public static IReadOnlyDictionary<string, string>? WithLibrary(IReadOnlyDictionary<string, string>? metadata, string? libraryId)
+        => string.IsNullOrWhiteSpace(libraryId)
+            ? metadata
+            : new Dictionary<string, string>(metadata ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase) { [LibraryKey] = libraryId };
 
     private static string Resolution_Label(string token) => token.ToLowerInvariant() switch
     {

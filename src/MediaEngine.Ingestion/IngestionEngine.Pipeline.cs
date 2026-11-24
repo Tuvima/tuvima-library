@@ -872,7 +872,7 @@ public sealed partial class IngestionEngine
         {
             editionId = await _chainFactory.EnsureEntityChainAsync(
                 resolvedMediaType,
-                candidate.Metadata,
+                FilmEditionLabels.WithLibrary(candidate.Metadata, context.Library?.Id),
                 candidate.Path,
                 ct).ConfigureAwait(false);
 

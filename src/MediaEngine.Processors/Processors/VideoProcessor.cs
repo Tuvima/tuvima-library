@@ -447,7 +447,7 @@ public sealed class VideoProcessor : IMediaProcessor
         }
 
         var quality = MediaEngine.Domain.Services.FilmEditionLabels.QualityFromName(stem)
-            ?? MediaEngine.Domain.Services.FilmEditionLabels.QualityFromHeight(meta?.HeightPx);
+            ?? MediaEngine.Domain.Services.FilmEditionLabels.QualityFromHeight(meta?.HeightPx, meta?.WidthPx);
         if (quality is not null)
         {
             claims.Add(Claim(MediaEngine.Domain.Services.FilmEditionLabels.QualityKey, quality, 0.6));
