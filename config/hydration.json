@@ -1,6 +1,6 @@
 {
   "max_concurrent_retail_provider_jobs": 4,
-  "max_concurrent_wikidata_jobs": 2,
+  "max_concurrent_wikidata_jobs": 3,
   "max_concurrent_tmdb_artwork_jobs": 1,
   "max_concurrent_writeback_jobs": 1,
   "stage1_timeout_seconds": 45,

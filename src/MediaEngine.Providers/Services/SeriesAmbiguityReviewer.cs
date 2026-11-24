@@ -26,6 +26,10 @@ public sealed class SeriesAmbiguityReviewer
     private readonly ISeriesPlacementRepository? _placements;
     private readonly ILogger<SeriesAmbiguityReviewer> _logger;
 
+    // Works already reported in this run, with the Series that tied. A work reaches this reviewer once per member file and once per
+    // placement pass; the question is raised and logged once until the work is placed (speed: #1360, the same title logged tens of times).
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, string> _raised = new();
+
     public SeriesAmbiguityReviewer(
         StageOutcomeFactory outcomes,
         ICollectionRepository collections,
@@ -52,6 +56,12 @@ public sealed class SeriesAmbiguityReviewer
         Guid fallbackEntityId,
         CancellationToken ct = default)
     {
+        var signature = string.Join('|', candidates.Select(c => c.SeriesQid).OrderBy(q => q, StringComparer.OrdinalIgnoreCase));
+        if (_raised.TryGetValue(workId, out var already) && string.Equals(already, signature, StringComparison.Ordinal))
+        {
+            return DescribeFromCandidates(candidates);
+        }
+
         var names = new List<string>();
         foreach (var candidate in candidates)
         {
@@ -61,11 +71,6 @@ public sealed class SeriesAmbiguityReviewer
 
         var detail = $"Wikidata lists this {candidates.FirstOrDefault()?.MediaType ?? "work"} in the main sequence of more than one Series "
             + $"({string.Join(", ", names)}) and nothing says which one it belongs to. It is not on any Series until you choose.";
-
-        _logger.LogWarning(
-            "Series ambiguity: work {WorkId} is in the main sequence of {Series}; leaving it unplaced",
-            workId,
-            string.Join(", ", candidates.Select(c => c.SeriesQid)));
 
         var entityId = fallbackEntityId;
         if (_placements is not null)
@@ -79,6 +84,7 @@ public sealed class SeriesAmbiguityReviewer
                     if (pending.Any(r => string.Equals(r.Trigger, ReviewTrigger.AmbiguousSeriesMembership, StringComparison.Ordinal)))
                     {
                         // One pending question per work, whichever file or run raised it.
+                        _raised[workId] = signature;
                         return detail;
                     }
                 }
@@ -95,6 +101,11 @@ public sealed class SeriesAmbiguityReviewer
             }
         }
 
+        _logger.LogWarning(
+            "Series ambiguity: work {WorkId} is in the main sequence of {Series}; leaving it unplaced",
+            workId,
+            string.Join(", ", candidates.Select(c => c.SeriesQid)));
+
         var candidatesJson = JsonSerializer.Serialize(candidates.Select((c, index) => new
         {
             series_qid = c.SeriesQid,
@@ -104,8 +115,13 @@ public sealed class SeriesAmbiguityReviewer
             collection_id = c.CollectionId,
         }));
         await _outcomes.CreateAmbiguousSeriesMembershipAsync(entityId, detail, candidatesJson, ct: ct).ConfigureAwait(false);
+        _raised[workId] = signature;
         return detail;
     }
+
+    private static string DescribeFromCandidates(IReadOnlyList<SeriesPlacementCandidate> candidates) =>
+        $"Wikidata lists this {candidates.FirstOrDefault()?.MediaType ?? "work"} in the main sequence of more than one Series "
+        + $"({string.Join(", ", candidates.Select(c => c.SeriesQid))}) and nothing says which one it belongs to. It is not on any Series until you choose.";
 
     /// <summary>Closes the "which Series?" questions of many works at once: a few statements, not a few per work.</summary>
     public async Task ResolveManyAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default)
@@ -113,6 +129,11 @@ public sealed class SeriesAmbiguityReviewer
         if (_reviews is null || workIds.Count == 0)
         {
             return;
+        }
+
+        foreach (var workId in workIds)
+        {
+            _raised.TryRemove(workId, out _);
         }
 
         var entityIds = _placements is null
@@ -133,6 +154,7 @@ public sealed class SeriesAmbiguityReviewer
     /// </summary>
     public async Task ResolveAsync(Guid workId, CancellationToken ct = default)
     {
+        _raised.TryRemove(workId, out _);
         if (_reviews is null)
         {
             return;

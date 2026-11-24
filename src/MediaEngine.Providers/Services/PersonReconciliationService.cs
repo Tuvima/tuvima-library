@@ -1,4 +1,4 @@
-using MediaEngine.Domain.Contracts;
+﻿using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Tuvima.Wikidata;
@@ -47,6 +47,12 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
 {
     private const double AutoAcceptThreshold = 0.80;
 
+    // Run-long memory of lookups that already failed (speed: #1360). A name no Wikidata person matches is searched once, not once per
+    // title that credits them; the namesakes of a name are fetched once. Entries expire so a later refresh can try again.
+    private static readonly TimeSpan MemoLifetime = TimeSpan.FromHours(6);
+    private readonly LookupMemo<bool> _notFound = new(MemoLifetime);
+    private readonly LookupMemo<IReadOnlyList<ReconciliationResult>> _namesakes = new(MemoLifetime);
+
     private readonly WikidataReconciler? _reconciler;
     private readonly IConfigurationLoader _configLoader;
     private readonly ILogger<PersonReconciliationService> _logger;
@@ -77,6 +83,13 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
 
         var language = _configLoader.LoadCore().Language?.Metadata ?? "en";
 
+        var memoKey = LookupMemo<bool>.Key(name, expectedRole, language);
+        if (_notFound.TryGet(memoKey, out _))
+        {
+            _logger.LogDebug("Person reconciliation skipped: '{Name}' ({Role}) already searched without a match in this run", name, expectedRole);
+            return null;
+        }
+
         TwPersonSearchResult libResult;
         try
         {
@@ -106,6 +119,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
             _logger.LogDebug(
                 "Person reconciliation auto-skipped: '{Name}' ({Role}) - best score {Score:F2} below threshold {Threshold:F2}",
                 name, expectedRole, libResult.Score, AutoAcceptThreshold);
+            _notFound.Set(memoKey, true);
             return null;
         }
 
@@ -157,13 +171,21 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
     private async Task<IReadOnlyList<ReconciliationResult>> FindNamesakesAsync(
         string name, string language, CancellationToken ct)
     {
+        var key = LookupMemo<bool>.Key(name, "namesakes", language);
+        if (_namesakes.TryGet(key, out var remembered))
+        {
+            return remembered;
+        }
+
         try
         {
             var matches = await RetryTransientAsync(() => _reconciler!.Reconcile.ReconcileAsync(
                 new ReconciliationRequest { Query = name, Types = ["Q5"], Language = language, Limit = 5 }, ct), ct)
                 .ConfigureAwait(false);
             var wanted = NormalizeEvidence(name);
-            return matches.Where(match => NormalizeEvidence(match.Name) == wanted).ToList();
+            IReadOnlyList<ReconciliationResult> found = matches.Where(match => NormalizeEvidence(match.Name) == wanted).ToList();
+            _namesakes.Set(key, found);
+            return found;
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)

@@ -314,13 +314,19 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                    lease_expires_at = @leaseExpiry,
                    updated_at = @now
             WHERE  id IN (
-                SELECT id FROM identity_jobs
-                WHERE  state IN ({stateList})
-                  AND  (lease_owner IS NULL OR lease_expires_at < @now)
-                  AND  (next_retry_at IS NULL OR next_retry_at <= @now)
-                  AND  NOT ({IncompleteAudiobookRecordingSql})
-                  AND  NOT ({PausedFolderSql})
-                ORDER BY created_at ASC
+                -- Fair between media types: the oldest job of each type first, then the second oldest of each, and so on, so
+                -- a slow or crowded type (900 music tracks) cannot keep films, TV and books at the back of one line.
+                SELECT id FROM (
+                    SELECT id, created_at,
+                           ROW_NUMBER() OVER (PARTITION BY media_type ORDER BY created_at ASC) AS type_rank
+                    FROM   identity_jobs
+                    WHERE  state IN ({stateList})
+                      AND  (lease_owner IS NULL OR lease_expires_at < @now)
+                      AND  (next_retry_at IS NULL OR next_retry_at <= @now)
+                      AND  NOT ({IncompleteAudiobookRecordingSql})
+                      AND  NOT ({PausedFolderSql})
+                )
+                ORDER BY type_rank ASC, created_at ASC
                 LIMIT  @batchSize
             )
             RETURNING id              AS Id,
