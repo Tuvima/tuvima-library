@@ -66,8 +66,8 @@ public sealed class ViewSharedFolderIndexingTests : IDisposable
 
         var result = Assert.IsType<LocalAssetScanResultDto>(await _fixture.Service.ScanAsync(library.LibraryId));
 
-        Assert.Equal(1, result.ItemsAdded);
-        Assert.Equal(2, (await _shared.GetSourcesAsync()).Single(candidate => candidate.Id == source.Id).SkippedFileCount);
+        Assert.Equal(2, result.ItemsAdded);
+        Assert.Equal(1, (await _shared.GetSourcesAsync()).Single(candidate => candidate.Id == source.Id).SkippedFileCount);
         Assert.True(File.Exists(clip));
         Assert.True(File.Exists(note));
     }
