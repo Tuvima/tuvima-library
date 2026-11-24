@@ -17,6 +17,7 @@ namespace MediaEngine.Web.Services.Navigation;
 /// <param name="PluginsBroken">A plugin that is switched on cannot do its job; the Plugins row shows red with "Broken". Nothing switched off counts.</param>
 /// <param name="RestrictedProfile">A Kids profile: the menu lists My profile and nothing else.</param>
 /// <param name="AccountsOffered">An installed plugin asks this profile to link an account; My profile's Linked accounts tab is listed only then.</param>
+/// <param name="AccessAndSafetyOffered">This profile has Vault mode (the Engine says so): My profile lists Access &amp; safety so a member can reach their own Vault switch even without household management.</param>
 /// <param name="HouseholdManagementAllowed">A household or server administrator: Household is listed, and My profile gets its Access &amp; safety tab (profile-and-household D3, D8).</param>
 public sealed record SettingsMenuContext(
     bool AdministrationAllowed,
@@ -31,7 +32,8 @@ public sealed record SettingsMenuContext(
     string? ToolsMissingReason = null,
     bool RestrictedProfile = false,
     bool AccountsOffered = false,
-    bool HouseholdManagementAllowed = false);
+    bool HouseholdManagementAllowed = false,
+    bool AccessAndSafetyOffered = false);
 
 /// <summary>One line of the phone page selector: a page.</summary>
 public sealed record SettingsPhoneMenuOption(string Route, string Label);
@@ -129,7 +131,7 @@ public static class SettingsMenuBuilder
 
     private static bool IsTabOffered(SettingsPageTab tab, SettingsMenuContext context) =>
         (context.AccountsOffered || !IsLinkedAccountsTab(tab))
-        && (context.HouseholdManagementAllowed || !IsAccessAndSafetyTab(tab))
+        && (context.HouseholdManagementAllowed || context.AccessAndSafetyOffered || !IsAccessAndSafetyTab(tab))
         && (context.IsSectionEnabled is null || context.IsSectionEnabled(tab.Section))
         && (!context.IsMobile || IsOfferedOnMobile(tab.Section, tab.Subsection));
 

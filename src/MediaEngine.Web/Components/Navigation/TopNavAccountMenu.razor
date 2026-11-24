@@ -59,7 +59,7 @@
                    picker is not offered here (D9): this list does the same job. *@
                 @if (HasOtherProfiles)
                 {
-                    <p class="top-nav-account-menu__label" data-testid="profile-menu-switch-to">@L["TopNavAccountMenu_SwitchTo"]</p>
+                    <p class="top-nav-account-menu__label" role="presentation" data-testid="profile-menu-switch-to">@L["TopNavAccountMenu_SwitchTo"]</p>
                     <TopNavProfileSwitcher ActiveProfileId="@ActiveProfileId" Profiles="@Profiles" />
                 }
 

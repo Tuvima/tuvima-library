@@ -148,7 +148,7 @@
                                                                    AdministratorHasPin="@(_active?.HasPin == true)" />
         }
 
-        @if (OnProfileTab && ShowRoles)
+        @if ((OnProfileTab || (Embedded && OnAccessTab)) && ShowRoles)
         {
             <div class="profile-detail__group" data-profile-section="roles">
             <SettingsSectionPanel Title="@L["ProfileDetailPage_Roles"].Value">
@@ -200,7 +200,7 @@
                                       ValueChanged="SetKidAsync"
                                       Disabled="@(_kidBusy || KidLocked)" />
                         <AppInfoTip Label="@L["Common_KidSProfile"].Value"
-                                    Text="@(KidLocked ? "An administrator can't be a Kid's profile." : "A Kid's profile sees only what the household's Kid settings allow, and can't change any access. Set them in Settings > Profiles.")" />
+                                    Text="@(KidLocked ? "An administrator can't be a Kid's profile." : "A Kid's profile sees only what the household's Kid settings allow, and can't change any access. Set them in Settings > Household.")" />
                     </div>
                     @if (!string.IsNullOrWhiteSpace(_kidError))
                     {

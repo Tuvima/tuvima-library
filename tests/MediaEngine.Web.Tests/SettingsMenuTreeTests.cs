@@ -517,6 +517,15 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.Equal(["Profile", "Preferences", "Activity", "Taste"], ProfileTabs(SettingsMenuBuilder.FilteredGroups(Context(administrator: false))));
     }
 
+    [Fact]
+    public void AccessAndSafety_IsOfferedToAMemberOnlyWhenTheirProfileHasVaultMode()
+    {
+        var member = Context(administrator: false);
+
+        Assert.DoesNotContain("Access & safety", ProfileTabs(SettingsMenuBuilder.FilteredGroups(member)));
+        Assert.Contains("Access & safety", ProfileTabs(SettingsMenuBuilder.FilteredGroups(member with { AccessAndSafetyOffered = true })));
+    }
+
     private static string[] ProfileTabs(IEnumerable<SettingsMenuGroup> groups) =>
         groups.SelectMany(group => group.Nodes).Single(node => node.Label == "My profile").Tabs.Select(tab => tab.Label).ToArray();
 

@@ -163,9 +163,9 @@ else
                                        these choices are yours is the page's own description under the title. *@
                                     <ProfilePreferencesPanel ProfileId="@_activeProfile!.Id" IsSelf="true" />
                                 }
-                                else if (_activeSubsection == SettingsNav.AccessSubsection && _activeProfile is not null && CanManageHousehold)
+                                else if (_activeSubsection == SettingsNav.AccessSubsection && _activeProfile is not null && (CanManageHousehold || Nsfw.IsAvailable))
                                 {
-                                    @* Access & safety is for administrators only: the same content as a person's Access tab, for your own profile, without the person-page chrome. *@
+                                    @* Access & safety is for administrators, and for anyone whose profile has Vault mode (their own Vault switch lives here): the same content as a person's Access tab, for your own profile, without the person-page chrome. *@
                                     <ProfileDetailPage ProfileId="@_activeProfile!.Id" Tab="@SettingsNav.AccessSubsection" Embedded="true" />
                                 }
                                 else
@@ -403,7 +403,8 @@ else
         ToolsMissingReason,
         _restricted,
         _accountsOffered,
-        CanManageHousehold);
+        CanManageHousehold,
+        Nsfw.IsAvailable);
 
     // Red on Tools and requirements only for a required tool that is missing or broken; one being downloaded is not a problem.
     private string? ToolsMissingReason => Attention.MissingTools switch
