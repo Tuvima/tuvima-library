@@ -306,6 +306,30 @@ public sealed partial class IngestionEngine
                 string.Join(", ", pathHints.BridgeIds.Keys));
         }
 
+        // A Plex-style {edition-Director's Cut} in the path is the person's own word for the cut, so it wins over a guess from the name.
+        if (pathHints.EditionLabel is { Length: > 0 } plexCut)
+        {
+            result = new Processors.Models.ProcessorResult
+            {
+                FilePath = result.FilePath,
+                DetectedType = result.DetectedType,
+                Claims = result.Claims
+                    .Where(c => !c.Key.Equals(FilmEditionLabels.CutKey, StringComparison.OrdinalIgnoreCase))
+                    .Append(new Processors.Models.ExtractedClaim
+                    {
+                        Key = FilmEditionLabels.CutKey,
+                        Value = FilmEditionLabels.CutDisplay(plexCut),
+                        Confidence = ClaimConfidence.BridgeId,
+                    })
+                    .ToList(),
+                CoverImage = result.CoverImage,
+                CoverImageMimeType = result.CoverImageMimeType,
+                IsCorrupt = result.IsCorrupt,
+                CorruptReason = result.CorruptReason,
+                MediaTypeCandidates = result.MediaTypeCandidates,
+            };
+        }
+
         // Step 6b: a person moved this file from Extras to an episode (Extras spec WP4). Their season and episode win over anything
         // the file name says, so the file is identified as that episode of its show.
         if (_extrasScanner is not null

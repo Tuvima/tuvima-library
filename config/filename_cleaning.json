@@ -55,7 +55,7 @@
   ],
 
   "edition_markers": [
-    "extended", "extended cut", "director's cut", "directors cut", "theatrical", "theatrical cut", "final cut",
+    "extended", "extended cut", "extended edition", "director's cut", "directors cut", "theatrical", "theatrical cut", "final cut",
     "special edition", "ultimate edition", "unrated", "remastered", "remaster", "imax", "live"
   ]
 }

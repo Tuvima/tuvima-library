@@ -469,6 +469,34 @@ public class VideoProcessorTests
         Assert.DoesNotContain(claims, c => c.Key == "show_name");
     }
 
+    [Theory]
+    [InlineData("Blade Runner (1982) - Final Cut.mkv", "Final Cut", null)]
+    [InlineData("Blade Runner (1982) - Director's Cut.mkv", "Director's Cut", null)]
+    [InlineData("Aliens (1986) - Special Edition.mkv", "Special Edition", null)]
+    [InlineData("The Fellowship of the Ring (2001) - Extended Edition.mkv", "Extended Edition", null)]
+    [InlineData("Dune.2021.Theatrical.2160p.HDR.mkv", "Theatrical", "4K HDR")]
+    [InlineData("Heat (1995) [1080p].mkv", null, "1080p")]
+    [InlineData("Heat (1995).mkv", null, null)]
+    public async Task ProcessAsync_Film_KeepsTheCutAndQualityAsClaims(string fileName, string? cut, string? quality)
+    {
+        var claims = await ProcessClaimsAsync(fileName, "Movies");
+
+        Assert.Equal(cut, claims.FirstOrDefault(c => c.Key == "edition_cut")?.Value);
+        Assert.Equal(quality, claims.FirstOrDefault(c => c.Key == "edition_quality")?.Value);
+    }
+
+    [Theory]
+    [InlineData("Blade Runner (1982) - Final Cut.mkv")]
+    [InlineData("Blade Runner (1982) - Director's Cut.mkv")]
+    [InlineData("Blade Runner (1982).2160p.mkv")]
+    public async Task ProcessAsync_FilmCutsAndQualities_ShareOneTitleAndYear(string fileName)
+    {
+        var claims = await ProcessClaimsAsync(fileName, "Movies");
+
+        Assert.Equal("Blade Runner", claims.First(c => c.Key == "title").Value);
+        Assert.Equal("1982", claims.First(c => c.Key == "year").Value);
+    }
+
     private static async Task<IReadOnlyList<ExtractedClaim>> ProcessClaimsAsync(string fileName, string? folder = null, string? siblingFileName = null)
     {
         var dir = Path.Combine(Path.GetTempPath(), $"video_processor_{Guid.NewGuid():N}");
