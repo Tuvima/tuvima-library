@@ -233,7 +233,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         new(Guid.NewGuid(), name, "#7c4dff", "Profile", DateTimeOffset.UtcNow);
 
     [Fact]
-    public void TopNavAccountMenu_WithOneProfileShowsAccountIdentityWithoutProfileList()
+    public void TopNavAccountMenu_WithOneProfileShowsItsOwnRowWithoutSwitchToHeadingOrList()
     {
         var shy = Profile("Shy");
         var cut = Render<MediaEngine.Web.Components.Navigation.TopNavAccountMenu>(parameters => parameters
@@ -245,15 +245,19 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         cut.Find(".top-nav-account-menu__trigger").Click();
 
-        Assert.Equal("shy@example.test", cut.Find(".top-nav-account-menu__header strong").TextContent);
+        var own = cut.Find("[data-testid=profile-menu-own-row]");
+        Assert.Equal("Shy", own.QuerySelector("strong")!.TextContent);
+        Assert.Equal("Profile and preferences", own.QuerySelector("small")!.TextContent);
+        Assert.Equal("Shy, Profile and preferences, shy@example.test", own.GetAttribute("aria-label"));
         Assert.Empty(cut.FindAll(".profile-switcher__item"));
+        Assert.Empty(cut.FindAll("[data-testid=profile-menu-switch-to]"));
         Assert.DoesNotContain("Who's watching?", cut.Markup);
         Assert.Contains(cut.FindAll("a[role=menuitem]"), link =>
-            link.GetAttribute("href") == "/settings/profiles" && link.TextContent.Contains("Manage profiles"));
+            link.GetAttribute("href") == "/settings/household" && link.TextContent.Contains("Household"));
     }
 
     [Fact]
-    public void TopNavAccountMenu_WithSeveralProfilesListsThemAndFallsBackToProfileNameHeader()
+    public void TopNavAccountMenu_WithSeveralProfilesListsTheOthersUnderSwitchToAndNeverOffersWhoSWatching()
     {
         var shy = Profile("Shy");
         var kid = Profile("Kid");
@@ -264,9 +268,11 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         cut.Find(".top-nav-account-menu__trigger").Click();
 
-        Assert.Equal("Shy", cut.Find(".top-nav-account-menu__header strong").TextContent);
-        Assert.NotEmpty(cut.FindAll(".profile-switcher__item"));
-        Assert.Contains("Who's watching?", cut.Markup);
+        Assert.Equal("Shy", cut.Find("[data-testid=profile-menu-own-row] strong").TextContent);
+        Assert.Equal("Switch to", cut.Find("[data-testid=profile-menu-switch-to]").TextContent.Trim());
+        Assert.Single(cut.FindAll(".profile-switcher__item"));
+        Assert.DoesNotContain("Who's watching?", cut.Markup);
+        Assert.DoesNotContain("Household", cut.Markup);
         Assert.DoesNotContain("Manage profiles", cut.Markup);
         Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
     }
@@ -337,9 +343,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("top-nav-account-menu__trigger-copy", accountSource);
         Assert.Contains("href=\"@(IsKids ? KidsProfileHref : MyProfileHref)\"", accountSource);
         Assert.Contains("MyProfileHref = \"/settings/overview\"", accountSource);
-        Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", accountSource);
-        // Switching people now happens on the full-screen "Who's using Tuvima?" page.
-        Assert.Contains("ProfilePickerRoute.Path", accountSource);
+        Assert.Contains("ManageProfilesHref = \"/settings/household\"", accountSource);
+        // Switching people happens in the menu's "Switch to" list; the full-screen picker is not offered from the menu (profile and household D9).
+        Assert.DoesNotContain("ProfilePickerRoute", accountSource);
+        Assert.Contains("<TopNavProfileSwitcher", accountSource);
         Assert.DoesNotContain("Switch profile?", accountSource);
         Assert.Contains("font-family: var(--font-brand);", css);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", css);

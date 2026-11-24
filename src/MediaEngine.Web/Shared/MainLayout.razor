@@ -194,7 +194,7 @@
                                    PluginMenu="@_pluginMenu"
                                    IsKids="@_isKids"
                                    ReviewCount="@(CanViewReview && !_isKids ? _reviewCount : 0)"
-                                   ShowSignOut="true" />
+                                   ShowSignOut="@(!_thisComputerOnly)" />
             </span>
         </AppStack>
 
@@ -328,6 +328,7 @@
                          ShowSettings="@ShellNavigation.ShowsSettings(_isKids)"
                          ShowSwitchProfile="@ShellNavigation.ShowsSwitchProfile(_profiles.Count)"
                          PluginEntries="@PluginPageRoute.ForDevice(_pluginMenu, isPhone: true)"
+                         ShowSignOut="@(!_thisComputerOnly)"
                          OnClose="CloseMenu" />
 }
 </AppCssElement>
@@ -394,7 +395,7 @@
         ? "main-content-with-topbar main-content-with-topbar--cinematic"
         : "main-content-with-topbar";
     private string MainContainerClass => IsCinematicShell || IsLaneScrollRoute ? "tl-sp-px-0 tl-sp-py-0" : "tl-sp-py-6 tl-sp-px-0";
-    private bool CanManageProfiles => _session.HasAction("access.manage");
+    private bool CanManageProfiles => _session.HasAction("access.manage") || _session.HasAction("household.manage") || _session.Authority?.EffectiveAdministrator == true;
     // The Vault area is in the navigation only for a profile the Engine says has Vault access AND that chose "Show Vault in the
     // navigation bar" (Library pages D20); never for a Kids shell. Everyone else reaches it, if they may, from Settings.
     private bool ShowVaultArea => !_isKids && Nsfw.ShowInNavigation;

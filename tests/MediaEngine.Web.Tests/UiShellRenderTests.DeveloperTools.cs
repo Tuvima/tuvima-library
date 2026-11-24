@@ -164,7 +164,7 @@ public sealed partial class UiShellRenderTests
 
         var cut = OpenSettingsAt("overview");
 
-        cut.WaitForAssertion(() => Assert.Contains("Profile", MenuLabels(cut)));
+        cut.WaitForAssertion(() => Assert.Contains("My profile", MenuLabels(cut)));
         var labels = MenuLabels(cut);
         Assert.DoesNotContain("Developer Tools", labels);
         Assert.DoesNotContain("Enrichment Tester", labels);

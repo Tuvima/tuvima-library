@@ -17,7 +17,7 @@
                 <span>@L["Common_Back"]</span>
             </AppButton>
             <span class="profile-switcher__who">
-                <span class="profile-switcher__avatar"><ProfileAvatar DisplayName="@pending.DisplayName" ImageUrl="@pending.AvatarImageUrl" Color="@pending.AvatarColor" Icon="@pending.AvatarIcon" /></span>
+                <span class="profile-switcher__avatar"><ProfileAvatar DisplayName="@pending.DisplayName" ImageUrl="@pending.AvatarImageUrl" Color="@ColorOf(pending)" Icon="@pending.AvatarIcon" /></span>
                 <strong>@pending.DisplayName</strong>
             </span>
             <PinPad @bind-Value="_pin" Label="@($"PIN for {pending.DisplayName}")" Disabled="@_busy" ShakeCount="@_shake" OnSubmit="SubmitPinAsync" OnCancel="CancelPin" />
@@ -35,7 +35,7 @@
             {
                 <AppNativeButton Type="button" Class="profile-switcher__item" role="menuitem" Disabled="@_busy"
                                  AriaLabel="@ItemLabel(profile)" @key="profile.Id" OnClick="@(() => ChooseAsync(profile))">
-                    <span class="profile-switcher__avatar"><ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" /></span>
+                    <span class="profile-switcher__avatar"><ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@ColorOf(profile)" Icon="@profile.AvatarIcon" /></span>
                     <span class="profile-switcher__name">@profile.DisplayName</span>
                     @if (profile.IsRestricted)
                     {
@@ -58,6 +58,15 @@
 @code {
     [Parameter] public Guid? ActiveProfileId { get; set; }
     [Parameter] public IReadOnlyList<ProfileViewModel> Profiles { get; set; } = [];
+
+    // Each person's circle colour differs from the people before them in the household's order (profile and household D13); worked out when shown.
+    private string ColorOf(ProfileViewModel profile)
+    {
+        var index = Profiles.ToList().FindIndex(other => other.Id == profile.Id);
+        return index >= 0
+            ? ProfileAvatarPalette.Distinct([.. Profiles.Select(other => (string?)other.AvatarColor)])[index]
+            : profile.AvatarColor;
+    }
 
     private ProfileViewModel? _pending;
     private string _pin = string.Empty;

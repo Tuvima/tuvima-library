@@ -33,7 +33,7 @@ else
                     value => SaveAsync(_settings with { Enabled = value }))
                 @if (_settings.Enabled)
                 {
-                    <AppSettingRow Label="@L["HomeSettingsPage_Slides"].Value" Helper="@L["HomeSettingsPage_TheMostSlidesTheBanner"].Value">
+                    <AppSettingRow StackOnPhone="true" Label="@L["HomeSettingsPage_Slides"].Value" Helper="@L["HomeSettingsPage_TheMostSlidesTheBanner"].Value">
                         <Control>
                         <AppIntSelect Value="@_settings.SlideCount"
                                       ValueChanged="@(value => SaveAsync(_settings with { SlideCount = value }))"

@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
@@ -27,6 +28,7 @@ public static partial class BaselineRun
     public const int ExitSampleRootChanged = 4;
     public const int ExitReplayIncomplete = 5;
     public const int ExitAnswersLeakedKeys = 6;
+    public const int ExitKindsHeld = 7;
     public const string AnswersFolder = "provider-answers";
     public const string MissLogFile = "provider-answers-not-recorded.txt";
 
@@ -74,6 +76,8 @@ public static partial class BaselineRun
             : $"Provider answers: replaying from {answersFolder} (no outside requests)");
 
         var exitCode = 0;
+        var providerKeys = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        var heldKinds = new List<BaselineHeldKind>();
         Process? engine = null;
         var cleanedUp = 0;
 
@@ -104,7 +108,15 @@ public static partial class BaselineRun
         using var onWindowClosed = PosixSignalRegistration.Create(PosixSignal.SIGHUP, _ => CleanUp());
         try
         {
+            // Before anything changes this process's data folder: a real install's saved keys are sealed with its own root key.
+            Console.WriteLine(BaselineKeys.PointAtInstallKey());
             var copiedKeys = CopyConfig(configSource, configDirectory);
+            providerKeys = BaselineKeys.Inspect(configDirectory);
+            foreach (var (provider, state) in providerKeys)
+            {
+                Console.WriteLine($"Provider key {provider}: {state}");
+            }
+
             Console.WriteLine($"Provider key files copied into the run (names only): {(copiedKeys.Count > 0 ? string.Join(", ", copiedKeys) : "none")}");
 
             string sampleRoot;
@@ -125,6 +137,11 @@ public static partial class BaselineRun
             var inventoryBefore = Inventory(sampleRoot);
             Console.WriteLine($"Sample root: {sampleRoot} ({inventoryBefore.Count} entries)");
             await BaselinePrepare.RunAsync(configDirectory, sampleRoot).ConfigureAwait(false);
+            heldKinds = BaselineKeys.FindHeldKinds(configDirectory, sampleRoot, BaselinePrepare.CatalogueFoldersPresent(sampleRoot), providerKeys);
+            foreach (var line in BaselineKeys.Explain(heldKinds))
+            {
+                Console.WriteLine(line);
+            }
 
             var startedAt = DateTimeOffset.UtcNow;
             var engineLog = Path.Combine(run, "engine-console.log");
@@ -155,7 +172,7 @@ public static partial class BaselineRun
             var missedRequests = File.Exists(missLog)
                 ? File.ReadAllLines(missLog).Where(line => line.Length > 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList()
                 : [];
-            RecordRunFacts(repo, configDirectory, label, startedAt, endedAt, waitExit == BaselineWait.ExitSettled, engineLog, answers, missedRequests);
+            RecordRunFacts(repo, configDirectory, label, startedAt, endedAt, waitExit == BaselineWait.ExitSettled, engineLog, answers, missedRequests, providerKeys, heldKinds);
             await BaselineExport.RunAsync(configDirectory, recordPath).ConfigureAwait(false);
             if (label.Length > 0)
             {
@@ -184,6 +201,12 @@ public static partial class BaselineRun
                 exitCode = ExitReplayIncomplete;
             }
 
+            if (heldKinds.Count > 0 && exitCode == 0)
+            {
+                Console.WriteLine($"WARNING: the record is incomplete: {string.Join(", ", heldKinds.Select(k => k.Kind))} could not be identified (see above).");
+                exitCode = ExitKindsHeld;
+            }
+
             if (waitExit == BaselineWait.ExitTimedOut)
             {
                 Console.WriteLine($"WARNING: ingestion did not settle within {budget.TotalMinutes:0} minutes; the record shows the state at that point.");
@@ -196,6 +219,7 @@ public static partial class BaselineRun
             }
 
             Console.WriteLine($"Baseline record: {recordPath}");
+            Console.WriteLine($"To look at the results in the Dashboard: pwsh -File tools/Run-IngestionBaseline.ps1 -OpenStoreOf {runId}");
             Console.WriteLine($"Run took {endedAt - startedAt:hh\\:mm\\:ss}.");
         }
         finally
@@ -507,7 +531,9 @@ public static partial class BaselineRun
     private static void RecordRunFacts(
         string repo, string configDirectory, string label, DateTimeOffset startedAt, DateTimeOffset endedAt, bool settled, string engineLog,
         string providerAnswers,
-        IReadOnlyList<string> missedRequests)
+        IReadOnlyList<string> missedRequests,
+        IReadOnlyDictionary<string, string> providerKeys,
+        IReadOnlyList<BaselineHeldKind> heldKinds)
     {
         var hosts = new JsonObject();
         if (File.Exists(engineLog))
@@ -539,6 +565,8 @@ public static partial class BaselineRun
         info["http_hosts"] = hosts;
         info["provider_answers"] = providerAnswers;
         info["provider_answers_not_recorded"] = new JsonArray(missedRequests.Select(request => (JsonNode)request).ToArray());
+        info["provider_keys"] = JsonSerializer.SerializeToNode(providerKeys);
+        info["held_kinds"] = JsonSerializer.SerializeToNode(heldKinds);
         File.WriteAllText(path, info.ToJsonString(RealMediaHarness.Json));
     }
 

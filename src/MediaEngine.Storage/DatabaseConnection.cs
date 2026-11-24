@@ -104,14 +104,28 @@ public sealed class DatabaseConnection : IDatabaseConnection
         if (_upgradeSteps is null
             && string.IsNullOrWhiteSpace(_startupOptions.BackupDirectory)
             && SchemaTemplate.Enabled
-            && !File.Exists(_databasePath))
+            && IsBrandNewStore())
         {
+            // A test often calls Open() first, which leaves an empty file behind; release it so the copy replaces it.
             _connection?.Dispose();
             _connection = null;
+            _connectionFactory.ClearPool();
+            SchemaTemplate.DeleteEmptyStoreFiles(_databasePath);
             SchemaTemplate.TryCopyTo(_databasePath);
         }
 
         InitializeSchemaCore();
+    }
+
+    // Brand new means no file yet, or a file that was only opened (no tables), so nothing is lost by replacing it.
+    private bool IsBrandNewStore()
+    {
+        if (!File.Exists(_databasePath))
+        {
+            return true;
+        }
+
+        return _connection is not null && !StorageStructure.HasUserTables(_connection);
     }
 
     internal void InitializeSchemaCore()

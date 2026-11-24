@@ -1,0 +1,12 @@
+.profile-pin-row { display: grid; gap: 12px; width: 100%; box-sizing: border-box; }
+.profile-pin-row__line { display: flex; align-items: center; gap: 16px; min-height: 56px; padding-block: 8px; }
+.profile-pin-row__actions { flex: none; display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.profile-pin-row__entry { display: grid; gap: 12px; justify-items: start; padding-bottom: 12px; }
+.profile-pin-row__entry-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.profile-pin-row__hint { color: var(--tl-text-muted); }
+.profile-pin-row__confirm { margin: 0; }
+
+@media (max-width: 600px) {
+    .profile-pin-row__line { flex-wrap: wrap; }
+    .profile-pin-row__actions { flex-basis: 100%; justify-content: flex-start; }
+}

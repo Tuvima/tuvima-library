@@ -1709,11 +1709,8 @@
   <data name="Common_Kids" xml:space="preserve">
     <value>Kids</value>
   </data>
-  <data name="TopNavAccountMenu_WhoSWatching" xml:space="preserve">
-    <value>Who's watching?</value>
-  </data>
   <data name="Common_ManageProfiles" xml:space="preserve">
-    <value>Manage profiles</value>
+    <value>Household</value>
   </data>
   <data name="Common_Profile" xml:space="preserve">
     <value>Profile</value>
@@ -4206,7 +4203,7 @@
     <value>Households</value>
   </data>
   <data name="HouseholdsTab_EachHouseholdHasItsOwn" xml:space="preserve">
-    <value>Each household has its own people, library access and Shared Library. Look after its people from Manage Profiles.</value>
+    <value>Each household has its own people and Shared Library. Look after its people and the libraries it can use from Household.</value>
   </data>
   <data name="Common_AddHousehold" xml:space="preserve">
     <value>Add household</value>
@@ -5811,7 +5808,7 @@
     <value>Joined {0}</value>
   </data>
   <data name="OverviewPage_NothingHereYetWatchRead" xml:space="preserve">
-    <value>Nothing here yet. Watch, read or listen to something and this page fills in.</value>
+    <value>Nothing yet. What you watch, read and listen to will show up here.</value>
   </data>
   <data name="OverviewPage_SeeYourTaste" xml:space="preserve">
     <value>See your taste</value>
@@ -5822,8 +5819,59 @@
   <data name="OverviewPage_YourProfileCouldnTBe" xml:space="preserve">
     <value>Your profile couldn't be loaded</value>
   </data>
-  <data name="OverviewPage_EditProfile" xml:space="preserve">
-    <value>Edit profile</value>
+  <data name="Common_EditNameAndPicture" xml:space="preserve">
+    <value>Edit name and picture</value>
+  </data>
+  <data name="OverviewPage_SignInAndSafety" xml:space="preserve">
+    <value>Sign-in and safety</value>
+  </data>
+  <data name="OverviewPage_PasswordAndEmail" xml:space="preserve">
+    <value>Password and email</value>
+  </data>
+  <data name="OverviewPage_PasswordAndEmailStatus" xml:space="preserve">
+    <value>Your password, email and extra protection, in Security &amp; Devices</value>
+  </data>
+  <data name="OverviewPage_Devices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="OverviewPage_DevicesStatus" xml:space="preserve">
+    <value>Phones, TVs and browsers signed in to Library</value>
+  </data>
+  <data name="ProfilePinRow_Title" xml:space="preserve">
+    <value>Profile PIN</value>
+  </data>
+  <data name="ProfilePinRow_IsSet" xml:space="preserve">
+    <value>PIN set. It is asked for when this profile is opened.</value>
+  </data>
+  <data name="ProfilePinRow_NotSet" xml:space="preserve">
+    <value>Not set. Anyone at home can open this profile.</value>
+  </data>
+  <data name="ProfilePinRow_NotSetAskAnAdministrator" xml:space="preserve">
+    <value>Not set. An administrator can set a PIN for this profile.</value>
+  </data>
+  <data name="ProfilePinRow_Set" xml:space="preserve">
+    <value>Set a PIN</value>
+  </data>
+  <data name="ProfilePinRow_Change" xml:space="preserve">
+    <value>Change</value>
+  </data>
+  <data name="ProfilePinRow_Save" xml:space="preserve">
+    <value>Save PIN</value>
+  </data>
+  <data name="ProfilePinRow_ChooseDigits" xml:space="preserve">
+    <value>Choose 4 to 12 digits.</value>
+  </data>
+  <data name="ProfilePinRow_LooksGood" xml:space="preserve">
+    <value>Looks good.</value>
+  </data>
+  <data name="ProfilePinRow_NeedFour" xml:space="preserve">
+    <value>A PIN needs at least 4 digits.</value>
+  </data>
+  <data name="ProfilePinRow_ConfirmRemove" xml:space="preserve">
+    <value>Remove this PIN? Anyone at home will be able to open this profile.</value>
+  </data>
+  <data name="ProfilePinRow_KeepIt" xml:space="preserve">
+    <value>Keep it</value>
   </data>
   <data name="OverviewPage_YourTaste" xml:space="preserve">
     <value>Your taste</value>
@@ -5997,7 +6045,7 @@
     <value>Upload</value>
   </data>
   <data name="ProfileDetailPage_ManageProfiles" xml:space="preserve">
-    <value>Manage Profiles</value>
+    <value>Household</value>
   </data>
   <data name="ProfileDetailPage_ThisProfileCouldnTBe" xml:space="preserve">
     <value>This profile couldn't be loaded. Reload the page to try again.</value>
@@ -6047,9 +6095,6 @@
   <data name="ProfileDetailPage_Devices" xml:space="preserve">
     <value>Devices</value>
   </data>
-  <data name="ProfileDetailPage_ViewActivity" xml:space="preserve">
-    <value>View activity</value>
-  </data>
   <data name="ProfileDetailPage_Roles" xml:space="preserve">
     <value>Roles</value>
   </data>
@@ -6066,13 +6111,31 @@
     <value>Profile sections</value>
   </data>
   <data name="ProfilesTab_ThePeopleCouldnTBe" xml:space="preserve">
-    <value>The people couldn't be loaded. Reload the page to try again.</value>
+    <value>The people couldn't be loaded.</value>
   </data>
-  <data name="ProfilesTab_AddPerson" xml:space="preserve">
-    <value>Add person</value>
+  <data name="ProfilesTab_NotAvailableForMembers" xml:space="preserve">
+    <value>Household is looked after by the administrators of your household.</value>
   </data>
-  <data name="ProfilesTab_OpeningYourProfile" xml:space="preserve">
-    <value>Opening your profile</value>
+  <data name="ProfilesTab_ForEveryoneInThisHousehold" xml:space="preserve">
+    <value>For everyone in this household</value>
+  </data>
+  <data name="ProfilesTab_ForEveryoneIn" xml:space="preserve">
+    <value>For everyone in {0}</value>
+  </data>
+  <data name="ProfilesTab_MoreActions" xml:space="preserve">
+    <value>More actions</value>
+  </data>
+  <data name="ProfilesTab_Reorder" xml:space="preserve">
+    <value>Reorder</value>
+  </data>
+  <data name="ProfilesTab_DoneReordering" xml:space="preserve">
+    <value>Done reordering</value>
+  </data>
+  <data name="ProfilesTab_MoveUp" xml:space="preserve">
+    <value>Move {0} up</value>
+  </data>
+  <data name="ProfilesTab_MoveDown" xml:space="preserve">
+    <value>Move {0} down</value>
   </data>
   <data name="ProfilesTab_LoadingThePeople" xml:space="preserve">
     <value>Loading the people</value>
@@ -7968,7 +8031,7 @@
     <value>Reader</value>
   </data>
   <data name="ProfilePickerPage_ManageProfiles" xml:space="preserve">
-    <value>Manage profiles</value>
+    <value>Household</value>
   </data>
   <data name="ProfilePickerPage_WhoSWatching" xml:space="preserve">
     <value>Who's watching?</value>
@@ -8932,6 +8995,12 @@
   </data>
   <data name="TopNavAccountMenu_NeedsReviewCount" xml:space="preserve">
     <value>{0} need review</value>
+  </data>
+  <data name="TopNavAccountMenu_ProfileAndPreferences" xml:space="preserve">
+    <value>Profile and preferences</value>
+  </data>
+  <data name="TopNavAccountMenu_SwitchTo" xml:space="preserve">
+    <value>Switch to</value>
   </data>
   <data name="MediaTile_AddToMyList" xml:space="preserve">
     <value>Add to My List</value>
@@ -15270,10 +15339,10 @@
     <value>Optional. Extra address ranges to treat as your home network, separated by commas, such as 192.168.1.0/24. Library already knows the usual home network addresses.</value>
   </data>
   <data name="ProfilesTab_HouseholdsAreManagedOn" xml:space="preserve">
-    <value>Households are created, renamed and removed on the Households page.</value>
+    <value>More than one household on this server?</value>
   </data>
   <data name="ProfilesTab_OpenHouseholds" xml:space="preserve">
-    <value>Open Households</value>
+    <value>Open Users &amp; Households</value>
   </data>
   <data name="VideoOptions_OnThisDevice" xml:space="preserve">
     <value>On this device</value>

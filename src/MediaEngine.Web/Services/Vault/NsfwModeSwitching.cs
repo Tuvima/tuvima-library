@@ -10,7 +10,7 @@ namespace MediaEngine.Web.Services.Vault;
 /// </summary>
 public sealed class NsfwModeSwitching(NsfwModeState nsfw, IAppDialogService dialogs, NavigationManager navigation)
 {
-    public const string SetPinFirst = "Set a PIN for your profile first (Settings > Manage Profiles > your profile > Profile).";
+    public const string SetPinFirst = "Set a PIN for your profile first (Settings > My profile > Profile).";
 
     /// <summary>Switches Vault mode on or off. Returns true when the requested state is now in effect; a caller that can show a reason uses <see cref="TrySetAsync"/>.</summary>
     public async Task<bool> SetAsync(bool on) => (await TrySetAsync(on)).InEffect;

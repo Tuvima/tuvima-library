@@ -7,9 +7,10 @@ public sealed class PersonalSettingsSimplificationTests
     {
         var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ProfilesTab.razor");
 
-        // Profiles is the administrators' people list: it lists the household's people with Edit, Add profile and no stats card.
+        // Household is the administrators' people list: one plain row per person that opens their page, Add profile and no stats card.
         Assert.Contains("Add profile", source, StringComparison.Ordinal);
-        Assert.Contains("profiles-tab__edit", source, StringComparison.Ordinal);
+        Assert.Contains("profiles-tab__open", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("profiles-tab__edit", source, StringComparison.Ordinal);
         Assert.Contains("<ProfileEditorSheet", source, StringComparison.Ordinal);
         Assert.DoesNotContain("profiles-tab__stats", source, StringComparison.Ordinal);
         Assert.DoesNotContain("GetProfileOverviewAsync", source, StringComparison.Ordinal);

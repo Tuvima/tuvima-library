@@ -70,35 +70,78 @@
     font-size: var(--tl-type-menu-size);
 }
 
-.top-nav-account-menu__header {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+/* Your own row: one button to My profile (profile and household D1), picture, name, a second line and an arrow. */
+.top-nav-account-menu__me {
+    width: 100%;
+    min-height: 3.5rem;
+    display: flex;
     align-items: center;
     gap: 0.75rem;
-    min-height: 3.35rem;
-    margin-bottom: 0.4rem;
-    padding: 0.45rem 0.6rem 0.65rem;
-    border-bottom: 1px solid var(--tl-border-default);
+    margin: 0 0 0.25rem;
+    padding: 0.55rem 0.75rem;
+    box-sizing: border-box;
+    border-radius: var(--tl-radius-md, 8px);
+    color: var(--tl-text-primary);
+    background: var(--tl-bg-surface-hover);
+    font-family: var(--font-ui);
+    text-decoration: none;
 }
 
-.top-nav-account-menu__header strong {
+.top-nav-account-menu__me:hover,
+.top-nav-account-menu__me:focus-visible {
+    background: var(--tl-accent-primary-soft);
+}
+
+.top-nav-account-menu__me:focus-visible {
+    outline: 2px solid var(--tl-focus-ring);
+    outline-offset: -2px;
+}
+
+.top-nav-account-menu__me-avatar {
+    display: block;
+    flex: 0 0 auto;
+    width: 2.4rem;
+    height: 2.4rem;
+    overflow: hidden;
+    border-radius: var(--tl-radius-round);
+}
+
+.top-nav-account-menu__me-copy {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: grid;
+}
+
+.top-nav-account-menu__me-copy strong,
+.top-nav-account-menu__me-copy small {
     min-width: 0;
     overflow: hidden;
-    color: var(--tl-text-primary);
-    font-family: var(--font-ui);
-    font-size: var(--tl-type-subheading-size);
-    font-weight: var(--tl-type-subheading-weight);
-    line-height: 1.25;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.top-nav-account-menu__panel ::deep .top-nav-account-menu__header-avatar {
-    width: 2.2rem !important;
-    min-width: 2.2rem !important;
-    height: 2.2rem !important;
-    border: 0 !important;
-    border-radius: var(--tl-radius-round) !important;
+.top-nav-account-menu__me-copy strong {
+    font-size: var(--tl-type-subheading-size);
+    font-weight: var(--tl-type-subheading-weight);
+    line-height: 1.25;
+}
+
+.top-nav-account-menu__me-copy small {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.top-nav-account-menu__me ::deep .top-nav-account-menu__me-arrow {
+    flex: 0 0 auto;
+    color: var(--tl-text-muted);
+}
+
+/* "Switch to" heading above the other people; only drawn when there are other people. */
+.top-nav-account-menu__label {
+    margin: 0;
+    padding: 0.75rem 0.75rem 0.25rem;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
 }
 
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__item {
@@ -178,10 +221,10 @@
     min-height: var(--tl-menu-row-height);
     display: flex;
     align-items: center;
-    gap: 0.82rem;
-    padding: 0.55rem 0.75rem;
+    gap: 0;
+    padding: var(--tl-menu-row-padding-y) 16px;
     border: 0;
-    border-radius: 0;
+    border-radius: var(--tl-radius-md, 8px);
     color: var(--tl-text-primary);
     background: transparent;
     font-family: var(--font-ui);
@@ -195,7 +238,7 @@
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout:hover,
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout:focus-visible {
     color: var(--tl-text-primary);
-    background: var(--tl-bg-surface-hover);
+    background: var(--tl-accent-primary-soft);
 }
 
 /* Phones, tablets and narrow desktop windows: the trigger is the avatar alone (its aria-label still names the profile),
@@ -224,9 +267,19 @@
     }
 }
 
-.top-nav-account-menu__panel ::deep .top-nav-account-menu__signout .tl-icon-root {
-    width: var(--tl-icon-size-md);
-    height: var(--tl-icon-size-md);
-    color: var(--tl-text-muted);
-    font-size: var(--tl-icon-size-md);
+/* Phones (profile and household D16): the menu is a bottom sheet across the full width, every row the full width of the sheet and 48 px tall. */
+@media (max-width: 600px) {
+    .top-nav-account-menu__panel {
+        width: 100%;
+        max-width: none;
+    }
+
+    .top-nav-account-menu__me {
+        min-height: 48px;
+    }
+
+    .top-nav-account-menu__panel ::deep .top-nav-account-menu__item,
+    .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout {
+        min-height: 48px;
+    }
 }

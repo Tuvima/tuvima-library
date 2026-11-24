@@ -26,10 +26,15 @@ The report compares what each file was meant to be with what the Engine made of 
 results per media type, likely wrong matches, Series and Universe grouping, cuts and remakes, shows, albums, the
 hard cases, Needs Review, photos, waiting times and outside requests.
 
-## Notes from the first full run
+## Provider keys, held files and looking at the results
 
-- On Windows set `PYTHONUTF8=1` before running the Python scripts.
-- On an install with saved provider keys, the copied key files cannot be read by the run (they are sealed with the
-  install's own root key). Point the run at that key, read-only, with `TUVIMA_SECRETS_KEY_FILE`; otherwise films, TV
-  and comics are held back without any message. Never commit or print the config copy, and delete it afterwards.
-- Allow at least six hours for the full set with every source working.
+- The run now points itself at this computer's own root key (read only), so the saved provider keys open. If they
+  cannot be opened it says so by name, says which kinds of media it cannot identify (films and TV need TMDB or TheTVDB,
+  comics need Comic Vine), lists the files it will therefore never register in the record under `held_kinds`, and ends
+  with exit code 7. The analysis report starts with the same warning. Never commit or print the config copy.
+- A fresh checkout works as it is: when `config/libraries.json` has no library for a type, the run makes an empty one.
+  (The old `Prepare-ConfigSource.py` helper is gone.)
+- To look at a finished run in the Dashboard, make a copy whose first-time setup starts again:
+  `pwsh -File tools/Run-IngestionBaseline.ps1 -OpenStoreOf <run folder, id or label>`. It prints the two settings to start
+  the Engine and Dashboard with; finish the wizard once. The run's own data is not touched.
+- On Windows set `PYTHONUTF8=1` before running the Python scripts. Allow at least six hours for the full set with every source working.
