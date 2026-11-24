@@ -38,6 +38,15 @@ internal static class SchemaTemplate
         File.Copy(template, target, overwrite: false);
     }
 
+    /// <summary>Removes a data store file that was opened but never filled, with its -wal/-shm files.</summary>
+    internal static void DeleteEmptyStoreFiles(string path)
+    {
+        foreach (var suffix in new[] { "", "-wal", "-shm" })
+        {
+            File.Delete(path + suffix);
+        }
+    }
+
     private static string? GetOrCreateTemplate()
     {
         lock (Gate)
