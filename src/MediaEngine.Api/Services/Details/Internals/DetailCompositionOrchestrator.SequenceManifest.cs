@@ -29,6 +29,10 @@ namespace MediaEngine.Api.Services.Details.Internals;
 
 internal sealed partial class DetailCompositionOrchestrator
 {
+    /// <summary>The lower-case media types that share a Series with <paramref name="mediaType"/> (books and audiobooks are one).</summary>
+    private static string[] SeriesFamilyTypes(string? mediaType)
+        => mediaType is null ? Array.Empty<string>() : SeriesMediaFamily.Members(mediaType).Select(m => m.ToLowerInvariant()).ToArray();
+
     private async Task<List<SequenceItemViewModel>> MergeSequenceManifestPlaceholdersAsync(
         IReadOnlyList<SequenceItemViewModel> items,
         string? containerId,
@@ -96,10 +100,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    membership_scope AS MembershipScope
             FROM series_manifest_items
             WHERE series_qid = @seriesQid
-              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
+              AND (@mediaType IS NULL OR LOWER(media_type) IN @mediaTypes)
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { seriesQid = normalizedContainerId, mediaType = SeriesMediaTypeName(entityType) },
+            new { seriesQid = normalizedContainerId, mediaType = SeriesMediaTypeName(entityType), mediaTypes = SeriesFamilyTypes(SeriesMediaTypeName(entityType)) },
             cancellationToken: ct));
 
         var updated = items.ToList();
@@ -250,10 +254,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    updated_at AS UpdatedAt
             FROM series_manifest_items
             WHERE series_qid = @containerId
-              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
+              AND (@mediaType IS NULL OR LOWER(media_type) IN @mediaTypes)
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { containerId, mediaType },
+            new { containerId, mediaType, mediaTypes = SeriesFamilyTypes(mediaType) },
             cancellationToken: ct));
         var exactItems = exactRows.Select(row => row.ToEntity()).ToList();
         if (exactItems.Count > 0)
@@ -303,10 +307,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    updated_at AS UpdatedAt
             FROM series_manifest_items
             WHERE parent_collection_qid = @containerId
-              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
+              AND (@mediaType IS NULL OR LOWER(media_type) IN @mediaTypes)
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { containerId, mediaType },
+            new { containerId, mediaType, mediaTypes = SeriesFamilyTypes(mediaType) },
             cancellationToken: ct));
 
         return rows.Select(row => row.ToEntity()).ToList();

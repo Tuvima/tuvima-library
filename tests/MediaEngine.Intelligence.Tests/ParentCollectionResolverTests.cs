@@ -204,6 +204,30 @@ public sealed class ParentCollectionResolverTests : IDisposable
     }
 
     [Fact]
+    public async Task ResolveParentCollectionAsync_ABookSeriesResolvedAlone_FollowsTheShowThatArrivesLater()
+    {
+        var books = CreateCollection("The Expanse (books)", "ContentGroup", "Q19610143", MediaType.Books);
+        await _repo.UpsertAsync(books);
+        await _repo.InsertRelationshipsAsync([CreateRelationship(books.Id, "series", "Q19610143", "The Expanse")]);
+        await ResolveAsync(books);
+        Assert.Equal("Q19610143", (await _repo.GetByIdAsync(books.Id))!.UniverseQid);
+
+        var television = CreateCollection("The Expanse (TV)", "ContentGroup", "Q18389644", MediaType.TV);
+        await _repo.UpsertAsync(television);
+        await _repo.InsertRelationshipsAsync(
+        [
+            CreateRelationship(television.Id, "based_on", "Q19610143", "The Expanse"),
+            CreateRelationship(television.Id, "franchise", "Q131519400", "The Expanse franchise"),
+        ]);
+        await ResolveAsync(television);
+
+        Assert.Equal("Q131519400", (await _repo.GetByIdAsync(books.Id))!.UniverseQid);
+        var universe = await _repo.FindUniverseShelfByUniverseQidAsync("Q131519400");
+        Assert.NotNull(universe);
+        Assert.Equal(2, (await _repo.GetChildCollectionsAsync(universe!.Id)).Count);
+    }
+
+    [Fact]
     public async Task ResolveParentCollectionAsync_DoesNotCreateParentWhenRelationshipMatchesCollectionQid()
     {
         var child = CreateCollection("The Expanse", "ContentGroup", "Q19610143");

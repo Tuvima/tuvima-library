@@ -167,7 +167,7 @@ public sealed class SeriesReaderAgreementTests : IDisposable
     [Theory]
     [InlineData(DetailEntityType.Book, "Books")]
     [InlineData(DetailEntityType.BookSeries, "Books")]
-    [InlineData(DetailEntityType.Audiobook, "Audiobooks")]
+    [InlineData(DetailEntityType.Audiobook, "Books")]
     [InlineData(DetailEntityType.ComicIssue, "Comics")]
     [InlineData(DetailEntityType.MovieSeries, "Movies")]
     [InlineData(DetailEntityType.TvEpisode, "TV")]
@@ -175,9 +175,9 @@ public sealed class SeriesReaderAgreementTests : IDisposable
         DetailEntityType entityType,
         string mediaType)
     {
-        // One Series id, five shelves (one per media type), each with its own stored manifest: the same two titles, but a
-        // different position for each media type.
-        string[] mediaTypes = ["Books", "Audiobooks", "Comics", "Movies", "TV"];
+        // One Series id, four shelves (books and audiobooks share one), each with its own stored manifest: the same two
+        // titles, but a different position for each media type.
+        string[] mediaTypes = ["Books", "Comics", "Movies", "TV"];
         var collections = new CollectionRepository(_db);
         var manifests = new SeriesManifestRepository(_db);
         foreach (var (media, index) in mediaTypes.Select((media, index) => (media, index)))

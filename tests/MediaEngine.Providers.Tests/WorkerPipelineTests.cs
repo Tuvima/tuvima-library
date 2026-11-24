@@ -4443,6 +4443,7 @@ public sealed class WorkerPipelineTests
         public Task<Guid?> GetCollectionIdByWorkIdAsync(Guid workId, CancellationToken ct = default) => Task.FromResult<Guid?>(null);
         public Task<Collection?> FindByRuleHashAsync(string ruleHash, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
         public Task<Collection?> FindSeriesShelfAsync(string qid, string mediaType, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
+        public Task<Collection?> FindNameOnlySeriesShelfAsync(string displayName, string mediaType, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
         public Task ClearWorkCollectionAsync(Guid workId, CancellationToken ct = default) => Task.CompletedTask;
         public Task<int> CountCollectionBackfillCandidatesAsync(CancellationToken ct = default) => Task.FromResult(0);
         public Task<IReadOnlyList<CollectionBackfillCandidate>> GetCollectionBackfillCandidatesAsync(int limit, Guid? afterWorkId = null, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<CollectionBackfillCandidate>>([]);

@@ -824,11 +824,8 @@ public sealed class WikidataSeriesManifestHydrationService
         // Series: give it the QID instead of making a second shelf with the same name.
         if (!string.IsNullOrWhiteSpace(label))
         {
-            var sameName = await _collectionRepo.FindByDisplayNameAsync(label, ct).ConfigureAwait(false);
-            if (sameName is not null
-                && sameName.CollectionType == CollectionType.ContentGroup
-                && string.IsNullOrWhiteSpace(sameName.WikidataQid)
-                && SeriesMediaFamily.Same(sameName.MediaType, mediaType))
+            var sameName = await _collectionRepo.FindNameOnlySeriesShelfAsync(label, mediaType, ct).ConfigureAwait(false);
+            if (sameName is not null)
             {
                 sameName.WikidataQid = seriesQid;
                 await _collectionRepo.UpsertAsync(sameName, ct).ConfigureAwait(false);
@@ -886,10 +883,10 @@ public sealed class WikidataSeriesManifestHydrationService
             if (matches.Count > 1
                 && context.MediaType is MediaType.Books or MediaType.Audiobooks)
             {
-                var selectedMatch = context.WorkId.HasValue && matches.Contains(context.WorkId.Value)
-                    ? context.WorkId.Value
-                    : matches[0];
-                matches = [selectedMatch];
+                // A book and its audiobook can share one Wikidata item and now share one manifest row. The row keeps
+                // one linked work, chosen the same way every time so a re-ingest of either format never flips it; the
+                // other format is placed on the same Series by its own Series claim.
+                matches = [matches.Order().First()];
             }
 
             var state = matches.Count switch
@@ -929,7 +926,7 @@ public sealed class WikidataSeriesManifestHydrationService
             ItemQid = item.Qid,
             ItemLabel = string.IsNullOrWhiteSpace(item.Label) ? item.Qid : item.Label,
             ItemDescription = item.Description,
-            MediaType = contextMediaType.ToString(),
+            MediaType = SeriesMediaFamily.Normalize(contextMediaType.ToString()),
             MediaKind = item.MediaKind.ToString(),
             InstanceOfQidsJson = JsonSerializer.Serialize(item.InstanceOfQids, MediaEngineJson.Web),
             RawOrdinal = item.RawSeriesOrdinal,

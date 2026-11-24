@@ -1537,6 +1537,33 @@ public sealed class CollectionRepository : ICollectionRepository
     }
 
     /// <inheritdoc/>
+    public Task<Collection?> FindNameOnlySeriesShelfAsync(string displayName, string mediaType, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
+
+        using var conn = _db.CreateConnection();
+        var collection = conn.QueryFirstOrDefault<Collection>($"""
+            SELECT {CollectionSelectColumns}
+            FROM   collections
+            WHERE  collection_type = 'ContentGroup'
+              AND  (wikidata_qid IS NULL OR wikidata_qid = '')
+              AND  LOWER(display_name) = LOWER(@displayName)
+              AND  LOWER(media_type) IN @mediaTypes
+            ORDER  BY created_at, id
+            LIMIT  1;
+            """, new { displayName, mediaTypes = MediaEngine.Domain.Services.SeriesMediaFamily.Members(mediaType).Select(m => m.ToLowerInvariant()).ToArray() });
+
+        if (collection is not null)
+        {
+            HydrateAudienceProfiles(conn, [collection]);
+        }
+
+        return Task.FromResult(collection is null ? null : (Collection)NormalizeCollection(collection));
+    }
+
+    /// <inheritdoc/>
     public Task<Collection?> FindUniverseByQidAsync(string qid, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

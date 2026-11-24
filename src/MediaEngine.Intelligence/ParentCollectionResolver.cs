@@ -98,7 +98,8 @@ public sealed class ParentCollectionResolver : IParentCollectionResolver
         var relationships = await _collectionRepo.GetRelationshipsAsync(collectionId, ct).ConfigureAwait(false);
         var rollupTypes = GetRollupRelationshipTypes();
         var choice = UniverseIdentityRule.Choose(BuildInput(shelf, relationships, rollupTypes));
-        choice = await StrongestChoiceInBasedOnGroupAsync(shelf, relationships, rollupTypes, choice, ct).ConfigureAwait(false);
+        var (strongest, basedOnGroup) = await StrongestChoiceInBasedOnGroupAsync(shelf, relationships, rollupTypes, choice, ct).ConfigureAwait(false);
+        choice = strongest;
         UniverseIdentity? identity = null;
         if (choice is not null)
         {
@@ -154,6 +155,16 @@ public sealed class ParentCollectionResolver : IParentCollectionResolver
         {
             await ResolveDependentsAsync(shelf, visited, ct).ConfigureAwait(false);
         }
+
+        // The Series this one is based on (or that is based on it) must follow the same Universe, even when it was
+        // resolved earlier and is not a dependent in the rollup sense (a book Series resolved before its show arrived).
+        if (resolveDependents)
+        {
+            foreach (var other in basedOnGroup.Where(candidate => !visited.Contains(candidate.Id)))
+            {
+                await ResolveShelfAsync(other.Id, resolveDependents: false, visited, ct).ConfigureAwait(false);
+            }
+        }
     }
 
     private static readonly string[] SeriesMediaTypesToSearch = ["Books", "TV", "Movies", "Comics", "Music"];
@@ -165,7 +176,7 @@ public sealed class ParentCollectionResolver : IParentCollectionResolver
     /// strongest Universe choice among them and this shelf's own, so every shelf of the group lands on the same
     /// Universe whichever was ingested first. Stronger means earlier in the rule's order, then the lowest QID.
     /// </summary>
-    private async Task<UniverseChoice?> StrongestChoiceInBasedOnGroupAsync(
+    private async Task<(UniverseChoice? Choice, IReadOnlyCollection<Collection> Linked)> StrongestChoiceInBasedOnGroupAsync(
         Collection shelf,
         IReadOnlyList<CollectionRelationship> relationships,
         HashSet<string> rollupTypes,
@@ -173,7 +184,11 @@ public sealed class ParentCollectionResolver : IParentCollectionResolver
         CancellationToken ct)
     {
         var linked = new Dictionary<Guid, Collection>();
-        foreach (var target in relationships.Where(rel => string.Equals(rel.RelType, "based_on", StringComparison.OrdinalIgnoreCase)))
+        // Only when "based on" is one of the relationship types the Library rolls up (it is by default).
+        var groupByBasedOn = rollupTypes.Contains("based_on");
+        foreach (var target in relationships.Where(rel => groupByBasedOn
+                     && !string.IsNullOrWhiteSpace(rel.RelQid)
+                     && string.Equals(rel.RelType, "based_on", StringComparison.OrdinalIgnoreCase)))
         {
             foreach (var mediaType in SeriesMediaTypesToSearch)
             {
@@ -185,7 +200,7 @@ public sealed class ParentCollectionResolver : IParentCollectionResolver
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(shelf.WikidataQid))
+        if (groupByBasedOn && !string.IsNullOrWhiteSpace(shelf.WikidataQid))
         {
             var dependents = await _collectionRepo
                 .ListShelvesWithRollupRelationshipQidAsync(shelf.WikidataQid, ct).ConfigureAwait(false);
@@ -229,7 +244,7 @@ public sealed class ParentCollectionResolver : IParentCollectionResolver
                 shelf.Id, shelf.DisplayName, best.Qid);
         }
 
-        return best;
+        return (best, linked.Values);
     }
 
     /// <summary>
