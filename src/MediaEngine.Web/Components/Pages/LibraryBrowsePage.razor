@@ -23,44 +23,8 @@
     <GlobalBackground Color="#05070C" />
     @if (IsEmpty)
     {
-
-    @if (_librariesConfigured)
-    {
-        <div class="home-discovery-empty">
-            <img src="/images/tuvima-icon.svg" alt="@L["Nav_Library"].Value" class="home-discovery-empty-icon" />
-            <h2 class="home-discovery-empty-title">@L["LibraryBrowsePage_YourLibraryIsBeingPrepared"]</h2>
-            <p class="home-discovery-empty-subtitle">
-                @L["LibraryBrowsePage_LibraryIsFindingAndMatching"]
-            </p>
-            <div class="home-discovery-empty-actions">
-                <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                           Tone="AppUiTone.Neutral"
-                           Size="AppControlSize.Large"
-                           StartIcon="@AppMaterialIcons.Outlined.PendingActions"
-                           Href="/settings/general/library-activity">
-                    @L["LibraryBrowsePage_ViewProgress"]
-                </AppButton>
-            </div>
-        </div>
-    }
-    else
-    {
-    <div class="home-discovery-empty">
-        <img src="/images/tuvima-icon.svg" alt="@L["Nav_Library"].Value" class="home-discovery-empty-icon" />
-        <h2 class="home-discovery-empty-title">@L["Home_EmptyTitle"]</h2>
-        <p class="home-discovery-empty-subtitle">
-            @L["LibraryBrowsePage_PointLibraryAtTheFolders"]
-        </p>
-
-        <div class="home-discovery-empty-actions">
-            <AppButton ButtonStyle="AppButtonStyle.Filled"
-                       Tone="AppUiTone.Primary"
-                       Size="AppControlSize.Large"
-                       StartIcon="@AppMaterialIcons.Outlined.CreateNewFolder"
-                       Href="/settings/libraries">
-                @L["Common_AddALibrary"]
-            </AppButton>
-        </div>
+        @* Says the true reason Home is empty (setup unfinished, no library, folder offline, still looking, waiting for a source, in Needs Review) and refreshes by itself. *@
+        <AreaEmptyState Area="home" />
 
         @if (Env.IsDevelopment())
         {
@@ -85,11 +49,7 @@
                 </AppButton>
             </div>
         }
-    </div>
     }
-
-    }
-
 
     <div class="home-discovery-page @(HomeHeroCandidates.Count > 0 ? "home-discovery-page--with-hero" : "home-discovery-page--no-hero")">
         @if (HomeHeroCandidates.Count > 0)

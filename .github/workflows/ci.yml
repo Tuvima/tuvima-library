@@ -11,9 +11,9 @@ on:
   schedule:
     - cron: '0 6 * * *'
 
+# Read-only: nothing here publishes anything, and pull requests from forks get the same read-only access.
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -24,25 +24,33 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  # A pull request that only touches engineering/ (specs, handoffs, plans) has nothing to build or test. Tests read
-  # config/, docs/reference/ data files, engineering/design and root files, so those still run everything. The decision is a cheap step inside each job
-  # rather than a separate job, because every extra job waits in the runner queue.
+  # How this workflow is paced.
+  #
+  # Fast check (every pull request): build with warnings as errors, format check of the changed C# files, the
+  # Dashboard publish checks, the vulnerable-package check and every test, split over lanes that run side by side.
+  # The slowest lane decides how long a pull request waits, so no lane does two slow things one after another.
+  #
+  # Deeper check (every merge to main, every night at 06:00 UTC, and on demand with "Run workflow" on any branch):
+  # the same build and tests, plus a format check of the whole solution, code coverage and the coverage threshold.
+  #
+  # A change that only touches engineering/ (specs, handoffs, plans) has nothing to build or test, as a pull request
+  # or as a push to main (.github/scripts/ci-scope.sh). The decision is a cheap step inside each job rather than a
+  # separate job, because every extra job waits in the runner queue.
   build:
-    name: Build, format and publish checks
+    name: Build and publish checks
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      code: ${{ steps.scope.outputs.code }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Decide whether code changed
         id: scope
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          other=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -v '^engineering/' || true)
-          if [ -z "$other" ]; then echo "code=false" >> "$GITHUB_OUTPUT"; else echo "code=true" >> "$GITHUB_OUTPUT"; fi
+        run: bash .github/scripts/ci-scope.sh "${{ github.event_name }}" "${{ github.base_ref }}" "${{ github.event.before }}"
 
       - name: Setup .NET
         if: steps.scope.outputs.code == 'true'
@@ -73,18 +81,6 @@ jobs:
           dotnet build benchmarks/MediaEngine.Storage.Benchmarks/MediaEngine.Storage.Benchmarks.csproj --warnaserror
           dotnet build tools/MediaEngine.PerformanceProbe/MediaEngine.PerformanceProbe.csproj --warnaserror
 
-      # Pull requests check the C# files they changed; main (and any other push) checks the whole solution.
-      - name: Verify formatting
-        if: steps.scope.outputs.code == 'true'
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            mapfile -t files < <(git diff --name-only --diff-filter=d "origin/${{ github.base_ref }}...HEAD" -- '*.cs')
-            if [ "${#files[@]}" -eq 0 ]; then echo "No C# files changed."; exit 0; fi
-            dotnet format MediaEngine.slnx --verify-no-changes --no-restore --include "${files[@]}"
-          else
-            dotnet format MediaEngine.slnx --verify-no-changes --no-restore
-          fi
-
       - name: Setup Node for release asset verification
         if: steps.scope.outputs.code == 'true'
         uses: actions/setup-node@v7
@@ -111,23 +107,83 @@ jobs:
         if: steps.scope.outputs.code == 'true'
         run: dotnet list MediaEngine.slnx package --vulnerable --include-transitive
 
-  # Three test lanes run side by side. Api is the slowest project, so it gets a runner to itself.
-  # Code coverage is collected only on pushes to main: it slows the instrumented tests by roughly a fifth,
+  # The format check loads the whole solution and takes about four minutes, so it has a runner to itself instead of
+  # making the build job wait. Pull requests check the C# files they changed; every other run checks the whole solution.
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide whether code changed
+        id: scope
+        run: bash .github/scripts/ci-scope.sh "${{ github.event_name }}" "${{ github.base_ref }}" "${{ github.event.before }}"
+
+      - name: Setup .NET
+        if: steps.scope.outputs.code == 'true'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.2xx"
+
+      - name: Cache NuGet packages
+        if: steps.scope.outputs.code == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        if: steps.scope.outputs.code == 'true'
+        run: dotnet restore MediaEngine.slnx
+
+      - name: Verify formatting
+        if: steps.scope.outputs.code == 'true'
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            mapfile -t files < <(git diff --name-only --diff-filter=d "origin/${{ github.base_ref }}...HEAD" -- '*.cs')
+            if [ "${#files[@]}" -eq 0 ]; then echo "No C# files changed."; exit 0; fi
+            dotnet format MediaEngine.slnx --verify-no-changes --no-restore --include "${files[@]}"
+          else
+            dotnet format MediaEngine.slnx --verify-no-changes --no-restore
+          fi
+
+  # Six test lanes run side by side. The Api project is by far the slowest (about ten minutes on one runner), so it
+  # is split over three runners by the first letter of the test class name. Lanes one and two each take the letters
+  # listed in "only"; lane three takes every test the other two did not ("except" lists their letters), so a test
+  # can never fall between lanes, whatever it is called. To rebalance, move letters between "only" lists and keep
+  # "except" equal to both lists together. Two classes set the floor: AuthorizedDisplayProjectionReadServiceTests
+  # (lane one) and UserPlaybackSettingsServiceTests (lane three) run their tests one after another for minutes
+  # (measured 2026-11-24), so they sit in different lanes.
+  # Code coverage is collected only outside pull requests: it slows the instrumented tests by roughly a fifth,
   # and the threshold is enforced where it is collected.
   test:
     name: Tests (${{ matrix.name }})
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Api
+          - name: Api 1 of 3
             projects: tests/MediaEngine.Api.Tests
+            only: "A B V W Y"
+          - name: Api 2 of 3
+            projects: tests/MediaEngine.Api.Tests
+            only: "C D E F G H I J K L M N O"
+          - name: Api 3 of 3
+            projects: tests/MediaEngine.Api.Tests
+            except: "A B C D E F G H I J K L M N O V W Y"
           - name: Storage
             projects: tests/MediaEngine.Storage.Tests
+          - name: Web
+            projects: tests/MediaEngine.Web.Tests
           - name: Everything else
             projects: >-
-              tests/MediaEngine.Web.Tests
               tests/MediaEngine.AI.Tests tests/MediaEngine.Admin.Tests tests/MediaEngine.Contracts.Tests
               tests/MediaEngine.Domain.Tests tests/MediaEngine.Identity.Tests tests/MediaEngine.Ingestion.Tests
               tests/MediaEngine.Intelligence.Tests tests/MediaEngine.Performance.Tests
@@ -137,15 +193,11 @@ jobs:
         with:
           # Full history so origin/main exists for ReleasedStepsOnMain_AreUnchangedInThisChange.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Decide whether code changed
         id: scope
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          other=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -v '^engineering/' || true)
-          if [ -z "$other" ]; then echo "code=false" >> "$GITHUB_OUTPUT"; else echo "code=true" >> "$GITHUB_OUTPUT"; fi
+        run: bash .github/scripts/ci-scope.sh "${{ github.event_name }}" "${{ github.base_ref }}" "${{ github.event.before }}"
 
       - name: Setup .NET
         if: steps.scope.outputs.code == 'true'
@@ -170,6 +222,7 @@ jobs:
           repository: Tuvima/tuvima-docs
           path: .tmp/tuvima-docs
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Point the drift checks at the docs
         if: steps.scope.outputs.code == 'true' && matrix.name == 'Storage'
@@ -179,18 +232,32 @@ jobs:
       - name: Run tests
         if: steps.scope.outputs.code == 'true'
         shell: bash
+        env:
+          SHARD_ONLY: ${{ matrix.only }}
+          SHARD_EXCEPT: ${{ matrix.except }}
         run: |
           coverage=()
           if [ "${{ github.event_name }}" != "pull_request" ]; then coverage=(--collect:"XPlat Code Coverage"); fi
+          # Which tests this lane runs. Live provider tests never run here; a split lane also names its letters.
+          filter="Category!=LiveProvider"
+          prefix="FullyQualifiedName~MediaEngine.Api.Tests."
+          if [ -n "$SHARD_ONLY" ]; then
+            parts=""
+            for letter in $SHARD_ONLY; do parts="${parts:+$parts|}${prefix}${letter}"; done
+            filter="($parts)&$filter"
+          elif [ -n "$SHARD_EXCEPT" ]; then
+            for letter in $SHARD_EXCEPT; do filter="${prefix/\~/!~}${letter}&$filter"; done
+          fi
+          echo "Test filter: $filter"
           # Build first, one after another, so lanes never race on the shared project outputs.
           for project in ${{ matrix.projects }}; do dotnet build "$project" --verbosity quiet; done
           # At most three projects at once: timing-sensitive tests (file watchers, UI timers) misfire when
-          # eleven test hosts fight over four cores.
+          # ten test hosts fight over four cores.
           pids=()
           for project in ${{ matrix.projects }}; do
             while [ "$(jobs -rp | wc -l)" -ge 3 ]; do sleep 1; done
             name=$(basename "$project")
-            dotnet test "$project" --no-build --verbosity minimal --filter "Category!=LiveProvider" "${coverage[@]}" \
+            dotnet test "$project" --no-build --verbosity minimal --filter "$filter" "${coverage[@]}" \
               --results-directory "./TestResults/$name" > "test-$name.log" 2>&1 &
             pids+=("$!:$name")
           done
@@ -212,7 +279,7 @@ jobs:
           done
 
       - name: Upload test results
-        if: github.event_name != 'pull_request' && always()
+        if: github.event_name != 'pull_request' && steps.scope.outputs.code == 'true' && always()
         uses: actions/upload-artifact@v7
         with:
           name: test-results-${{ strategy.job-index }}
@@ -220,24 +287,27 @@ jobs:
           retention-days: 30
 
   # The single required check on main. It always runs and reports, whether the heavy jobs ran, were skipped
-  # (engineering-only change) or failed, so the ready-to-merge auto-merge keeps working. On pushes to main it
+  # (engineering-only change) or failed, so the ready-to-merge auto-merge keeps working. Outside pull requests it
   # also enforces the coverage threshold from the merged lane results.
   gate:
     name: Build & Test
-    needs: [build, test]
+    needs: [build, format, test]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Require every job to pass
         run: |
-          echo "build=${{ needs.build.result }} test=${{ needs.test.result }}"
-          if [ "${{ needs.build.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then exit 1; fi
+          echo "build=${{ needs.build.result }} format=${{ needs.format.result }} test=${{ needs.test.result }}"
+          if [ "${{ needs.build.result }}" != "success" ] || [ "${{ needs.format.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then exit 1; fi
 
       - uses: actions/checkout@v7
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && needs.build.outputs.code == 'true'
+        with:
+          persist-credentials: false
 
       - name: Download test results
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && needs.build.outputs.code == 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: test-results-*
@@ -245,6 +315,6 @@ jobs:
           merge-multiple: true
 
       - name: Enforce coverage threshold
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && needs.build.outputs.code == 'true'
         shell: pwsh
         run: ./scripts/coverage/Enforce-Coverage.ps1 -ResultsDirectory ./TestResults

@@ -5107,6 +5107,35 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityTitleMarkerD
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityTitleSearchDto
   Titles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityTitleCardDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.AreaReadinessAreas
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.AreaReadinessAudiences
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.AreaReadinessDto
+  Area: System.String | nullability=not-null | accessors=get,init
+  Audience: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+  SetupFinished: System.Boolean? | nullability=nullable | accessors=get,init
+  LibraryCount: System.Int32 | nullability=not-null | accessors=get,init
+  UnreachableFolders: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  FilesFound: System.Int32 | nullability=not-null | accessors=get,init
+  FilesInProgress: System.Int32 | nullability=not-null | accessors=get,init
+  FilesWaitingForSource: System.Int32 | nullability=not-null | accessors=get,init
+  FilesInReview: System.Int32 | nullability=not-null | accessors=get,init
+  FilesReady: System.Int32 | nullability=not-null | accessors=get,init
+  FilesBeingScanned: System.Int32 | nullability=not-null | accessors=get,init
+  MediaTypes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.AreaReadinessMediaTypeDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.AreaReadinessMediaTypeDto
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  FilesFound: System.Int32 | nullability=not-null | accessors=get,init
+  FilesInProgress: System.Int32 | nullability=not-null | accessors=get,init
+  FilesWaitingForSource: System.Int32 | nullability=not-null | accessors=get,init
+  FilesInReview: System.Int32 | nullability=not-null | accessors=get,init
+  FilesReady: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.AreaReadinessReasons
+
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstCheckDto
   State: System.String | nullability=not-null | accessors=get,set
   Tried: System.Int32 | nullability=not-null | accessors=get,set
