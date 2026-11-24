@@ -4338,7 +4338,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .who-check__box { flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
 .who-link { min-height: 44px; padding: 0 8px; color: var(--tl-accent-primary); border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
 /* Settings > Profiles rows: the class sits on an AppNativeButton, so it cannot be styled from the page's isolated CSS. */
-.profiles-tab__row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 16px; box-sizing: border-box; color: inherit; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.profiles-tab__row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 4px; box-sizing: border-box; color: inherit; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
 .profiles-tab__row:hover { background: color-mix(in srgb, var(--tl-text-primary) 6%, transparent); }
 .profiles-tab__row:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
 @media (min-width: 1600px) { .profiles-tab__row { min-height: 72px; font-size: var(--tl-font-size-lg); } }

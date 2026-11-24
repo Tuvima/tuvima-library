@@ -13,4 +13,29 @@ public static class ProfileManageRules
 
     /// <summary>A household holds up to eight people.</summary>
     public static bool CanAdd(bool canManage, int profileCount) => canManage && profileCount < MaxProfiles;
+
+    /// <summary>
+    /// The one line of plain words under a person's name on the Household page (profile and household D7): their role, how they sign in
+    /// and whether a PIN is set, for example "Administrator · no sign-in" or "Kids · PIN". A household administrator and a server
+    /// administrator both read "Administrator"; the person's own page gives the detail. A Kids profile has no sign-in, so it never says so.
+    /// </summary>
+    /// <param name="isAdministrator">A household or server administrator.</param>
+    /// <param name="isKids">A Kids profile.</param>
+    /// <param name="signInEmail">The email of the sign-in that opens this person, or null when there is none.</param>
+    /// <param name="hasPin">Whether the person has a profile PIN.</param>
+    public static string PersonLine(bool isAdministrator, bool isKids, string? signInEmail, bool hasPin)
+    {
+        var parts = new List<string> { isKids ? "Kids" : isAdministrator ? "Administrator" : "Member" };
+        if (!isKids)
+        {
+            parts.Add(string.IsNullOrWhiteSpace(signInEmail) ? "no sign-in" : signInEmail);
+        }
+
+        if (hasPin)
+        {
+            parts.Add("PIN");
+        }
+
+        return string.Join(" · ", parts);
+    }
 }
