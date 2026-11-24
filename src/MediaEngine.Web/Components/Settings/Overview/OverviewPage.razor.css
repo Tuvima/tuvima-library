@@ -149,3 +149,13 @@
 .overview-page--phone .overview-header__actions {
     width: 100%;
 }
+
+.overview-page__signin-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.overview-page__signin-item + .overview-page__signin-item {
+    border-top: 1px solid var(--tl-border-subtle);
+}

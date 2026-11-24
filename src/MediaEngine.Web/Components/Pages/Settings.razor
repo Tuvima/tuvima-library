@@ -157,10 +157,16 @@ else
                                 {
                                     <OverviewAccountsPage />
                                 }
-                                else if (_activeSubsection is SettingsNav.PreferencesSubsection or SettingsNav.AccessSubsection && _activeProfile is not null)
+                                else if (_activeSubsection == SettingsNav.PreferencesSubsection && _activeProfile is not null)
                                 {
-                                    @* Your own Preferences and Access & safety: the same parts as a person's page, opened for the signed-in profile (profile-and-household D3). *@
-                                    <ProfileDetailPage ProfileId="@_activeProfile!.Id" Tab="@_activeSubsection" NameChanged="OnProfileNameChanged" />
+                                    @* Your own Preferences: the shared preference parts, with no person-page chrome (profile-and-household D3, D4). The one line saying
+                                       these choices are yours is the page's own description under the title. *@
+                                    <ProfilePreferencesPanel ProfileId="@_activeProfile!.Id" IsSelf="true" />
+                                }
+                                else if (_activeSubsection == SettingsNav.AccessSubsection && _activeProfile is not null && CanManageHousehold)
+                                {
+                                    @* Access & safety is for administrators only: the same content as a person's Access tab, for your own profile, without the person-page chrome. *@
+                                    <ProfileDetailPage ProfileId="@_activeProfile!.Id" Tab="@SettingsNav.AccessSubsection" Embedded="true" />
                                 }
                                 else
                                 {
