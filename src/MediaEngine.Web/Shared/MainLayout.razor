@@ -194,7 +194,7 @@
                                    PluginMenu="@_pluginMenu"
                                    IsKids="@_isKids"
                                    ReviewCount="@(CanViewReview && !_isKids ? _reviewCount : 0)"
-                                   ShowSignOut="true" />
+                                   ShowSignOut="@(!_thisComputerOnly)" />
             </span>
         </AppStack>
 
@@ -328,6 +328,7 @@
                          ShowSettings="@ShellNavigation.ShowsSettings(_isKids)"
                          ShowSwitchProfile="@ShellNavigation.ShowsSwitchProfile(_profiles.Count)"
                          PluginEntries="@PluginPageRoute.ForDevice(_pluginMenu, isPhone: true)"
+                         ShowSignOut="@(!_thisComputerOnly)"
                          OnClose="CloseMenu" />
 }
 </AppCssElement>

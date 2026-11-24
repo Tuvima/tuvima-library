@@ -543,7 +543,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         Assert.Contains("/settings/profiles/{profile.Id:D}", picker, StringComparison.Ordinal);
         Assert.Contains("_managing = true;", picker, StringComparison.Ordinal);
         Assert.Contains("\"television\"", picker, StringComparison.Ordinal);
-        Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", menu, StringComparison.Ordinal);
+        Assert.Contains("ManageProfilesHref = \"/settings/household\"", menu, StringComparison.Ordinal);
     }
 
     private void UsePhone()
