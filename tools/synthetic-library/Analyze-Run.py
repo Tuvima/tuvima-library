@@ -55,6 +55,16 @@ def main():
     meta = record.get("metadata", {})
     say(f"Run: {meta.get('label')} at build {meta.get('build_commit')}; "
         f"total {meta.get('total_duration_seconds')} seconds.\n")
+    held_kinds = meta.get("held_kinds") or []
+    held_paths = {p for k in held_kinds for p in k.get("files", [])}
+    if held_kinds:
+        say("**This run could not identify some kinds of media, so those files were never registered:**\n")
+        for k in held_kinds:
+            say(f"- {k['kind']}: {len(k.get('files', []))} files held. Why: {k.get('reason')}.")
+        say("\nNothing below says anything about those kinds. Fix the keys and run again.\n")
+    bad_keys = {k: v for k, v in (meta.get("provider_keys") or {}).items() if v != "readable"}
+    if bad_keys:
+        say("Provider keys that did not open: " + ", ".join(f"{k} ({v})" for k, v in sorted(bad_keys.items())) + ".\n")
     say("## 1. What was registered\n")
     say("| Kind | Files made | Seen by the Engine | Missing |")
     say("|---|---|---|---|")
@@ -64,9 +74,10 @@ def main():
     missing_examples = {}
     for kind, files in sorted(by_kind.items()):
         seen = [f for f in files if f["path"] in items or f["path"] in views]
-        miss = [f for f in files if f["path"] not in items and f["path"] not in views]
+        held = [f for f in files if f["path"] in held_paths and f["path"] not in items]
+        miss = [f for f in files if f["path"] not in items and f["path"] not in views and f["path"] not in held_paths]
         missing_examples[kind] = miss
-        say(f"| {kind} | {len(files)} | {len(seen)} | {len(miss)} |")
+        say(f"| {kind} | {len(files)} | {len(seen)} | {len(miss)}" + (f" (+{len(held)} held)" if held else "") + " |")
     say("")
     for kind, miss in missing_examples.items():
         if miss:

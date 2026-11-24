@@ -16,7 +16,7 @@ manifest = []
 
 def note(kind, path, **facts):
     count[kind] = count.get(kind, 0) + 1
-    manifest.append({"kind": kind, "path": os.path.relpath(path, OUT), **facts})
+    manifest.append({"kind": kind, "path": os.path.relpath(path, OUT).replace(os.sep, "/"), **facts})
 
 def ensure(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -234,7 +234,11 @@ for k, f in enumerate(D["films"]):
     note("film", path, title=t, year=y, edition=ed, name_style=style)
 for t, y, ex in [("Dune", 2021, "Trailers/Dune - Official Trailer.mkv"), ("Dune", 2021, "Featurettes/Making of Dune.mkv"), ("Blade Runner", 1982, "Deleted Scenes/Deleted Scene 1.mkv")]:
     path = f"{M}/{t} ({y})/{ex}"
-    if not os.path.isdir(f"{M}/{t} ({y})"): path = f"{M}/_extras test/{t} ({y})/{ex}"
+    folder = f"{M}/{t} ({y})"
+    main = f"{folder}/{t} ({y}).mkv"
+    if not (os.path.isdir(folder) and any(f.lower().endswith((".mkv", ".mp4")) for f in os.listdir(folder))):
+        # An extra needs its film beside it. Some name styles put no film inside a "Title (Year)" folder, so add one here.
+        tagged_copy(film_mkv, main, {"title": t, "date": str(y), "comment": f"extras-host {t}"}); note("film", main, title=t, year=y, edition=None, name_style=0, hard="film that hosts the extras")
     tagged_copy(base_video("clip", 120, "mkv"), path, {"comment": ex}); note("film-extra", path, hard="extra in a named folder")
 open(ensure(f"{M}/Dune (2021)/Dune (2021).en.srt"), "w").write("1\n00:00:01,000 --> 00:00:04,000\nPlaceholder\n")
 open(ensure(f"{M}/Dune (2021)/movie.nfo"), "w").write("<movie><title>Dune</title><year>2021</year></movie>")
