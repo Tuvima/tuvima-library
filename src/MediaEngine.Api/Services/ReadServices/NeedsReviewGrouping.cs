@@ -53,7 +53,7 @@ public static class NeedsReviewGrouping
     /// </summary>
     public static string NotHiddenSql(string alias) => $"""
         ({alias}.trigger NOT IN @hidden OR EXISTS (
-            SELECT 1 FROM works wcm
+            SELECT 1 FROM works wcm -- readiness: media type lookup for a review row, not a display query
             WHERE wcm.media_type IN @canonicalTypes
               AND (wcm.id = {alias}.entity_id
                    OR wcm.id IN (SELECT e.work_id FROM media_assets mac JOIN editions e ON e.id = mac.edition_id WHERE mac.id = {alias}.entity_id))))
