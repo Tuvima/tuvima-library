@@ -42,7 +42,7 @@ public sealed class ProfileManageRulesTests
         Assert.Contains("Identity.AddHouseholdPersonResultAsync(", page, StringComparison.Ordinal);
         Assert.Contains("Identity.UpdateManagedProfileResultAsync(", page, StringComparison.Ordinal);
         Assert.Contains("Identity.DeleteManagedProfileResultAsync(profile.Id, keepPhotos)", page, StringComparison.Ordinal);
-        Assert.Contains("Manage profiles", page, StringComparison.Ordinal);
+        Assert.Contains("Household", page, StringComparison.Ordinal);
         Assert.DoesNotContain(" style=\"", page, StringComparison.Ordinal);
     }
 }

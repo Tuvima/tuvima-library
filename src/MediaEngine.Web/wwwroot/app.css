@@ -4419,7 +4419,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
     background: var(--tl-text-on-accent);
 }
 
-/* Manage profiles on the picker (ProfilePickerPage.razor, ProfileEditorSheet.razor). */
+/* Household mode on the picker (ProfilePickerPage.razor, ProfileEditorSheet.razor). */
 .who-card__edit { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tl-on-scrim); border-radius: 50%; background: var(--tl-scrim-dark-6); backdrop-filter: blur(8px); }
 .who-card__edit svg { width: 36%; height: 36%; }
 .who-backdrop--top { z-index: 1400; }

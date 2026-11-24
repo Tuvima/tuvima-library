@@ -242,7 +242,7 @@ public static class SettingsNav
     /// <summary>The Access &amp; safety tab of My profile: the administrator's own roles, library access and PIN protection.</summary>
     public const string AccessSubsection = "access";
 
-    /// <summary>The Household page (profile-and-household D2): the people you live with. Replaces Manage Profiles; the old address is not found.</summary>
+    /// <summary>The Household page (profile-and-household D2): the people you live with. Replaces the old people page; the old address is not found.</summary>
     public const string HouseholdRoute = "/settings/household";
 
     /// <summary>One person's page inside Household, with an optional tab (<c>preferences</c>, <c>access</c> or <c>activity</c>).</summary>
