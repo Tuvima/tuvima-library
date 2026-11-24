@@ -59,6 +59,7 @@
 /library/items/recycle-bin/summary | vault-area | Endpoints/LibraryItemEndpoints.cs | entries of Vault and hidden libraries are left out of every count and name (VaultAccessResolver); a restricted profile gets totals only, with no title or kind
 /settings/* | own-data | Endpoints/UISettingsEndpoints.cs | the caller's own display settings and media types
 /setup/v1/* | system | Endpoints/SetupEndpoints.cs | first-run setup facts
+/library/areas/* | system | Endpoints/AreaReadinessEndpoints.cs | why an area is empty: only an effective administrator gets setup, folder and file counts (Vault libraries and orphaned files are never counted); everyone else gets a "hidden" answer with no counts, names or titles
 /system/* | system | Endpoints/SystemEndpoints.cs | health and status
 /universes | catalogue-authorization | Endpoints/UniverseGraphEndpoints.cs | universes, each checked by qid and limited to visible works
 /view/* | view-scope | Endpoints/ViewEndpoints.cs + Endpoints/ViewDiscoveryEndpoints.cs + Endpoints/ViewEndpoints.Organisation.cs | View, through View scopes
