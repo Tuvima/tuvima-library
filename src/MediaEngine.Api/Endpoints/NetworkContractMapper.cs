@@ -38,6 +38,10 @@ internal static class NetworkContractMapper
             ReservedUploadMbps = settings.Streaming.ReservedUploadMbps,
             ConcurrentRemoteStreams = settings.Streaming.ConcurrentRemoteStreams,
         },
+        NativeAppAccess = new NativeAppAccessSettingsDto
+        {
+            AllowBrowserApps = settings.NativeAppAccess.AllowBrowserApps,
+        },
     };
 
     public static NetworkSettings ToStorage(NetworkSettingsDto dto) => new()
@@ -84,6 +88,10 @@ internal static class NetworkContractMapper
             UploadProtectionEnabled = dto.Streaming.UploadProtectionEnabled,
             ReservedUploadMbps = dto.Streaming.ReservedUploadMbps,
             ConcurrentRemoteStreams = Normalize(dto.Streaming.ConcurrentRemoteStreams),
+        },
+        NativeAppAccess = new NativeAppAccessSettings
+        {
+            AllowBrowserApps = dto.NativeAppAccess?.AllowBrowserApps == true,
         },
     };
 

@@ -96,8 +96,10 @@ license in `vendor/LICENSE-hls.js.txt`. It loads on first playback.
 Served from the Dashboard origin, the client needs nothing special. A packaged
 Tizen or webOS app runs from `file://`, `app://`, `tizen://` or `webos://` (or the
 `null` origin), so the Dashboard must answer cross-origin requests for exactly that
-case. That is **off by default**: set `native_app_access.allow_browser_apps` to
-`true` in `config/network.json`. Any
+case. That is **off by default**: an administrator turns on **Allow Samsung and LG
+TV apps** in Settings > Network & Remote Access > Home network (it applies
+right away, no restart; it is stored as `native_app_access.allow_browser_apps` in
+`config/network.json`). Any
 website can claim the `null` origin, so with it on a website could reach the
 pairing surface; each pairing still needs a person to approve the code on the
 pairing page. Turn it on only for a TV web app. The permission covers

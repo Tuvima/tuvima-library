@@ -1,0 +1,26 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@inject IStringLocalizer<SharedStrings> L
+
+@* Settings > Network > Home network, "Allow Samsung and LG TV apps". The Samsung (Tizen) and LG (webOS) TV apps are packaged web apps, so
+   their requests are cross-origin and the Dashboard's app door answers them only while this is on. Off by default. The Dashboard re-reads
+   network.json when it changes, so the switch applies to the next request with no restart. Saved at once, like its neighbours. *@
+<SettingsSectionPanel Title="@L["TvApps_Title"].Value">
+    <div class="network-setting-rows">
+        <AppSwitchRow Label="@L["TvApps_Allow"].Value"
+                      Description="@L["TvApps_AllowHelp"].Value"
+                      Value="@Settings.NativeAppAccess.AllowBrowserApps"
+                      ValueChanged="ChangeAsync" />
+    </div>
+</SettingsSectionPanel>
+
+@code {
+    [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
+    [Parameter] public EventCallback SaveRequested { get; set; }
+
+    private async Task ChangeAsync(bool value)
+    {
+        Settings.NativeAppAccess.AllowBrowserApps = value;
+        await SaveRequested.InvokeAsync();
+    }
+}

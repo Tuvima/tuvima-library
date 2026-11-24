@@ -459,6 +459,43 @@ public sealed class ThisComputerAccessTests : IDisposable
     }
 
     [Fact]
+    public async Task SavingNetworkSettings_StoresTheTvAppSwitch_AndReadsItBack_AndSavingItOffClearsIt()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildNetworkApplication();
+        Assert.False(_configuration.LoadNetwork().NativeAppAccess.AllowBrowserApps);
+
+        var on = NetworkWith(NetworkConnectionModes.LocalOnly);
+        on.NativeAppAccess.AllowBrowserApps = true;
+        var saveOn = await SendAsync(app, "PUT", "/settings/network/", on);
+        var read = await SendAsync(app, "GET", "/settings/network/");
+
+        Assert.Equal(StatusCodes.Status200OK, saveOn.Status);
+        Assert.True(saveOn.Json.GetProperty("native_app_access").GetProperty("allow_browser_apps").GetBoolean());
+        Assert.True(read.Json.GetProperty("native_app_access").GetProperty("allow_browser_apps").GetBoolean());
+        Assert.True(_configuration.LoadNetwork().NativeAppAccess.AllowBrowserApps);
+
+        var saveOff = await SendAsync(app, "PUT", "/settings/network/", NetworkWith(NetworkConnectionModes.LocalOnly));
+
+        Assert.Equal(StatusCodes.Status200OK, saveOff.Status);
+        Assert.False(_configuration.LoadNetwork().NativeAppAccess.AllowBrowserApps);
+    }
+
+    [Fact]
+    public async Task ResettingNetworkSettings_TurnsTheTvAppSwitchOff()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        SaveNetwork(new NetworkSettings { NativeAppAccess = { AllowBrowserApps = true } });
+        await using var app = BuildNetworkApplication();
+
+        var reset = await SendAsync(app, "POST", "/network/reset");
+
+        Assert.Equal(StatusCodes.Status200OK, reset.Status);
+        Assert.False(reset.Json.GetProperty("native_app_access").GetProperty("allow_browser_apps").GetBoolean());
+        Assert.False(_configuration.LoadNetwork().NativeAppAccess.AllowBrowserApps);
+    }
+
+    [Fact]
     public async Task SignInAgain_IsRefusedWhenTheHomeNetworkRequestWasForwarded_ATunnelIsNotTheHomeNetwork()
     {
         await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");

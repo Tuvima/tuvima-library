@@ -8,6 +8,13 @@ public sealed class NetworkSettingsDto
     [JsonPropertyName("local")] public LocalNetworkSettingsDto Local { get; set; } = new();
     [JsonPropertyName("remote")] public RemoteNetworkSettingsDto Remote { get; set; } = new();
     [JsonPropertyName("streaming")] public NetworkStreamingSettingsDto Streaming { get; set; } = new();
+    [JsonPropertyName("native_app_access")] public NativeAppAccessSettingsDto NativeAppAccess { get; set; } = new();
+}
+
+/// <summary>Whether the Samsung and LG TV apps (packaged web apps, so their requests are cross-origin) may use the app door. Off by default.</summary>
+public sealed class NativeAppAccessSettingsDto
+{
+    [JsonPropertyName("allow_browser_apps")] public bool AllowBrowserApps { get; set; }
 }
 
 public sealed class LocalNetworkSettingsDto

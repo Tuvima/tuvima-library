@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1616; api=0; web-client=56
+# scopes: contracts=1617; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13102,6 +13102,11 @@
   FieldPriorities: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | json=field_priorities | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"strategy":"Waterfall","providers":[],"max_provider_attempts":7,"scoring":null,"field_priorities":{}}
 
+[contracts] MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  AllowBrowserApps: System.Boolean | json=allow_browser_apps | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"allow_browser_apps":true}
+
 [contracts] MediaEngine.Contracts.Settings.NetworkAddressDto
   kind=class | converter=default | number-handling=default | unmapped=default
   InterfaceId: System.String | json=interface_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -13169,7 +13174,8 @@
   Local: MediaEngine.Contracts.Settings.LocalNetworkSettingsDto | json=local | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Remote: MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto | json=remote | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Streaming: MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto | json=streaming | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"schema_version":"sample","local":null,"remote":null,"streaming":null}
+  NativeAppAccess: MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto | json=native_app_access | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"schema_version":"sample","local":null,"remote":null,"streaming":null,"native_app_access":null}
 
 [contracts] MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default

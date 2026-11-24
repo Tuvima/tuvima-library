@@ -26,13 +26,11 @@ a package id of your own for a store release; change it before submitting.
 ## Before you build: allow packaged apps on the server
 
 The packaged app runs from a non-web origin, so the Dashboard refuses it until you
-turn this on. In `config/network.json` set **first**:
-
-```json
-"native_app_access": { "enabled": true, "allow_browser_apps": true }
-```
-
-(both switches; see `docs/reference/configuration.md` for what that allows).
+turn this on. As an administrator, open Library, go to Settings > Network & Remote
+Access > Home network and turn on **Allow Samsung and LG TV apps** **first**. It
+applies right away, with no restart. (It is stored as
+`native_app_access.allow_browser_apps` in `config/network.json`; see
+`docs/reference/configuration.md` for what that allows.)
 
 ## Turn on Developer Mode on the TV
 
