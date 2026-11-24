@@ -139,7 +139,8 @@ public sealed class HierarchyResolver
         }
 
         // Level 1: Show parent.
-        var showYear = Get(meta, "show_year");
+        var showYear = Get(meta, "show_year")
+            ?? await _works.FindTvShowYearAsync(MakeKey(show), ct);
         var showKey = MakeKey(show, showYear);
         var showId = await FindOrCreateParentAsync(MediaType.TV, showKey, null, null, ct);
 
@@ -180,12 +181,13 @@ public sealed class HierarchyResolver
             throw new InvalidOperationException("A TV show name is required to resolve the TV hierarchy.");
         }
 
-        var showId = WorkRepository.GetOrCreateParent(conn, tx, MediaType.TV, MakeKey(show, Get(meta, "show_year")), null, null, null);
+        var showYear = Get(meta, "show_year") ?? WorkRepository.FindTvShowYear(conn, tx, MakeKey(show));
+        var showId = WorkRepository.GetOrCreateParent(conn, tx, MediaType.TV, MakeKey(show, showYear), null, null, null);
         var leafParentId = showId;
         if (season is not null)
         {
             leafParentId = WorkRepository.GetOrCreateParent(
-                conn, tx, MediaType.TV, MakeKey(show, Get(meta, "show_year"), $"S{season:D2}"), showId, season, season);
+                conn, tx, MediaType.TV, MakeKey(show, showYear, $"S{season:D2}"), showId, season, season);
         }
 
         var result = FindOrCreateChildInTransaction(conn, tx, MediaType.TV, leafParentId, episode, episode, epTitle);

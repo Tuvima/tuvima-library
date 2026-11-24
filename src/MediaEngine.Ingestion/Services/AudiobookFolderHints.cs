@@ -79,7 +79,7 @@ public static class AudiobookFolderHints
     }
 
     private static readonly Regex PartLikeName = new(
-        @"(^|[\s._-])(part|pt|disc|disk|cd|chapter|ch)\s*[-_. ]*\d+|^\d+[\s._-]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        @"(^|[\s._\-(\[])(part|pt|disc|disk|cd|chapter|ch|track)\s*[-_. ]*\d+|^\d+[\s._-]|[\s._]-\s*\d{1,3}\s*$|\b\d+\s*(of|von)\s*\d+\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>
     /// True for an <c>.m4b</c> or <c>.m4a</c> file (a whole book in one file) that shares its folder with other

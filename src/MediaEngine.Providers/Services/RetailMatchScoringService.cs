@@ -84,7 +84,18 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         {
             // A show filed under its original-language name (La casa de papel) is the same show as its
             // English listing (Money Heist); compare with the original name as well.
-            titleScore = Best(titleScore, Text(fileTitle, Remote("original_title")));
+            // The original name gets the same word-overlap cap as the listed one, so "Office" does not
+            // pass for "The Office" just because the show's original name repeats its English name.
+            var original = Remote("original_title");
+            if (Present(original) && !AreEquivalentComparableText(original!, candidate.Title ?? string.Empty))
+            {
+                var originalScore = Text(fileTitle, original);
+                if (originalScore is not null && !AreEquivalentComparableText(fileTitle!, original!))
+                {
+                    originalScore = Math.Min(originalScore.Value, RetailTextSimilarity.ComputeWordOverlap(fileTitle!, original!));
+                }
+                titleScore = Best(titleScore, originalScore);
+            }
         }
         if (placeholderTitle)
         {

@@ -236,7 +236,8 @@ public sealed class VideoProcessor : IMediaProcessor
         }
 
         var series = CleanSeriesTitle(match.Groups["series"].Value);
-        if (series.Length == 0 || !int.TryParse(match.Groups["ep"].Value, out var episode))
+        if (series.Length == 0 || !int.TryParse(match.Groups["ep"].Value, out var episode)
+            || episode is >= 1900 and <= 2099)
         {
             return null;
         }

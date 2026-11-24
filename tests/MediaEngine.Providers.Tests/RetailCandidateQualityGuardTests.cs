@@ -11,6 +11,7 @@ public sealed class RetailCandidateQualityGuardTests
     [InlineData("The Hobbit", "The Hobbit and The Lord of the Rings Boxed Set", "box_set_candidate")]
     [InlineData("The Hunger Games", "The Hunger Games", null)]
     [InlineData("The Cairo Trilogy", "The Cairo Trilogy", null)]
+    [InlineData("The Hunger Games", "The Hunger Games (The Hunger Games Trilogy, Book 1)", null)]
     public void GetRejectionReasons_RefusesStoreBundlesForASingleBook(string fileTitle, string candidateTitle, string? expected)
     {
         var hints = new Dictionary<string, string> { [MetadataFieldConstants.Title] = fileTitle };
