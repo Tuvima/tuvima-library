@@ -22,7 +22,7 @@ Helper agents never make architectural or product decisions. If a packet or brie
 2. **Self-contained briefs.** A builder/mechanic brief is the spec's work packet plus anything it leaves implicit: exact files, symbols, signatures, Contracts/JSON names, tests to add, done-when check, and what must not change. Use `scout` first if facts are missing.
 3. **At most 2 helpers at once.** Within a wave, run packets two at a time, each in its own worktree (`isolation: "worktree"`), and only when they touch different files.
 4. **Keep noisy output out of Opus.** Build/test logs, large searches, and file dumps go through `verifier`/`scout`, which return short summaries with `file:line` anchors.
-5. **Verify proportionally.** Builders run targeted tests per packet; the build-check hook catches compile errors at the end of each turn; run the full restore/build/test once at the end.
+5. **Verify proportionally.** Builders run targeted tests per packet; the build-check hook catches compile errors at the end of each turn; at the end run restore, the CI-strength build and the test projects the work touched; CI runs the whole suite (`.claude/rules/cloud-first.md`).
 6. **Two-strike escalation.** A helper that fails twice on the same problem hands back to Opus with the full error. If Opus also fails twice, ask Shy about Fable.
 7. **One feature per session.** Start a fresh session for unrelated work; compact at natural phase boundaries. Write plans and briefs to the scratchpad or `.tmp/` so they survive compaction.
 8. **Read narrowly.** Read files and line ranges, not whole large documents (`AGENTS.md`, big Razor files, `schema.snapshot.sql`). Use Grep before Read.
