@@ -397,7 +397,9 @@ public sealed partial class ReconciliationAdapter
                         finalEditionQid,
                         input.FileLanguage,
                         ct).ConfigureAwait(false);
-                    claims = parentClaims;
+                    // The claims now describe the Series, so its label is the Series name ("Batman"), never the title of
+                    // the issue in the file ("Batman #1").
+                    claims = string.IsNullOrWhiteSpace(input.IssueNumber) ? parentClaims : SeriesLabelAsSeriesClaim(parentClaims);
                     collectedBridgeIds = parentCollectedBridgeIds;
 
                     if (!ValidateP31ForMediaType(parentInstanceOfQids, finalWorkQid, input.MediaType, input.ResolutionScope))
