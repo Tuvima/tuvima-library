@@ -92,7 +92,6 @@ body.is-song-dragging .media-tile[data-song-drop] .media-tile-media { outline:1p
 .media-tile-fallback { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:12px; text-align:center; font-family:var(--font-ui); color:var(--tl-text-primary); background:var(--tl-bg-surface); }
 .media-tile-fallback__title, .media-tile-fallback__detail, .media-tile-video-text__title, .media-tile-video-text__detail { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; font-size: var(--tl-type-body-size); line-height:1.3; }
 .media-tile-fallback__title { font-weight:600; color:var(--tl-text-primary); }
-@media (max-width:600px) { .media-tile-fallback__title { font-size:var(--tl-type-secondary-size); } }
 .media-tile-fallback__detail { font-weight:500; color:var(--tl-text-secondary); }
 
 /* A video with no cover art (D7, D16): the still on top, the name and one detail line below, at poster size. */
