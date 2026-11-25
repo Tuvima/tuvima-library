@@ -13,6 +13,36 @@ namespace MediaEngine.Providers.Tests;
 /// <summary>Guards the book identity rules of the Wikidata step (wrong, foreign-language and edition matches).</summary>
 public sealed class ReconciliationAdapterBookIdentityTests
 {
+    [Fact]
+    public void SeriesLabelAsSeriesClaim_KeepsAnIssuesOwnTitle_AndNamesTheSeriesInstead()
+    {
+        IReadOnlyList<ProviderClaim> claims =
+        [
+            new ProviderClaim(MetadataFieldConstants.Title, "Batman", 0.98),
+            new ProviderClaim(MetadataFieldConstants.Genre, "superhero", 0.9),
+        ];
+
+        var result = ReconciliationAdapter.SeriesLabelAsSeriesClaim(claims);
+
+        Assert.DoesNotContain(result, c => c.Key == MetadataFieldConstants.Title);
+        Assert.Equal("Batman", Assert.Single(result, c => c.Key == MetadataFieldConstants.Series).Value);
+        Assert.Contains(result, c => c.Key == MetadataFieldConstants.Genre);
+    }
+
+    [Fact]
+    public void SeriesLabelAsSeriesClaim_DoesNotAddASecondSeriesClaim_WhenOneExists()
+    {
+        IReadOnlyList<ProviderClaim> claims =
+        [
+            new ProviderClaim(MetadataFieldConstants.Series, "Batman (1940)", 0.95),
+            new ProviderClaim(MetadataFieldConstants.Title, "Batman", 0.98),
+        ];
+
+        var result = ReconciliationAdapter.SeriesLabelAsSeriesClaim(claims);
+
+        Assert.Equal("Batman (1940)", Assert.Single(result).Value);
+    }
+
     [Theory]
     [InlineData("2009", "1989", MediaType.Books, true)]       // a newer edition of an older book is normal
     [InlineData("2011", "2008", MediaType.Books, true)]       // box set year, later than the book

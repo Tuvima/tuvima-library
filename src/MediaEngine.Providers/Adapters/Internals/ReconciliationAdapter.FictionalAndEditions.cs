@@ -87,6 +87,30 @@ public sealed partial class ReconciliationAdapter
         return Math.Abs(hintYear.Value - resolvedYear.Value) <= maxDifference;
     }
 
+    /// <summary>
+    /// Turns a Series' own Wikidata label from a title claim into a series claim, so an issue rolled up to its Series keeps the
+    /// issue's own title and issue number (the Series name is only the Series name).
+    /// </summary>
+    internal static IReadOnlyList<ProviderClaim> SeriesLabelAsSeriesClaim(IReadOnlyList<ProviderClaim> claims)
+    {
+        var hasSeries = claims.Any(c => string.Equals(c.Key, MetadataFieldConstants.Series, StringComparison.OrdinalIgnoreCase));
+        var result = new List<ProviderClaim>(claims.Count);
+        foreach (var claim in claims)
+        {
+            if (!string.Equals(claim.Key, MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(claim);
+            }
+            else if (!hasSeries)
+            {
+                hasSeries = true;
+                result.Add(claim with { Key = MetadataFieldConstants.Series });
+            }
+        }
+
+        return result;
+    }
+
     private static bool IsBookLike(MediaType mediaType) => mediaType is MediaType.Books or MediaType.Audiobooks;
 
     private static readonly string[] WrittenWorkClasses =
