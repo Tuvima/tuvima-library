@@ -100,9 +100,20 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void RouteFor_Profiles_UsesProfileSettingsUrl()
+    public void RouteFor_Profiles_UsesTheHouseholdUrl()
     {
-        Assert.Equal("/settings/profiles", SettingsNav.RouteFor(SettingsSection.Profiles));
+        Assert.Equal("/settings/household", SettingsNav.RouteFor(SettingsSection.Profiles));
+        Assert.Equal("/settings/household", SettingsNav.HouseholdRoute);
+    }
+
+    [Fact]
+    public void OldManageProfilesAddress_IsNotFound_AndNothingRedirects()
+    {
+        var resolution = SettingsNav.ResolveRoute("profiles", true);
+
+        Assert.False(resolution.IsKnownRoute);
+        Assert.Equal("/not-found", resolution.CanonicalRoute);
+        Assert.True(SettingsNav.ResolveRoute("household", true).IsKnownRoute);
     }
 
     [Fact]
@@ -120,17 +131,18 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void Profile_HasOverviewActivityTasteAndLinkedAccountsAsTabs_ImportIsAButtonNotATab_AndNoAppsPage()
+    public void MyProfile_HasProfilePreferencesActivityTasteLinkedAccountsAndAccessAsTabs_ImportIsAButtonNotATab_AndNoAppsPage()
     {
         var profile = SettingsNav.MenuGroups[0].Nodes[0];
-        Assert.Equal("Profile", profile.Label);
-        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], profile.Tabs.Select(tab => tab.Label));
-        var activity = profile.Tabs[1];
+        Assert.Equal("My profile", profile.Label);
+        Assert.Equal(["Profile", "Preferences", "Activity", "Taste", "Linked accounts", "Access & safety"], profile.Tabs.Select(tab => tab.Label));
+        Assert.Equal("/settings/overview/preferences", profile.Tabs[1].Route);
+        var activity = profile.Tabs[2];
         Assert.Equal(SettingsSection.Overview, activity.Section);
         Assert.Equal(SettingsNav.ActivitySubsection, activity.Subsection);
         Assert.Equal("/settings/overview/activity", activity.Route);
         var location = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.ActivitySubsection)!;
-        Assert.Equal(["Profile", "Activity"], [location.Page.Label, location.Tab!.Label]);
+        Assert.Equal(["My profile", "Activity"], [location.Page.Label, location.Tab!.Label]);
         // The page still opens on its own first tab, and every kind of person can open Activity (it works on a phone).
         Assert.Equal("/settings/overview", profile.Route);
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview, SettingsNav.ActivitySubsection));
@@ -139,13 +151,13 @@ public sealed class SettingsNavTests
         // The app links and QR code moved to General, so Profile has no Apps tab, page or address.
         Assert.DoesNotContain(SettingsNav.MenuGroups.SelectMany(group => group.Nodes).SelectMany(node => node.Tabs), tab => tab.Label == "Apps");
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Overview, "apps"));
-        Assert.Equal("Overview", SettingsNav.FindMenuLocation(SettingsSection.Overview)!.Tab!.Label);
+        Assert.Equal("Profile", SettingsNav.FindMenuLocation(SettingsSection.Overview)!.Tab!.Label);
 
         // Import is a button on Profile > Overview that opens the same page at the same address; it sits beneath Profile in the breadcrumb.
         Assert.DoesNotContain(profile.Tabs, tab => tab.Label == "Import");
         Assert.Equal("/settings/overview/import", SettingsNav.RouteFor(SettingsSection.Overview, SettingsNav.ImportSubsection));
         var import = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.ImportSubsection)!;
-        Assert.Equal("Profile", import.Page.Label);
+        Assert.Equal("My profile", import.Page.Label);
         Assert.Null(import.Tab);
         Assert.Equal("Import", import.Leaf);
     }
@@ -313,7 +325,7 @@ public sealed class SettingsNavTests
 
     [Theory]
     [InlineData("profile")]
-    [InlineData("household")]
+    [InlineData("profiles")]
     [InlineData("account")]
     [InlineData("provider-tester")]
     [InlineData("tester")]
@@ -406,15 +418,15 @@ public sealed class SettingsNavTests
         Assert.Equal(["personal", "library", "server", "developer"], groups.Select(group => group.Key));
         Assert.Equal(["Personal", "Library", "Server", "Developer"], groups.Select(group => group.Label));
 
-        Assert.Equal(["Profile", "Manage Profiles", "Security & Devices"], Labels(groups, "personal"));
+        Assert.Equal(["My profile", "Household", "Security & Devices"], Labels(groups, "personal"));
         Assert.Equal(["Libraries", "Playback"], Labels(groups, "library"));
         Assert.Equal(
             ["General", "Users & Households", "Network & Remote Access", "Tools", "Local AI", "Plugins", "Integrations", "Backups", "System"],
             Labels(groups, "server"));
         Assert.Equal(["Developer Tools"], Labels(groups, "developer"));
 
-        Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts"], TabLabels(groups, "Profile"));
-        Assert.Empty(TabLabels(groups, "Manage Profiles"));
+        Assert.Equal(["Profile", "Preferences", "Activity", "Taste", "Linked accounts", "Access & safety"], TabLabels(groups, "My profile"));
+        Assert.Empty(TabLabels(groups, "Household"));
         Assert.Equal(["Sign-in", "Devices"], TabLabels(groups, "Security & Devices"));
         Assert.Equal(["Libraries", "Needs Review", "Matching", "Rules"], TabLabels(groups, "Libraries"));
         Assert.Equal(["Quality", "Advanced"], TabLabels(groups, "Playback"));
@@ -438,7 +450,7 @@ public sealed class SettingsNavTests
 
         var allLabels = groups.SelectMany(group => group.Nodes).Select(node => node.Label)
             .Concat(groups.SelectMany(group => group.Nodes).SelectMany(node => node.Tabs).Select(tab => tab.Label)).ToArray();
-        foreach (var gone in new[] { "Privacy & Data", "System Overview", "Live Ingestion", "Library & Ingestion", "Streaming", "Configuration", "Sign-in Methods", "Administration", "Advanced Settings", "Preferences", "Tools and requirements" })
+        foreach (var gone in new[] { "Privacy & Data", "System Overview", "Live Ingestion", "Library & Ingestion", "Streaming", "Configuration", "Sign-in Methods", "Administration", "Advanced Settings", "Tools and requirements" })
         {
             Assert.DoesNotContain(gone, allLabels);
         }
@@ -536,7 +548,7 @@ public sealed class SettingsNavTests
     }
 
     [Theory]
-    [InlineData("profiles", SettingsSection.Profiles, "/settings/profiles")]
+    [InlineData("household", SettingsSection.Profiles, "/settings/household")]
     [InlineData("security", SettingsSection.Security, "/settings/security")]
     [InlineData("system", SettingsSection.AdminOverview, "/settings/system")]
     [InlineData("libraries", SettingsSection.Libraries, "/settings/libraries")]
@@ -624,9 +636,9 @@ public sealed class SettingsNavTests
         var groups = SettingsNav.FilteredMenuGroups(false);
 
         Assert.Equal(["personal"], groups.Select(group => group.Key));
-        // Manage Profiles is everyone's own to look after (a member lands on their own profile); a Kids profile sees Profile only.
-        Assert.Equal(["Profile", "Manage Profiles", "Security & Devices"], groups[0].Nodes.Select(node => node.Label));
-        Assert.Equal(["Profile"], SettingsNav.FilteredMenuGroups(false, restricted: true).Single().Nodes.Select(node => node.Label));
+        // Household is listed by the menu builder for administrators only; a Kids profile sees My profile only.
+        Assert.Equal(["My profile", "Household", "Security & Devices"], groups[0].Nodes.Select(node => node.Label));
+        Assert.Equal(["My profile"], SettingsNav.FilteredMenuGroups(false, restricted: true).Single().Nodes.Select(node => node.Label));
     }
 
     [Fact]
@@ -635,7 +647,7 @@ public sealed class SettingsNavTests
         var groups = SettingsNav.FilteredMenuGroups(true);
 
         Assert.Contains("Households", TabLabels(groups, "Users & Households"));
-        Assert.Equal("/settings/profiles", SettingsNav.RouteFor(SettingsSection.Profiles));
+        Assert.Equal("/settings/household", SettingsNav.RouteFor(SettingsSection.Profiles));
         Assert.Equal("/settings/access/households", SettingsNav.RouteFor(SettingsSection.Access, "households"));
         Assert.Throws<ArgumentOutOfRangeException>(() => SettingsNav.RouteFor(SettingsSection.Profiles, "households"));
     }
@@ -656,9 +668,9 @@ public sealed class SettingsNavTests
     public void ManageProfiles_IsOpenToEveryoneSignedIn_AndAKidsProfileGetsProfileOnly()
     {
         Assert.True(SettingsNav.IsVisible(SettingsSection.Profiles, administrationAllowed: false));
-        Assert.True(SettingsNav.ResolveRoute("profiles", false).RequestedSectionAllowed);
-        Assert.True(SettingsNav.ResolveRoute("profiles", true).RequestedSectionAllowed);
-        Assert.False(SettingsNav.ResolveRoute("profiles", false, restricted: true).RequestedSectionAllowed);
+        Assert.True(SettingsNav.ResolveRoute("household", false).RequestedSectionAllowed);
+        Assert.True(SettingsNav.ResolveRoute("household", true).RequestedSectionAllowed);
+        Assert.False(SettingsNav.ResolveRoute("household", false, restricted: true).RequestedSectionAllowed);
         Assert.True(SettingsNav.ResolveRoute("overview", false, restricted: true).RequestedSectionAllowed);
 
         // The bare /settings address opens the person's own Profile, whatever they are.
@@ -767,7 +779,7 @@ public sealed class SettingsNavTests
 
         Assert.Contains("<ProfileDetailPage ProfileId=\"@ProfileDetailId\" Tab=\"@ProfileTab\" NameChanged=\"OnProfileNameChanged\" />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("_activeSection == SettingsSection.Profiles && Guid.TryParse(Subsection, out _)", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("- Manage Profiles - Library", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("- Household - Library", settingsSource, StringComparison.Ordinal);
         // A non-id subsection still goes through the normal lookup, which knows no subsection for Profiles and so ends at /not-found otherwise.
         Assert.Contains("<HouseholdsTab />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("SettingsNav.ResolveSubsection(_activeSection, Subsection)", settingsSource, StringComparison.Ordinal);
@@ -821,7 +833,7 @@ public sealed class SettingsNavTests
     {
         var personal = SettingsNav.FilteredMenuGroups(false).Single(group => group.Key == "personal");
 
-        Assert.Equal(["/settings/overview", "/settings/profiles", "/settings/security"], personal.Nodes.Select(node => node.Route));
+        Assert.Equal(["/settings/overview", "/settings/household", "/settings/security"], personal.Nodes.Select(node => node.Route));
         // Playback, Listening, Reading and Home are tabs of a profile, not pages.
         Assert.Equal([SettingsSection.Profiles], personal.Nodes[1].Sections);
     }

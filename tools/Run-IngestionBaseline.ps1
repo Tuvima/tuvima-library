@@ -49,6 +49,12 @@
 .PARAMETER BudgetMinutes
   How long to wait for ingestion to settle (default 180).
 
+.PARAMETER OpenStoreOf
+  Instead of a run: make a copy of a finished run (its folder, run id or label) that the Dashboard can open. A run marks
+  first-time setup as finished but never creates the administrator's sign-in, so the Dashboard would bounce between the setup
+  and sign-in pages. The copy (<run>/dashboard-copy, no provider keys) puts setup back to its first step; finish the wizard
+  once and look around. The run's own data is not touched. Prints the two settings to start the Engine and Dashboard with.
+
 .PARAMETER PollSeconds
   Seconds between settle checks (default 15).
 #>
@@ -61,12 +67,19 @@ param(
     [switch]$NoBuild,
     [string]$ConfigSource = '',
     [int]$BudgetMinutes = 180,
-    [int]$PollSeconds = 15
+    [int]$PollSeconds = 15,
+    [string]$OpenStoreOf = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+if ($OpenStoreOf) {
+    $engine = Join-Path $repo 'src/MediaEngine.Api/bin/Debug/net10.0/MediaEngine.Api.dll'
+    if (-not (Test-Path -LiteralPath $engine)) { throw "Engine build output not found: $engine (run a build first)." }
+    & dotnet $engine --open-baseline-store $OpenStoreOf --repo $repo
+    exit $LASTEXITCODE
+}
 if ($Generate -and $SampleRoot) { throw 'Use either -Generate or -SampleRoot, not both.' }
 if (-not $Generate -and -not $SampleRoot) { throw 'Give -SampleRoot <folder> or -Generate.' }
 if ($SampleRoot -and -not (Test-Path -LiteralPath $SampleRoot -PathType Container)) { throw "Sample root not found: $SampleRoot" }

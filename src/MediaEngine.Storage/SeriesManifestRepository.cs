@@ -25,6 +25,12 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
         _logger = logger;
     }
 
+    /// <summary>The lower-case media types that share a Series with <paramref name="mediaType"/> (books and audiobooks are one Series).</summary>
+    private static string[] FamilyOf(string? mediaType) =>
+        mediaType is null
+            ? []
+            : MediaEngine.Domain.Services.SeriesMediaFamily.Members(mediaType).Select(m => m.ToLowerInvariant()).ToArray();
+
     public Task<SeriesManifestHydration?> GetHydrationAsync(string seriesQid, string mediaType, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -39,11 +45,11 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
             FROM series_manifest_hydrations h
             INNER JOIN collections c ON c.id = h.collection_id
             WHERE h.series_qid = @seriesQid
-              AND LOWER(c.media_type) = LOWER(@mediaType)
+              AND LOWER(c.media_type) IN @mediaTypes
             ORDER BY h.last_hydrated_at DESC
             LIMIT 1;
             """,
-            new { seriesQid, mediaType });
+            new { seriesQid, mediaType, mediaTypes = FamilyOf(mediaType) });
 
         return Task.FromResult(row?.ToEntity());
     }
@@ -86,10 +92,10 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
                    last_hydrated_at AS LastHydratedAt, created_at AS CreatedAt, updated_at AS UpdatedAt
             FROM series_manifest_items
             WHERE series_qid = @seriesQid
-              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
+              AND (@mediaType IS NULL OR LOWER(media_type) IN @mediaTypes)
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { seriesQid, mediaType }).AsList();
+            new { seriesQid, mediaType, mediaTypes = FamilyOf(mediaType) }).AsList();
 
         return Task.FromResult<IReadOnlyList<SeriesManifestItemRecord>>(rows.Select(r => r.ToEntity()).ToList());
     }
@@ -125,9 +131,9 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
                    CAST(COALESCE(NULLIF(wikidata_qid, ''), json_extract(external_identifiers, '$.wikidata_qid')) AS TEXT) AS Qid
             FROM works
             WHERE COALESCE(NULLIF(wikidata_qid, ''), json_extract(external_identifiers, '$.wikidata_qid')) IN @qids
-              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType));
+              AND (@mediaType IS NULL OR LOWER(media_type) IN @mediaTypes);
             """,
-            new { qids = qids.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(), mediaType }).AsList();
+            new { qids = qids.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(), mediaType, mediaTypes = FamilyOf(mediaType) }).AsList();
 
         var result = rows
             .Where(r => !string.IsNullOrWhiteSpace(r.Qid))
@@ -354,9 +360,9 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
                     WHERE series_qid = @parentQid
                       AND linked_work_id IS NOT NULL
                       AND is_collection = 0
-                      AND LOWER(COALESCE(media_type, '')) = LOWER(COALESCE(@mediaType, ''));
+                      AND LOWER(COALESCE(media_type, '')) IN @mediaTypes;
                     """,
-                    new { parentQid = listed.ItemQid, mediaType },
+                    new { parentQid = listed.ItemQid, mediaTypes = FamilyOf(mediaType) },
                     tx);
                 foreach (var parentWorkId in parentWorkIds)
                 {

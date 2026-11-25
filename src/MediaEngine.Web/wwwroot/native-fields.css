@@ -84,7 +84,8 @@ textarea.tl-input:focus-visible { outline: 1px solid var(--tl-accent-primary); o
 .app-icon-button.app-icon-button:not(.app-tone--neutral) { color: var(--app-tone-color,var(--tl-text-secondary)); }
 .app-icon-button.app-icon-button .tl-icon-root, .app-icon-button.app-icon-button .playback-utility-glyph { width: var(--tl-icon-button-icon-lg); height: var(--tl-icon-button-icon-lg); font-size: var(--tl-icon-button-icon-lg); }
 .app-icon-button.app-icon-button.app-control--compact .tl-icon-root, .app-icon-button.app-icon-button.app-control--compact .playback-utility-glyph { width: var(--tl-icon-button-icon-sm); height: var(--tl-icon-button-icon-sm); font-size: var(--tl-icon-button-icon-sm); }
-.app-icon-button--outlined.app-icon-button { border-color: var(--tl-border-strong); }
+/* Icon-only buttons carry no border anywhere (Shy 2026-11-22, standing): the default look is bare, with a hover fill. One rule here, no per-screen patches. */
+.app-icon-button--outlined.app-icon-button { border-color: transparent; }
 .app-icon-button--outlined.app-icon-button:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--tl-text-primary); background: var(--tl-bg-surface-hover); }
 .app-icon-button--plain.app-icon-button { color: var(--tl-text-primary); }
 .app-icon-button--plain.app-icon-button:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb,currentColor 10%,transparent); }

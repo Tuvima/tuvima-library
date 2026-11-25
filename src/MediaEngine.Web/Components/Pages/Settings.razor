@@ -35,9 +35,9 @@
     @* An address that is not a Settings page, or one this person may not see, shows the not-found page in place; the address stays as typed. *@
     <NotFound />
 }
-else if (_leavingSettings)
+else if (_leavingSettings || _openingMyProfile)
 {
-    @* A Kids profile reaches Profile and nothing else in Settings. The move to Home is already under way, so nothing is drawn meanwhile. *@
+    @* A Kids profile reaches Profile and nothing else in Settings, and your own id under Household opens My profile. The move is already under way, so nothing is drawn meanwhile. *@
 }
 else if (!_profileRoleLoaded)
 {
@@ -157,6 +157,17 @@ else
                                 {
                                     <OverviewAccountsPage />
                                 }
+                                else if (_activeSubsection == SettingsNav.PreferencesSubsection && _activeProfile is not null)
+                                {
+                                    @* Your own Preferences: the shared preference parts, with no person-page chrome (profile-and-household D3, D4). The one line saying
+                                       these choices are yours is the page's own description under the title. *@
+                                    <ProfilePreferencesPanel ProfileId="@_activeProfile!.Id" IsSelf="true" />
+                                }
+                                else if (_activeSubsection == SettingsNav.AccessSubsection && _activeProfile is not null && (CanManageHousehold || Nsfw.IsAvailable))
+                                {
+                                    @* Access & safety is for administrators, and for anyone whose profile has Vault mode (their own Vault switch lives here): the same content as a person's Access tab, for your own profile, without the person-page chrome. *@
+                                    <ProfileDetailPage ProfileId="@_activeProfile!.Id" Tab="@SettingsNav.AccessSubsection" Embedded="true" />
+                                }
                                 else
                                 {
                                     <OverviewPage />
@@ -169,7 +180,7 @@ else
                                 }
                                 else
                                 {
-                                    <ProfilesTab />
+                                    <ProfilesTab HouseholdNameChanged="OnHouseholdNameChanged" />
                                 }
                                 break;
                             case SettingsSection.Security:
@@ -313,6 +324,17 @@ else
     private bool IsPluginDetailRoute => _activeSection == SettingsSection.Plugins && !string.IsNullOrWhiteSpace(_activeSubsection);
     private string? PluginDetailId => IsPluginDetailRoute ? _activeSubsection : null;
     private string PluginDetailTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
+    // The Household page is titled with the household's name (profile and household D6); the page tells us once it has read it.
+    private string? _householdName;
+    private void OnHouseholdNameChanged(string? name)
+    {
+        if (_householdName != name)
+        {
+            _householdName = name;
+            StateHasChanged();
+        }
+    }
+
     private void OnProfileNameChanged(string name)
     {
         if (_profileBreadcrumbName != name)
@@ -348,6 +370,8 @@ else
     // A Kids profile reaches Profile and nothing else in Settings; every other address sends it Home.
     private bool _restricted;
     private bool _leavingSettings;
+    // Your own id was opened under Household: the move to My profile is under way, so nothing is drawn meanwhile.
+    private bool _openingMyProfile;
     private bool _notFound;
 
     private SystemStatusViewModel? _systemStatus;
@@ -378,7 +402,9 @@ else
         Attention.IntegrationsBroken,
         ToolsMissingReason,
         _restricted,
-        _accountsOffered);
+        _accountsOffered,
+        CanManageHousehold,
+        Nsfw.IsAvailable);
 
     // Red on Tools and requirements only for a required tool that is missing or broken; one being downloaded is not a problem.
     private string? ToolsMissingReason => Attention.MissingTools switch
@@ -435,14 +461,17 @@ else
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
 
-    /// <summary>The tab of a person's page: empty for Profile, otherwise <c>preferences</c> or <c>access</c>.</summary>
+    /// <summary>The tab of a person's page: empty for Profile, otherwise <c>preferences</c>, <c>access</c> or <c>activity</c>.</summary>
     private string ProfileTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
 
     // A tab's name comes from the wording file when it has a key there; the English name in the menu table is the fallback.
     private string TabLabel(SettingsPageTab tab) => tab.LabelKey is { } key ? L[key].Value : tab.Label;
 
+    // A person's page is titled with the person's name; until it is known the page is the Household it belongs to.
+    private string ProfilePageTitle => string.IsNullOrWhiteSpace(_profileBreadcrumbName) ? "Household" : _profileBreadcrumbName;
+
     private string BrowserTitle => IsProfileDetailRoute
-        ? $"{_profileBreadcrumbName ?? "Profile"} - Manage Profiles - Library"
+        ? (string.IsNullOrWhiteSpace(_profileBreadcrumbName) ? "Household - Library" : $"{_profileBreadcrumbName} - Household - Library")
         : _activeSection == SettingsSection.Libraries
         ? LibrariesBrowserTitle
         : CurrentLocation?.Tab is { } tab && !string.Equals(TabLabel(tab), GetHeroTitle(), StringComparison.Ordinal)
@@ -690,6 +719,9 @@ else
 
     private bool CanManageAdministration => Session.HasNavigation("settings.administration");
 
+    // A household or server administrator: Household is in their menu and My profile has Access & safety.
+    private bool CanManageHousehold => Session.HasAction("household.manage") || Session.Authority?.EffectiveAdministrator == true || CanManageAdministration;
+
     // Administration pages need the administrator gate.
     private bool RequiresAdministratorSurface => SettingsNav.GetItem(_activeSection).AdminOnly;
 
@@ -704,6 +736,8 @@ else
             return;
         }
 
+        var wasOpeningMyProfile = _openingMyProfile;
+        _openingMyProfile = false;
         _notFound = false;
         var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted);
         _activeSection = resolution.Section;
@@ -762,6 +796,17 @@ else
             _notFound = true;
             return;
         }
+
+        // Your own id under Household opens My profile, the one page about you (profile-and-household D12). It is an open, not an old address:
+        // the person's own page does not exist, so Back must not return to it.
+        if (IsProfileDetailRoute && _activeProfile is { } self && self.Id == ProfileDetailId)
+        {
+            _openingMyProfile = true;
+            if (!wasOpeningMyProfile)
+            {
+                Nav.NavigateTo(SettingsNav.RouteFor(SettingsSection.Overview), replace: true);
+            }
+        }
     }
 
     private bool _sawSettingsAddress;
@@ -804,8 +849,8 @@ else
     private static bool IsValidDetailRoute(SettingsSection section, string subsection, string? detail)
     {
         if (string.IsNullOrWhiteSpace(detail)) return true;
-        // A person's page has two more tabs beside Profile: Preferences and Access & safety.
-        if (section == SettingsSection.Profiles) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "preferences" or "access";
+        // A person's page has three more tabs beside Profile: Preferences, Access & safety and Activity.
+        if (section == SettingsSection.Profiles) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "preferences" or "access" or "activity";
         if (section == SettingsSection.Libraries) return SettingsNav.IsLibraryRouteSegment(subsection) && IsProviderRouteKey(detail);
         if (section == SettingsSection.Integrations) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "access" or "keys" or "deliveries" or "activity";
         if (section == SettingsSection.Plugins) return !string.IsNullOrWhiteSpace(subsection) && detail.Trim().ToLowerInvariant() is "settings" or "access" or "activity" or "file";
@@ -821,6 +866,8 @@ else
     {
         _ = InvokeAsync(async () =>
         {
+            // Another person may not look after a household at all; the Household page names itself again when it is shown.
+            _householdName = null;
             await LoadAuthorityAsync();
             await LoadDevelopmentToolsAsync();
             ResolveSection();
@@ -898,9 +945,8 @@ else
 
         if (IsProfileDetailRoute)
         {
-            return ProfileTab.Length > 0
-                ? new SettingsBackLink(_profileBreadcrumbName ?? "Profile", $"/settings/profiles/{ProfileDetailId:D}")
-                : new SettingsBackLink(pageLabel, pageRoute);
+            // One link, on every tab of a person's page: back to Household (profile-and-household D12).
+            return new SettingsBackLink(pageLabel, SettingsNav.HouseholdRoute);
         }
 
         return !string.IsNullOrWhiteSpace(Detail)
@@ -910,8 +956,13 @@ else
 
     private string GetHeroTitle()
     {
+        if (IsProfileDetailRoute)
+            return ProfilePageTitle;
         if (_activeSection == SettingsSection.Libraries)
             return LibrariesLevel.Title;
+        // The Household page is named after the household; until its name is read (or when it cannot be), it is just "Household".
+        if (_activeSection == SettingsSection.Profiles && !IsProfileDetailRoute && !string.IsNullOrWhiteSpace(_householdName))
+            return _householdName;
         // Needs Review is named by its own heading (universal editor v3 mock, screen 2), not by the Libraries page it is a tab of.
         if (_activeSection == SettingsSection.Review)
             return CurrentLocation?.Tab is { } reviewTab ? TabLabel(reviewTab) : SettingsNav.GetItem(_activeSection).Label;
@@ -926,12 +977,16 @@ else
                 ? "What the Library has learned you enjoy. Remove what is not you, or add what is."
             : _activeSubsection == SettingsNav.ImportSubsection
                 ? "Drop a list, a collection pack, a bookmark pack or a plugin settings file. Library says what it is and where it goes."
+            : _activeSubsection == SettingsNav.PreferencesSubsection
+                ? "These choices are yours and follow you to every device."
+            : _activeSubsection == SettingsNav.AccessSubsection
+                ? "Your roles, the libraries you can use, and PIN protection."
             : _activeSubsection == SettingsNav.AccountsSubsection
                 ? "Sign in to your own accounts on other sites, such as Trakt, so plugins can read your private lists."
                 : "You, what you have been watching, reading and listening to, and your taste.",
         SettingsSection.Profiles => IsProfileDetailRoute
-            ? "Details, preferences, and access and safety for this profile."
-            : "Add and look after the people in your household. Switch profile from the profile menu.",
+            ? "Name and picture, preferences, access and safety, and activity for this person."
+            : "The people you live with, and the choices that apply to all of them.",
         SettingsSection.Security => _activeSubsection == SettingsNav.DevicesSubsection
             ? "The phones, TVs and browsers signed in to Library, and who they belong to."
             : "Password, email and extra protection.",
@@ -965,7 +1020,7 @@ else
         SettingsSection.Access => _activeSubsection switch
         {
             SettingsNav.AdvancedSubsection => "How people sign in, and the rules for passwords, sessions and invitations.",
-            SettingsNav.HouseholdsSubsection => "Add, rename and remove households. Each has its own people, library access and Shared Library.",
+            SettingsNav.HouseholdsSubsection => "Add, rename and remove households. Each has its own people and Shared Library.",
             _ => "Who can sign in, and which profile each sign-in opens.",
         },
         SettingsSection.Backups => "Protect your Library configuration and recover it when needed.",

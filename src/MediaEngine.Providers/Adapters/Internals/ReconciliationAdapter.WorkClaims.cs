@@ -293,7 +293,10 @@ public sealed partial class ReconciliationAdapter
         // Emit the reconciliation match label as the display title claim. Source-language
         // labels are retained separately as original_title when they differ from the
         // configured metadata language.
-        if (!string.IsNullOrWhiteSpace(reconciliationLabel))
+        // A book's name from Wikidata only replaces the title from the store when it is the same title in the
+        // same language; a translation or an unrelated name never overwrites what the file and store agree on.
+        if (!string.IsNullOrWhiteSpace(reconciliationLabel)
+            && (!IsBookLike(request.MediaType) || TitleAgreesWithFile(request.Title, [], reconciliationLabel)))
         {
             claims.Add(new ProviderClaim(MetadataFieldConstants.Title, reconciliationLabel, ClaimConfidence.ReconciliationTitle));
         }

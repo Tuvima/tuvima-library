@@ -277,6 +277,7 @@ public sealed partial class NeedsReviewListReadServiceTests : IDisposable
                 [NeedsReviewGroups.Choose] = 1,
                 [NeedsReviewGroups.NoMatch] = 3,
                 [NeedsReviewGroups.FileProblem] = 1,
+                [NeedsReviewGroups.CanonicalMissing] = 0,
             },
             list.GroupTotals);
         var episodes = list.Items.Where(row => row.Unmatched is not null).ToList();

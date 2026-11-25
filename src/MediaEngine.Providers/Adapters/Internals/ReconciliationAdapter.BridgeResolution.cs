@@ -397,7 +397,9 @@ public sealed partial class ReconciliationAdapter
                         finalEditionQid,
                         input.FileLanguage,
                         ct).ConfigureAwait(false);
-                    claims = parentClaims;
+                    // The claims now describe the Series, so its label is the Series name ("Batman"), never the title of
+                    // the issue in the file ("Batman #1").
+                    claims = string.IsNullOrWhiteSpace(input.IssueNumber) ? parentClaims : SeriesLabelAsSeriesClaim(parentClaims);
                     collectedBridgeIds = parentCollectedBridgeIds;
 
                     if (!ValidateP31ForMediaType(parentInstanceOfQids, finalWorkQid, input.MediaType, input.ResolutionScope))
@@ -497,6 +499,31 @@ public sealed partial class ReconciliationAdapter
                     continue;
                 }
 
+                if (IsBookLike(input.MediaType))
+                {
+                    // An edition or translation record is never a book's identity: it must roll up to the
+                    // book itself (P629), otherwise the next candidate or the title search is tried.
+                    if (IsBareEditionRecord(instanceOfQids) && string.Equals(finalWorkQid, finalQid, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogInformation(
+                            "{Provider}: Stage2 - rejected {Key} -> {QID}: edition or translation record with no parent work",
+                            Name, correlationKey, finalWorkQid);
+                        continue;
+                    }
+
+                    // Anything that did not come from an exact ID match, and every lower-ranked fallback, must
+                    // still look like the book in the file. Without this a rejected right book let any other
+                    // title by the same author slip in (Pyramids became The Red Pyramid).
+                    if ((!attempt.UsePrimaryRollup || libResult.MatchedBy == BridgeResolutionStrategy.TextSearch)
+                        && !TitleAgreesWithFile(input.Title, claims, attempt.Candidate?.Label))
+                    {
+                        _logger.LogInformation(
+                            "{Provider}: Stage2 - rejected {Key} -> {QID}: title does not resemble '{Title}'",
+                            Name, correlationKey, finalWorkQid, input.Title);
+                        continue;
+                    }
+                }
+
                 if (!IsResolvedYearCompatible(input.Year, claims, input.MediaType)
                     // A verified release may be a reissue; its date is not the original album date.
                     && !(input.MediaType == MediaType.Music
@@ -523,6 +550,20 @@ public sealed partial class ReconciliationAdapter
                     Name, correlationKey, finalWorkQid);
             }
 
+            var rolledUpBook = input is not null
+                && IsBookLike(input.MediaType)
+                && !string.Equals(finalWorkQid, finalQid, StringComparison.OrdinalIgnoreCase);
+            if (rolledUpBook)
+            {
+                // Series belong to the book itself, never to the edition record that matched the ID
+                // (a publisher's paperback line is not the book's Series).
+                var (workClaims, _, _) = await BuildClaimsForResolvedQidAsync(
+                    finalWorkQid, false, finalWorkQid, null, input!.FileLanguage, ct).ConfigureAwait(false);
+                claims = claims.Where(c => !IsSeriesClaimKey(c.Key))
+                    .Concat(workClaims.Where(c => IsSeriesClaimKey(c.Key)))
+                    .ToList();
+            }
+
             return new AcceptedBridgeCandidate(
                 finalQid,
                 finalWorkQid,
@@ -532,7 +573,7 @@ public sealed partial class ReconciliationAdapter
                 collectedBridgeIds,
                 attempt.Candidate,
                 attempt.UsePrimaryRollup ? libResult.Rollup : null,
-                attempt.UsePrimaryRollup ? libResult.Series : [],
+                attempt.UsePrimaryRollup && !rolledUpBook ? libResult.Series : [],
                 attempt.UsePrimaryRollup ? libResult.Relationships : []);
         }
 

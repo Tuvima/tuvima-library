@@ -84,6 +84,14 @@ public sealed class BaselineMetadata
     /// <summary>Replays only: the distinct requests the recording did not hold (each answered "not found").</summary>
     [JsonPropertyName("provider_answers_not_recorded")]
     public List<string> ProviderAnswersNotRecorded { get; set; } = [];
+
+    /// <summary>State of each saved provider key in the run (names and "readable" or the reason not; never values).</summary>
+    [JsonPropertyName("provider_keys")]
+    public IDictionary<string, string> ProviderKeys { get; set; } = new SortedDictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>Kinds of media the run could not identify (no working source) and the files it therefore never registered.</summary>
+    [JsonPropertyName("held_kinds")]
+    public List<BaselineHeldKind> HeldKinds { get; set; } = [];
 }
 
 public sealed class BaselineCounts
@@ -434,7 +442,9 @@ public sealed record BaselineRunInfo(
     string? EndedAt,
     IReadOnlyDictionary<string, int> HttpHosts,
     string? ProviderAnswers = null,
-    IReadOnlyList<string>? ProviderAnswersNotRecorded = null)
+    IReadOnlyList<string>? ProviderAnswersNotRecorded = null,
+    IReadOnlyDictionary<string, string>? ProviderKeys = null,
+    IReadOnlyList<BaselineHeldKind>? HeldKinds = null)
 {
     public static BaselineRunInfo? Load(string configDirectory)
     {
@@ -461,7 +471,17 @@ public sealed record BaselineRunInfo(
         return new BaselineRunInfo(
             Text("sample_root") ?? string.Empty, List("catalogue_folders"), List("view_folders"),
             Text("label"), Text("build_commit"), Text("started_at"), Text("ended_at"), hosts, Text("provider_answers"),
-            List("provider_answers_not_recorded"));
+            List("provider_answers_not_recorded"),
+            node["provider_keys"] is JsonObject keyNode
+                ? keyNode.ToDictionary(pair => pair.Key, pair => pair.Value!.GetValue<string>(), StringComparer.Ordinal)
+                : [],
+            node["held_kinds"] is JsonArray heldNode
+                ? heldNode.Select(item => new BaselineHeldKind(
+                    item!["kind"]!.GetValue<string>(),
+                    item["sources"]!.AsArray().Select(source => source!.GetValue<string>()).ToList(),
+                    item["reason"]!.GetValue<string>(),
+                    item["files"]!.AsArray().Select(file => file!.GetValue<string>()).ToList())).ToList()
+                : []);
     }
 }
 

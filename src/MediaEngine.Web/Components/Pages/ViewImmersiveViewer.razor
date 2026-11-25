@@ -41,15 +41,15 @@
     <ContextActions>
         @if (_faces.Count > 0)
         {
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.People" Tooltip="@(_showFaces ? ViewPeopleText.HideFaces : ViewPeopleText.ShowFaces)" AriaLabel="@(_showFaces ? ViewPeopleText.HideFaces : ViewPeopleText.ShowFaces)" OnClick="@(() => _showFaces = !_showFaces)" />
+            <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.People" Tooltip="@(_showFaces ? ViewPeopleText.HideFaces : ViewPeopleText.ShowFaces)" AriaLabel="@(_showFaces ? ViewPeopleText.HideFaces : ViewPeopleText.ShowFaces)" OnClick="@(() => _showFaces = !_showFaces)" />
         }
         @if (CanEditHere)
         {
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["ViewEdit_Edit"].Value" AriaLabel="@L["ViewEdit_Edit"].Value" OnClick="EditAsync" />
+            <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["ViewEdit_Edit"].Value" AriaLabel="@L["ViewEdit_Edit"].Value" OnClick="EditAsync" />
         }
         @if (!string.IsNullOrWhiteSpace(MotionUrl))
         {
-            <AppIconButton Icon="@(_showMotion ? AppMaterialIcons.Outlined.Photo : AppMaterialIcons.Outlined.MotionPhotosOn)"
+            <AppIconButton ButtonStyle="AppButtonStyle.Text" Icon="@(_showMotion ? AppMaterialIcons.Outlined.Photo : AppMaterialIcons.Outlined.MotionPhotosOn)"
                            Tooltip="@(_showMotion ? L["ViewImmersiveViewer_ShowStill"].Value : L["ViewImmersiveViewer_PlayMotion"].Value)"
                            AriaLabel="@(_showMotion ? L["ViewImmersiveViewer_ShowLiveStill"].Value : L["ViewImmersiveViewer_PlayLiveMotion"].Value)"
                            OnClick="ToggleMotion" />

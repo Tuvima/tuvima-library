@@ -1,5 +1,6 @@
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Services;
 using Microsoft.Extensions.Logging;
@@ -45,6 +46,14 @@ public sealed class MediaEntityChainFactory : IMediaEntityChainFactory
 
         string? formatLabel = null;
         metadata?.TryGetValue("format", out formatLabel);
+        if (mediaType == MediaType.Movies && string.IsNullOrWhiteSpace(formatLabel) && metadata is not null)
+        {
+            // A film's Edition is named by its cut and picture quality ("Final Cut · 4K"), so its other
+            // cuts and qualities stay apart instead of being dropped with the file name's noise words.
+            metadata.TryGetValue(FilmEditionLabels.CutKey, out var cut);
+            metadata.TryGetValue(FilmEditionLabels.QualityKey, out var quality);
+            formatLabel = FilmEditionLabels.Build(cut, quality);
+        }
 
         var editionId = Guid.NewGuid();
 

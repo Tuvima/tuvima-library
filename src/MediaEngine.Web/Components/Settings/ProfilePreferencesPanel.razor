@@ -1,0 +1,70 @@
+@namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
+@* One person's preferences: Watching, Listening, Reading and Home, shown one at a time behind a section switch (profile-and-household D4).
+   It is the same set of parts on My profile > Preferences and on a person's Preferences tab, so the two never drift apart. The page that
+   draws it supplies the frame (title, tabs, the line saying these choices follow the person); this panel has no header card or back link.
+   Home is offered on your own profile only (it shows what your own top banner may show). Watching ends with "On this device". *@
+@if (Forbidden)
+{
+    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["Common_YouCanTChangeThis"]</AppAlert>
+}
+else
+{
+    <div class="profile-preferences" data-profile-preferences>
+        <AppSegmentedControl Options="Sections"
+                             Value="@Section"
+                             ValueChanged="OnSectionChanged"
+                             AriaLabel="@L["ProfileDetailPage_PreferenceSections"].Value"
+                             Class="profile-detail__section-switch" />
+        @switch (Section)
+        {
+            case "listening":
+                <section id="listening" class="profile-detail__preferences" aria-labelledby="profile-prefs-listening">
+                    <h2 id="profile-prefs-listening" class="profile-detail__section-heading">@L["ProfileDetailPage_Listening"]</h2>
+                    <ListeningSettingsPage ProfileId="@ProfileId" Embedded="true" />
+                </section>
+                break;
+            case "reading":
+                <section id="reading" class="profile-detail__preferences" aria-labelledby="profile-prefs-reading">
+                    <h2 id="profile-prefs-reading" class="profile-detail__section-heading">@L["ProfileDetailPage_Reading"]</h2>
+                    <ReadingSettingsPage ProfileId="@ProfileId" Embedded="true" />
+                </section>
+                break;
+            case "home":
+                <section id="home" class="profile-detail__preferences" aria-labelledby="profile-prefs-home">
+                    <h2 id="profile-prefs-home" class="profile-detail__section-heading">@L["Nav_Home"]</h2>
+                    <HomeSettingsPage />
+                    <HomeLanesSettings />
+                </section>
+                break;
+            default:
+                <section id="playback" class="profile-detail__preferences" aria-labelledby="profile-prefs-watching">
+                    <h2 id="profile-prefs-watching" class="profile-detail__section-heading">@L["ProfileDetailPage_Watching"]</h2>
+                    <PlaybackSettingsPage ProfileId="@ProfileId" Embedded="true" />
+                </section>
+                break;
+        }
+    </div>
+}
+
+@code {
+    private string _section = "watching";
+
+    /// <summary>The person whose preferences these are.</summary>
+    [Parameter, EditorRequired] public Guid ProfileId { get; set; }
+
+    /// <summary>True on your own profile: the Home section is offered here only.</summary>
+    [Parameter] public bool IsSelf { get; set; }
+
+    /// <summary>True when the Engine refused to show this person's preferences to the viewer; the panel says so instead of drawing them.</summary>
+    [Parameter] public bool Forbidden { get; set; }
+
+    private string Section => _section == "home" && !IsSelf ? "watching" : _section;
+
+    private IReadOnlyList<AppSelectOption> Sections =>
+        IsSelf
+            ? [new("watching", L["ProfileDetailPage_Watching"].Value), new("listening", L["ProfileDetailPage_Listening"].Value), new("reading", L["ProfileDetailPage_Reading"].Value), new("home", L["Nav_Home"].Value)]
+            : [new("watching", L["ProfileDetailPage_Watching"].Value), new("listening", L["ProfileDetailPage_Listening"].Value), new("reading", L["ProfileDetailPage_Reading"].Value)];
+
+    private void OnSectionChanged(string section) => _section = section;
+}

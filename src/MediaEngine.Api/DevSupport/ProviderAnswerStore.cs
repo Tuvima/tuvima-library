@@ -98,7 +98,7 @@ public sealed partial class ProviderAnswerStore
     }
 
     /// <summary>Every string value in the config folder's key files (<c>secrets/</c> and <c>.secrets/</c>).</summary>
-    public static IReadOnlyList<string> LoadSecrets(string configDirectory)
+    public static IReadOnlyList<string> LoadSecrets(string configDirectory, MediaEngine.Storage.Secrets.ISecretsRootKey? rootKey = null)
     {
         var values = new List<string>();
         foreach (var name in new[] { "secrets", ".secrets" })
@@ -127,7 +127,28 @@ public sealed partial class ProviderAnswerStore
             }
         }
 
+        AddOpenedValues(configDirectory, values, rootKey);
         return values.Where(value => value.Length >= MinimumSecretLength).Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>
+    /// Sealed key files only show scrambled text, so the real key values are opened (with the root key this process can
+    /// reach) and added too; without that a saved answer could carry a real key past the check. Files that do not open are skipped.
+    /// </summary>
+    private static void AddOpenedValues(string configDirectory, List<string> values, MediaEngine.Storage.Secrets.ISecretsRootKey? rootKey)
+    {
+        var store = new MediaEngine.Storage.Secrets.ConfigFolderSecretsStore(configDirectory, rootKey);
+        foreach (var owner in store.ListOwners())
+        {
+            try
+            {
+                values.AddRange(store.GetAllAsync(owner).GetAwaiter().GetResult().Values.Select(value => value.Trim()));
+            }
+            catch (Exception ex) when (ex is MediaEngine.Domain.Contracts.SecretsUnreadableException or InvalidDataException or IOException)
+            {
+                // A key file that cannot be opened holds no usable key value; its scrambled text is already covered above.
+            }
+        }
     }
 
     private static void CollectStrings(JsonNode? node, List<string> values)

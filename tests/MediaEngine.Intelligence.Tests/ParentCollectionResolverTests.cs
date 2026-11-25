@@ -176,6 +176,57 @@ public sealed class ParentCollectionResolverTests : IDisposable
         Assert.Equal("Q19610143", parent.WikidataQid);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResolveParentCollectionAsync_ABookSeriesAndTheShowBasedOnIt_ShareTheFranchiseTheShowNames_InEitherOrder(bool booksFirst)
+    {
+        // The books name no franchise; the show is based on the books and names the franchise. Both land on the franchise.
+        var books = CreateCollection("The Expanse (books)", "ContentGroup", "Q19610143", MediaType.Books);
+        var television = CreateCollection("The Expanse (TV)", "ContentGroup", "Q18389644", MediaType.TV);
+        await _repo.UpsertAsync(books);
+        await _repo.UpsertAsync(television);
+        await _repo.InsertRelationshipsAsync(
+        [
+            CreateRelationship(books.Id, "series", "Q19610143", "The Expanse"),
+            CreateRelationship(television.Id, "based_on", "Q19610143", "The Expanse"),
+            CreateRelationship(television.Id, "franchise", "Q131519400", "The Expanse franchise"),
+        ]);
+
+        await (booksFirst ? ResolveAsync(books, television) : ResolveAsync(television, books));
+
+        var universe = await _repo.FindUniverseShelfByUniverseQidAsync("Q131519400");
+        Assert.NotNull(universe);
+        Assert.Equal("Q131519400", (await _repo.GetByIdAsync(books.Id))!.UniverseQid);
+        Assert.Equal("Q131519400", (await _repo.GetByIdAsync(television.Id))!.UniverseQid);
+        Assert.Equal(2, (await _repo.GetChildCollectionsAsync(universe!.Id)).Count);
+        Assert.Null(await _repo.FindUniverseShelfByUniverseQidAsync("Q19610143"));
+    }
+
+    [Fact]
+    public async Task ResolveParentCollectionAsync_ABookSeriesResolvedAlone_FollowsTheShowThatArrivesLater()
+    {
+        var books = CreateCollection("The Expanse (books)", "ContentGroup", "Q19610143", MediaType.Books);
+        await _repo.UpsertAsync(books);
+        await _repo.InsertRelationshipsAsync([CreateRelationship(books.Id, "series", "Q19610143", "The Expanse")]);
+        await ResolveAsync(books);
+        Assert.Equal("Q19610143", (await _repo.GetByIdAsync(books.Id))!.UniverseQid);
+
+        var television = CreateCollection("The Expanse (TV)", "ContentGroup", "Q18389644", MediaType.TV);
+        await _repo.UpsertAsync(television);
+        await _repo.InsertRelationshipsAsync(
+        [
+            CreateRelationship(television.Id, "based_on", "Q19610143", "The Expanse"),
+            CreateRelationship(television.Id, "franchise", "Q131519400", "The Expanse franchise"),
+        ]);
+        await ResolveAsync(television);
+
+        Assert.Equal("Q131519400", (await _repo.GetByIdAsync(books.Id))!.UniverseQid);
+        var universe = await _repo.FindUniverseShelfByUniverseQidAsync("Q131519400");
+        Assert.NotNull(universe);
+        Assert.Equal(2, (await _repo.GetChildCollectionsAsync(universe!.Id)).Count);
+    }
+
     [Fact]
     public async Task ResolveParentCollectionAsync_DoesNotCreateParentWhenRelationshipMatchesCollectionQid()
     {
@@ -299,9 +350,9 @@ public sealed class ParentCollectionResolverTests : IDisposable
             CreateRelationship(books.Id, "fictional_universe", "Q1000", "The Expanse universe"),
         ]);
 
-        // TV first: nothing else is known yet, so it sits in the book Series' own record.
+        // TV first: it already sees the Universe the book Series names, because the two are joined by "based on".
         await _resolver.ResolveParentCollectionAsync(television.Id);
-        Assert.Equal("Q19610143", (await _repo.GetByIdAsync(television.Id))!.UniverseQid);
+        Assert.Equal("Q1000", (await _repo.GetByIdAsync(television.Id))!.UniverseQid);
 
         await _resolver.ResolveParentCollectionAsync(books.Id);
 

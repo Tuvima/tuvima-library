@@ -33,6 +33,24 @@ public sealed class NeedsReviewListModelTests
     }
 
     [Fact]
+    public void TheFilter_NarrowsTheListToItemsNotFoundAtAll_OrToItemsMissingCanonicalInformation()
+    {
+        var model = Loaded(
+            NeedsReviewTestRows.ReviewRow(Id(1), "Lost", group: NeedsReviewGroups.NoMatch),
+            NeedsReviewTestRows.ReviewRow(Id(2), "Dune", trigger: "MissingQid", group: NeedsReviewGroups.CanonicalMissing, mediaType: "Books"));
+
+        Assert.True(model.HasCanonicalMissing);
+        Assert.Equal(2, model.Sections().Count);
+
+        model.GroupFilter = NeedsReviewGroups.CanonicalMissing;
+        Assert.Equal(NeedsReviewGroups.CanonicalMissing, Assert.Single(model.Sections()).Group);
+        Assert.Equal(1, model.MatchingRows(null));
+
+        model.GroupFilter = NeedsReviewGroups.NoMatch;
+        Assert.Equal(NeedsReviewGroups.NoMatch, Assert.Single(model.Sections()).Group);
+    }
+
+    [Fact]
     public void AGroupTheEngineDoesNotKnow_IsDrawnWithTheItemsThatFoundNoMatch()
     {
         var model = Loaded(NeedsReviewTestRows.ReviewRow(Id(1), "Odd", group: "something_new"));

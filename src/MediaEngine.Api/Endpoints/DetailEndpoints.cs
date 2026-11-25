@@ -103,8 +103,10 @@ public static class DetailEndpoints
             // The browser's network panel shows this under Timing, so a slow page can be told apart (Engine work or the trip to the phone).
             httpContext.Response.Headers.Append("Server-Timing",
                 FormattableString.Invariant($"projection;dur={projectionMs:F0}, compose;dur={compositionMs:F0}, addons;dur={extrasMs:F0}, total;dur={timing.Elapsed.TotalMilliseconds:F0}"));
+            // A page that takes over two seconds is logged as a warning, so a slow film or show page shows up without turning on detail logging.
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("DetailPerformance")
-                .LogInformation("Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, add-ons {AddOnsMs:F0} ms, total {TotalMs:F0} ms",
+                .Log(timing.Elapsed.TotalMilliseconds > 2000 ? LogLevel.Warning : LogLevel.Information,
+                    "Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, add-ons {AddOnsMs:F0} ms, total {TotalMs:F0} ms",
                     parsedType, projectionMs, compositionMs, extrasMs, timing.Elapsed.TotalMilliseconds);
             return detail is null
                 ? ApiErrors.NotFound($"No detail page found for {entityType} '{id}'.")

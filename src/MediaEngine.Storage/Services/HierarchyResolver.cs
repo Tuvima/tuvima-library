@@ -21,7 +21,8 @@ namespace MediaEngine.Storage.Services;
 /// in this one file:
 ///
 /// <list type="bullet">
-///   <item><b>Movies</b> — always Standalone.</item>
+///   <item><b>Movies</b> — standalone; another cut or quality of the same film (same title and
+///     year, or same folder when a year is missing) joins that film's Work as another Edition.</item>
 ///   <item><b>Music</b> — parent key = (artist | album). Tracks become
 ///     children at <c>ordinal = track_number</c>; title fallback when no
 ///     track number.</item>
@@ -46,16 +47,19 @@ public sealed class HierarchyResolver
     private readonly IWorkRepository _works;
     private readonly ILogger<HierarchyResolver>? _logger;
     private readonly IBookFormatSiblingFinder? _bookSiblings;
+    private readonly IMovieEditionSiblingFinder? _movieSiblings;
 
     public HierarchyResolver(
         IWorkRepository works,
         ILogger<HierarchyResolver>? logger = null,
-        IBookFormatSiblingFinder? bookSiblings = null)
+        IBookFormatSiblingFinder? bookSiblings = null,
+        IMovieEditionSiblingFinder? movieSiblings = null)
     {
         ArgumentNullException.ThrowIfNull(works);
         _works = works;
         _logger = logger;
         _bookSiblings = bookSiblings;
+        _movieSiblings = movieSiblings;
     }
 
     /// <summary>
@@ -90,6 +94,7 @@ public sealed class HierarchyResolver
             MediaType.TV => await ResolveTvAsync(metadata, ct),
             MediaType.Comics => await ResolveComicsAsync(metadata, ct),
             MediaType.Videos => await ResolveVideosAsync(metadata, ct),
+            MediaType.Movies => await ResolveMovieAsync(metadata, sourceFilePath, ct),
 
             MediaType.Books or MediaType.Audiobooks => await ResolveBookOrAudiobookAsync(mediaType, metadata, sourceFilePath, ct),
             _ => await ResolveStandaloneAsync(mediaType, ct),
@@ -139,7 +144,9 @@ public sealed class HierarchyResolver
         }
 
         // Level 1: Show parent.
-        var showKey = MakeKey(show);
+        var showYear = Get(meta, "show_year")
+            ?? await _works.FindTvShowYearAsync(MakeKey(show), ct);
+        var showKey = MakeKey(show, showYear);
         var showId = await FindOrCreateParentAsync(MediaType.TV, showKey, null, null, ct);
 
         // Level 2: Season parent (keyed by show_id + season_number, not parent_key).
@@ -150,7 +157,7 @@ public sealed class HierarchyResolver
             return await FindOrCreateChildAsync(MediaType.TV, showId, episode, episode, epTitle, ct);
         }
 
-        var seasonKey = MakeKey(show, $"S{season:D2}");
+        var seasonKey = MakeKey(show, showYear, $"S{season:D2}");
         var seasonId = await _works.GetOrCreateParentAsync(
             MediaType.TV, seasonKey, showId, season, season, ct);
 
@@ -179,12 +186,13 @@ public sealed class HierarchyResolver
             throw new InvalidOperationException("A TV show name is required to resolve the TV hierarchy.");
         }
 
-        var showId = WorkRepository.GetOrCreateParent(conn, tx, MediaType.TV, MakeKey(show), null, null, null);
+        var showYear = Get(meta, "show_year") ?? WorkRepository.FindTvShowYear(conn, tx, MakeKey(show));
+        var showId = WorkRepository.GetOrCreateParent(conn, tx, MediaType.TV, MakeKey(show, showYear), null, null, null);
         var leafParentId = showId;
         if (season is not null)
         {
             leafParentId = WorkRepository.GetOrCreateParent(
-                conn, tx, MediaType.TV, MakeKey(show, $"S{season:D2}"), showId, season, season);
+                conn, tx, MediaType.TV, MakeKey(show, showYear, $"S{season:D2}"), showId, season, season);
         }
 
         var result = FindOrCreateChildInTransaction(conn, tx, MediaType.TV, leafParentId, episode, episode, epTitle);
@@ -367,6 +375,28 @@ public sealed class HierarchyResolver
             position.SortValue,
             title,
             ct);
+    }
+
+    private async Task<ResolverResult> ResolveMovieAsync(
+        IReadOnlyDictionary<string, string> meta,
+        string? sourceFilePath,
+        CancellationToken ct)
+    {
+        // Another cut (or the same cut in another quality) of a film already in the library joins that
+        // film's Work as one more Edition, so the film shows once with a choice of version.
+        if (_movieSiblings is not null
+            && !string.IsNullOrWhiteSpace(sourceFilePath)
+            && await _movieSiblings.FindSiblingWorkAsync(
+                sourceFilePath, Get(meta, "title"), Get(meta, "year"),
+                Get(meta, FilmEditionLabels.LibraryKey), ct) is { } siblingWorkId)
+        {
+            _logger?.LogDebug(
+                "HierarchyResolver: attached {File} to existing film Work {WorkId} as another Edition",
+                Path.GetFileName(sourceFilePath), siblingWorkId);
+            return new ResolverResult(siblingWorkId, null, WorkKind.Standalone, null, NewlyCreated: false);
+        }
+
+        return await CreateStandaloneAsync(MediaType.Movies, ct);
     }
 
     private async Task<ResolverResult> ResolveStandaloneAsync(

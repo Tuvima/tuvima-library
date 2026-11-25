@@ -59,21 +59,34 @@ public sealed class NeedsReviewGroupingTests
     }
 
     [Fact]
-    public void TheGroupsSortReadyChooseNoMatchFileProblem()
+    public void TheGroupsSortReadyChooseNoMatchCanonicalMissingFileProblem()
     {
-        var sorted = new[] { NeedsReviewGroups.FileProblem, NeedsReviewGroups.NoMatch, NeedsReviewGroups.Ready, NeedsReviewGroups.Choose }
+        var sorted = new[] { NeedsReviewGroups.FileProblem, NeedsReviewGroups.CanonicalMissing, NeedsReviewGroups.NoMatch, NeedsReviewGroups.Ready, NeedsReviewGroups.Choose }
             .OrderBy(NeedsReviewGrouping.OrderOf);
 
-        Assert.Equal([NeedsReviewGroups.Ready, NeedsReviewGroups.Choose, NeedsReviewGroups.NoMatch, NeedsReviewGroups.FileProblem], sorted);
+        Assert.Equal(
+            [NeedsReviewGroups.Ready, NeedsReviewGroups.Choose, NeedsReviewGroups.NoMatch, NeedsReviewGroups.CanonicalMissing, NeedsReviewGroups.FileProblem],
+            sorted);
     }
 
     [Fact]
-    public void OnlyItemsThatLackJustTheirWikidataLink_AreHidden()
+    public void OnlyItemsThatLackJustTheirWikidataLink_AreHidden_ExceptForBooksAndAudiobooks()
     {
-        Assert.True(NeedsReviewGrouping.IsHidden(ReviewTrigger.MissingQid));
-        Assert.True(NeedsReviewGrouping.IsHidden(ReviewTrigger.WikidataBridgeFailed));
-        Assert.False(NeedsReviewGrouping.IsHidden(ReviewTrigger.MultipleQidMatches));
-        Assert.False(NeedsReviewGrouping.IsHidden(ReviewTrigger.RetailMatchFailed));
-        Assert.False(NeedsReviewGrouping.IsHidden(null));
+        Assert.True(NeedsReviewGrouping.IsHidden(ReviewTrigger.MissingQid, "Movies"));
+        Assert.True(NeedsReviewGrouping.IsHidden(ReviewTrigger.WikidataBridgeFailed, null));
+        Assert.False(NeedsReviewGrouping.IsHidden(ReviewTrigger.MissingQid, "Books"));
+        Assert.False(NeedsReviewGrouping.IsHidden(ReviewTrigger.WikidataBridgeFailed, "Audiobooks"));
+        Assert.False(NeedsReviewGrouping.IsHidden(ReviewTrigger.MultipleQidMatches, "Movies"));
+        Assert.False(NeedsReviewGrouping.IsHidden(ReviewTrigger.RetailMatchFailed, "Movies"));
+        Assert.False(NeedsReviewGrouping.IsHidden(null, "Books"));
+    }
+
+    [Fact]
+    public void ABookThatOnlyLacksItsWikidataLink_IsInTheCanonicalMissingGroup_AndAMovieIsNot()
+    {
+        Assert.Equal(NeedsReviewGroups.CanonicalMissing, NeedsReviewGrouping.GroupFor(ReviewTrigger.MissingQid, false, "Books"));
+        Assert.Equal(NeedsReviewGroups.CanonicalMissing, NeedsReviewGrouping.GroupFor(ReviewTrigger.WikidataBridgeFailed, true, "Audiobooks"));
+        Assert.Equal(NeedsReviewGroups.NoMatch, NeedsReviewGrouping.GroupFor(ReviewTrigger.RetailMatchFailed, false, "Books"));
+        Assert.Equal(NeedsReviewGroups.NoMatch, NeedsReviewGrouping.GroupFor(ReviewTrigger.MissingQid, false, "Movies"));
     }
 }

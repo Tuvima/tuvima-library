@@ -31,12 +31,12 @@ public static class ViewKindAcceptance
 
     /// <summary>
     /// True when a folder of <paramref name="contentKind"/> takes a file of <paramref name="mediaKind"/>.
-    /// Photos take pictures; Personal videos take videos; Documents take documents and pictures of paper.
+    /// Photos ("Photos and videos", Library setup D53, decision 229A) take pictures and videos together; Personal videos take videos; Documents take documents and pictures of paper.
     /// Audio and other files are never accepted in any View kind.
     /// </summary>
     public static bool Accepts(string? contentKind, string? mediaKind) => contentKind switch
     {
-        ViewContentKinds.Photos => mediaKind == Image,
+        ViewContentKinds.Photos => mediaKind is Image or Video,
         ViewContentKinds.PersonalVideos => mediaKind == Video,
         ViewContentKinds.Documents => mediaKind is Document or Image,
         _ => false,
@@ -81,5 +81,7 @@ public static class ViewKindAcceptance
 
     /// <summary>The kind a scanned item gets: the folder's kind, or its own type when the folder is an intake source.</summary>
     public static string? KindFor(string? contentKind, string? sourceKey, string? mediaKind) =>
-        IsIntakeSource(sourceKey) ? OwnKindOf(mediaKind) : contentKind;
+        IsIntakeSource(sourceKey) || (contentKind == ViewContentKinds.Photos && mediaKind == Video)
+            ? OwnKindOf(mediaKind)
+            : contentKind;
 }

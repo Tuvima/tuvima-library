@@ -1,3 +1,4 @@
+using System.Net;
 using Bunit;
 using MediaEngine.Contracts.Activity;
 using MediaEngine.Contracts.Authentication;
@@ -30,6 +31,8 @@ public sealed class OverviewPageTests : AsyncBunitContext
     private TasteViewDto? _tasteView;
     private PersonalActivityRecentDto? _recent = new([]);
     private readonly List<(Guid Id, string Name, string Color, string? NavigationConfig)> _updates = [];
+    private readonly List<(HttpMethod Method, string Path, string Body)> _identityRequests = [];
+    private readonly DashboardSessionAccessor _session = new();
 
     public OverviewPageTests()
     {
@@ -47,9 +50,38 @@ public sealed class OverviewPageTests : AsyncBunitContext
         var grant = new AccountProfileGrantDto(OwnId, OwnId, "Test User", null, true, true, true,
             new ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow);
         var authority = new DashboardAuthorityResponse(OwnId, OwnId, true, true, 1, 1, false, false, null, 1, [grant], [], []);
-        var session = new DashboardSessionAccessor();
-        session.Set("test-session-token", OwnId, OwnId, Guid.NewGuid(), authority);
-        Services.AddScoped(_ => session);
+        _session.Set("test-session-token", OwnId, OwnId, Guid.NewGuid(), authority);
+        Services.AddScoped(_ => _session);
+
+        // The Profile PIN row talks to the Engine's identity routes.
+        Services.AddSingleton<IHttpClientFactory>(new IdentityClientFactory(new IdentityHandler(this)));
+        Services.AddScoped<DashboardIdentityClient>();
+        Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
+        Services.AddScoped<ConfirmedActionRunner>();
+    }
+
+    // The signed-in person holds the household administrator action, so the Profile PIN row can be changed.
+    private void BecomeAdministrator()
+    {
+        var grant = new AccountProfileGrantDto(OwnId, OwnId, "Test User", null, true, true, true,
+            new ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow);
+        _session.Set("test-session-token", OwnId, OwnId, Guid.NewGuid(),
+            new DashboardAuthorityResponse(OwnId, OwnId, true, true, 1, 1, false, false, null, 1, [grant], [], ["household.manage"]));
+    }
+
+    private sealed class IdentityClientFactory(HttpMessageHandler handler) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(handler, false) { BaseAddress = new Uri("http://engine.test") };
+    }
+
+    private sealed class IdentityHandler(OverviewPageTests owner) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
+            owner._identityRequests.Add((request.Method, request.RequestUri!.AbsolutePath, body));
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        }
     }
 
     private IEngineApiClient CreateApi() => EngineApiClientStub.Create(stub =>
@@ -126,7 +158,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         Assert.Equal("Test User", cut.Find(".overview-header__name").TextContent);
         Assert.Equal("Joined March 2026", cut.Find(".overview-header__joined").TextContent);
         Assert.NotEmpty(cut.FindAll(".overview-header__avatar svg, .overview-header__avatar img"));
-        Assert.Contains(cut.FindAll("a, button"), link => link.TextContent.Contains("Edit profile", StringComparison.Ordinal));
+        Assert.Contains(cut.FindAll("a, button"), link => link.TextContent.Contains("Edit name and picture", StringComparison.Ordinal));
 
         // The app links and QR code live on General now; Profile points nowhere near them.
         Assert.Empty(cut.FindAll("[data-overview-apps-link]"));
@@ -211,7 +243,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         Assert.Equal("0", CountValue(cut, "finished"));
         Assert.Equal("0", CountValue(cut, "hours"));
         Assert.Equal("0", CountValue(cut, "days-active"));
-        Assert.Contains("fills in", cut.Find("[data-overview-invite]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Nothing yet. What you watch, read and listen to will show up here.", cut.Find("[data-overview-invite]").TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-overview-heatmap]"));
     }
 
@@ -458,7 +490,8 @@ public sealed class OverviewPageTests : AsyncBunitContext
 
         EditProfileButton(cut).Click();
 
-        Assert.Equal("Edit profile", cut.Find("#profile-editor-title").TextContent);
+        Assert.Equal("Edit name and picture", cut.Find("#profile-editor-title").TextContent);
+        Assert.DoesNotContain("PIN", cut.Find(".profile-editor").TextContent, StringComparison.Ordinal);
         Assert.Equal("Test User", cut.Find(".profile-editor__name").GetAttribute("value"));
         Assert.Empty(cut.FindAll(".profile-editor__settings"));
         Assert.Empty(cut.FindAll(".profile-editor__delete"));
@@ -524,11 +557,94 @@ public sealed class OverviewPageTests : AsyncBunitContext
 
         var cut = RenderPage();
 
-        Assert.DoesNotContain(cut.FindAll("a, button"), element => element.TextContent.Contains("Edit profile", StringComparison.Ordinal));
+        Assert.DoesNotContain(cut.FindAll("a, button"), element => element.TextContent.Contains("Edit name and picture", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SignInAndSafety_ListsTheProfilePin_PasswordAndEmail_AndDevices()
+    {
+        var cut = RenderPage();
+
+        var panel = cut.Find("[data-overview-signin]");
+        Assert.Contains("Sign-in and safety", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Profile PIN", panel.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Not set", cut.Find("[data-pin-status]").TextContent, StringComparison.Ordinal);
+        Assert.Equal("/settings/security", cut.Find("[data-nav-row='password-email']").GetAttribute("href"));
+        Assert.Equal("/settings/security/devices", cut.Find("[data-nav-row='devices']").GetAttribute("href"));
+    }
+
+    [Fact]
+    public void PinRow_ForAMember_ShowsTheStateAndWhoCanSetIt_WithNoButtons()
+    {
+        var cut = RenderPage();
+
+        Assert.Empty(cut.FindAll("[data-pin-change]"));
+        Assert.Contains("An administrator can set a PIN", cut.Find("[data-pin-status]").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PinRow_ForAnAdministrator_SetsAPinFromTheNumberPad_OnTheirOwnProfile()
+    {
+        BecomeAdministrator();
+        var cut = RenderPage();
+
+        Assert.Contains("Set a PIN", cut.Find("[data-pin-change]").TextContent, StringComparison.Ordinal);
+        cut.Find("[data-pin-change]").Click();
+        foreach (var digit in "123")
+        {
+            cut.Find($"button.pin-pad__key[aria-label='{digit}']").Click();
+        }
+
+        Assert.True(cut.Find("[data-pin-save]").HasAttribute("disabled"));
+        cut.Find("button.pin-pad__key[aria-label='4']").Click();
+        cut.Find("[data-pin-save]").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            var request = Assert.Single(_identityRequests, r => r.Method == HttpMethod.Put);
+            Assert.Equal($"/auth/profiles/{OwnId:D}/pin", request.Path);
+            Assert.Contains("1234", request.Body, StringComparison.Ordinal);
+        });
+        Assert.Empty(cut.FindAll("[data-pin-entry]"));
+    }
+
+    [Fact]
+    public void PinRow_WithAPin_SaysSo_AndRemoveAsksOnceBeforeItRemoves()
+    {
+        _profile = _profile with { HasPin = true };
+        BecomeAdministrator();
+        var cut = RenderPage();
+
+        Assert.Contains("PIN set", cut.Find("[data-pin-status]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Change", cut.Find("[data-pin-change]").TextContent, StringComparison.Ordinal);
+
+        cut.Find("[data-pin-remove]").Click();
+        Assert.Empty(_identityRequests);
+        Assert.NotEmpty(cut.FindAll("[data-pin-confirm-remove]"));
+
+        cut.Find("[data-pin-confirm]").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            var request = Assert.Single(_identityRequests, r => r.Method == HttpMethod.Put);
+            Assert.Equal($"/auth/profiles/{OwnId:D}/pin", request.Path);
+            Assert.DoesNotContain("1", request.Body.Replace("\"", string.Empty), StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void SignInAndSafety_IsNotShownOnAKidsProfile()
+    {
+        _profile = _profile with { Role = "RestrictedProfile" };
+
+        var cut = RenderPage();
+
+        Assert.Empty(cut.FindAll("[data-overview-signin]"));
+        Assert.Empty(cut.FindAll("[data-profile-pin]"));
     }
 
     private static AngleSharp.Dom.IElement EditProfileButton(IRenderedComponent<OverviewPage> cut) =>
-        cut.FindAll("button").First(button => button.TextContent.Contains("Edit profile", StringComparison.Ordinal));
+        cut.FindAll("button").First(button => button.TextContent.Contains("Edit name and picture", StringComparison.Ordinal));
 
     private static string CountValue(IRenderedComponent<OverviewPage> cut, string key) =>
         cut.Find($"[data-overview-count='{key}'] .overview-stats__value").TextContent;
@@ -587,6 +703,10 @@ public sealed class OverviewPageTests : AsyncBunitContext
             session.Set("test-session-token", OwnId, OwnId, Guid.NewGuid(),
                 new DashboardAuthorityResponse(OwnId, OwnId, true, true, 1, 1, false, false, null, 1, [grant], [], []));
             Services.AddScoped(_ => session);
+            Services.AddSingleton<IHttpClientFactory>(new IdentityClientFactory(new HttpClientHandler()));
+            Services.AddScoped<DashboardIdentityClient>();
+            Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
+            Services.AddScoped<ConfirmedActionRunner>();
 
             var cut = Render<OverviewPage>();
             cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-settings-overview]")));

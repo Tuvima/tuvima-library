@@ -27,6 +27,24 @@ internal static class RetailCandidateQualityGuard
         "review guide",
     ];
 
+    /// <summary>Words that make a store listing a bundle of several books, not the one book in the file.</summary>
+    // A store title may end with the series note "(The Hunger Games Trilogy, Book 1)"; that names the Series, not a bundle.
+    private static readonly System.Text.RegularExpressions.Regex TrailingSeriesNote =
+        new(@"\s*[\(\[][^\)\]]*\b(book|vol(ume)?|part|#)\s*\d+[^\)\]]*[\)\]]\s*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static readonly string[] BoxSetPhrases =
+    [
+        "box set",
+        "boxed set",
+        "boxset",
+        "trilogy",
+        "omnibus",
+        "complete collection",
+        "complete series",
+        "book set",
+        "books 1",
+    ];
+
     private static readonly string[] DescriptionDerivativePhrases =
     [
         "analysis of",
@@ -56,6 +74,15 @@ internal static class RetailCandidateQualityGuard
         if (mediaType is not (MediaType.Books or MediaType.Audiobooks))
         {
             return [];
+        }
+
+        // A store bundle ("The Hunger Games Trilogy", "... Box Set") never stands for the single book in the
+        // file, unless the file itself is named as a bundle.
+        var fileTitle = fileHints.GetValueOrDefault(MetadataFieldConstants.Title);
+        if (ContainsAny(Normalize(TrailingSeriesNote.Replace(candidateTitle ?? string.Empty, string.Empty)), BoxSetPhrases)
+            && !ContainsAny(Normalize(fileTitle), BoxSetPhrases))
+        {
+            return ["box_set_candidate"];
         }
 
         var sourceLooksDerivative = LooksDerivative(

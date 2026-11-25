@@ -317,6 +317,15 @@ body {
     }
 }
 
+/* A Settings page's tab row below the wide desktop width (profile-and-household D16): My profile's six administrator tabs measure
+   737 px at the shared 28 px gap, wider than the page beside the 256 px menu at 1024; at 16 px they measure 677 px and stay in one row.
+   Narrower than that the row scrolls sideways, as it does on a phone. */
+@media (max-width: 1180px) {
+    .tl-tabs-toolbar.settings-page-tabs {
+        gap: var(--tl-space-4, 16px);
+    }
+}
+
 .tl-tab__count {
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-sm);
@@ -4338,7 +4347,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .who-check__box { flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
 .who-link { min-height: 44px; padding: 0 8px; color: var(--tl-accent-primary); border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
 /* Settings > Profiles rows: the class sits on an AppNativeButton, so it cannot be styled from the page's isolated CSS. */
-.profiles-tab__row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 16px; box-sizing: border-box; color: inherit; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.profiles-tab__row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 4px; box-sizing: border-box; color: inherit; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
 .profiles-tab__row:hover { background: color-mix(in srgb, var(--tl-text-primary) 6%, transparent); }
 .profiles-tab__row:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
 @media (min-width: 1600px) { .profiles-tab__row { min-height: 72px; font-size: var(--tl-font-size-lg); } }
@@ -4770,6 +4779,12 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .reading-preference-row__control.app-segmented-control { display: flex; }
 .reading-preference-row__control .app-segmented-control__item { flex: 1 1 0; justify-content: center; min-height: 44px; padding: 0 8px; }
 @media (max-width: 600px) { .reading-preference-row__control { min-width: 0; width: 100%; } }
+/* My profile and a person's Preferences tab (profile-and-household D16): on a phone the four-way section switch takes the full width and shares it, so no name is cut off. */
+.profile-preferences { min-width: 0; }
+@media (max-width: 600px) {
+    .profile-preferences .profile-detail__section-switch { display: flex; width: 100%; box-sizing: border-box; }
+    .profile-preferences .profile-detail__section-switch .app-segmented-control__item { flex: 1 1 0; min-width: 0; min-height: var(--tl-tap-target-min, 44px); justify-content: center; padding: 0 4px; }
+}
 .reading-profile-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
 .reading-profile-heading__avatar { display: inline-flex; width: 40px; height: 40px; }
 .reading-profile-heading__back { display: inline-flex; align-items: center; min-height: var(--tl-tap-target-min, 44px); margin-left: auto; color: var(--tl-text-secondary); }

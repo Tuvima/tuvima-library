@@ -28,6 +28,7 @@ jobs:
   #
   # Fast check (every pull request): build with warnings as errors, format check of the changed C# files, the
   # Dashboard publish checks, the vulnerable-package check and every test, split over lanes that run side by side.
+  # A change that touches the phone, TV and car apps, or the Engine routes they use, also builds the apps.
   # The slowest lane decides how long a pull request waits, so no lane does two slow things one after another.
   #
   # Deeper check (every merge to main, every night at 06:00 UTC, and on demand with "Run workflow" on any branch):
@@ -286,20 +287,28 @@ jobs:
           path: ./TestResults
           retention-days: 30
 
+  # The phone, TV and car apps. The called workflow decides by itself whether this change touches them; when it
+  # does not, its jobs are skipped and it passes at once. Its result is part of the required check below.
+  native:
+    name: Native clients
+    uses: ./.github/workflows/native-clients.yml
+
   # The single required check on main. It always runs and reports, whether the heavy jobs ran, were skipped
   # (engineering-only change) or failed, so the ready-to-merge auto-merge keeps working. Outside pull requests it
   # also enforces the coverage threshold from the merged lane results.
   gate:
     name: Build & Test
-    needs: [build, format, test]
+    needs: [build, format, test, native]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Require every job to pass
         run: |
-          echo "build=${{ needs.build.result }} format=${{ needs.format.result }} test=${{ needs.test.result }}"
+          echo "build=${{ needs.build.result }} format=${{ needs.format.result }} test=${{ needs.test.result }} native=${{ needs.native.result }}"
           if [ "${{ needs.build.result }}" != "success" ] || [ "${{ needs.format.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then exit 1; fi
+          # The app jobs are skipped when the change does not touch the apps; anything else must be a pass.
+          if [ "${{ needs.native.result }}" != "success" ] && [ "${{ needs.native.result }}" != "skipped" ]; then exit 1; fi
 
       - uses: actions/checkout@v7
         if: github.event_name != 'pull_request' && needs.build.outputs.code == 'true'

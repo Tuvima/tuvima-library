@@ -245,6 +245,12 @@ public interface ICollectionRepository
     /// </summary>
     Task<Collection?> FindSeriesShelfAsync(string qid, string mediaType, CancellationToken ct = default);
 
+    /// <summary>
+    /// A Series shelf with this display name and no Wikidata id yet, of the same media type family (books and audiobooks
+    /// are one), or null. Used to give a name-only shelf its Wikidata id instead of making a second shelf.
+    /// </summary>
+    Task<Collection?> FindNameOnlySeriesShelfAsync(string displayName, string mediaType, CancellationToken ct = default);
+
     /// <summary>Finds an Edition by its Wikidata QID. Returns null when no match exists.</summary>
     Task<Edition?> FindEditionByQidAsync(string wikidataQid, CancellationToken ct = default);
 

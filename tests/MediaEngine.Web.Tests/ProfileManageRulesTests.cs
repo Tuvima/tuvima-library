@@ -20,6 +20,16 @@ public sealed class ProfileManageRulesTests
     public void Add_StopsAtEightPeople(bool canManage, int count, bool expected) =>
         Assert.Equal(expected, ProfileManageRules.CanAdd(canManage, count));
 
+    [Theory]
+    [InlineData(true, false, null, false, "Administrator · no sign-in")]
+    [InlineData(true, false, "me@home.test", true, "Administrator · me@home.test · PIN")]
+    [InlineData(false, true, null, true, "Kids · PIN")]
+    [InlineData(false, true, "someone@home.test", false, "Kids")]
+    [InlineData(false, false, "", false, "Member · no sign-in")]
+    [InlineData(false, false, "sam@home.test", true, "Member · sam@home.test · PIN")]
+    public void ThePeopleLine_SaysRoleSignInAndPin_InPlainWords(bool administrator, bool kids, string? email, bool hasPin, string expected) =>
+        Assert.Equal(expected, ProfileManageRules.PersonLine(administrator, kids, email, hasPin));
+
     [Fact]
     public void ManageMode_IsWiredToTheRules_AndTheEngineCalls()
     {
@@ -32,7 +42,7 @@ public sealed class ProfileManageRulesTests
         Assert.Contains("Identity.AddHouseholdPersonResultAsync(", page, StringComparison.Ordinal);
         Assert.Contains("Identity.UpdateManagedProfileResultAsync(", page, StringComparison.Ordinal);
         Assert.Contains("Identity.DeleteManagedProfileResultAsync(profile.Id, keepPhotos)", page, StringComparison.Ordinal);
-        Assert.Contains("Manage profiles", page, StringComparison.Ordinal);
+        Assert.Contains("Household", page, StringComparison.Ordinal);
         Assert.DoesNotContain(" style=\"", page, StringComparison.Ordinal);
     }
 }

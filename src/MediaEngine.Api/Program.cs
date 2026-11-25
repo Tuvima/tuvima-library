@@ -71,6 +71,11 @@ if (args.Length == 3 && args[0] == "--prepare-baseline")
     await BaselinePrepare.RunAsync(args[1], args[2]);
     return;
 }
+if (args.Length >= 2 && args[0] == "--open-baseline-store")
+{
+    Environment.ExitCode = await BaselineOpenStore.RunAsync(args[1..], Directory.GetCurrentDirectory());
+    return;
+}
 if (args.Length >= 2 && args[0] == "--wait-baseline")
 {
     Environment.ExitCode = await BaselineWait.RunAsync(args[1], args[2..]);

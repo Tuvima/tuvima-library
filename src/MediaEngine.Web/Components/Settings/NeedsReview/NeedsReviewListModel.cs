@@ -54,6 +54,7 @@ public sealed class NeedsReviewListModel
         NeedsReviewGroups.Ready,
         NeedsReviewGroups.Choose,
         NeedsReviewGroups.NoMatch,
+        NeedsReviewGroups.CanonicalMissing,
         NeedsReviewGroups.FileProblem,
     ];
 
@@ -62,6 +63,15 @@ public sealed class NeedsReviewListModel
     private readonly HashSet<string> _carried = new(StringComparer.Ordinal);
     private Dictionary<string, int> _unreadByGroup = [];
     private int _unread;
+
+    /// <summary>
+    /// The filter above the list (spec needs-review-canonical-filter D5): null shows everything, <see cref="NeedsReviewGroups.NoMatch"/> only the
+    /// items not found at all, <see cref="NeedsReviewGroups.CanonicalMissing"/> only the items found but missing their Wikidata link.
+    /// </summary>
+    public string? GroupFilter { get; set; }
+
+    /// <summary>True when the list holds at least one item whose canonical information is missing, so the filter is worth showing.</summary>
+    public bool HasCanonicalMissing => CountOf(NeedsReviewGroups.CanonicalMissing) > 0;
 
     /// <summary>Raised when a row's state changes (busy, finished, failed), so the page draws every part that shows it again.</summary>
     public event Action? Changed;
@@ -313,7 +323,8 @@ public sealed class NeedsReviewListModel
         return entries;
     }
 
-    private static bool Matches(NeedsReviewRowDto row, string? search) =>
-        string.IsNullOrWhiteSpace(search)
-        || NeedsReviewRowInfo.SearchText(row).Contains(search.Trim(), StringComparison.OrdinalIgnoreCase);
+    private bool Matches(NeedsReviewRowDto row, string? search) =>
+        (GroupFilter is null || GroupOf(row) == GroupFilter)
+        && (string.IsNullOrWhiteSpace(search)
+        || NeedsReviewRowInfo.SearchText(row).Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
 }
