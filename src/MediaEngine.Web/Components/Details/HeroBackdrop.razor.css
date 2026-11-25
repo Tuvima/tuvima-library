@@ -824,6 +824,8 @@
 }
 
 .tl-detail-media-stage__foreground--book .tl-detail-media-stage__cover {
+    /* Until the picture arrives (or if it never does) it keeps a book's shape instead of collapsing to a thin sliver. */
+    aspect-ratio: auto 2 / 3;
     grid-row: 1;
     grid-column: 1;
     align-self: center;

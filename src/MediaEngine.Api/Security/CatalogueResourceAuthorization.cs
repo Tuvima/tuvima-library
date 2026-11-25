@@ -497,6 +497,30 @@ internal sealed class CatalogueResourceAuthorizationService(
                 ? profileId
                 : null;
 
+    // A person's files, worked out for the files that could credit them only. Reading the whole-library credit view here took
+    // seconds, and every cast portrait on a details page asks this question.
+    private static readonly string PersonCandidatesSql = $"""
+        -- A band member no file credits has no files of their own: their picture is shown on the band's page, so it
+        -- follows the band's files (the same people the band's own page shows).
+        WITH {PersonCreditSql.CandidateAssetsCte(
+            "candidate_assets",
+            """
+            SELECT id, name, wikidata_qid
+            FROM persons
+            WHERE id=@entityId OR id IN (SELECT group_id FROM person_group_members WHERE member_id=@entityId)
+            """,
+            "authz_")},
+        {PersonCreditSql.ScopedCreditsCte("candidate_credits", "SELECT asset_id FROM candidate_assets", "authz_scoped_")}
+        SELECT DISTINCT ma.id
+        FROM candidate_credits pml
+        JOIN media_assets ma ON ma.id=pml.media_asset_id
+        WHERE (pml.person_id=@entityId
+               OR (NOT EXISTS (SELECT 1 FROM candidate_credits own WHERE own.person_id=@entityId)
+                   AND pml.person_id IN (SELECT group_id FROM person_group_members WHERE member_id=@entityId)))
+          AND ma.status='Normal' AND ma.is_orphaned=0
+        ORDER BY ma.id;
+        """;
+
     private async Task<IReadOnlyList<Guid>> GetEntityAssetCandidatesAsync(
         string entityType,
         Guid entityId,
@@ -533,19 +557,7 @@ internal sealed class CatalogueResourceAuthorizationService(
                 WHERE ma.edition_id=@entityId AND ma.status='Normal' AND ma.is_orphaned=0
                 ORDER BY ma.id;
                 """,
-            "person" =>
-                """
-                -- A band member no file credits has no files of their own: their picture is shown on the band's page, so it
-                -- follows the band's files (the same people the band's own page shows).
-                SELECT DISTINCT ma.id
-                FROM primary_person_media_credits pml
-                JOIN media_assets ma ON ma.id=pml.media_asset_id
-                WHERE (pml.person_id=@entityId
-                       OR (NOT EXISTS (SELECT 1 FROM primary_person_media_credits own WHERE own.person_id=@entityId)
-                           AND pml.person_id IN (SELECT group_id FROM person_group_members WHERE member_id=@entityId)))
-                  AND ma.status='Normal' AND ma.is_orphaned=0
-                ORDER BY ma.id;
-                """,
+            "person" => PersonCandidatesSql,
             "character" or "fictionalentity" =>
                 """
                 SELECT DISTINCT ma.id
