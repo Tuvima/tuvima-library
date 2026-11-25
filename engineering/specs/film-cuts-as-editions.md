@@ -1,8 +1,8 @@
 # Spec: Film cuts and qualities as Editions of one film
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-11-24 · **Related docs:** [Product overview](../product/overview.md) · [Details overlay and edit mode (D15, formats of one title are Editions of one Work)](details-overlay-and-edit-mode.md) · [Videos](videos.md) · issue #1362
+> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-25 · **Related docs:** [Product overview](../product/overview.md) · [Details overlay and edit mode (D15, formats of one title are Editions of one Work)](details-overlay-and-edit-mode.md) · [Videos](videos.md) · issue #1362
 
-> Built ahead of locking on Shy's decision 231A (2026-11-24, "Agree w all"). It fills a gap rather than changing any Locked spec: no spec said how film cuts group. Shy locks it; until then it stays Draft.
+> Locked by Shy on 2026-11-25 ("go with all recommendations"). Built first on Shy's decision 231A (2026-11-24, "Agree w all") and merged in PR 1380; it fills a gap rather than changing any Locked spec, because no spec said how film cuts group.
 
 ## 1. Goal
 
@@ -57,4 +57,4 @@ None to the data structure. The Edition's existing label column now holds the cu
 
 - A long Blade Runner style file name with an unusual cut word (not in the list in `config/filename_cleaning.json`) is not recognized and stays a separate film until the word is added to that list.
 - A film with a wrong or missing year in one file joins only through the same folder; a later retail match does not re-group already-split films.
-- Open for Shy: should an exact duplicate (same cut, same quality) be kept as a second Edition with the same label (what happens now) or flagged for cleanup? Recommended: keep for now.
+- Open for Shy: should an exact duplicate (same cut, same quality) be kept as a second Edition with the same label (what happens now) or flagged for cleanup? Decision (Shy, 2026-11-25, recommended option): keep for now.
