@@ -1,6 +1,6 @@
 # Spec: Universes v6 — one Series across books and audiobooks, films shown from two, a show joins its books' Universe
 
-> **Status:** Draft (Shy's decisions 227A and 228A, 2026-11-24, are recorded below; only Shy locks it) · **Version:** 6 (amends [universe.md](universe.md) v5; the Locked body of v5 is not rewritten) · **Last updated:** 2026-11-24 · **Related docs:** [Universes](universe.md) · [Universe entry points](universe-entry-points.md) · issues #1361, #1366
+> **Status:** Locked (Shy, 2026-11-25; built and merged in PR 1383, awaiting Local checks) · **Version:** 6 (amends [universe.md](universe.md) v5; the Locked body of v5 is not rewritten) · **Last updated:** 2026-11-25 · **Related docs:** [Universes](universe.md) · [Universe entry points](universe-entry-points.md) · issues #1361, #1366
 
 ## 1. Goal
 The synthetic library test showed the same Series twice (19 duplicate names, Dune six times) and Universes missing (The Expanse, Harry Potter, Middle-earth). A person should see each Series once, and a Universe should appear when its books and its show are both owned.
