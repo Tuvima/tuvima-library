@@ -269,7 +269,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         }
 
         var projection = conn.QueryFirstOrDefault<ProjectionRow>(
-            BuildProjectionSql(preferredAssetId.HasValue, singleWork: true) + """
+            BuildSingleWorkProjectionSql(preferredAssetId.HasValue) + """
             SELECT
                 fd.entity_id             AS EntityId,
                 fd.title                 AS Title,
@@ -868,7 +868,15 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         return Task.FromResult(rows.ToDictionary(r => r.MediaType, r => r.Count));
     }
 
-    private static string BuildProjectionSql(bool preferAsset = false, bool countsOnly = false, bool singleWork = false)
+    // The whole library, for lists and counts.
+    private static string BuildProjectionSql(bool preferAsset = false, bool countsOnly = false) =>
+        ComposeProjectionSql(preferAsset, countsOnly, singleWork: false);
+
+    // One work (@entityId), for its details page.
+    private static string BuildSingleWorkProjectionSql(bool preferAsset) =>
+        ComposeProjectionSql(preferAsset, countsOnly: false, singleWork: true);
+
+    private static string ComposeProjectionSql(bool preferAsset, bool countsOnly, bool singleWork)
     {
         // A one-item read (a details page) narrows every step to that work (@entityId). Without this, each step was worked
         // out for the whole library before the one row was picked, so opening a page grew slower with every file added.
