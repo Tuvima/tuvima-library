@@ -509,7 +509,17 @@ public sealed partial class WikidataBridgeWorker
     /// </summary>
     private sealed class JobContext
     {
+        private string _step = "starting";
+
         public IdentityJob Job { get; }
+
+        /// <summary>What finishing this job is doing now, so a job that stops moving can be named in the log (speed: #1360).</summary>
+        public string Step
+        {
+            get => Volatile.Read(ref _step);
+            set => Volatile.Write(ref _step, value);
+        }
+
         public MediaType MediaType { get; }
         public IReadOnlyList<BridgeIdEntry> BridgeIds { get; }
         public Dictionary<string, string> BridgeDict { get; }
