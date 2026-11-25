@@ -261,7 +261,7 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
             WITH {PersonCreditSql.ScopedCreditsCte("asset_credits", "SELECT unhex(value) FROM json_each(@assetIds)", "work_people_")}
             SELECT DISTINCT person_id FROM asset_credits;
             """,
-            new { assetIds = AssetIdsJson(ids) });
+            new { assetIds = GuidSql.ToJsonHexArray(ids) });
         return Task.FromResult<IReadOnlySet<Guid>>(people.ToHashSet());
     }
 
@@ -294,7 +294,7 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
             new
             {
                 collectionId,
-                assetIds = AssetIdsJson(ids),
+                assetIds = GuidSql.ToJsonHexArray(ids),
             });
         return Task.FromResult<IReadOnlySet<Guid>>(people.ToHashSet());
     }
@@ -315,10 +315,6 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
             .GroupBy(credit => credit.Role)
             .ToDictionary(group => group.Key, group => group.Select(credit => credit.PersonId).Distinct().Count(), StringComparer.OrdinalIgnoreCase);
     }
-
-    // The ids as the scoped credit query reads them: a JSON list of hex strings, so any number of files fits in one parameter.
-    private static string AssetIdsJson(IEnumerable<Guid> assetIds) =>
-        System.Text.Json.JsonSerializer.Serialize(assetIds.Select(id => Convert.ToHexString(GuidSql.ToBlob(id))));
 
     private static Guid[] NormalizeAssetIds(IEnumerable<Guid> assetIds) =>
         assetIds.Where(id => id != Guid.Empty).Distinct().ToArray();

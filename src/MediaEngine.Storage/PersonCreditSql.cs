@@ -37,12 +37,10 @@ public static partial class PersonCreditSql
     /// the file), so SQLite searches those tables by index instead of scanning them. The caller joins the
     /// block into a statement that already has its own <c>WITH</c>, separating the definitions with a comma.
     /// <para>
-    /// SQLite copies a CTE's definition at every place the CTE is named, so the number of references inside this
-    /// block decides how often <paramref name="assetIdsSelect"/> (often a large query) is duplicated and how long the
-    /// statement takes to prepare. Each internal CTE is therefore named as few times as possible: the input once (by
-    /// the file scope), the file scope once, the stored credits three times (arrays, claims, scalars), and every later
-    /// step once. Precedence between the three sources and between the show/album, work and file is decided with a
-    /// window over (file, credit key) rather than by joining a CTE back to itself.
+    /// SQLite copies a CTE's definition at every place the CTE is named unless it is <c>MATERIALIZED</c>, so every step
+    /// read more than once is, and the input (often a large query) is named only once, by the file scope. Each entity's
+    /// provider claims are read once however many files share the entity. Precedence between the three sources and between
+    /// the show/album, work and file is decided with a window over (file, credit key) rather than by joining a CTE back to itself.
     /// </para>
     /// </remarks>
     public static string ScopedCreditsCte(string resultName, string assetIdsSelect, string prefix)
