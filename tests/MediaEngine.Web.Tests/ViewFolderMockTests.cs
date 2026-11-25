@@ -117,6 +117,18 @@ public sealed class ViewFolderMockTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task OnAPhoneTheDisabledDropZoneIsNotDrawnButTheLineStays()
+    {
+        await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+
+        var cut = RenderNotice();
+
+        // Nothing can be dropped on a phone (Shy, 2026-11-25).
+        Assert.Empty(cut.FindAll("[data-drop-off]"));
+        Assert.NotEmpty(cut.FindAll(".view-uploads-notice__line"));
+    }
+
+    [Fact]
     public void AddAManagedFolderIsNotOfferedToSomeoneWhoIsNotAnAdministrator()
     {
         var session = Services.GetRequiredService<DashboardSessionAccessor>();

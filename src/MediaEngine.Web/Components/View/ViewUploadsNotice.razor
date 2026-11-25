@@ -23,7 +23,11 @@
 {
     <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
 }
-<div class="view-uploads-drop" aria-disabled="true" data-drop-off>@L["ViewUploadsNotice_DropZoneOff", Noun]</div>
+@* Nothing can be dropped on a phone, so the disabled drop zone is not drawn there (Shy, 2026-11-25); the line and its button stay. *@
+@if (!Device.IsPhone)
+{
+    <div class="view-uploads-drop" aria-disabled="true" data-drop-off>@L["ViewUploadsNotice_DropZoneOff", Noun]</div>
+}
 
 @code {
     /// <summary>The View kind the notice is for (photos, personal_videos or documents); Add folder opens on it.</summary>
