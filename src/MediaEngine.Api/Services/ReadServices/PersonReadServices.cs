@@ -257,8 +257,11 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
 
         using var connection = _db.CreateConnection();
         var people = connection.Query<Guid>(
-            "SELECT DISTINCT person_id FROM primary_person_media_credits WHERE media_asset_id IN @assetIds;",
-            new { assetIds = ids.Select(GuidSql.ToBlob).ToArray() });
+            $"""
+            WITH {PersonCreditSql.ScopedCreditsCte("asset_credits", "SELECT unhex(value) FROM json_each(@assetIds)", "work_people_")}
+            SELECT DISTINCT person_id FROM asset_credits;
+            """,
+            new { assetIds = AssetIdsJson(ids) });
         return Task.FromResult<IReadOnlySet<Guid>>(people.ToHashSet());
     }
 
@@ -276,22 +279,22 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
 
         using var connection = _db.CreateConnection();
         var people = connection.Query<Guid>(
-            """
+            $"""
             -- readiness: membership lookup from a person or collection id to files, not a listing
+            WITH {PersonCreditSql.ScopedCreditsCte("asset_credits", "SELECT unhex(value) FROM json_each(@assetIds)", "collection_people_")}
             SELECT DISTINCT credit.person_id
-            FROM primary_person_media_credits credit
+            FROM asset_credits credit
             JOIN media_assets asset ON asset.id=credit.media_asset_id
             JOIN editions edition ON edition.id=asset.edition_id
             JOIN works work ON work.id=edition.work_id
             LEFT JOIN collection_items item
                 ON item.work_id=work.id AND item.collection_id=@collectionId
-            WHERE credit.media_asset_id IN @assetIds
-              AND (work.collection_id=@collectionId OR item.collection_id=@collectionId);
+            WHERE (work.collection_id=@collectionId OR item.collection_id=@collectionId);
             """,
             new
             {
                 collectionId,
-                assetIds = ids.Select(GuidSql.ToBlob).ToArray(),
+                assetIds = AssetIdsJson(ids),
             });
         return Task.FromResult<IReadOnlySet<Guid>>(people.ToHashSet());
     }
@@ -312,6 +315,10 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
             .GroupBy(credit => credit.Role)
             .ToDictionary(group => group.Key, group => group.Select(credit => credit.PersonId).Distinct().Count(), StringComparer.OrdinalIgnoreCase);
     }
+
+    // The ids as the scoped credit query reads them: a JSON list of hex strings, so any number of files fits in one parameter.
+    private static string AssetIdsJson(IEnumerable<Guid> assetIds) =>
+        System.Text.Json.JsonSerializer.Serialize(assetIds.Select(id => Convert.ToHexString(GuidSql.ToBlob(id))));
 
     private static Guid[] NormalizeAssetIds(IEnumerable<Guid> assetIds) =>
         assetIds.Where(id => id != Guid.Empty).Distinct().ToArray();

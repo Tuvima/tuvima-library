@@ -737,6 +737,8 @@ code{
 .media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:color-mix(in srgb, var(--tl-bg-root) 90%, transparent); color:var(--tl-text-primary); font-family:var(--font-ui); font-size:var(--tl-type-secondary-size); font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
 .media-tile-label--status { top:0; left:0; border-bottom-right-radius:var(--tl-radius-md); }
 .media-tile-label--bottom { bottom:0; left:0; border-top-right-radius:var(--tl-radius-md); }
+/* Phone tiles are about 112px wide: smaller badges, the count may use the whole width and the status may take two lines. */
+@media (max-width: 600px) { .media-tile-label { padding:3px 6px; font-size:var(--tl-type-caption-size); } .media-tile-label--bottom { max-width:100%; } .media-tile-label--status { max-width:calc(100% - 30px); white-space:normal; } }
 
 /* The cover's "..." (D3, D17): always visible, top right, a vertical three-dot mark with no box and a soft shadow so it reads on any art.
    The mark is small; the tappable area is the full 44 px on every device. */

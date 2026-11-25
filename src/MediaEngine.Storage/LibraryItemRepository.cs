@@ -269,7 +269,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         }
 
         var projection = conn.QueryFirstOrDefault<ProjectionRow>(
-            BuildProjectionSql(preferredAssetId.HasValue) + """
+            BuildProjectionSql(preferredAssetId.HasValue, singleWork: true) + """
             SELECT
                 fd.entity_id             AS EntityId,
                 fd.title                 AS Title,
@@ -868,8 +868,11 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         return Task.FromResult(rows.ToDictionary(r => r.MediaType, r => r.Count));
     }
 
-    private static string BuildProjectionSql(bool preferAsset = false, bool countsOnly = false)
+    private static string BuildProjectionSql(bool preferAsset = false, bool countsOnly = false, bool singleWork = false)
     {
+        // A one-item read (a details page) narrows every step to that work (@entityId). Without this, each step was worked
+        // out for the whole library before the one row was picked, so opening a page grew slower with every file added.
+        string OnlyWork(string clause, string column) => singleWork ? $"{clause} {column} = @entityId" : string.Empty;
         var wikidataId = SqlGuidLiteral(WellKnownProviders.Wikidata);
         var localProcessorId = SqlGuidLiteral(WellKnownProviders.LocalProcessor);
         var libraryScanId = SqlGuidLiteral(WellKnownProviders.LibraryScanner);
@@ -1113,6 +1116,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                         ORDER BY {primaryAssetOrder}) AS asset_rank
                 FROM editions e
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
+                {OnlyWork("WHERE", "e.work_id")}
             ),
             primary_asset_data AS (
                 SELECT work_id, asset_id, file_path_root, asset_status
@@ -1127,6 +1131,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 FROM works w
                 LEFT JOIN works p ON p.id = w.parent_work_id
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
+                {OnlyWork("WHERE", "w.id")}
             ),
             asset_cv AS (
                 SELECT
@@ -1212,11 +1217,12 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 -- A work with any file in a Vault library is not here for anyone (Videos spec D17): not as an item, not in any count.
                 WHERE w.work_kind != 'parent'
                   AND {VaultSql.NotVaultEntity("w.id")}
+                  {OnlyWork("AND", "w.id")}
                 GROUP BY w.id, w.media_type, w.wikidata_status, w.curator_state, w.ready_at, w.collection_id
             )
             """;
 
-        sql += """
+        sql += $"""
             ,
             ingest_date_data AS (
                 SELECT
@@ -1225,6 +1231,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 FROM editions e
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 INNER JOIN metadata_claims mc ON mc.entity_id = ma.id
+                {OnlyWork("WHERE", "e.work_id")}
                 GROUP BY e.work_id
             ),
             review_targets AS (
@@ -1239,6 +1246,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 INNER JOIN media_assets ma_rv ON ma_rv.id = rq.entity_id
                 INNER JOIN editions e_rv ON e_rv.id = ma_rv.edition_id
                 WHERE rq.status = 'Pending'
+                  {OnlyWork("AND", "e_rv.work_id")}
                 UNION ALL
                 SELECT
                     w_rv.id AS work_id,
@@ -1250,6 +1258,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 FROM review_queue rq
                 INNER JOIN works w_rv ON w_rv.id = rq.entity_id
                 WHERE rq.status = 'Pending'
+                  {OnlyWork("AND", "w_rv.id")}
             ),
             review_data AS (
                 SELECT
@@ -1317,6 +1326,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 FROM identity_jobs ij
                 INNER JOIN media_assets ma_ij ON ma_ij.id = ij.entity_id
                 INNER JOIN editions e_ij ON e_ij.id = ma_ij.edition_id
+                {OnlyWork("WHERE", "e_ij.work_id")}
                 GROUP BY e_ij.work_id
             ),
             user_lock_data AS (
