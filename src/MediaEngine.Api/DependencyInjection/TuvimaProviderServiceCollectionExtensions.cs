@@ -263,8 +263,11 @@ public static class TuvimaProviderServiceCollectionExtensions
         IConfigurationLoader configLoader)
     {
         var coreConfig = configLoader.LoadCore();
+        var durableCache = new MediaEngine.Providers.Services.DurableWikidataResponseCache();
         var options = new Tuvima.Wikidata.WikidataReconcilerOptions
         {
+            ResponseCache = durableCache,
+            ResponseCacheTtl = TimeSpan.FromHours(24),
             UserAgent = TuvimaHttpClientRegistration.CanonicalUserAgent,
             Language = coreConfig.Language.Metadata,
             MaxLag = 0,
@@ -307,6 +310,9 @@ public static class TuvimaProviderServiceCollectionExtensions
         {
             var client = sp.GetRequiredService<IHttpClientFactory>()
                 .CreateClient("WikidataReconciliation");
+            durableCache.Attach(
+                sp.GetService<IProviderResponseCacheRepository>(),
+                sp.GetService<ILoggerFactory>()?.CreateLogger("DurableWikidataResponseCache"));
             return new Tuvima.Wikidata.WikidataReconciler(client, options);
         });
         services.AddSingleton(sp => sp.GetRequiredService<Tuvima.Wikidata.WikidataReconciler>().Reconcile);

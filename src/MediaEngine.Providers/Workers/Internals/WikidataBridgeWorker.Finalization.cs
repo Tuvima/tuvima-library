@@ -32,6 +32,7 @@ public sealed partial class WikidataBridgeWorker
         // and bridge IDs to works.external_identifiers). One DB round-trip
         // per job, reused throughout finalisation.
         WorkLineage? lineage = null;
+        ctx.Step = "reading the work's lineage";
         try { lineage = await _workRepo.GetLineageByAssetAsync(job.EntityId, ct); }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -88,6 +89,7 @@ public sealed partial class WikidataBridgeWorker
             // Persist claims accumulated during group resolution.
             if (ctx.AdditionalClaims.Count > 0)
             {
+                ctx.Step = "saving the claims found on Wikidata";
                 // Phase 3c: lineage-aware persist mirrors parent-scope display
                 // claims (album, year, cover) onto the parent Work.
                 await ScoringHelper.PersistAndScoreWithLineageAsync(
@@ -95,6 +97,7 @@ public sealed partial class WikidataBridgeWorker
                     _claimRepo, _canonicalRepo, _scoringEngine, _configLoader, _providers, ct,
                     arrayRepo: _arrayRepo, logger: _logger);
 
+                ctx.Step = "routing identifiers to the work";
                 // Phase 3b: route any container-level structural data (the album
                 // QID, child entity manifests) onto the parent Work.
                 await RouteToWorksAsync(lineage, job.EntityId, ctx.MediaType, ctx.ResolvedQid,
@@ -116,9 +119,11 @@ public sealed partial class WikidataBridgeWorker
                         WikidataProperty = _bridgeIdHelper.GetPCode(kvp.Key),
                     }).ToList();
 
+                ctx.Step = "saving bridge IDs";
                 await _bridgeIdRepo.UpsertBatchAsync(collectedEntries, ct);
             }
 
+            ctx.Step = "recording the timeline event";
             // Record timeline event.
             if (ctx.MatchedBy == QidResolutionMethods.OwnedBookNoRetail)
             {
@@ -134,6 +139,7 @@ public sealed partial class WikidataBridgeWorker
                 "Wikidata: '{Title}' identified as {Qid} via {Method} [entity {EntityId}]",
                 ctx.TitleHint ?? ctx.AlbumHint ?? "(unknown)", ctx.ResolvedQid, ctx.MatchedBy, job.EntityId);
 
+            ctx.Step = "saving the resolved item";
             await _jobRepo.SetResolvedQidAsync(job.Id, ctx.ResolvedQid, ct);
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.QidResolved, ct: ct);
 
@@ -213,6 +219,7 @@ public sealed partial class WikidataBridgeWorker
             // for this QID group, use it directly — no HTTP call needed.
             // Otherwise fall back to FetchAsync (covers the single-job case and
             // any group whose representative FetchAsync failed).
+            ctx.Step = "fetching the full Wikidata properties";
             await UpdateBridgeOperationStageAsync(ctx.Operation, MediaOperationStage.ProviderLookup, 75, "Fetching full Wikidata properties.", ct, new
             {
                 qid = ctx.ResolvedQid,
@@ -284,10 +291,12 @@ public sealed partial class WikidataBridgeWorker
                     .ConfigureAwait(false);
             }
 
+            ctx.Step = "hydrating the Series manifest";
             await TryHydrateSeriesManifestAsync(job, ctx, lineage, ctx.ResolvedQid, fullClaims, ct);
 
             if (_collectionFinalization is not null)
             {
+                ctx.Step = "finalizing collections";
                 await _collectionFinalization.FinalizeAsync(
                     job.EntityId,
                     CollectionFinalizationReason.QidResolved,
@@ -298,6 +307,7 @@ public sealed partial class WikidataBridgeWorker
                 job.EntityId, job.Id, ctx.ResolvedQid, ct);
             await _coverArt.DownloadAndPersistAsync(job.EntityId, ctx.ResolvedQid, ct)
                 .ConfigureAwait(false);
+            ctx.Step = "merging duplicate works";
             await TryMergeReadWorkIdentitiesAsync(ctx.MediaType, ct).ConfigureAwait(false);
             await MarkBridgeSucceededAsync(ctx.Operation, job, ctx.ResolvedQid, ct).ConfigureAwait(false);
         }

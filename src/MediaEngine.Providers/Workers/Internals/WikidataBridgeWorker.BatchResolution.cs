@@ -410,7 +410,7 @@ public sealed partial class WikidataBridgeWorker
         {
             try
             {
-                await FinaliseJobAsync(ctx, reconAdapter, allCandidates, ct);
+                await FinaliseJobWithWatchdogAsync(ctx, reconAdapter, allCandidates, ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -439,5 +439,78 @@ public sealed partial class WikidataBridgeWorker
     // -------------------------------------------------------------------------
     // Per-job finalisation (Phase 6)
     // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// How long finishing one job may take before the worker stops waiting for it. A job's finishing is database writes and
+    /// lookups that normally take seconds; one that never completes used to hold the whole batch, and every job behind it,
+    /// until its 60-minute lease ran out (speed: #1360, 58 quiet minutes with 761 jobs waiting).
+    /// </summary>
+    internal static readonly TimeSpan FinaliseJobTimeout = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// Finishes one job, but stops waiting after <see cref="FinaliseJobTimeout"/>: the step it was in is logged and the
+    /// job goes through the normal retry path, so the jobs behind it keep moving. Its candidates are added only when it
+    /// finishes, so a job that is given up on cannot change the batch's list afterwards.
+    /// </summary>
+    private async Task FinaliseJobWithWatchdogAsync(
+        JobContext ctx,
+        ReconciliationAdapter reconAdapter,
+        List<WikidataBridgeCandidate> allCandidates,
+        CancellationToken ct)
+    {
+        var jobCandidates = new List<WikidataBridgeCandidate>();
+        await RunWithStallWatchdogAsync(
+                token => FinaliseJobAsync(ctx, reconAdapter, jobCandidates, token),
+                FinaliseJobTimeout,
+                () => ctx.Step,
+                step => _logger.LogWarning(
+                    "Wikidata: finishing job {JobId} ({MediaType}, '{Title}') took longer than {Minutes} minutes and was stopped while {Step}",
+                    ctx.Job.Id,
+                    ctx.MediaType,
+                    ctx.TitleHint ?? ctx.AlbumHint ?? "(unknown)",
+                    (int)FinaliseJobTimeout.TotalMinutes,
+                    step),
+                ct)
+            .ConfigureAwait(false);
+
+        allCandidates.AddRange(jobCandidates);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="work"/> but stops waiting for it after <paramref name="timeout"/>: the work is asked to cancel,
+    /// <paramref name="onStalled"/> is told what it was doing, and a <see cref="TimeoutException"/> naming that step is
+    /// thrown. Work that ignores cancellation is left to end on its own; any error it ends with is only observed.
+    /// </summary>
+    internal static async Task RunWithStallWatchdogAsync(
+        Func<CancellationToken, Task> work,
+        TimeSpan timeout,
+        Func<string> currentStep,
+        Action<string> onStalled,
+        CancellationToken ct)
+    {
+        using var workCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var running = work(workCts.Token);
+
+        try
+        {
+            await running.WaitAsync(timeout, ct).ConfigureAwait(false);
+        }
+        catch (TimeoutException) when (!running.IsCompleted)
+        {
+            var step = currentStep();
+            onStalled(step);
+            await workCts.CancelAsync().ConfigureAwait(false);
+
+            // Reported above, so a later error from the abandoned work is only observed here.
+            _ = running.ContinueWith(
+                static finished => _ = finished.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+            throw new TimeoutException(
+                $"Finishing the Wikidata step took longer than {(int)timeout.TotalMinutes} minutes (stopped while {step}).");
+        }
+    }
 
 }
