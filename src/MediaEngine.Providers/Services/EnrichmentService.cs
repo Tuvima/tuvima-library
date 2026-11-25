@@ -1,4 +1,5 @@
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Intelligence.Contracts;
 using MediaEngine.Providers.Workers;
@@ -23,6 +24,7 @@ public sealed class EnrichmentService : IEnrichmentService
     private readonly ICollectionRepository _collectionRepo;
     private readonly IParentCollectionResolver _parentCollectionResolver;
     private readonly IEnrichmentConcurrencyLimiter _concurrency;
+    private readonly IMediaOperationRepository? _operations;
     private readonly ILogger<EnrichmentService> _logger;
 
     public EnrichmentService(
@@ -37,8 +39,10 @@ public sealed class EnrichmentService : IEnrichmentService
         ICollectionRepository collectionRepo,
         IParentCollectionResolver parentCollectionResolver,
         ILogger<EnrichmentService> logger,
-        IEnrichmentConcurrencyLimiter? concurrencyLimiter = null)
+        IEnrichmentConcurrencyLimiter? concurrencyLimiter = null,
+        IMediaOperationRepository? operations = null)
     {
+        _operations = operations;
         _coverArt = coverArt;
         _persons = persons;
         _children = children;
@@ -62,23 +66,42 @@ public sealed class EnrichmentService : IEnrichmentService
             EnrichmentWorkKind.TmdbArtwork,
             token => _images.EnrichEpisodeStillsAsync(entityId, token),
             ct);
-        try
+        // Cast and crew lookups can take minutes (one Wikidata search per unmatched name), so they go on the people queue and the
+        // title is finished without them: covers and stills are already here and the people arrive as that queue reaches them (#1360).
+        if (_operations is not null)
         {
-            await _concurrency.RunAsync(
-                EnrichmentWorkKind.Wikidata,
-                token => _persons.EnrichFromClaimsAsync(entityId, token),
-                ct);
+            await _operations.EnsureAsync(new MediaOperation
+            {
+                OperationType = MediaOperationType.EnrichmentPeople,
+                OperationKind = "enrichment",
+                EntityId = entityId,
+                EntityKind = "media_asset",
+                QueueName = "people",
+                Status = MediaOperationStatus.Queued,
+                SubKey = qid,
+                IdempotencyKey = $"people:quick:{entityId}:{qid}:v1",
+            }, ct);
         }
-        catch (OperationCanceledException)
+        else
         {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "Quick pass people enrichment was partial for entity {Id}; continuing with quick hydration",
-                entityId);
+            try
+            {
+                await _concurrency.RunAsync(
+                    EnrichmentWorkKind.Wikidata,
+                    token => _persons.EnrichFromClaimsAsync(entityId, token),
+                    ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Quick pass people enrichment was partial for entity {Id}; continuing with quick hydration",
+                    entityId);
+            }
         }
 
         await _fileWrites.EnqueueAssetAsync(entityId, "quick_hydration", ct);

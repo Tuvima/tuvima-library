@@ -23,6 +23,11 @@ public sealed class WikidataSeriesManifestHydrationService
 
     private readonly ConcurrentDictionary<string, Lazy<Task>> _inFlight = new(StringComparer.OrdinalIgnoreCase);
 
+    // A fetched manifest is kept for a short while so the next member of the same Series (or a refresh pass over it) reuses it
+    // instead of asking Wikidata again. The stored manifest answers only when it already lists the work, so without this a work the
+    // manifest does not list asked Wikidata afresh every time (speed: #1360).
+    private readonly LookupMemo<Task<SeriesManifestResult>> _fetchedManifests = new(TimeSpan.FromMinutes(30));
+
     private const int ManifestMaxDepth = 2;
     private const int ManifestMaxItems = 500;
     private const string ManifestScopeFilter = "relationship-scoped-v2";
@@ -41,6 +46,31 @@ public sealed class WikidataSeriesManifestHydrationService
         _configLoader = configLoader;
         _logger = logger;
         _ambiguityReviewer = ambiguityReviewer;
+    }
+
+    private async Task<SeriesManifestResult> FetchManifestOnceAsync(SeriesManifestRequest request, CancellationToken ct)
+    {
+        var key = LookupMemo<bool>.Key(request.SeriesQid, request.Language);
+        if (!_fetchedManifests.TryGet(key, out var pending))
+        {
+            pending = _reconciler.Series.GetManifestAsync(request, CancellationToken.None);
+            _fetchedManifests.Set(key, pending);
+        }
+
+        try
+        {
+            return await pending.WaitAsync(ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            // A failed fetch is not remembered: the next member tries again.
+            _fetchedManifests.Remove(key);
+            throw;
+        }
     }
 
     public async Task HydrateAsync(SeriesManifestHydrationContext context, CancellationToken ct = default)
@@ -138,9 +168,7 @@ public sealed class WikidataSeriesManifestHydrationService
                 }
             }
 
-            var manifest = await _reconciler.Series.GetManifestAsync(
-                CreateManifestRequest(seriesQid, language),
-                ct).ConfigureAwait(false);
+            var manifest = await FetchManifestOnceAsync(CreateManifestRequest(seriesQid, language), ct).ConfigureAwait(false);
 
             if (!IsImmediateManifestContainer(manifest.ContainerKind)
                 || (candidate.RequireKnownImmediateContainer && manifest.ContainerKind == WikidataContainerKind.Unknown))
@@ -304,9 +332,7 @@ public sealed class WikidataSeriesManifestHydrationService
             }
         }
 
-        var manifest = await _reconciler.Series.GetManifestAsync(
-            CreateManifestRequest(parent.Qid, language),
-            ct).ConfigureAwait(false);
+        var manifest = await FetchManifestOnceAsync(CreateManifestRequest(parent.Qid, language), ct).ConfigureAwait(false);
 
         if (!IsImmediateManifestContainer(manifest.ContainerKind))
         {

@@ -44,6 +44,12 @@ public sealed class PeopleEnrichmentHostedService(
                             throw new InvalidOperationException("Contributor operation has no entity.");
                         }
                         await worker.EnrichFromClaimsAsync(entityId, timeout.Token);
+                        // The universe pass links actors to characters only for people who already exist, and it may have run before this
+                        // lookup finished, so the links are made again now that the people are here.
+                        if (!string.IsNullOrWhiteSpace(job.SubKey))
+                        {
+                            await worker.EnrichActorCharacterMappingsAsync(entityId, job.SubKey, timeout.Token);
+                        }
                         await repository.MarkSucceededAsync(job.Id, "Contributor lookup completed", stoppingToken);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)
