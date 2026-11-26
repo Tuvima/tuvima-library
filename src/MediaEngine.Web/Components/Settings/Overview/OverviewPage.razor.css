@@ -91,7 +91,7 @@
 }
 
 .overview-page__invite {
-    margin: calc(var(--tl-space-2, 8px) * -1) 0 0;
+    margin: 0;
     color: var(--tl-text-secondary);
 }
 

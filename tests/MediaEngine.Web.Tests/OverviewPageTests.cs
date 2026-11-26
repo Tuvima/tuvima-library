@@ -236,6 +236,24 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void SignInAndSafety_OnAnotherProfileOfTheAccount_DoesNotShowTheAccountsEmailOrDevices()
+    {
+        var someoneElse = Guid.NewGuid();
+        _identityJson["/access/self-service"] = JsonSerializer.Serialize(new AccountSelfServiceResponse(
+            someoneElse, "ada@example.test", OwnId, someoneElse, [], ["password"],
+            new AccountSecurityCapabilitiesResponse(true, false, false, true, false, false, false, [])));
+        _identityJson["/auth/sessions"] = JsonSerializer.Serialize(new[] { new DeviceSessionResponse(), new DeviceSessionResponse() });
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain("ada@example.test", cut.Markup, StringComparison.Ordinal);
+            Assert.Equal("Phones, TVs and browsers signed in to Library", cut.Find("[data-nav-row='devices'] .settings-nav-row__status").TextContent);
+        });
+    }
+
+    [Fact]
     public void SignInAndSafety_WithNoPassword_SaysSo_AndAnUnreadableAnswerKeepsTheGeneralWording()
     {
         _identityJson["/access/self-service"] = JsonSerializer.Serialize(new AccountSelfServiceResponse(
