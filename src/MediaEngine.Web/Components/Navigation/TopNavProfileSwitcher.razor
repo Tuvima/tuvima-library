@@ -60,13 +60,7 @@
     [Parameter] public IReadOnlyList<ProfileViewModel> Profiles { get; set; } = [];
 
     // Each person's circle colour differs from the people before them in the household's order (profile and household D13); worked out when shown.
-    private string ColorOf(ProfileViewModel profile)
-    {
-        var index = Profiles.ToList().FindIndex(other => other.Id == profile.Id);
-        return index >= 0
-            ? ProfileAvatarPalette.Distinct([.. Profiles.Select(other => (string?)other.AvatarColor)])[index]
-            : profile.AvatarColor;
-    }
+    private string ColorOf(ProfileViewModel profile) => ProfileAvatarPalette.ColorFor(Profiles, profile);
 
     private ProfileViewModel? _pending;
     private string _pin = string.Empty;

@@ -53,7 +53,7 @@
         {
         @* The person's name is the page title above the tabs; this card holds the picture, the role and the badges, once, on the Profile tab. *@
         <header class="profile-detail__header" aria-label="@_person.DisplayName">
-            <span class="profile-detail__avatar"><ProfileAvatar DisplayName="@_person.DisplayName" ImageUrl="@_person.AvatarImageUrl" Color="@_person.AvatarColor" Icon="@_person.AvatarIcon" /></span>
+            <span class="profile-detail__avatar"><ProfileAvatar DisplayName="@_person.DisplayName" ImageUrl="@_person.AvatarImageUrl" Color="@ProfileAvatarPalette.ColorFor(_profiles, _person)" Icon="@_person.AvatarIcon" /></span>
             <div class="profile-detail__who">
                 <p class="profile-detail__role">@RoleLabel</p>
                 <ul class="profile-detail__badges" aria-label="@L["ProfileDetailPage_ProfileBadges"].Value">
@@ -494,6 +494,11 @@
                 var managed = Identity.GetManagedProfilesAsync();
                 _profiles = await profiles;
                 _managed = await managed;
+            }
+            else
+            {
+                // Still needed for the circle's colour, which is worked out from the household's order.
+                _profiles = await Orchestrator.GetProfilesAsync();
             }
 
             _person = FindPerson();

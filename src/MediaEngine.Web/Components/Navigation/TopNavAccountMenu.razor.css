@@ -64,7 +64,7 @@
 
 /* The surface itself (position, width, background, border) is drawn by AppPopover in the top layer; its styles are global in app.css. */
 .top-nav-account-menu__panel {
-    max-width: 18rem;
+    min-width: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
     font-size: var(--tl-type-menu-size);
@@ -129,6 +129,18 @@
 .top-nav-account-menu__me-copy small {
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-sm);
+    /* The second line wraps rather than being cut, so "Profile and preferences" always reads in full. */
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+/* The Kids chip keeps its full word: it never shrinks under a long name (here and on the trigger). */
+.top-nav-account-menu__me ::deep .app-chip,
+.top-nav-account-menu-shell ::deep .top-nav-account-menu__trigger .app-chip {
+    flex: 0 0 auto;
+    min-width: max-content;
+    max-width: none;
 }
 
 .top-nav-account-menu__me ::deep .top-nav-account-menu__me-arrow {
@@ -216,11 +228,13 @@
     margin: 0;
 }
 
+/* Sign out is a button, which the native button reset centres; it lines up with the link rows instead (same left edge, same icon column). */
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout {
     width: 100%;
     min-height: var(--tl-menu-row-height);
     display: flex;
     align-items: center;
+    justify-content: flex-start !important;
     gap: 0;
     padding: var(--tl-menu-row-padding-y) 16px;
     border: 0;
@@ -231,7 +245,7 @@
     font-size: var(--tl-menu-row-font-size);
     font-weight: var(--tl-menu-row-font-weight);
     line-height: 1.25;
-    text-align: left;
+    text-align: start !important;
     cursor: pointer;
 }
 
@@ -263,6 +277,11 @@
     }
 
     .top-nav-account-menu__trigger-copy {
+        display: none;
+    }
+
+    /* The Kids chip goes with the name; the menu's own row still shows it in full. */
+    .top-nav-account-menu-shell ::deep .top-nav-account-menu__trigger .app-chip {
         display: none;
     }
 }

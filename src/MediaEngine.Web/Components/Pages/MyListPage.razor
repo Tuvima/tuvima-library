@@ -43,7 +43,7 @@
             @if (_profile is { } profile)
             {
                 <span class="my-list-header__avatar">
-                    <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" />
+                    <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@ProfileAvatarPalette.ColorFor(_household, profile)" Icon="@profile.AvatarIcon" />
                 </span>
                 <div class="my-list-header__copy">
                     <h1 class="my-list-header__title">@L["MyList_Title"]</h1>

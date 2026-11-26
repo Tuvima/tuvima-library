@@ -200,16 +200,7 @@
     private bool HasOtherProfiles => Profiles.Any(profile => profile.Id != ActiveProfileId);
     private string? OwnImageUrl => ActiveProfile?.AvatarImageUrl ?? AvatarImageUrl;
     private string? OwnIcon => ActiveProfile?.AvatarIcon;
-    private string OwnColor
-    {
-        get
-        {
-            var index = ActiveProfileId is { } id ? Profiles.ToList().FindIndex(profile => profile.Id == id) : -1;
-            return index >= 0
-                ? ProfileAvatarPalette.Distinct([.. Profiles.Select(profile => (string?)profile.AvatarColor)])[index]
-                : AvatarColor;
-        }
-    }
+    private string OwnColor => ActiveProfile is { } me ? ProfileAvatarPalette.ColorFor(Profiles, me) : AvatarColor;
     private string OwnForeground => string.Equals(OwnColor, AvatarColor, StringComparison.OrdinalIgnoreCase) ? AvatarForeground : ProfileAvatarPalette.InkFor(OwnColor);
     private string ProfileMenuAriaLabel =>
         string.IsNullOrWhiteSpace(DisplayName) ? L["TopBar_OpenProfileMenu"].Value : string.Concat(L["TopBar_OpenProfileMenu"].Value, ": ", DisplayName);

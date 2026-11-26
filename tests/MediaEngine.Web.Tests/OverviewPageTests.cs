@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Taste;
+using MediaEngine.Web.Components.Profiles;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
@@ -24,6 +25,9 @@ public sealed class OverviewPageTests : AsyncBunitContext
 
     private ProfileViewModel _profile = new(OwnId, "Test User", "#C9922E", "Profile",
         new DateTimeOffset(2026, 3, 15, 12, 0, 0, TimeSpan.Zero), NavigationConfig: "{\"playlist_order\":[\"a\"]}");
+
+    // The rest of the household, listed before the signed-in person (their circle colour depends on who comes first).
+    private readonly List<ProfileViewModel> _others = [];
 
     private ProfileOverviewViewModel? _overview = new();
     private DisplayPageDto? _continue;
@@ -86,7 +90,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
 
     private IEngineApiClient CreateApi() => EngineApiClientStub.Create(stub =>
     {
-        stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel> { _profile }));
+        stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel>([.. _others, _profile])));
         stub.SetHandler(nameof(IEngineApiClient.GetProfileOverviewAsync), _ => Task.FromResult(_overview));
         stub.SetHandler(nameof(IEngineApiClient.GetDisplayContinueAsync), _ => Task.FromResult(_continue));
         stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivityRecentAsync), _ => Task.FromResult(_recent));
@@ -165,6 +169,24 @@ public sealed class OverviewPageTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("a[href*='/apps']"));
         Assert.DoesNotContain("Get the Library app", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[aria-label='Apps']"));
+    }
+
+    [Fact]
+    public void Header_DrawsTheCircleInTheSameColorTheTopBarMenuGivesThisPerson_WhenTheHouseholdSavedTheSameOne()
+    {
+        var ada = new ProfileViewModel(Guid.NewGuid(), "Ada", "#8852FC", "Profile", DateTimeOffset.UtcNow.AddDays(-9));
+        _others.Add(ada);
+        _profile = _profile with { AvatarColor = "#8852FC" };
+        // The signed-in account may use both profiles, so the list the shell loads keeps Ada ahead of this person.
+        AccountProfileGrantDto Grant(Guid id, string name) => new(OwnId, id, name, null, true, true, true,
+            new ProfileAdminProtectionResponse(false, "None", null, 1), 1, DateTimeOffset.UtcNow);
+        _session.Set("test-session-token", OwnId, OwnId, Guid.NewGuid(),
+            new DashboardAuthorityResponse(OwnId, OwnId, true, true, 1, 1, false, false, null, 1, [Grant(ada.Id, "Ada"), Grant(OwnId, "Test User")], [], []));
+
+        var cut = RenderPage();
+
+        // Ada is first in the household, so she keeps the purple; this person is second and gets the next color, as the menu draws it.
+        Assert.Equal(ProfileAvatarPalette.Swatches[1].Hex, cut.Find(".overview-header__avatar circle").GetAttribute("fill"));
     }
 
     [Fact]

@@ -40,7 +40,7 @@ else
         <AppCard>
             <div class="overview-header">
                 <span class="overview-header__avatar">
-                    <ProfileAvatar DisplayName="@_profile.DisplayName" ImageUrl="@_profile.AvatarImageUrl" Color="@_profile.AvatarColor" Icon="@_profile.AvatarIcon" />
+                    <ProfileAvatar DisplayName="@_profile.DisplayName" ImageUrl="@_profile.AvatarImageUrl" Color="@ProfileAvatarPalette.ColorFor(_profiles, _profile)" Icon="@_profile.AvatarIcon" />
                 </span>
                 <div class="overview-header__identity">
                     <h2 class="overview-header__name">@_profile.DisplayName</h2>
@@ -156,6 +156,8 @@ else
 
 @code {
     private ProfileViewModel? _profile;
+    // The household in its order: the circle's colour is worked out from it, so it matches the top-bar menu.
+    private IReadOnlyList<ProfileViewModel> _profiles = [];
     private ProfileOverviewViewModel? _overview;
     private PersonalActivitySummaryDto? _summary;
     private IReadOnlyList<PersonalActivityRecentTileDto>? _recent;
@@ -215,6 +217,8 @@ else
                 return;
             }
 
+            _profiles = await Orchestrator.GetProfilesAsync();
+
             // The profile overview feeds Continue enjoying; the numbers and the calendar come from the activity summary.
             var overview = Api.GetProfileOverviewAsync(_profile.Id);
             var started = Api.GetDisplayContinueAsync(limit: ContinueLimit);
@@ -251,6 +255,7 @@ else
     {
         await Orchestrator.RefreshProfilesAsync();
         _profile = await Orchestrator.GetActiveProfileAsync() ?? _profile;
+        _profiles = await Orchestrator.GetProfilesAsync();
     }
 
     private void OpenEditor()
@@ -294,6 +299,7 @@ else
             }
 
             _profile = await Orchestrator.GetActiveProfileAsync() ?? profile;
+            _profiles = await Orchestrator.GetProfilesAsync();
             if (photoFailed)
             {
                 _editorError = L["OverviewPage_YourChangesWereSavedBut"].Value;
