@@ -281,7 +281,7 @@ public sealed partial class RetailMatchWorker
 
                 await Task.WhenAll(jobs.Select(job =>
                     _concurrency.RunAsync(
-                        EnrichmentWorkKind.RetailProvider,
+                        EnrichmentWorkKind.SlowRetailProvider,
                         token => ProcessJobWithRetryAsync(job, token),
                         ct))).ConfigureAwait(false);
             }

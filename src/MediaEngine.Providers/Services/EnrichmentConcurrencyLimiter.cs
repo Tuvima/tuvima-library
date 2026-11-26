@@ -10,6 +10,9 @@ namespace MediaEngine.Providers.Services;
 /// </summary>
 public sealed class EnrichmentConcurrencyLimiter : IEnrichmentConcurrencyLimiter, IDisposable
 {
+    /// <summary>Slots for the slow retail lane; matches the comics lane batch size.</summary>
+    internal const int SlowRetailProviderSlots = 3;
+
     private readonly Dictionary<EnrichmentWorkKind, SemaphoreSlim> _limiters;
     private readonly ILogger<EnrichmentConcurrencyLimiter> _logger;
 
@@ -21,6 +24,7 @@ public sealed class EnrichmentConcurrencyLimiter : IEnrichmentConcurrencyLimiter
         _limiters = new Dictionary<EnrichmentWorkKind, SemaphoreSlim>
         {
             [EnrichmentWorkKind.RetailProvider] = new(NormalizeLimit(settings.MaxConcurrentRetailProviderJobs), NormalizeLimit(settings.MaxConcurrentRetailProviderJobs)),
+            [EnrichmentWorkKind.SlowRetailProvider] = new(SlowRetailProviderSlots, SlowRetailProviderSlots),
             [EnrichmentWorkKind.Wikidata] = new(NormalizeLimit(settings.MaxConcurrentWikidataJobs), NormalizeLimit(settings.MaxConcurrentWikidataJobs)),
             [EnrichmentWorkKind.TmdbArtwork] = new(NormalizeLimit(settings.MaxConcurrentTmdbArtworkJobs), NormalizeLimit(settings.MaxConcurrentTmdbArtworkJobs)),
             [EnrichmentWorkKind.WriteBack] = new(NormalizeLimit(settings.MaxConcurrentWriteBackJobs), NormalizeLimit(settings.MaxConcurrentWriteBackJobs)),
