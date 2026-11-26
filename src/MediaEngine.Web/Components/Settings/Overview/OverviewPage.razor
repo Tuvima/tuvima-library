@@ -181,12 +181,15 @@ else
     private AccountSelfServiceResponse? _account;
     private int? _signedInCount;
 
-    private string PasswordStatus => _account?.SecurityCapabilities is not { } capabilities
+    // The password, email and device count belong to the signed-in account, so they are shown only on that account's own profile.
+    private bool AccountIsThisProfile => _account is not null && _profile is not null && _account.DefaultProfileId == _profile.Id;
+
+    private string PasswordStatus => !AccountIsThisProfile || _account?.SecurityCapabilities is not { } capabilities
         ? L["OverviewPage_PasswordAndEmailStatus"].Value
         : (capabilities.HasPassword ? L["OverviewPage_PasswordSet"].Value : L["OverviewPage_PasswordNotSet"].Value)
           + (string.IsNullOrWhiteSpace(_account.Email) ? string.Empty : " · " + _account.Email);
 
-    private string DevicesStatus => _signedInCount switch
+    private string DevicesStatus => !AccountIsThisProfile ? L["OverviewPage_DevicesStatus"].Value : _signedInCount switch
     {
         null => L["OverviewPage_DevicesStatus"].Value,
         1 => L["OverviewPage_DevicesSignedInOne"].Value,
