@@ -294,6 +294,8 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         return Task.FromResult(row is null ? null : MapRow(row));
     }
 
+    public bool SupportsMediaTypeLeaseFilter => true;
+
     public Task<IReadOnlyList<IdentityJob>> LeaseNextAsync(
         string workerName,
         IReadOnlyList<IdentityJobState> states,
