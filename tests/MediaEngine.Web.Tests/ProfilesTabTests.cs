@@ -477,8 +477,75 @@ public sealed class ProfilesTabTests : AsyncBunitContext
 
         var cut = Render<ProfilesTab>(parameters => parameters.AddCascadingValue(header));
 
-        cut.WaitForAssertion(() => Assert.NotNull(header.Content));
+        // The rename pencil sits right beside the household's name; nothing is left for the right-hand slot with one person on a desktop.
+        cut.WaitForAssertion(() => Assert.NotNull(header.TitleAccessory));
+        Assert.Null(header.Content);
         Assert.Empty(cut.FindAll("[data-household-actions]"));
+    }
+
+    [Fact]
+    public void ThePage_TellsItsHostHowManyPeopleAreInTheHousehold_ForTheLineUnderTheTitle()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 3, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(KidId, "Robin", true), Person(SamId, "Sam", false)]);
+        var counts = new List<int>();
+
+        Render<ProfilesTab>(parameters => parameters.Add(component => component.PeopleCountChanged,
+            EventCallback.Factory.Create<int>(this, count => counts.Add(count))));
+
+        Assert.Equal(3, counts.LastOrDefault());
+    }
+
+    [Fact]
+    public void WhatKidsCanSeeAndLibraries_AreFullRowsWithAOneLineSummary_NotSmallExpandButtons()
+    {
+        Setup(serverAdministrator: true, householdAdministrator: false);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false));
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var kids = cut.Find($"[data-kid-settings='{HouseholdId}'] [data-nav-row='kid-settings']");
+            Assert.Contains("What Kids can see", kids.TextContent, StringComparison.Ordinal);
+            Assert.Equal("Up to PG for Watch, Read and Listen", kids.QuerySelector(".settings-nav-row__status")!.TextContent);
+            Assert.Equal("false", kids.GetAttribute("aria-expanded"));
+            var libraries = cut.Find("[data-household-ceiling] [data-nav-row='household-ceiling']");
+            Assert.Equal("All 3 libraries", libraries.QuerySelector(".settings-nav-row__status")!.TextContent);
+        });
+    }
+
+    [Fact]
+    public void KidSettingsSummary_NamesEachAreaWhenTheyDiffer_AndSaysWhenUnratedItemsAreHidden()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _kidSettings = new HouseholdKidSettingsResponse(HouseholdId, "G", "PG", "PG-13", false, ["G", "PG", "PG-13", "R"]);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
+        _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.Equal("Watch G · Read PG · Listen PG-13 · unrated items hidden",
+            cut.Find($"[data-kid-settings='{HouseholdId}'] .settings-nav-row__status").TextContent));
+    }
+
+    [Fact]
+    public void AddProfile_IsARowLikeTheOthers_WithTheSpaceOfTheDragHandleSoItsCircleLinesUp()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var add = cut.Find(".profiles-tab__item--add");
+            Assert.NotNull(add.QuerySelector(".profiles-tab__drag-spacer"));
+            Assert.Contains("Add profile", add.TextContent, StringComparison.Ordinal);
+        });
     }
 
     // ---- Libraries this household can use sits with What Kids can see, for the person the Engine lets change it (a server administrator)
@@ -520,8 +587,8 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
         _managed.Add(Person(OwnId, "Test User", false));
         var cut = Render<ProfilesTab>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-household-ceiling] .household-ceiling__toggle")));
-        cut.Find("[data-household-ceiling] .household-ceiling__toggle").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-household-ceiling] [data-nav-row='household-ceiling']")));
+        cut.Find("[data-household-ceiling] [data-nav-row='household-ceiling']").Click();
         return cut;
     }
 
@@ -536,7 +603,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var ceiling = cut.Find("[data-household-ceiling]");
         Assert.Equal(["watch", "listen", "read"], ceiling.QuerySelectorAll("[data-ceiling-area]").Select(area => area.GetAttribute("data-ceiling-area")!).ToArray());
         Assert.All(ceiling.QuerySelectorAll("[data-library-id] input"), tick => Assert.NotNull(tick.GetAttribute("checked")));
-        Assert.DoesNotContain("Vault", ceiling.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Vault", string.Concat(ceiling.QuerySelectorAll("[data-ceiling-area]").Select(area => area.TextContent)), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -627,7 +694,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     {
         var cut = Render<ProfilesTab>();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{householdId}']")));
-        cut.Find($"[data-kid-settings='{householdId}'] .kid-settings__toggle").Click();
+        cut.Find($"[data-kid-settings='{householdId}'] [data-nav-row='kid-settings']").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{householdId}'] [data-kid-level]")));
         return cut;
     }
@@ -740,7 +807,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         _managed.AddRange([Person(AlexId, "Alex", false, OtherHouseholdId), Person(OwnId, "Test User", false)]);
         var cut = Render<ProfilesTab>();
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-kid-settings]").Count));
-        cut.Find($"[data-kid-settings='{HouseholdId}'] .kid-settings__toggle").Click();
+        cut.Find($"[data-kid-settings='{HouseholdId}'] [data-nav-row='kid-settings']").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select")));
 
         Assert.All(cut.FindAll($"[data-kid-settings='{HouseholdId}'] select, [data-kid-settings='{HouseholdId}'] input"), control => Assert.False(control.HasAttribute("disabled")));

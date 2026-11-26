@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using System.Globalization
 @using MediaEngine.Contracts.Activity
+@using MediaEngine.Contracts.Authentication
 @using MediaEngine.Contracts.Taste
 @using MediaEngine.Web.Components.Profiles
 @using MediaEngine.Web.Models.ViewDTOs
@@ -12,6 +13,7 @@
 @inject IEngineApiClient Api
 @inject DeviceContextService DeviceContext
 @inject DashboardSessionAccessor Session
+@inject DashboardIdentityClient Identity
 @inject ILogger<OverviewPage> Logger
 @inject IStringLocalizer<SharedStrings> L
 @* My profile > Profile (specs: Profile Overview, Taste and Activity; profile-and-household D5): you, with "Edit name and picture", the
@@ -40,11 +42,11 @@ else
         <AppCard>
             <div class="overview-header">
                 <span class="overview-header__avatar">
-                    <ProfileAvatar DisplayName="@_profile.DisplayName" ImageUrl="@_profile.AvatarImageUrl" Color="@_profile.AvatarColor" Icon="@_profile.AvatarIcon" />
+                    <ProfileAvatar DisplayName="@_profile.DisplayName" ImageUrl="@_profile.AvatarImageUrl" Color="@ProfileAvatarPalette.ColorFor(_profiles, _profile)" Icon="@_profile.AvatarIcon" />
                 </span>
                 <div class="overview-header__identity">
                     <h2 class="overview-header__name">@_profile.DisplayName</h2>
-                    <p class="overview-header__joined">@L["OverviewPage_Joined", Joined]</p>
+                    <p class="overview-header__joined">@L["OverviewPage_RoleAndJoined", RoleLabel, Joined]</p>
                 </div>
                 <div class="overview-header__actions">
                     @if (!IsKids)
@@ -78,11 +80,11 @@ else
                     </li>
                     <li class="overview-page__signin-item">
                         <SettingsNavRow Key="password-email" Icon="@AppMaterialIcons.Outlined.Key" Title="@L["OverviewPage_PasswordAndEmail"].Value"
-                                        Status="@L["OverviewPage_PasswordAndEmailStatus"].Value" Href="/settings/security" />
+                                        Status="@PasswordStatus" Href="/settings/security" />
                     </li>
                     <li class="overview-page__signin-item">
                         <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="@L["OverviewPage_Devices"].Value"
-                                        Status="@L["OverviewPage_DevicesStatus"].Value" Href="/settings/security/devices" />
+                                        Status="@DevicesStatus" Href="/settings/security/devices" />
                     </li>
                 </ul>
             </SettingsSectionPanel>
@@ -90,11 +92,13 @@ else
 
         @if (_summary is not null)
         {
-            <OverviewStatStrip Stats="@ProfileOverviewPresentation.Stats(_summary)" />
-            @if (ProfileOverviewPresentation.IsNewProfile(_summary))
-            {
-                <p class="overview-page__invite" data-overview-invite>@L["OverviewPage_NothingHereYetWatchRead"]</p>
-            }
+            <SettingsSectionPanel Title="@L["OverviewPage_Last30Days"].Value" Class="overview-page__stats">
+                <OverviewStatStrip Stats="@ProfileOverviewPresentation.Stats(_summary)" />
+                @if (ProfileOverviewPresentation.IsNewProfile(_summary))
+                {
+                    <p class="overview-page__invite" data-overview-invite>@L["OverviewPage_NothingHereYetWatchRead"]</p>
+                }
+            </SettingsSectionPanel>
         }
 
         <SettingsSectionPanel Title="@L["Common_ContinueEnjoying"].Value" Class="overview-page__continue">
@@ -156,6 +160,8 @@ else
 
 @code {
     private ProfileViewModel? _profile;
+    // The household in its order: the circle's colour is worked out from it, so it matches the top-bar menu.
+    private IReadOnlyList<ProfileViewModel> _profiles = [];
     private ProfileOverviewViewModel? _overview;
     private PersonalActivitySummaryDto? _summary;
     private IReadOnlyList<PersonalActivityRecentTileDto>? _recent;
@@ -167,6 +173,25 @@ else
     private string? _editorError;
 
     private string RootClass => DeviceContext.IsPhone ? "overview-page overview-page--phone" : "overview-page";
+
+    // The role in plain words, as the Household page says it: Kids, Administrator or Member.
+    private string RoleLabel => IsKids ? L["OverviewPage_RoleKids"].Value : CanChangePin ? L["OverviewPage_RoleAdministrator"].Value : L["OverviewPage_RoleMember"].Value;
+
+    // What the two Security & Devices rows say right now. Until the answer is read (or if it cannot be), they keep their general wording.
+    private AccountSelfServiceResponse? _account;
+    private int? _signedInCount;
+
+    private string PasswordStatus => _account?.SecurityCapabilities is not { } capabilities
+        ? L["OverviewPage_PasswordAndEmailStatus"].Value
+        : (capabilities.HasPassword ? L["OverviewPage_PasswordSet"].Value : L["OverviewPage_PasswordNotSet"].Value)
+          + (string.IsNullOrWhiteSpace(_account.Email) ? string.Empty : " · " + _account.Email);
+
+    private string DevicesStatus => _signedInCount switch
+    {
+        null => L["OverviewPage_DevicesStatus"].Value,
+        1 => L["OverviewPage_DevicesSignedInOne"].Value,
+        var count => L["OverviewPage_DevicesSignedIn", count].Value,
+    };
 
     private string Joined => _profile is null ? string.Empty : _profile.CreatedAt.ToLocalTime().ToString("MMMM yyyy", CultureInfo.CurrentCulture);
 
@@ -215,6 +240,8 @@ else
                 return;
             }
 
+            _profiles = await Orchestrator.GetProfilesAsync();
+
             // The profile overview feeds Continue enjoying; the numbers and the calendar come from the activity summary.
             var overview = Api.GetProfileOverviewAsync(_profile.Id);
             var started = Api.GetDisplayContinueAsync(limit: ContinueLimit);
@@ -232,6 +259,11 @@ else
             _summary = await summary;
             _recent = (await recent)?.Tiles;
             _taste = (await taste)?.People.FirstOrDefault(person => person.IsYou);
+            if (!IsKids)
+            {
+                await LoadSecurityStatusAsync();
+            }
+
             _calendar = _summary is { Daily.Count: > 0 }
                 ? ProfileOverviewPresentation.Calendar(_summary.Daily, DateOnly.FromDateTime(DateTime.UtcNow))
                 : null;
@@ -246,11 +278,28 @@ else
         }
     }
 
+    // Best effort: a row simply keeps its general wording when the Engine cannot say.
+    private async Task LoadSecurityStatusAsync()
+    {
+        try
+        {
+            var account = Identity.GetAccountAsync();
+            var sessions = Identity.GetSessionsAsync();
+            _account = await account;
+            _signedInCount = (await sessions) is { Count: > 0 } signedIn ? signedIn.Count : null;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogDebug(exception, "The sign-in status for My profile could not be read.");
+        }
+    }
+
     // A PIN was set, changed or removed from the PIN row: read the profile again so the row shows the new state.
     private async Task PinChangedAsync()
     {
         await Orchestrator.RefreshProfilesAsync();
         _profile = await Orchestrator.GetActiveProfileAsync() ?? _profile;
+        _profiles = await Orchestrator.GetProfilesAsync();
     }
 
     private void OpenEditor()
@@ -294,6 +343,7 @@ else
             }
 
             _profile = await Orchestrator.GetActiveProfileAsync() ?? profile;
+            _profiles = await Orchestrator.GetProfilesAsync();
             if (photoFailed)
             {
                 _editorError = L["OverviewPage_YourChangesWereSavedBut"].Value;

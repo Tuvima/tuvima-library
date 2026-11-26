@@ -6,23 +6,21 @@
    their area (Watch, Listen, Read, View); the Vault is never listed. Ticks are kept here until Save changes; Discard puts them back. A saved
    change is confirmed in the section itself (no toast). The page that hosts it does the save, so its administrator-PIN prompt applies. *@
 <div class="household-ceiling" data-household-ceiling="@Household.Id">
-    <span class="household-ceiling__head">
-        <AppButton Class="household-ceiling__toggle" ButtonStyle="AppButtonStyle.Text" Label="@L["HouseholdLibraryCeiling_LibrariesThisHouseholdCanUse"].Value"
-                   StartIcon="@AppMaterialIcons.Outlined.LibraryBooks"
-                   EndIcon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
-                   OnClick="Toggle" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_bodyId" />
-        <AppInfoTip Label="@L["HouseholdLibraryCeiling_LibrariesThisHouseholdCanUse"].Value"
-                    Text="@L["HouseholdLibraryCeiling_UntickALibraryToHide"].Value" />
-    </span>
-    <span class="household-ceiling__saved" role="status" data-household-ceiling-saved>
-    @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
-    {
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" Color="AppColor.Success" />@_confirmation
-    }
-    </span>
+    @* A full row: icon, the name and one line of what is set, then an arrow. Pressing it opens the ticks in place. *@
+    <div class="household-ceiling__head">
+        <SettingsNavRow Key="household-ceiling" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="@L["HouseholdLibraryCeiling_LibrariesThisHouseholdCanUse"].Value"
+                        Status="@Summary" Expanded="@_open" OnClick="Toggle" />
+        <span class="household-ceiling__saved" role="status" data-household-ceiling-saved>
+        @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
+        {
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" Color="AppColor.Success" />@_confirmation
+        }
+        </span>
+    </div>
     @if (_open)
     {
         <div id="@_bodyId" class="household-ceiling__body">
+            <p class="household-ceiling__hint">@L["HouseholdLibraryCeiling_UntickALibraryToHide"]</p>
             @if (LibrariesUnavailable)
             {
                 <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["HouseholdLibraryCeiling_TheLibrariesCouldnTBe"]</AppAlert>
@@ -89,6 +87,27 @@
     [Parameter, EditorRequired] public Func<Guid, IReadOnlyList<Guid>, Task<string?>>? OnSave { get; set; }
 
     private bool Disabled => _saving || LibrariesUnavailable;
+
+    // One line of what is set: "All 8 libraries", or how many of them the household can use.
+    private string Summary
+    {
+        get
+        {
+            if (LibrariesUnavailable)
+            {
+                return "Can't be read right now";
+            }
+
+            var total = Libraries.Count;
+            if (total == 0)
+            {
+                return "No libraries yet";
+            }
+
+            var usable = Libraries.Count(library => !_saved.Contains(library.Id));
+            return usable == total ? $"All {total} libraries" : $"{usable} of {total} libraries";
+        }
+    }
 
     private bool HasChanges => !_saved.SetEquals(_draft);
 

@@ -43,6 +43,7 @@ public partial class MyListPage
     // -- header and Continue ------------------------------------------------------------------------------------------
 
     private ProfileViewModel? _profile;
+    private IReadOnlyList<ProfileViewModel> _household = [];
     private int _profileCount;
     private bool _disposed;
     private bool _headerFailed;
@@ -169,6 +170,7 @@ public partial class MyListPage
             }
 
             _profile = profile;
+            _household = profiles;
             _profileCount = profiles.Count;
             // Nobody is signed in as a profile: not a failure, the page asks for one to be chosen.
             _noProfile = profile is null;

@@ -5804,8 +5804,29 @@
   <data name="OverviewHeatmap_Less" xml:space="preserve">
     <value>Less</value>
   </data>
-  <data name="OverviewPage_Joined" xml:space="preserve">
-    <value>Joined {0}</value>
+  <data name="OverviewPage_RoleAndJoined" xml:space="preserve">
+    <value>{0} · joined {1}</value>
+  </data>
+  <data name="OverviewPage_RoleAdministrator" xml:space="preserve">
+    <value>Administrator</value>
+  </data>
+  <data name="OverviewPage_RoleMember" xml:space="preserve">
+    <value>Member</value>
+  </data>
+  <data name="OverviewPage_RoleKids" xml:space="preserve">
+    <value>Kids</value>
+  </data>
+  <data name="OverviewPage_PasswordSet" xml:space="preserve">
+    <value>Password set</value>
+  </data>
+  <data name="OverviewPage_PasswordNotSet" xml:space="preserve">
+    <value>No password set</value>
+  </data>
+  <data name="OverviewPage_DevicesSignedInOne" xml:space="preserve">
+    <value>1 device signed in</value>
+  </data>
+  <data name="OverviewPage_DevicesSignedIn" xml:space="preserve">
+    <value>{0} devices signed in</value>
   </data>
   <data name="OverviewPage_NothingHereYetWatchRead" xml:space="preserve">
     <value>Nothing yet. What you watch, read and listen to will show up here.</value>

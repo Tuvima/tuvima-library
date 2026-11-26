@@ -4349,7 +4349,7 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .who-check__box { flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
 .who-link { min-height: 44px; padding: 0 8px; color: var(--tl-accent-primary); border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
 /* Settings > Profiles rows: the class sits on an AppNativeButton, so it cannot be styled from the page's isolated CSS. */
-.profiles-tab__row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 4px; box-sizing: border-box; color: inherit; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.profiles-tab__row { display: flex; align-items: center; justify-content: flex-start; gap: 12px; flex: 1 1 0; min-width: 0; width: 100%; min-height: 56px; padding: 8px 4px; box-sizing: border-box; color: inherit; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
 .profiles-tab__row:hover { background: color-mix(in srgb, var(--tl-text-primary) 6%, transparent); }
 .profiles-tab__row:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
 @media (min-width: 1600px) { .profiles-tab__row { min-height: 72px; font-size: var(--tl-font-size-lg); } }
@@ -4779,7 +4779,8 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 .reading-settings-skeleton { display: grid; grid-template-columns: 1fr; gap: 18px; }
 .reading-preference-row__control { min-width: 240px; }
 .reading-preference-row__control.app-segmented-control { display: flex; }
-.reading-preference-row__control .app-segmented-control__item { flex: 1 1 0; justify-content: center; min-height: 44px; padding: 0 8px; }
+.reading-preference-row__control .app-segmented-control__item { flex: 1 0 auto; justify-content: center; min-height: 44px; padding: 0 8px; }
+.reading-preference-row__control .app-segmented-control__item > span { overflow: visible; text-overflow: clip; }
 @media (max-width: 600px) { .reading-preference-row__control { min-width: 0; width: 100%; } }
 /* My profile and a person's Preferences tab (profile-and-household D16): on a phone the four-way section switch takes the full width and shares it, so no name is cut off. */
 .profile-preferences { min-width: 0; }
@@ -4787,6 +4788,8 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
     .profile-preferences .profile-detail__section-switch { display: flex; width: 100%; box-sizing: border-box; }
     .profile-preferences .profile-detail__section-switch .app-segmented-control__item { flex: 1 1 0; min-width: 0; min-height: var(--tl-tap-target-min, 44px); justify-content: center; padding: 0 4px; }
 }
+/* The section's own heading repeats the switch above it, so it gets room below the switch instead of sitting on it. */
+.profile-preferences .profile-detail__section-switch { margin-bottom: var(--tl-space-5, 20px); }
 .reading-profile-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
 .reading-profile-heading__avatar { display: inline-flex; width: 40px; height: 40px; }
 .reading-profile-heading__back { display: inline-flex; align-items: center; min-height: var(--tl-tap-target-min, 44px); margin-left: auto; color: var(--tl-text-secondary); }
@@ -4803,9 +4806,17 @@ dialog.tl-details-overlay.tl-details-overlay--sheet {
 /* Settings > Playback > Subtitles & audio. The wrapper is the #subtitles anchor. */
 .playback-subtitles-group { scroll-margin-top: var(--tl-space-5, 20px); }
 .playback-preference-row__control.app-segmented-control { display: flex; }
-.playback-preference-row__control .app-segmented-control__item { flex: 1 1 0; justify-content: center; min-height: var(--tl-tap-target-min, 44px); padding: 0 8px; }
+.playback-preference-row__control .app-segmented-control__item { flex: 1 0 auto; justify-content: center; min-height: var(--tl-tap-target-min, 44px); padding: 0 8px; }
+.playback-preference-row__control .app-segmented-control__item > span { overflow: visible; text-overflow: clip; }
 @container playback-settings (min-width: 521px) {
     :root .settings-playback-page .playback-preference-row__select--wide { width: 260px; min-width: 260px; }
+}
+/* On a phone a stacked row's control (a select, or a choice such as Video quality) takes the whole row under its label. The control belongs to the page that
+   draws the row, so this sits here rather than in the row's own isolated sheet. */
+@media (max-width: 600px) {
+    :root .settings-playback-page .playback-preference-row__select { width: 100%; min-width: 0; }
+    .app-setting-row--stack-on-phone .app-setting-row__control > .app-field,
+    .app-setting-row--stack-on-phone .app-setting-row__control > .app-segmented-control { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; }
 }
 
 /* Player subtitles (unified player v2 D13: Background None / Shadow / Box; the soft shadow follows data-subtitle-shadow, so a look with no backing and no shadow is plain text). ::cue cannot be scoped, so the cue rules live here. VideoPlaybackHost sets data-subtitle-size and

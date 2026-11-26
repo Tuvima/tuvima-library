@@ -418,7 +418,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["personal", "library", "server", "developer"], groups.Select(group => group.Key));
         Assert.Equal(["Personal", "Library", "Server", "Developer"], groups.Select(group => group.Label));
 
-        Assert.Equal(["My profile", "Household", "Security & Devices"], Labels(groups, "personal"));
+        Assert.Equal(["My profile", "Security & Devices", "Household"], Labels(groups, "personal"));
         Assert.Equal(["Libraries", "Playback"], Labels(groups, "library"));
         Assert.Equal(
             ["General", "Users & Households", "Network & Remote Access", "Tools", "Local AI", "Plugins", "Integrations", "Backups", "System"],
@@ -637,7 +637,7 @@ public sealed class SettingsNavTests
 
         Assert.Equal(["personal"], groups.Select(group => group.Key));
         // Household is listed by the menu builder for administrators only; a Kids profile sees My profile only.
-        Assert.Equal(["My profile", "Household", "Security & Devices"], groups[0].Nodes.Select(node => node.Label));
+        Assert.Equal(["My profile", "Security & Devices", "Household"], groups[0].Nodes.Select(node => node.Label));
         Assert.Equal(["My profile"], SettingsNav.FilteredMenuGroups(false, restricted: true).Single().Nodes.Select(node => node.Label));
     }
 
@@ -829,13 +829,14 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void Member_PersonalPages_AreProfileThenManageProfilesThenSecurityAndDevices()
+    public void Member_PersonalPages_AreMyProfileThenSecurityAndDevicesThenHousehold()
     {
         var personal = SettingsNav.FilteredMenuGroups(false).Single(group => group.Key == "personal");
 
-        Assert.Equal(["/settings/overview", "/settings/household", "/settings/security"], personal.Nodes.Select(node => node.Route));
+        // The order the mockup draws: Household follows Security & Devices.
+        Assert.Equal(["/settings/overview", "/settings/security", "/settings/household"], personal.Nodes.Select(node => node.Route));
         // Playback, Listening, Reading and Home are tabs of a profile, not pages.
-        Assert.Equal([SettingsSection.Profiles], personal.Nodes[1].Sections);
+        Assert.Equal([SettingsSection.Profiles], personal.Nodes[2].Sections);
     }
 
     [Fact]

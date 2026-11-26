@@ -62,6 +62,7 @@ public sealed class ProfileAndHouseholdPhoneLayoutTests
     [InlineData("ReadingSettingsPage.razor", 6)]
     [InlineData("HomeSettingsPage.razor", 1)]
     [InlineData("HomeLanesSettings.razor", 1)]
+    [InlineData("VideoOptionsPanel.razor", 1)]
     public void OptionRowsWithAChoiceStackTheirControlUnderTheLabelOnAPhone(string file, int expected)
     {
         var markup = Read("Components", "Settings", file);
@@ -75,6 +76,49 @@ public sealed class ProfileAndHouseholdPhoneLayoutTests
         var markup = Read("Components", "Settings", "ReadingSettingsPage.razor");
 
         Assert.DoesNotMatch(@"<AppSettingRow Label=", markup);
+    }
+
+    [Fact]
+    public void VideoQualityAndDeviceChoices_StackUnderTheirLabelOnAPhoneAndTakeTheFullWidth()
+    {
+        var css = Read("wwwroot", "app.css");
+        var phone = Regex.Match(css, @"@media \(max-width: 600px\) \{\s*:root \.settings-playback-page \.playback-preference-row__select(?<body>.*?)\n\}", RegexOptions.Singleline).Groups["body"].Value;
+
+        Assert.Contains("width: 100%", phone, StringComparison.Ordinal);
+        Assert.Contains(".app-setting-row--stack-on-phone .app-setting-row__control > .app-field", phone, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChoiceSelectsAreWideEnoughForNoPreference_AndSegmentedChoicesNeverCutTheirLabels()
+    {
+        var playback = Read("Components", "Settings", "PlaybackSettingsPage.razor.css");
+        var css = Read("wwwroot", "app.css");
+
+        Assert.Matches(@"playback-preference-row__select \{\s*width: 200px;\s*min-width: 200px;", playback);
+        foreach (var row in new[] { "reading", "playback" })
+        {
+            Assert.Matches(@"\." + row + @"-preference-row__control \.app-segmented-control__item \{ flex: 1 0 auto;", css);
+            Assert.Contains("." + row + "-preference-row__control .app-segmented-control__item > span { overflow: visible; text-overflow: clip; }", css, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void ThePreferenceSectionSwitchHasRoomBelowItBeforeTheSectionHeading()
+    {
+        var css = Read("wwwroot", "app.css");
+
+        Assert.Matches(@"\.profile-preferences \.profile-detail__section-switch \{ margin-bottom: var\(--tl-space-5, 20px\); \}", css);
+    }
+
+    [Fact]
+    public void OnAPhoneAPersonsPageKeepsOnlyTheBarsBackArrow_AndMyProfileAndHouseholdNameThemselvesInTheBar()
+    {
+        var settings = Read("Components", "Pages", "Settings.razor");
+        var layout = Read("Shared", "MainLayout.razor");
+
+        Assert.Contains("DeviceContext.IsPhone && IsProfileDetailRoute ? null : BackLink?.Href", settings, StringComparison.Ordinal);
+        Assert.Contains("BarTitle?.Set(PhoneBarTitleText)", settings, StringComparison.Ordinal);
+        Assert.Contains("_phoneBarTitle.Text ?? L[\"Nav_Settings\"].Value", layout, StringComparison.Ordinal);
     }
 
     [Fact]

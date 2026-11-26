@@ -47,7 +47,7 @@
             {
                 RenderFragment cardBody = @<text>
                     <span class="who-card__picture">
-                        <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" />
+                        <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@ProfileAvatarPalette.ColorFor(_profiles, profile)" Icon="@profile.AvatarIcon" />
                         @if (_managing)
                         {
                             <span class="who-card__edit" aria-hidden="true">

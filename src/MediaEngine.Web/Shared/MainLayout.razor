@@ -251,7 +251,7 @@
             <MainContent>
                 <AppMainContent id="main-content" role="main" tabindex="-1" Class="@MainContentClass">
                     <AppContainer MaxWidth="AppMaxWidth.False" Class="@MainContainerClass">
-                        @Body
+                        <CascadingValue Value="_phoneBarTitle" IsFixed="true">@Body</CascadingValue>
                     </AppContainer>
                 </AppMainContent>
             </MainContent>
@@ -421,8 +421,14 @@
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
 
+    // The page below the back bar may name itself (My profile, Household, a person); the area's name is used until it does.
+    private readonly PhoneBarTitle _phoneBarTitle = new();
+
+    private void OnPhoneBarTitleChanged() => _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+
     protected override async Task OnInitializedAsync()
     {
+        _phoneBarTitle.Changed += OnPhoneBarTitleChanged;
         BookmarkCommandOwner.NavigateIdentityAsync = async (command, route) =>
         {
             var navigated = false;
@@ -720,7 +726,7 @@
     private bool IsPhoneBackBarPage => !ShowPhoneSectionChips
         && (IsNavActive("/settings") || IsNavActive("/my-list") || IsNavActive("/search") || IsDetailPath(_currentPath));
 
-    private string? PhoneBackBarTitle => IsNavActive("/settings") ? L["Nav_Settings"].Value
+    private string? PhoneBackBarTitle => IsNavActive("/settings") ? _phoneBarTitle.Text ?? L["Nav_Settings"].Value
         : IsNavActive("/my-list") ? L["TopBar_MyList"].Value
         : IsNavActive("/search") ? L["Nav_Search"].Value
         : null;
@@ -1011,6 +1017,7 @@
     {
         BookmarkCommandOwner.NavigateIdentityAsync = null;
         _disposed = true;
+        _phoneBarTitle.Changed -= OnPhoneBarTitleChanged;
         Playback.Changed -= OnPlaybackChanged;
         ContextSidebar.Changed -= OnContextSidebarChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;

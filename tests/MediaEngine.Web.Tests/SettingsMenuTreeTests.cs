@@ -40,7 +40,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         Assert.All(Flatten(groups), row => Assert.True(row.Children is null || row.Children.Count == 0, row.Label));
         Assert.Equal(
-            ["My profile", "Household", "Security & Devices"],
+            ["My profile", "Security & Devices", "Household"],
             groups[0].Items.Select(row => row.Label));
         Assert.Equal(["Libraries", "Playback"], groups.Single(group => group.Label == "Library").Items.Select(row => row.Label));
         Assert.Equal(

@@ -1,3 +1,5 @@
+using MediaEngine.Web.Models.ViewDTOs;
+
 namespace MediaEngine.Web.Components.Profiles;
 
 /// <summary>The fixed set of avatar colours a profile can choose from; typed hex colours are gone.</summary>
@@ -6,20 +8,23 @@ public static class ProfileAvatarPalette
     /// <summary>One swatch: a friendly name for screen readers and its #RRGGBB colour.</summary>
     public sealed record Swatch(string Name, string Hex);
 
-    /// <summary>Twelve swatches. The first is the Tuvima purple; all read well with white or dark lettering.</summary>
+    /// <summary>
+    /// Twelve swatches, each a clearly different hue (no two within 15 degrees), so two people never read as the same colour. The first is the
+    /// Tuvima purple. They are listed so any four in a row are far apart: a household that all saved the same colour gets the next ones in this order.
+    /// </summary>
     public static readonly IReadOnlyList<Swatch> Swatches =
     [
         new("Tuvima purple", "#8852FC"),
-        new("Violet", "#7C4DFF"),
-        new("Blue", "#3B82F6"),
-        new("Sky", "#22D3EE"),
-        new("Teal", "#14B8A6"),
-        new("Green", "#81C784"),
-        new("Yellow", "#FBBF24"),
-        new("Orange", "#FF9F43"),
-        new("Red", "#F87171"),
+        new("Green", "#22C55E"),
+        new("Orange", "#FB923C"),
+        new("Sky", "#38BDF8"),
         new("Pink", "#EC4899"),
-        new("Lavender", "#B39DDB"),
+        new("Yellow", "#FACC15"),
+        new("Blue", "#3B82F6"),
+        new("Red", "#F87171"),
+        new("Teal", "#14B8A6"),
+        new("Magenta", "#D946EF"),
+        new("Lime", "#A3E635"),
         new("Slate", "#64748B"),
     ];
 
@@ -53,6 +58,28 @@ public static class ProfileAvatarPalette
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// The circle colour to draw for <paramref name="profile"/>, worked out from the whole household in its order (see <see cref="Distinct"/>), so the
+    /// top-bar menu, the profile's own page and every list show the same colour for the same person. Falls back to the saved colour when the
+    /// profile is not in <paramref name="household"/>.
+    /// </summary>
+    public static string ColorFor(IReadOnlyList<ProfileViewModel> household, ProfileViewModel profile)
+    {
+        var index = -1;
+        for (var i = 0; i < household.Count; i++)
+        {
+            if (household[i].Id == profile.Id)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        return index >= 0
+            ? Distinct([.. household.Select(person => (string?)person.AvatarColor)])[index]
+            : profile.AvatarColor;
     }
 
     /// <summary>Dark or light lettering, whichever reads better on <paramref name="hex"/> (the same rule the profile picture uses).</summary>
