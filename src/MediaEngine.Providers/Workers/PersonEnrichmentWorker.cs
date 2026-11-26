@@ -168,6 +168,9 @@ public sealed class PersonEnrichmentWorker
             .GroupBy(reference => $"{reference.Role}::{reference.Name}", StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();
+        var artistIds = mediaType == MediaType.Music
+            ? MusicArtistIdPairs.Build(claims)
+            : new Dictionary<string, string>();
         var plan = PersonPassPlanner.Plan(personRefs, unlinkedRefs, pass);
         personRefs = plan.Linked.ToList();
         unlinkedRefs = plan.Unlinked.ToList();
@@ -275,7 +278,8 @@ public sealed class PersonEnrichmentWorker
                 try
                 {
                     var searchResult = await _personReconciliation.SearchPersonAsync(
-                        unlinked.Name, unlinked.Role, titleHint, ct, contextText);
+                        unlinked.Name, unlinked.Role, titleHint, ct, contextText,
+                        artistIds.GetValueOrDefault(unlinked.Name));
 
                     if (searchResult is not null)
                     {
