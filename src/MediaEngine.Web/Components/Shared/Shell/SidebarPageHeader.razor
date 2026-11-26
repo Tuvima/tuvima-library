@@ -1,7 +1,7 @@
 ﻿@namespace MediaEngine.Web.Components.Shared.Shell
 
 <AppPageHeader Eyebrow="@Eyebrow" Title="@Title" Subtitle="@Subtitle" Status="@Status"
-               Healthy="@Healthy" Metadata="@Metadata" Actions="@Actions" Class="sidebar-page-header" />
+               Healthy="@Healthy" Metadata="@Metadata" Actions="@Actions" TitleAccessory="@TitleAccessory" Class="sidebar-page-header" />
 
 @code {
     [Parameter] public string? Eyebrow { get; set; }
@@ -11,4 +11,5 @@
     [Parameter] public bool Healthy { get; set; }
     [Parameter] public RenderFragment? Metadata { get; set; }
     [Parameter] public RenderFragment? Actions { get; set; }
+    [Parameter] public RenderFragment? TitleAccessory { get; set; }
 }

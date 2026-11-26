@@ -331,8 +331,8 @@ public static class SettingsNav
         new(SettingsSection.Overview, "personal", "overview", AppMaterialIcons.Outlined.AccountCircle, "My profile", false, null, "sqlite", Status: SettingsStatusKind.Live),
         // Household is the page about the people you live with (administrators only in the menu). Watching, Listening, Reading and Home are
         // sections of Preferences, a tab of My profile (and of a person's page), not pages of their own.
-        new(SettingsSection.Profiles, "personal", "household", AppMaterialIcons.Outlined.Group, "Household", false, null, "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security & Devices", false, null, "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Profiles, "personal", "household", AppMaterialIcons.Outlined.Group, "Household", false, null, "sqlite", Status: SettingsStatusKind.Live),
 
         // Library: the media and how it is matched and played. Libraries, Activity, Needs Review, Matching and Rules are the five tabs of one page.
         new(SettingsSection.Libraries, "library", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, Status: SettingsStatusKind.Live),
@@ -379,12 +379,13 @@ public static class SettingsNav
                 Tab("Linked accounts", AppMaterialIcons.Outlined.Link, SettingsSection.Overview, AccountsSubsection),
                 Tab("Access & safety", AppMaterialIcons.Outlined.Shield, SettingsSection.Overview, AccessSubsection),
             ]),
-            Page("Household", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
             Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
             [
                 Tab("Sign-in", AppMaterialIcons.Outlined.Key, SettingsSection.Security),
                 Tab("Devices", AppMaterialIcons.Outlined.Devices, SettingsSection.Security, DevicesSubsection),
             ]),
+            // Household follows Security & Devices (profile-and-household mockup, side menu).
+            Page("Household", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
         ]),
         new("library", "Library", AppMaterialIcons.Outlined.VideoLibrary,
         [

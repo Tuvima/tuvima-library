@@ -16,7 +16,7 @@ else if (!string.IsNullOrWhiteSpace(Href))
 }
 else
 {
-    <AppNativeButton Type="button" Class="@RowClass" data-nav-row="@Key" OnClick="OnClick">
+    <AppNativeButton Type="button" Class="@RowClass" data-nav-row="@Key" OnClick="OnClick" aria-expanded="@(Expanded is { } open ? open.ToString().ToLowerInvariant() : null)">
         @RowContent
     </AppNativeButton>
 }
@@ -64,6 +64,9 @@ else
     [Parameter] public bool Destructive { get; set; }
 
     [Parameter] public bool ShowChevron { get; set; } = true;
+
+    /// <summary>For a row that opens something in place: whether it is open now. Left null for every other row.</summary>
+    [Parameter] public bool? Expanded { get; set; }
 
     private string RowClass => string.Join(' ', new[]
     {

@@ -61,6 +61,8 @@ else
                    FixedColumnTree="true"
                    ShowMobileNavigation="false">
     <div class="settings-shell-content" @ref="_contentElement">
+        @if (!HidesPhonePageSelector)
+        {
         <nav class="settings-mobile-navigation" aria-label="@L["Settings_SettingsPageSelector"].Value">
             <label class="settings-mobile-navigation__label" for="settings-mobile-page">@L["Settings_SettingsPage"]</label>
             <div class="settings-mobile-navigation__control">
@@ -82,10 +84,11 @@ else
                 </AppSelect>
             </div>
         </nav>
+        }
 
         <MediaEngine.Web.Components.Vault.VaultHiddenReminder />
 
-        <SettingsPageFrame BackHref="@BackLink?.Href"
+        <SettingsPageFrame BackHref="@(DeviceContext.IsPhone && IsProfileDetailRoute ? null : BackLink?.Href)"
                            BackLabel="@BackLink?.Label"
                            Title="@GetHeroTitle()"
                            Description="@GetSectionDescription(_activeSection)"
@@ -180,7 +183,7 @@ else
                                 }
                                 else
                                 {
-                                    <ProfilesTab HouseholdNameChanged="OnHouseholdNameChanged" />
+                                    <ProfilesTab HouseholdNameChanged="OnHouseholdNameChanged" PeopleCountChanged="OnPeopleCountChanged" />
                                 }
                                 break;
                             case SettingsSection.Security:
@@ -335,6 +338,17 @@ else
         }
     }
 
+    // How many people are in your household, for the one line under its title (profile-and-household mockup screen 4).
+    private int _householdPeopleCount;
+    private void OnPeopleCountChanged(int count)
+    {
+        if (_householdPeopleCount != count)
+        {
+            _householdPeopleCount = count;
+            StateHasChanged();
+        }
+    }
+
     private void OnProfileNameChanged(string name)
     {
         if (_profileBreadcrumbName != name)
@@ -348,6 +362,18 @@ else
     [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
 
     [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
+    // The phone's back bar: My profile, Household and a person's page name themselves instead of "Settings" (profile-and-household D16).
+    [CascadingParameter] public PhoneBarTitle? BarTitle { get; set; }
+
+    private string? PhoneBarTitleText => IsProfileDetailRoute
+        ? ProfilePageTitle
+        : _activeSection is SettingsSection.Overview or SettingsSection.Profiles
+            ? SettingsNav.GetItem(_activeSection).Label
+            : null;
+
+    // On a phone these pages are full pages with their own title bar and one back arrow, so the page selector is left out.
+    private bool HidesPhonePageSelector => DeviceContext.IsPhone && _activeSection is SettingsSection.Overview or SettingsSection.Profiles;
 
     private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
     public string? IngestionView => Query.String("view");
@@ -599,6 +625,7 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        BarTitle?.Set(PhoneBarTitleText);
         if (!_scrollToTopPending)
         {
             return;
@@ -610,6 +637,7 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        BarTitle?.Set(null);
         Attention.Changed -= OnAttentionChanged;
         LibraryKinds.Changed -= OnAttentionChanged;
         Nsfw.Changed -= OnAttentionChanged;
@@ -868,6 +896,7 @@ else
         {
             // Another person may not look after a household at all; the Household page names itself again when it is shown.
             _householdName = null;
+            _householdPeopleCount = 0;
             await LoadAuthorityAsync();
             await LoadDevelopmentToolsAsync();
             ResolveSection();
@@ -986,7 +1015,9 @@ else
                 : "You, what you have been watching, reading and listening to, and your taste.",
         SettingsSection.Profiles => IsProfileDetailRoute
             ? "Name and picture, preferences, access and safety, and activity for this person."
-            : "The people you live with, and the choices that apply to all of them.",
+            : _householdPeopleCount > 0
+                ? $"{(_householdPeopleCount == 1 ? "1 person" : $"{_householdPeopleCount} people")}. Everyone here shares the same libraries and Kids settings."
+                : "The people you live with, and the choices that apply to all of them.",
         SettingsSection.Security => _activeSubsection == SettingsNav.DevicesSubsection
             ? "The phones, TVs and browsers signed in to Library, and who they belong to."
             : "Password, email and extra protection.",

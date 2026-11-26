@@ -6,7 +6,17 @@
         {
             <div class="app-page-header__eyebrow">@Eyebrow</div>
         }
-        <AppCssElement Tag="@HeadingTag" Class="app-page-header__title">@Title</AppCssElement>
+        @if (TitleAccessory is not null)
+        {
+            <div class="app-page-header__title-row">
+                <AppCssElement Tag="@HeadingTag" Class="app-page-header__title">@Title</AppCssElement>
+                @TitleAccessory
+            </div>
+        }
+        else
+        {
+            <AppCssElement Tag="@HeadingTag" Class="app-page-header__title">@Title</AppCssElement>
+        }
         @if (!string.IsNullOrWhiteSpace(Subtitle))
         {
             <p>@Subtitle</p>
@@ -39,5 +49,7 @@
     [Parameter] public string? Class { get; set; }
     [Parameter] public RenderFragment? Metadata { get; set; }
     [Parameter] public RenderFragment? Actions { get; set; }
+    /// <summary>Something that sits right beside the title, such as a rename pencil.</summary>
+    [Parameter] public RenderFragment? TitleAccessory { get; set; }
     private string RootClass => string.Join(' ', new[] { "app-page-header", Compact ? "app-page-header--compact" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
 }

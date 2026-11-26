@@ -99,7 +99,7 @@ else
                         {
                             <SettingsSectionPanel Title="@(group.IsOwn ? L["ProfilesTab_ForEveryoneInThisHousehold"].Value : L["ProfilesTab_ForEveryoneIn", group.Title].Value)">
                                 <ChildContent>
-                                    <div data-household-wide="@group.Id">
+                                    <div class="profiles-tab__wide" data-household-wide="@group.Id">
                                         <HouseholdKidSettings HouseholdId="@group.Id" HouseholdName="@group.Title" OnSave="SaveKidSettingsAsync" />
                                         @if (CanChangeLibraries && FindHousehold(group.Id) is { } household)
                                         {
@@ -142,6 +142,9 @@ else
 
     /// <summary>Raised with the household's name once it is known and after a rename, so the page can be titled with it.</summary>
     [Parameter] public EventCallback<string?> HouseholdNameChanged { get; set; }
+
+    /// <summary>Raised with how many people are in your own household (0 when unknown), so the page's one line under the title can say it.</summary>
+    [Parameter] public EventCallback<int> PeopleCountChanged { get; set; }
 
     private ProfileEditingWorkflow? _workflow;
     private ProfileViewModel? _active;
@@ -270,23 +273,33 @@ else
     // The page's title is the household's name and its actions sit at the top right of the Settings frame; both follow what was loaded.
     private async Task PublishAsync()
     {
-        HeaderActions?.Set(HasHeaderActions ? BuildHeaderActions() : null);
+        // Inside the frame the rename pencil sits right beside the name and "Reorder" at the header's right edge; on its own they share one row.
+        HeaderActions?.SetTitleAccessory(!_loadingPeople && !_peopleFailed && CanRename ? BuildRenameAction() : null);
+        HeaderActions?.Set(!_loadingPeople && !_peopleFailed && CanReorderFromMenu ? BuildMenuAction() : null);
         await HouseholdNameChanged.InvokeAsync(_peopleFailed ? null : OwnHousehold?.Name);
+        await PeopleCountChanged.InvokeAsync(_peopleFailed ? 0 : OwnHouseholdPeopleCount);
     }
 
+    private int OwnHouseholdPeopleCount => OwnHouseholdId is { } id ? _managed.Count(person => person.HouseholdId == id) : 0;
+
     // A new fragment each time, so the frame redraws its header when the label of an action changes.
-    private RenderFragment BuildHeaderActions() => @<text>
+    private RenderFragment BuildRenameAction() => @<text>
         @if (CanRename && OwnHousehold is { } own)
         {
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Text" Tooltip="@L["Common_Rename"].Value"
                            AriaLabel="@($"{L["Common_Rename"].Value} {own.Name}")" Disabled="@(_renaming || _renameBusy)" OnClick="BeginRename"
                            data-testid="rename-household" />
         }
+    </text>;
+
+    private RenderFragment BuildMenuAction() => @<text>
         @if (CanReorderFromMenu)
         {
             <AppRowMenu AriaLabel="@L["ProfilesTab_MoreActions"].Value" Items="@MenuItems" />
         }
     </text>;
+
+    private RenderFragment BuildHeaderActions() => @<text>@BuildRenameAction()@BuildMenuAction()</text>;
 
     private IReadOnlyList<AppRowMenuItem> MenuItems =>
     [
@@ -448,6 +461,7 @@ else
 
     public void Dispose()
     {
+        HeaderActions?.SetTitleAccessory(null);
         HeaderActions?.Set(null);
         _lifetime.Cancel();
         _lifetime.Dispose();
@@ -768,7 +782,12 @@ else
         }
         @if (ProfileManageRules.CanAdd(CanManage, group.People.Count))
         {
-            <li class="profiles-tab__item">
+            <li class="profiles-tab__item profiles-tab__item--add">
+                @if (CanDrag(group))
+                {
+                    @* Takes the place of the drag handle above, so the Add profile circle lines up with the people's pictures. *@
+                    <span class="profiles-tab__drag-spacer" aria-hidden="true"></span>
+                }
                 <AppNativeButton Type="button" Class="profiles-tab__row profiles-tab__row--add" aria-label="@AddLabel(group)" OnClick="@(() => OpenAdd(group.Id))">
                     <span class="profiles-tab__row-avatar profiles-tab__row-avatar--add" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /></span>
                     <span class="profiles-tab__row-name">@L["Common_AddProfile"]</span>
