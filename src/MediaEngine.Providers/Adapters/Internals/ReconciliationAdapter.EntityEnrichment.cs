@@ -19,7 +19,22 @@ namespace MediaEngine.Providers.Adapters;
 
 public sealed partial class ReconciliationAdapter
 {
-    private async Task<IReadOnlyList<ProviderClaim>> DiscoverChildEntitiesAsync(
+    // A TV show or album is looked up once per run: every episode or track of it asks for the same children,
+    // and each walk costs dozens of Wikidata requests (see SharedWalkMemo).
+    private readonly SharedWalkMemo<IReadOnlyList<ProviderClaim>> _childEntityClaims = new(TimeSpan.FromMinutes(30));
+
+    internal Task<IReadOnlyList<ProviderClaim>> DiscoverChildEntitiesAsync(
+        string parentQid,
+        MediaType mediaType,
+        string language,
+        CancellationToken ct) =>
+        _childEntityClaims.GetAsync(
+            LookupMemo<int>.Key(parentQid, mediaType.ToString(), language),
+            () => DiscoverChildEntitiesCoreAsync(parentQid, mediaType, language, CancellationToken.None),
+            claims => claims.Count > 0,
+            ct);
+
+    private async Task<IReadOnlyList<ProviderClaim>> DiscoverChildEntitiesCoreAsync(
         string parentQid,
         MediaType mediaType,
         string language,
