@@ -53,9 +53,9 @@ public interface IIdentityJobRepository
     /// <summary>
     /// Like <see cref="LeaseNextAsync(string, IReadOnlyList{IdentityJobState}, int, TimeSpan, CancellationToken)"/>, but limited to
     /// (<paramref name="onlyMediaTypes"/>) or excluding (<paramref name="exceptMediaTypes"/>) the named media types, so a type whose
-    /// provider is slow can be worked in its own lane without holding up the others. The default ignores the filter.
+    /// provider is slow can be worked in its own lane without holding up the others. The default leases first and hands back (releases) the jobs that do not fit.
     /// </summary>
-    Task<IReadOnlyList<IdentityJob>> LeaseNextAsync(
+    async Task<IReadOnlyList<IdentityJob>> LeaseNextAsync(
         string workerName,
         IReadOnlyList<IdentityJobState> states,
         int batchSize,
@@ -63,7 +63,30 @@ public interface IIdentityJobRepository
         IReadOnlyList<string>? onlyMediaTypes,
         IReadOnlyList<string>? exceptMediaTypes,
         CancellationToken ct = default)
-        => LeaseNextAsync(workerName, states, batchSize, leaseDuration, ct);
+    {
+        var leased = await LeaseNextAsync(workerName, states, batchSize, leaseDuration, ct).ConfigureAwait(false);
+        if (onlyMediaTypes is not { Count: > 0 } && exceptMediaTypes is not { Count: > 0 })
+        {
+            return leased;
+        }
+
+        var kept = new List<IdentityJob>(leased.Count);
+        foreach (var job in leased)
+        {
+            var wanted = (onlyMediaTypes is not { Count: > 0 } || onlyMediaTypes.Contains(job.MediaType, StringComparer.OrdinalIgnoreCase))
+                && (exceptMediaTypes is not { Count: > 0 } || !exceptMediaTypes.Contains(job.MediaType, StringComparer.OrdinalIgnoreCase));
+            if (wanted)
+            {
+                kept.Add(job);
+            }
+            else
+            {
+                await ReleaseLeaseAsync(job.Id, ct).ConfigureAwait(false);
+            }
+        }
+
+        return kept;
+    }
 
     /// <summary>Transitions the job to a new state and clears the lease.</summary>
     Task UpdateStateAsync(Guid jobId, IdentityJobState newState, string? error = null, CancellationToken ct = default);
