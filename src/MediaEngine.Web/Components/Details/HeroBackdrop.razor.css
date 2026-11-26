@@ -824,6 +824,8 @@
 }
 
 .tl-detail-media-stage__foreground--book .tl-detail-media-stage__cover {
+    /* Until the picture arrives (or if it never does) it keeps a book's shape instead of collapsing to a thin sliver. */
+    aspect-ratio: auto 2 / 3;
     grid-row: 1;
     grid-column: 1;
     align-self: center;
@@ -964,5 +966,15 @@
         left: 50%;
         margin-top: 0;
         transform: translateX(-50%);
+    }
+}
+
+/* A phone's hero has its action buttons along the bottom, so a service logo sits in the empty top corner instead. */
+@media (width < 600px) {
+    :where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-hero .tl-detail-hero-brand {
+        top: 1.5rem;
+        right: auto;
+        bottom: auto;
+        left: 1rem;
     }
 }

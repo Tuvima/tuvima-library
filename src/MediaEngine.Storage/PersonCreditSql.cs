@@ -37,12 +37,10 @@ public static partial class PersonCreditSql
     /// the file), so SQLite searches those tables by index instead of scanning them. The caller joins the
     /// block into a statement that already has its own <c>WITH</c>, separating the definitions with a comma.
     /// <para>
-    /// SQLite copies a CTE's definition at every place the CTE is named, so the number of references inside this
-    /// block decides how often <paramref name="assetIdsSelect"/> (often a large query) is duplicated and how long the
-    /// statement takes to prepare. Each internal CTE is therefore named as few times as possible: the input once (by
-    /// the file scope), the file scope once, the stored credits three times (arrays, claims, scalars), and every later
-    /// step once. Precedence between the three sources and between the show/album, work and file is decided with a
-    /// window over (file, credit key) rather than by joining a CTE back to itself.
+    /// SQLite copies a CTE's definition at every place the CTE is named unless it is <c>MATERIALIZED</c>, so every step
+    /// read more than once is, and the input (often a large query) is named only once, by the file scope. Each entity's
+    /// provider claims are read once however many files share the entity. Precedence between the three sources and between
+    /// the show/album, work and file is decided with a window over (file, credit key) rather than by joining a CTE back to itself.
     /// </para>
     /// </remarks>
     public static string ScopedCreditsCte(string resultName, string assetIdsSelect, string prefix)
@@ -56,6 +54,8 @@ public static partial class PersonCreditSql
         var candidates = prefix + "candidates";
         var selectedCredits = prefix + "selected_credits";
         var creditPersons = prefix + "credit_persons";
+        var arrays = prefix + "array_candidates";
+        var claims = prefix + "claim_rows";
 
         return $"""
             {scope} AS MATERIALIZED (
@@ -86,8 +86,7 @@ public static partial class PersonCreditSql
                        AND scope.media_asset_id != scope.root_work_id
                        AND scope.media_asset_id != scope.work_id)
             ),
-            {candidates} AS MATERIALIZED (
-                -- source_rank: stored credit arrays beat provider claims, which beat single stored values.
+            {arrays} AS MATERIALIZED (
                 SELECT scope.media_asset_id,
                        cva.key AS credit_key,
                        cva.ordinal AS billing_order,
@@ -100,19 +99,40 @@ public static partial class PersonCreditSql
                     ON cva.entity_id = scope.entity_id
                 WHERE cva.key IN ({CreditKeys})
                   AND NULLIF(TRIM(cva.value), '') IS NOT NULL
+            ),
+            -- Each entity's provider claims are read once. A show's own entity can hold tens of thousands of them, and reading
+            -- them again for every episode file made an 81-episode show page wait more than a second.
+            {claims} AS MATERIALIZED (
+                SELECT mc.entity_id,
+                       mc.claim_key AS credit_key,
+                       mc.rowid AS billing_order,
+                       TRIM(mc.claim_value) AS person_name
+                FROM (SELECT DISTINCT entity_id FROM {entities}) one
+                CROSS JOIN metadata_claims mc
+                    ON mc.entity_id = one.entity_id
+                WHERE mc.claim_key IN ({CreditKeys})
+                  AND NULLIF(TRIM(mc.claim_value), '') IS NOT NULL
+            ),
+            {candidates} AS MATERIALIZED (
+                -- source_rank: stored credit arrays beat provider claims, which beat single stored values.
+                SELECT * FROM {arrays}
                 UNION ALL
+                -- Claims are only fetched for a file and credit key no stored array answers, as arrays always win over them.
                 SELECT scope.media_asset_id,
-                       mc.claim_key,
-                       mc.rowid,
-                       TRIM(mc.claim_value),
+                       mc.credit_key,
+                       mc.billing_order,
+                       mc.person_name,
                        NULL,
                        1,
                        scope.scope_priority
                 FROM {entities} scope
-                CROSS JOIN metadata_claims mc
-                    ON mc.entity_id = scope.entity_id
-                WHERE mc.claim_key IN ({CreditKeys})
-                  AND NULLIF(TRIM(mc.claim_value), '') IS NOT NULL
+                CROSS JOIN (SELECT DISTINCT entity_id, credit_key FROM {claims}) held
+                    ON held.entity_id = scope.entity_id
+                CROSS JOIN {claims} mc
+                    ON mc.entity_id = held.entity_id AND mc.credit_key = held.credit_key
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM {arrays} stored
+                    WHERE stored.media_asset_id = scope.media_asset_id AND stored.credit_key = held.credit_key)
                 UNION ALL
                 SELECT scope.media_asset_id,
                        cv.key,

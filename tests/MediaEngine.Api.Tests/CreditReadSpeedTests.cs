@@ -127,6 +127,45 @@ public sealed class CreditReadSpeedTests : IDisposable
     }
 
     [Fact]
+    public async Task APersonsPortraitAccess_FollowsTheirOwnFiles_AndABandsOnlyWhenNothingCreditsThem()
+    {
+        var bandId = await AddPersonAsync("The Band", isGroup: true);
+        var quietMemberId = await AddPersonAsync("Quiet Member");
+        var busyMemberId = await AddPersonAsync("Busy Member");
+        var qidOnlyId = await AddPersonAsync("K. Reeves", "Q43203");
+        var (_, bandAsset) = await AddWorkAsync("Music", "Band Song");
+        var (_, soloAsset) = await AddWorkAsync("Music", "Solo Song");
+        var (_, movieAsset) = await AddWorkAsync("Movies", "A Matrix Of Names");
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync("""
+                INSERT INTO person_group_members (group_id, member_id, start_date, end_date) VALUES (@bandId, @quietMemberId, NULL, NULL);
+                INSERT INTO person_group_members (group_id, member_id, start_date, end_date) VALUES (@bandId, @busyMemberId, NULL, NULL);
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES (@bandAsset, 'artist', 0, 'The Band');
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES (@soloAsset, 'artist', 0, 'Busy Member');
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
+                VALUES (@movieAsset, 'director', 0, 'Keanu Reeves', 'Q43203');
+                """,
+                new { bandId, quietMemberId, busyMemberId, bandAsset, soloAsset, movieAsset });
+        }
+
+        Assert.Equal([bandAsset], await PortraitFilesAsync(bandId));
+        Assert.Equal([bandAsset], await PortraitFilesAsync(quietMemberId));
+        Assert.Equal([soloAsset], await PortraitFilesAsync(busyMemberId));
+        Assert.Equal([movieAsset], await PortraitFilesAsync(qidOnlyId));
+    }
+
+    // The files a person's portrait is cleared against: the access check passes when the viewer may use any one of them.
+    private Task<IReadOnlyList<Guid>> PortraitFilesAsync(Guid personId)
+    {
+        var service = new MediaEngine.Api.Security.CatalogueResourceAuthorizationService(_db, null!, null!, null!);
+        var method = service.GetType().GetMethod(
+            "GetEntityAssetCandidatesAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        return (Task<IReadOnlyList<Guid>>)method.Invoke(service, ["Person", personId, null, CancellationToken.None])!;
+    }
+
+    [Fact]
     public async Task SeriesSearch_ShowsTheNarratorForAnAudiobookWithoutAnAuthor()
     {
         await AddPersonAsync("Quiet Narrator");
