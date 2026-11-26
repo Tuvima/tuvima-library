@@ -305,16 +305,27 @@ public sealed partial class RetailMatchWorker
     {
         // Media types whose provider hands out turns slowly (Comic Vine: 5 a minute) are worked in their own lane below, so a
         // comic waiting for its turn never holds up the films, books, TV and music in the same batch.
-        EnsureSlowLaneRunning(ct);
+        var laneSplit = _jobRepo.SupportsMediaTypeLeaseFilter;
+        if (laneSplit)
+        {
+            EnsureSlowLaneRunning(ct);
+        }
 
-        var leased = await _jobRepo.LeaseNextAsync(
-            "RetailMatchWorker",
-            [IdentityJobState.Queued],
-            GetBatchSize(),
-            LeaseDuration,
-            onlyMediaTypes: null,
-            exceptMediaTypes: SlowLaneMediaTypes,
-            ct: ct);
+        var leased = laneSplit
+            ? await _jobRepo.LeaseNextAsync(
+                "RetailMatchWorker",
+                [IdentityJobState.Queued],
+                GetBatchSize(),
+                LeaseDuration,
+                onlyMediaTypes: null,
+                exceptMediaTypes: SlowLaneMediaTypes,
+                ct: ct)
+            : await _jobRepo.LeaseNextAsync(
+                "RetailMatchWorker",
+                [IdentityJobState.Queued],
+                GetBatchSize(),
+                LeaseDuration,
+                ct);
 
         // A file in a library that never looks anything up is closed here, before any provider is asked (Library setup D38).
         var unblocked = await _lookupGuard.SettleBlockedJobsAsync(_jobRepo, leased, _logger, ct).ConfigureAwait(false);
