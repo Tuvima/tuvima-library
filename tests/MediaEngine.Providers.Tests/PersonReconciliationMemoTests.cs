@@ -33,7 +33,27 @@ public sealed class PersonReconciliationMemoTests
         Assert.Equal(afterFirst, handler.Requests);
     }
 
-    private sealed class CountingHandler : HttpMessageHandler
+    [Fact]
+    public async Task Artist_WithMusicBrainzId_IsFoundByThatIdOnceAcrossSongs()
+    {
+        var handler = new CountingHandler("""{"success":1,"search":[],"query":{"search":[{"title":"Q1299"}]},"entities":{"Q1299":{"type":"item","id":"Q1299","labels":{"en":{"language":"en","value":"The Beatles"}},"claims":{}}}}""");
+        var reconciler = new WikidataReconciler(
+            new HttpClient(handler, disposeHandler: false),
+            new WikidataReconcilerOptions { UserAgent = "Tuvima-Tests/1.0", MaxLag = 0 });
+        var service = new PersonReconciliationService(
+            new CoreOnlyLoader(), NullLogger<PersonReconciliationService>.Instance, reconciler);
+        const string beatles = "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d";
+
+        var first = await service.SearchPersonAsync("The Beatles", "Performer", "Help!", musicBrainzArtistId: beatles);
+        var afterFirst = handler.Requests;
+        var second = await service.SearchPersonAsync("The Beatles", "Performer", "Yesterday", musicBrainzArtistId: beatles);
+
+        Assert.Equal("Q1299", first?.WikidataQid);
+        Assert.Equal("Q1299", second?.WikidataQid);
+        Assert.Equal(afterFirst, handler.Requests);
+    }
+
+    private sealed class CountingHandler(string? body = null) : HttpMessageHandler
     {
         private int _requests;
 
@@ -44,7 +64,7 @@ public sealed class PersonReconciliationMemoTests
             Interlocked.Increment(ref _requests);
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("""{"success":1,"search":[],"query":{"search":[]},"entities":{}}""", Encoding.UTF8, "application/json"),
+                Content = new StringContent(body ?? """{"success":1,"search":[],"query":{"search":[]},"entities":{}}""", Encoding.UTF8, "application/json"),
             });
         }
     }

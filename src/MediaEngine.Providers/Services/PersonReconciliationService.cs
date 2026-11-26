@@ -55,6 +55,9 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
     // (The Beatles was searched 85 times, Hans Zimmer 45). Names several people share are decided per work and never stored here.
     private readonly LookupMemo<PersonSearchResult> _matchedUniqueNames = new(MemoLifetime);
     private readonly LookupMemo<IReadOnlyList<ReconciliationResult>> _namesakes = new(MemoLifetime);
+    // An artist found by MusicBrainz ID is the same person on every song and album they appear on, so each ID is looked up once.
+    private readonly LookupMemo<PersonSearchResult> _matchedByArtistId = new(MemoLifetime);
+    private readonly LookupMemo<bool> _notFoundByArtistId = new(MemoLifetime);
 
     private readonly WikidataReconciler? _reconciler;
     private readonly IConfigurationLoader _configLoader;
@@ -77,7 +80,8 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         string expectedRole,
         string? workTitle = null,
         CancellationToken ct = default,
-        string? contextText = null)
+        string? contextText = null,
+        string? musicBrainzArtistId = null)
     {
         if (_reconciler is null || string.IsNullOrWhiteSpace(name))
         {
@@ -91,6 +95,12 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         }
 
         var language = _configLoader.LoadCore().Language?.Metadata ?? "en";
+
+        if (!string.IsNullOrWhiteSpace(musicBrainzArtistId)
+            && await FindByMusicBrainzArtistIdAsync(musicBrainzArtistId, name, language, ct).ConfigureAwait(false) is { } byId)
+        {
+            return byId;
+        }
 
         var memoKey = LookupMemo<bool>.Key(name, expectedRole, language);
         if (_notFound.TryGet(memoKey, out _))
@@ -187,6 +197,49 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         }
 
         return accepted;
+    }
+
+    /// <summary>
+    /// Finds the artist whose Wikidata item carries this MusicBrainz artist ID (P434). One person is an exact answer, so no name is
+    /// guessed and no namesake can be picked. No match, or an ID several items share, returns null and the name search takes over.
+    /// </summary>
+    private async Task<PersonSearchResult?> FindByMusicBrainzArtistIdAsync(
+        string musicBrainzArtistId, string name, string language, CancellationToken ct)
+    {
+        var key = LookupMemo<bool>.Key(musicBrainzArtistId.ToLowerInvariant(), "mbid", language);
+        if (_matchedByArtistId.TryGet(key, out var remembered))
+        {
+            return remembered;
+        }
+
+        if (_notFoundByArtistId.TryGet(key, out _))
+        {
+            return null;
+        }
+
+        try
+        {
+            var items = await RetryTransientAsync(() => _reconciler!.Entities.LookupByExternalIdAsync(
+                "P434", musicBrainzArtistId, language, ct), ct).ConfigureAwait(false);
+            if (items.Count == 1 && !string.IsNullOrWhiteSpace(items[0].Id))
+            {
+                var found = new PersonSearchResult(items[0].Id, items[0].Label ?? name, 1.0);
+                _matchedByArtistId.Set(key, found);
+                _logger.LogInformation(
+                    "Person reconciliation found '{Name}' by MusicBrainz artist ID -> {QID}", name, found.WikidataQid);
+                return found;
+            }
+
+            _notFoundByArtistId.Set(key, true);
+            return null;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            // Best effort: when the ID look-up cannot run, the name search still gets its turn.
+            _logger.LogDebug(ex, "MusicBrainz artist ID look-up failed for '{Name}'; falling back to the name search", name);
+            return null;
+        }
     }
 
     /// <summary>People on Wikidata whose name is exactly this name (best five, no job filter, so a namesake is never hidden).</summary>

@@ -22,13 +22,18 @@ public interface IPersonReconciliationService
     /// settles it, this text is compared with each candidate's Wikidata description to pick the right one;
     /// if it cannot, no match is made rather than guessing on the name alone.
     /// </param>
+    /// <param name="musicBrainzArtistId">
+    /// Optional MusicBrainz artist ID. When given, the person is looked up on Wikidata by that exact ID first (property P434) and the
+    /// name search runs only if no single person carries it.
+    /// </param>
     /// <param name="ct">Cancellation token.</param>
     Task<PersonSearchResult?> SearchPersonAsync(
         string name,
         string expectedRole,
         string? workTitle = null,
         CancellationToken ct = default,
-        string? contextText = null);
+        string? contextText = null,
+        string? musicBrainzArtistId = null);
 
     /// <summary>
     /// Reconciles multiple person names in a single batch operation.
