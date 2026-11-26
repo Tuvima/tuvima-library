@@ -792,8 +792,10 @@ public sealed partial class ReconciliationAdapter
         // discover child entities (episodes, tracks, issues) from Wikidata and store
         // them as claims on the parent entity. This enables the Dashboard to show
         // episode/track/issue listings without additional API calls.
+        // Music is left out on purpose: Wikidata only needs to know the artist and the album to
+        // connect things, and the album's track list comes from the retail provider's manifest.
         if (_reconciler is not null
-            && request.MediaType is MediaType.TV or MediaType.Music or MediaType.Comics)
+            && WalksChildEntities(request.MediaType))
         {
             try
             {

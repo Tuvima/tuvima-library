@@ -23,6 +23,9 @@ public sealed partial class ReconciliationAdapter
     // and each walk costs dozens of Wikidata requests (see SharedWalkMemo).
     private readonly SharedWalkMemo<IReadOnlyList<ProviderClaim>> _childEntityClaims = new(TimeSpan.FromMinutes(30));
 
+    internal static bool WalksChildEntities(MediaType mediaType) =>
+        mediaType is MediaType.TV or MediaType.Comics;
+
     internal Task<IReadOnlyList<ProviderClaim>> DiscoverChildEntitiesAsync(
         string parentQid,
         MediaType mediaType,
