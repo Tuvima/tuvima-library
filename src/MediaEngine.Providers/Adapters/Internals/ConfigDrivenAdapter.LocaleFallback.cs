@@ -14,6 +14,13 @@ public sealed partial class ConfigDrivenAdapter
         string Label,
         bool TagSourceLanguage);
 
+    /// <summary>
+    /// A song's retail lookup is optional extra detail (cover, album and artist IDs): the recording itself is identified by
+    /// MusicBrainz. Repeating a song's search on a second storefront doubled the music requests against a provider
+    /// limit of 20 a minute and was the single largest cost of finishing music, so songs ask the primary storefront once.
+    /// </summary>
+    internal static bool AllowsStorefrontFallback(MediaType mediaType) => mediaType != MediaType.Music;
+
     private IReadOnlyList<LookupPass> BuildLookupPasses(ProviderLookupRequest request)
     {
         var passes = new List<LookupPass>();
@@ -36,6 +43,11 @@ public sealed partial class ConfigDrivenAdapter
 
         void AddMarketFallbacks(string language, bool tagSourceLanguage)
         {
+            if (!AllowsStorefrontFallback(request.MediaType))
+            {
+                return;
+            }
+
             var languageKey = NormalizeLanguagePart(language, "en");
             if (!_config.MarketFallbacks.TryGetValue(languageKey, out var markets))
             {

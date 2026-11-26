@@ -43,6 +43,7 @@ public sealed class PersonEnrichmentWorker
     private readonly IConfigurationLoader? _configuration;
     private readonly TmdbRetailClient? _tmdbClient;
     private readonly ProviderApiClient? _tvdbClient;
+    private readonly IMediaOperationRepository? _operations;
 
     public PersonEnrichmentWorker(
         IMetadataClaimRepository claimRepo,
@@ -61,9 +62,11 @@ public sealed class PersonEnrichmentWorker
         IConfigurationLoader? configuration = null,
         TmdbRetailClient? tmdbClient = null,
         ProviderApiClient? tvdbClient = null,
-        IExternalLookupGuard? lookupGuard = null)
+        IExternalLookupGuard? lookupGuard = null,
+        IMediaOperationRepository? operations = null)
     {
         _lookupGuard = lookupGuard;
+        _operations = operations;
         _claimRepo = claimRepo;
         _canonicalRepo = canonicalRepo;
         _identity = identity;
@@ -86,8 +89,18 @@ public sealed class PersonEnrichmentWorker
     /// Extracts person references from raw claims and canonicals, enriches
     /// QID-linked persons, and reconciles unlinked names via Wikidata search.
     /// </summary>
-    public async Task EnrichFromClaimsAsync(Guid entityId, CancellationToken ct)
+    /// <remarks>
+    /// With a durable queue available, a first pass looks up everything except the cast beyond the first billed actors
+    /// and queues those for later (<see cref="MediaOperationType.EnrichmentPeopleRemainder"/>); without one, every
+    /// credit is looked up in the one pass.
+    /// </remarks>
+    public async Task EnrichFromClaimsAsync(Guid entityId, CancellationToken ct, PersonPass pass = PersonPass.FirstBilled)
     {
+        if (pass == PersonPass.FirstBilled && _operations is null)
+        {
+            pass = PersonPass.All;
+        }
+
         if (await _lookupGuard.RefusesAsync(entityId, _logger, "Contributor lookup", ct).ConfigureAwait(false))
         {
             return;
@@ -148,6 +161,29 @@ public sealed class PersonEnrichmentWorker
             .GroupBy(reference => $"{reference.WikidataQid}::{reference.Role}", StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();
+
+        var unlinkedRefs = PersonReferenceExtractor.FromRawClaimsUnlinked(providerClaims, mediaType)
+            .Concat(PersonReferenceExtractor.FromCanonicalArrays(readOnlyCanonicalArrays, mediaType)
+                .Where(reference => string.IsNullOrWhiteSpace(reference.WikidataQid)))
+            .GroupBy(reference => $"{reference.Role}::{reference.Name}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+        var plan = PersonPassPlanner.Plan(personRefs, unlinkedRefs, pass);
+        personRefs = plan.Linked.ToList();
+        unlinkedRefs = plan.Unlinked.ToList();
+        if (plan.DeferredCount > 0 && _operations is not null)
+        {
+            await _operations.EnsureAsync(new MediaOperation
+            {
+                OperationType = MediaOperationType.EnrichmentPeopleRemainder,
+                OperationKind = "enrichment",
+                EntityId = entityId,
+                EntityKind = "media_asset",
+                QueueName = "people",
+                Status = MediaOperationStatus.Queued,
+                IdempotencyKey = $"people:remainder:{entityId}:v1",
+            }, ct).ConfigureAwait(false);
+        }
 
         _logger.LogInformation(
             "Person extraction for entity {EntityId}: {Count} person ref(s)",
@@ -219,12 +255,6 @@ public sealed class PersonEnrichmentWorker
             }
         }
 
-        var unlinkedRefs = PersonReferenceExtractor.FromRawClaimsUnlinked(providerClaims, mediaType)
-            .Concat(PersonReferenceExtractor.FromCanonicalArrays(readOnlyCanonicalArrays, mediaType)
-                .Where(reference => string.IsNullOrWhiteSpace(reference.WikidataQid)))
-            .GroupBy(reference => $"{reference.Role}::{reference.Name}", StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToList();
         var resolvedUnlinked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Standalone person reconciliation for unlinked names

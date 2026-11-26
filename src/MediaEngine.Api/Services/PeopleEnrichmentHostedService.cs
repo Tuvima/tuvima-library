@@ -1,4 +1,6 @@
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
+using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Workers;
 
@@ -25,14 +27,20 @@ public sealed class PeopleEnrichmentHostedService(
                 // Recover contributor operations created before their queue status was explicit.
                 foreach (var pending in await repository.GetQueueAsync("people", 1000, ct))
                 {
-                    if (pending.OperationType == "enrichment.people" && (pending.Status == "pending"
+                    if (pending.OperationType is MediaOperationType.EnrichmentPeople or MediaOperationType.EnrichmentPeopleRemainder && (pending.Status == "pending"
                             || (pending.Status is "leased" or "running" && pending.LeaseExpiresAt <= DateTimeOffset.UtcNow)))
                     {
                         await repository.RequeueAsync(pending.Id, ct);
                     }
                 }
                 var jobs = await repository.LeaseNextAsync(nameof(PeopleEnrichmentHostedService),
-                    ["enrichment.people"], 1, TimeSpan.FromMinutes(6), ct);
+                    [MediaOperationType.EnrichmentPeople], 1, TimeSpan.FromMinutes(6), ct);
+                if (jobs.Count == 0)
+                {
+                    // The cast beyond the first billed actors is looked up only when no first-pass contributor work is waiting.
+                    jobs = await repository.LeaseNextAsync(nameof(PeopleEnrichmentHostedService),
+                        [MediaOperationType.EnrichmentPeopleRemainder], 1, TimeSpan.FromMinutes(6), ct);
+                }
                 foreach (var job in jobs)
                 {
                     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -43,7 +51,8 @@ public sealed class PeopleEnrichmentHostedService(
                         {
                             throw new InvalidOperationException("Contributor operation has no entity.");
                         }
-                        await worker.EnrichFromClaimsAsync(entityId, timeout.Token);
+                        var remainder = job.OperationType == MediaOperationType.EnrichmentPeopleRemainder;
+                        await worker.EnrichFromClaimsAsync(entityId, timeout.Token, remainder ? PersonPass.Remainder : PersonPass.FirstBilled);
                         // The universe pass links actors to characters only for people who already exist, and it may have run before this
                         // lookup finished, so the links are made again now that the people are here.
                         if (!string.IsNullOrWhiteSpace(job.SubKey))

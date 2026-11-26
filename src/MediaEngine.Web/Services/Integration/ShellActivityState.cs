@@ -412,6 +412,7 @@ public sealed class ShellActivityState : IDisposable
         "identity.quick_hydration" => "Preparing library metadata",
         "enrichment.cover_art" => "Enriching artwork",
         "enrichment.people" => "Enriching people",
+        "enrichment.people_remainder" => "Filling in more cast",
         "enrichment.description" => "Enriching descriptions",
         "enrichment.relationships" => "Building relationships",
         "text_track.lyrics" => "Finding lyrics",
