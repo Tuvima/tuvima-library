@@ -316,6 +316,14 @@ public sealed class ProviderConfiguration
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Claim keys that describe a whole album rather than one song (album name, album and artist IDs, cover, genre).
+    /// For a song with a known artist and album, the provider is asked once per album and every song of that album takes
+    /// these claims from the shared answer, instead of each song asking again. Empty means every song asks for itself.
+    /// </summary>
+    [JsonPropertyName("shared_album_claim_keys")]
+    public List<string> SharedAlbumClaimKeys { get; set; } = [];
+
+    /// <summary>
     /// Optional UI metadata block read from provider config JSON files.
     /// Contains accent colour, material icon, external URL template, category,
     /// auth type, and per-media-type search/ranking chips.
