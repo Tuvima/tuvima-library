@@ -50,6 +50,21 @@ public interface IIdentityJobRepository
         TimeSpan leaseDuration,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Like <see cref="LeaseNextAsync(string, IReadOnlyList{IdentityJobState}, int, TimeSpan, CancellationToken)"/>, but limited to
+    /// (<paramref name="onlyMediaTypes"/>) or excluding (<paramref name="exceptMediaTypes"/>) the named media types, so a type whose
+    /// provider is slow can be worked in its own lane without holding up the others. The default ignores the filter.
+    /// </summary>
+    Task<IReadOnlyList<IdentityJob>> LeaseNextAsync(
+        string workerName,
+        IReadOnlyList<IdentityJobState> states,
+        int batchSize,
+        TimeSpan leaseDuration,
+        IReadOnlyList<string>? onlyMediaTypes,
+        IReadOnlyList<string>? exceptMediaTypes,
+        CancellationToken ct = default)
+        => LeaseNextAsync(workerName, states, batchSize, leaseDuration, ct);
+
     /// <summary>Transitions the job to a new state and clears the lease.</summary>
     Task UpdateStateAsync(Guid jobId, IdentityJobState newState, string? error = null, CancellationToken ct = default);
 

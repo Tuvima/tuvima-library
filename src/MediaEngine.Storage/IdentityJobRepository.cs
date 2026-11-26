@@ -300,6 +300,16 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         int batchSize,
         TimeSpan leaseDuration,
         CancellationToken ct = default)
+        => LeaseNextAsync(workerName, states, batchSize, leaseDuration, null, null, ct);
+
+    public Task<IReadOnlyList<IdentityJob>> LeaseNextAsync(
+        string workerName,
+        IReadOnlyList<IdentityJobState> states,
+        int batchSize,
+        TimeSpan leaseDuration,
+        IReadOnlyList<string>? onlyMediaTypes,
+        IReadOnlyList<string>? exceptMediaTypes,
+        CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -307,6 +317,17 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         var leaseExpiry = DateTimeOffset.UtcNow.Add(leaseDuration).ToString("O");
         // Build IN clause from enum values (safe — not user input).
         var stateList = string.Join(", ", states.Select(s => $"'{s}'"));
+        // Media type names are enum names from code, never user input.
+        var mediaTypeFilter = string.Empty;
+        if (onlyMediaTypes is { Count: > 0 })
+        {
+            mediaTypeFilter += $" AND media_type IN ({string.Join(", ", onlyMediaTypes.Select(t => $"'{t.Replace("'", string.Empty)}'"))})";
+        }
+
+        if (exceptMediaTypes is { Count: > 0 })
+        {
+            mediaTypeFilter += $" AND media_type NOT IN ({string.Join(", ", exceptMediaTypes.Select(t => $"'{t.Replace("'", string.Empty)}'"))})";
+        }
 
         var sql = $"""
             UPDATE identity_jobs
@@ -322,7 +343,7 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                     FROM   identity_jobs
                     WHERE  state IN ({stateList})
                       AND  (lease_owner IS NULL OR lease_expires_at < @now)
-                      AND  (next_retry_at IS NULL OR next_retry_at <= @now)
+                      AND  (next_retry_at IS NULL OR next_retry_at <= @now){mediaTypeFilter}
                       AND  NOT ({IncompleteAudiobookRecordingSql})
                       AND  NOT ({PausedFolderSql})
                 )

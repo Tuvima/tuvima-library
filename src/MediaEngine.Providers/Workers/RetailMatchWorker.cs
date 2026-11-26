@@ -226,6 +226,76 @@ public sealed partial class RetailMatchWorker
         }
     }
 
+    /// <summary>Media types worked in their own lane because their provider allows only a few requests a minute.</summary>
+    internal static readonly string[] SlowLaneMediaTypes = ["Comics"];
+
+    /// <summary>How many slow-lane jobs are leased at once: about what the provider can serve in a minute, so none waits long.</summary>
+    internal const int SlowLaneBatchSize = 3;
+
+    private readonly object _slowLaneGate = new();
+    private Task _slowLane = Task.CompletedTask;
+
+    private void EnsureSlowLaneRunning(CancellationToken ct)
+    {
+        lock (_slowLaneGate)
+        {
+            if (!_slowLane.IsCompleted)
+            {
+                return;
+            }
+
+            _slowLane = Task.Run(() => RunSlowLaneAsync(ct), CancellationToken.None);
+        }
+    }
+
+    /// <summary>Resolves when the slow lane has nothing left to do (used by tests).</summary>
+    internal Task WhenSlowLaneIdleAsync()
+    {
+        lock (_slowLaneGate)
+        {
+            return _slowLane;
+        }
+    }
+
+    private async Task RunSlowLaneAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                var leased = await _jobRepo.LeaseNextAsync(
+                    "RetailMatchWorker",
+                    [IdentityJobState.Queued],
+                    SlowLaneBatchSize,
+                    LeaseDuration,
+                    onlyMediaTypes: SlowLaneMediaTypes,
+                    exceptMediaTypes: null,
+                    ct: ct).ConfigureAwait(false);
+                if (leased.Count == 0)
+                {
+                    return;
+                }
+
+                var unblocked = await _lookupGuard.SettleBlockedJobsAsync(_jobRepo, leased, _logger, ct).ConfigureAwait(false);
+                var jobs = await _pinnedGuard.SettlePinnedJobsAsync(_jobRepo, unblocked, _logger, ct).ConfigureAwait(false);
+
+                await Task.WhenAll(jobs.Select(job =>
+                    _concurrency.RunAsync(
+                        EnrichmentWorkKind.RetailProvider,
+                        token => ProcessJobWithRetryAsync(job, token),
+                        ct))).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Shutting down: the leases expire and the jobs are picked up again on the next start.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Slow-lane retail matching stopped; it restarts on the next poll");
+        }
+    }
+
     /// <summary>
     /// Polls for <see cref="IdentityJobState.Queued"/> jobs and processes them.
     /// Called by the Api-layer hosted service on each poll tick.
@@ -233,11 +303,17 @@ public sealed partial class RetailMatchWorker
     /// </summary>
     public async Task<int> PollAsync(CancellationToken ct)
     {
+        // Media types whose provider hands out turns slowly (Comic Vine: 5 a minute) are worked in their own lane below, so a
+        // comic waiting for its turn never holds up the films, books, TV and music in the same batch.
+        EnsureSlowLaneRunning(ct);
+
         var leased = await _jobRepo.LeaseNextAsync(
             "RetailMatchWorker",
             [IdentityJobState.Queued],
             GetBatchSize(),
             LeaseDuration,
+            onlyMediaTypes: null,
+            exceptMediaTypes: SlowLaneMediaTypes,
             ct: ct);
 
         // A file in a library that never looks anything up is closed here, before any provider is asked (Library setup D38).
