@@ -271,6 +271,9 @@ public static class TuvimaProviderServiceCollectionExtensions
             UserAgent = TuvimaHttpClientRegistration.CanonicalUserAgent,
             Language = coreConfig.Language.Metadata,
             MaxLag = 0,
+            // Titles being processed at the same time share item lookups; a longer wait fills batches better
+            // and costs nothing while the 3-a-second Wikidata limit is the bottleneck.
+            EntityBatchWindow = TimeSpan.FromMilliseconds(400),
             TypeHierarchyDepth = 3,
             WikidataRateLimit = new Tuvima.Wikidata.ProviderRateLimitOptions
             {
