@@ -549,9 +549,9 @@ public sealed class WorkerPipelineTests
             null!,
             NullLogger<RetailMatchWorker>.Instance);
 
-        var processed = await worker.PollAsync(CancellationToken.None);
-
-        Assert.Equal(1, processed);
+        // Comics are worked in their own lane, so wait for it instead of counting them in the main poll.
+        await worker.PollAsync(CancellationToken.None);
+        await worker.WhenSlowLaneIdleAsync();
 
         var updatedJob = await jobRepo.GetByIdAsync(jobId);
         Assert.NotNull(updatedJob);
@@ -636,9 +636,9 @@ public sealed class WorkerPipelineTests
             null!,
             NullLogger<RetailMatchWorker>.Instance);
 
-        var processed = await worker.PollAsync(CancellationToken.None);
-
-        Assert.Equal(1, processed);
+        // Comics are worked in their own lane, so wait for it instead of counting them in the main poll.
+        await worker.PollAsync(CancellationToken.None);
+        await worker.WhenSlowLaneIdleAsync();
 
         var updatedJob = await jobRepo.GetByIdAsync(jobId);
         Assert.NotNull(updatedJob);
@@ -713,9 +713,9 @@ public sealed class WorkerPipelineTests
             null!,
             NullLogger<RetailMatchWorker>.Instance);
 
-        var processed = await worker.PollAsync(CancellationToken.None);
-
-        Assert.Equal(1, processed);
+        // Comics are worked in their own lane, so wait for it instead of counting them in the main poll.
+        await worker.PollAsync(CancellationToken.None);
+        await worker.WhenSlowLaneIdleAsync();
 
         var updatedJob = await jobRepo.GetByIdAsync(jobId);
         Assert.NotNull(updatedJob);
@@ -791,9 +791,9 @@ public sealed class WorkerPipelineTests
             null!,
             NullLogger<RetailMatchWorker>.Instance);
 
-        var processed = await worker.PollAsync(CancellationToken.None);
-
-        Assert.Equal(1, processed);
+        // Comics are worked in their own lane, so wait for it instead of counting them in the main poll.
+        await worker.PollAsync(CancellationToken.None);
+        await worker.WhenSlowLaneIdleAsync();
 
         var updatedJob = await jobRepo.GetByIdAsync(jobId);
         Assert.NotNull(updatedJob);
