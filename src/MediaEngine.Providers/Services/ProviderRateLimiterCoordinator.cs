@@ -59,7 +59,12 @@ public sealed class ProviderRateLimiterCoordinator : IProviderRateLimiterCoordin
         ProviderRateLimitLease lease;
         try
         {
-            lease = await limiter.WaitAsync(ct).ConfigureAwait(false);
+            // Waiting for a turn is not work: the stage timeout stands still meanwhile.
+            using (StageTimeoutClock.PauseAmbient())
+            {
+                lease = await limiter.WaitAsync(ct).ConfigureAwait(false);
+            }
+
             activity.RecordStarted(lease.WaitDuration);
         }
         catch

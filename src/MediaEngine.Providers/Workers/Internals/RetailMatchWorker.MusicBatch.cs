@@ -23,8 +23,7 @@ public sealed partial class RetailMatchWorker
 {
     private async Task ProcessJobWithRetryAsync(IdentityJob job, CancellationToken ct)
     {
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(
+        using var timeoutCts = StageTimeoutClock.Start(ct, TimeSpan.FromSeconds(
             Math.Max(1, GetExecutionSnapshot().Hydration.Stage1TimeoutSeconds)));
         try
         {
@@ -118,8 +117,7 @@ public sealed partial class RetailMatchWorker
         IReadOnlyDictionary<Guid, Dictionary<string, string>> jobHints,
         CancellationToken ct)
     {
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(
+        using var timeoutCts = StageTimeoutClock.Start(ct, TimeSpan.FromSeconds(
             Math.Max(1, GetExecutionSnapshot().Hydration.Stage1TimeoutSeconds)));
         try
         {

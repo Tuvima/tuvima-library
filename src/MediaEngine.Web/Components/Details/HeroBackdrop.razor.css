@@ -968,3 +968,13 @@
         transform: translateX(-50%);
     }
 }
+
+/* A phone's hero has its action buttons along the bottom, so a service logo sits in the empty top corner instead. */
+@media (width < 600px) {
+    :where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-stage.tl-detail-stage .tl-detail-hero .tl-detail-hero-brand {
+        top: 1.5rem;
+        right: auto;
+        bottom: auto;
+        left: 1rem;
+    }
+}

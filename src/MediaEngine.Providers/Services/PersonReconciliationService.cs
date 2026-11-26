@@ -84,6 +84,12 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
             return null;
         }
 
+        if (IsPlaceholderName(name))
+        {
+            // "Various Artists" and "Unknown Artist" are not people: asking Wikidata only costs requests.
+            return null;
+        }
+
         var language = _configLoader.LoadCore().Language?.Metadata ?? "en";
 
         var memoKey = LookupMemo<bool>.Key(name, expectedRole, language);
@@ -321,6 +327,16 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         return words;
     }
 
+    private static readonly HashSet<string> PlaceholderNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "various artists", "various artist", "various", "unknown artist", "unknown", "[unknown]", "<unknown>",
+        "soundtrack", "original soundtrack", "original cast", "n/a",
+    };
+
+    /// <summary>True for stand-in names that tags use when no real person is credited.</summary>
+    internal static bool IsPlaceholderName(string? name) =>
+        !string.IsNullOrWhiteSpace(name) && PlaceholderNames.Contains(name.Trim());
+
     public async Task<IReadOnlyDictionary<string, PersonSearchResult?>> SearchPersonsBatchAsync(
         IReadOnlyList<(string Name, string Role, string? WorkTitle)> requests,
         CancellationToken ct = default)
@@ -337,6 +353,12 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
             StringComparer.OrdinalIgnoreCase);
         foreach (var req in requests)
         {
+            if (IsPlaceholderName(req.Name))
+            {
+                results[req.Name] = null;
+                continue;
+            }
+
             if (!string.IsNullOrWhiteSpace(req.Name) && !seen.ContainsKey(req.Name))
             {
                 seen[req.Name] = req;
