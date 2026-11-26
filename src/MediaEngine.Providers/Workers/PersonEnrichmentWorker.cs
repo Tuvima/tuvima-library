@@ -279,7 +279,7 @@ public sealed class PersonEnrichmentWorker
                 {
                     var searchResult = await _personReconciliation.SearchPersonAsync(
                         unlinked.Name, unlinked.Role, titleHint, ct, contextText,
-                        artistIds.GetValueOrDefault(unlinked.Name));
+                        ExternalIdFor(unlinked, artistIds, tmdbImageHints));
 
                     if (searchResult is not null)
                     {
@@ -728,6 +728,22 @@ public sealed class PersonEnrichmentWorker
 
             hints[$"{role}::{RetailHints.NormalizePersonNameKey(name)}"] = new TmdbPersonImageHint(personId, profileUrl);
         }
+    }
+
+    /// <summary>The provider ID that lets a person be found on Wikidata by exact ID: a MusicBrainz artist ID for music, a TMDB person ID for film and TV.</summary>
+    internal static ExternalPersonId? ExternalIdFor(
+        PersonReference person,
+        IReadOnlyDictionary<string, string> musicBrainzArtistIds,
+        IReadOnlyDictionary<string, TmdbPersonImageHint> tmdbHints)
+    {
+        if (musicBrainzArtistIds.TryGetValue(person.Name, out var artistId))
+        {
+            return ExternalPersonId.MusicBrainzArtist(artistId);
+        }
+
+        return FindTmdbImageHint(tmdbHints, person.Role, person.Name) is { PersonId: > 0 } tmdb
+            ? ExternalPersonId.TmdbPerson(tmdb.PersonId.Value)
+            : null;
     }
 
     private static TmdbPersonImageHint? FindTmdbImageHint(

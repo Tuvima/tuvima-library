@@ -44,9 +44,9 @@ public sealed class PersonReconciliationMemoTests
             new CoreOnlyLoader(), NullLogger<PersonReconciliationService>.Instance, reconciler);
         const string beatles = "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d";
 
-        var first = await service.SearchPersonAsync("The Beatles", "Performer", "Help!", musicBrainzArtistId: beatles);
+        var first = await service.SearchPersonAsync("The Beatles", "Performer", "Help!", externalId: ExternalPersonId.MusicBrainzArtist(beatles));
         var afterFirst = handler.Requests;
-        var second = await service.SearchPersonAsync("The Beatles", "Performer", "Yesterday", musicBrainzArtistId: beatles);
+        var second = await service.SearchPersonAsync("The Beatles", "Performer", "Yesterday", externalId: ExternalPersonId.MusicBrainzArtist(beatles));
 
         Assert.Equal("Q1299", first?.WikidataQid);
         Assert.Equal("Q1299", second?.WikidataQid);
