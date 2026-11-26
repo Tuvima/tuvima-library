@@ -9,9 +9,10 @@
     gap: 18px;
 }
 
+/* 200 px so "No preference" and the longer language names fit beside the arrow; on a phone the select takes the whole row under its label. */
 .settings-playback-page ::deep .playback-preference-row__select {
-    width: 150px;
-    min-width: 150px;
+    width: 200px;
+    min-width: 200px;
 }
 
 .playback-profile-heading {

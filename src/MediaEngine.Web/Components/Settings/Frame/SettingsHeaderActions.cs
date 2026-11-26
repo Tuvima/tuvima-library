@@ -15,6 +15,21 @@ public sealed class SettingsHeaderActions
     /// <summary>What the header draws at its right edge; null draws nothing.</summary>
     public RenderFragment? Content { get; private set; }
 
+    /// <summary>What sits right beside the title (the Household page's rename pencil); null draws nothing.</summary>
+    public RenderFragment? TitleAccessory { get; private set; }
+
+    /// <summary>Replaces what sits beside the title. Passing the same fragment again does nothing.</summary>
+    public void SetTitleAccessory(RenderFragment? content)
+    {
+        if (ReferenceEquals(TitleAccessory, content))
+        {
+            return;
+        }
+
+        TitleAccessory = content;
+        Changed?.Invoke();
+    }
+
     /// <summary>Replaces the content. Passing the same fragment again does nothing, so a page can call this on every render.</summary>
     public void Set(RenderFragment? content)
     {

@@ -9,21 +9,21 @@
    these at once, so nothing is stored per person. The choices are kept here until Save changes; Discard puts them back. A saved change is
    confirmed in the section itself (no toast). The host does the save, so its administrator-PIN prompt applies. *@
 <div class="kid-settings" data-kid-settings="@HouseholdId">
-    <AppButton Class="kid-settings__toggle" ButtonStyle="AppButtonStyle.Text" Label="@L["HouseholdKidSettings_WhatKidsCanSee"].Value"
-               StartIcon="@AppMaterialIcons.Outlined.Person"
-               EndIcon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
-               OnClick="ToggleAsync" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_bodyId" />
-    <AppInfoTip Label="@L["HouseholdKidSettings_WhatKidsCanSee"].Value"
-                Text="@($"The highest rating a Kid's profile in {HouseholdTitle} can open, for each area. It applies to every Kid's profile here at once. Items without a rating follow the switch below.")" />
-    <span class="kid-settings__saved" role="status" data-kid-settings-saved>
-    @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
-    {
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" Color="AppColor.Success" />@_confirmation
-    }
-    </span>
+    @* A full row: icon, the name and one line of what is set, then an arrow. Pressing it opens the choices in place. *@
+    <div class="kid-settings__head">
+        <SettingsNavRow Key="kid-settings" Icon="@AppMaterialIcons.Outlined.Shield" Title="@L["HouseholdKidSettings_WhatKidsCanSee"].Value"
+                        Status="@Summary" Expanded="@_open" OnClick="ToggleAsync" />
+        <span class="kid-settings__saved" role="status" data-kid-settings-saved>
+        @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
+        {
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppIconSize.Control20" Color="AppColor.Success" />@_confirmation
+        }
+        </span>
+    </div>
     @if (_open)
     {
         <div id="@_bodyId" class="kid-settings__body">
+            <p class="kid-settings__hint">@($"The highest rating a Kid's profile in {HouseholdTitle} can open, for each area. It applies to every Kid's profile here at once. Items without a rating follow the switch below.")</p>
             @if (_loading)
             {
                 <div role="status" aria-label="@L["HouseholdKidSettings_LoadingKidSettings"].Value"><AppSkeleton Height="120px" /></div>
@@ -100,6 +100,14 @@
 
     private bool Disabled => _saving || ReadOnly;
 
+    // One line of what is set, so the row says it without opening: "Up to PG" when all three areas agree.
+    private string Summary => _saved is not { } saved
+        ? (_failed ? "Can't be read right now" : string.Empty)
+        : (saved.WatchLevel == saved.ReadLevel && saved.ReadLevel == saved.ListenLevel
+            ? $"Up to {saved.WatchLevel} for Watch, Read and Listen"
+            : $"Watch {saved.WatchLevel} · Read {saved.ReadLevel} · Listen {saved.ListenLevel}")
+          + (saved.ShowUnrated ? string.Empty : " · unrated items hidden");
+
     private bool HasChanges => _saved is { } saved
         && (saved.WatchLevel != _watch || saved.ReadLevel != _read || saved.ListenLevel != _listen || saved.ShowUnrated != _showUnrated);
 
@@ -114,6 +122,9 @@
         "R" => "R: almost everything",
         _ => level,
     };
+
+    // The summary on the row needs what is saved, so it is read when the row appears, not only when it is opened.
+    protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task ToggleAsync()
     {

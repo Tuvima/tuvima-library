@@ -27,7 +27,7 @@
             @switch (option.Kind)
             {
                 case VideoOptionKinds.Choice:
-                    <AppSettingRow Label="@option.Label" Helper="@option.Help" data-video-option="@option.Id">
+                    <AppSettingRow StackOnPhone="true" Label="@option.Label" Helper="@option.Help" data-video-option="@option.Id">
                         <Control>
                             <AppSelect Native="true" Value="@option.Value" Disabled="@_saving"
                                        ValueChanged="@(value => ChangeAsync(option, value?.ToString()))"

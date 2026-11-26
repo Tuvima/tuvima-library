@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text;
+using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Activity;
 using MediaEngine.Contracts.Authentication;
@@ -36,6 +38,8 @@ public sealed class OverviewPageTests : AsyncBunitContext
     private PersonalActivityRecentDto? _recent = new([]);
     private readonly List<(Guid Id, string Name, string Color, string? NavigationConfig)> _updates = [];
     private readonly List<(HttpMethod Method, string Path, string Body)> _identityRequests = [];
+    // What the Engine answers a GET with, by path; anything else gets the usual empty answer.
+    private readonly Dictionary<string, string> _identityJson = [];
     private readonly DashboardSessionAccessor _session = new();
 
     public OverviewPageTests()
@@ -84,6 +88,11 @@ public sealed class OverviewPageTests : AsyncBunitContext
         {
             var body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
             owner._identityRequests.Add((request.Method, request.RequestUri!.AbsolutePath, body));
+            if (request.Method == HttpMethod.Get && owner._identityJson.TryGetValue(request.RequestUri.AbsolutePath, out var json))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+            }
+
             return new HttpResponseMessage(HttpStatusCode.NoContent);
         }
     }
@@ -160,7 +169,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         var cut = RenderPage();
 
         Assert.Equal("Test User", cut.Find(".overview-header__name").TextContent);
-        Assert.Equal("Joined March 2026", cut.Find(".overview-header__joined").TextContent);
+        Assert.Equal("Member · joined March 2026", cut.Find(".overview-header__joined").TextContent);
         Assert.NotEmpty(cut.FindAll(".overview-header__avatar svg, .overview-header__avatar img"));
         Assert.Contains(cut.FindAll("a, button"), link => link.TextContent.Contains("Edit name and picture", StringComparison.Ordinal));
 
@@ -187,6 +196,69 @@ public sealed class OverviewPageTests : AsyncBunitContext
 
         // Ada is first in the household, so she keeps the purple; this person is second and gets the next color, as the menu draws it.
         Assert.Equal(ProfileAvatarPalette.Swatches[1].Hex, cut.Find(".overview-header__avatar circle").GetAttribute("fill"));
+    }
+
+    [Fact]
+    public void Header_NamesTheRole_AdministratorForAnAdministrator()
+    {
+        BecomeAdministrator();
+
+        var cut = RenderPage();
+
+        Assert.Equal("Administrator · joined March 2026", cut.Find(".overview-header__joined").TextContent);
+    }
+
+    [Fact]
+    public void Header_NamesTheRole_KidsForAKidsProfile()
+    {
+        _profile = _profile with { Role = "RestrictedProfile" };
+
+        var cut = RenderPage();
+
+        Assert.Equal("Kids · joined March 2026", cut.Find(".overview-header__joined").TextContent);
+    }
+
+    [Fact]
+    public void SignInAndSafety_PasswordAndDevicesRows_SayWhatIsSetAndHowManyDevicesAreSignedIn()
+    {
+        _identityJson["/access/self-service"] = JsonSerializer.Serialize(new AccountSelfServiceResponse(
+            OwnId, "test@example.com", OwnId, OwnId, [], ["password"],
+            new AccountSecurityCapabilitiesResponse(true, false, false, true, false, false, false, [])));
+        _identityJson["/auth/sessions"] = JsonSerializer.Serialize(new[] { new DeviceSessionResponse(), new DeviceSessionResponse() });
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("Password set · test@example.com", cut.Find("[data-nav-row='password-email'] .settings-nav-row__status").TextContent);
+            Assert.Equal("2 devices signed in", cut.Find("[data-nav-row='devices'] .settings-nav-row__status").TextContent);
+        });
+    }
+
+    [Fact]
+    public void SignInAndSafety_WithNoPassword_SaysSo_AndAnUnreadableAnswerKeepsTheGeneralWording()
+    {
+        _identityJson["/access/self-service"] = JsonSerializer.Serialize(new AccountSelfServiceResponse(
+            OwnId, null, OwnId, OwnId, [], [],
+            new AccountSecurityCapabilitiesResponse(false, false, false, false, false, false, false, [])));
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() => Assert.Equal("No password set", cut.Find("[data-nav-row='password-email'] .settings-nav-row__status").TextContent));
+        // No answer about sessions: the Devices row keeps what it said before.
+        Assert.Equal("Phones, TVs and browsers signed in to Library", cut.Find("[data-nav-row='devices'] .settings-nav-row__status").TextContent);
+    }
+
+    [Fact]
+    public void TheNumbers_SitUnderALast30DaysHeading()
+    {
+        _summary = new PersonalActivitySummaryDto(3, 12, 41, 19, 0, 0, 0, null);
+
+        var cut = RenderPage();
+
+        var panel = cut.Find(".overview-page__stats");
+        Assert.Contains("Last 30 days", panel.TextContent, StringComparison.Ordinal);
+        Assert.NotNull(panel.QuerySelector("[data-overview-stats]"));
     }
 
     [Fact]
@@ -641,7 +713,8 @@ public sealed class OverviewPageTests : AsyncBunitContext
         Assert.Contains("Change", cut.Find("[data-pin-change]").TextContent, StringComparison.Ordinal);
 
         cut.Find("[data-pin-remove]").Click();
-        Assert.Empty(_identityRequests);
+        // Reading what the sign-in rows say is fine; nothing is changed until the removal is confirmed.
+        Assert.DoesNotContain(_identityRequests, request => request.Method != HttpMethod.Get);
         Assert.NotEmpty(cut.FindAll("[data-pin-confirm-remove]"));
 
         cut.Find("[data-pin-confirm]").Click();

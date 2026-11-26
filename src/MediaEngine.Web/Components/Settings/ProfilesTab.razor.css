@@ -13,6 +13,11 @@
 .profiles-tab__item + .profiles-tab__item { border-top: 1px solid var(--tl-border-subtle); }
 .profiles-tab__line { display: flex; align-items: center; gap: 4px; width: 100%; min-height: 56px; box-sizing: border-box; }
 .profiles-tab__item.is-dragging { opacity: .5; }
+/* Add profile is a row like the others: left-aligned, the circle under the people's pictures. */
+.profiles-tab__item--add { display: flex; align-items: center; gap: 4px; }
+.profiles-tab__drag-spacer { flex: none; width: 32px; }
+/* The two household-wide rows sit one under the other, each a full row with a hairline between them. */
+.profiles-tab__wide { display: grid; }
 .profiles-tab__drag { flex: none; display: inline-grid; place-items: center; width: 32px; height: 44px; padding: 0; border: 0; border-radius: var(--tl-radius-sm, 6px); background: transparent; color: var(--tl-text-muted); cursor: grab; }
 .profiles-tab__drag:hover { color: var(--tl-text-primary); background: var(--tl-bg-surface-hover, transparent); }
 .profiles-tab__drag:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
