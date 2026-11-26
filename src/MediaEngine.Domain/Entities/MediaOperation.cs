@@ -93,6 +93,8 @@ public static class MediaOperationType
     public const string IdentityQuickHydration = "identity.quick_hydration";
     public const string EnrichmentCoverArt = "enrichment.cover_art";
     public const string EnrichmentPeople = "enrichment.people";
+    /// <summary>The cast beyond the first billed, looked up in the background once nothing else is waiting.</summary>
+    public const string EnrichmentPeopleRemainder = "enrichment.people_remainder";
     public const string EnrichmentDescription = "enrichment.description";
     public const string EnrichmentRelationships = "enrichment.relationships";
     public const string TextTrackLyrics = "text_track.lyrics";
