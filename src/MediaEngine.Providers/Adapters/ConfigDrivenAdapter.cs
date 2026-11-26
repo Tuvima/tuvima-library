@@ -113,7 +113,8 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
     public bool CanHandle(EntityType entityType) =>
         _entityTypes.Count == 0 || _entityTypes.Contains(entityType);
 
-    public async Task<IReadOnlyList<ProviderClaim>> FetchAsync(
+    // The public FetchAsync (ConfigDrivenAdapter.AlbumSharing.cs) shares one album answer between a song's siblings, then calls this.
+    private async Task<IReadOnlyList<ProviderClaim>> FetchCoreAsync(
         ProviderLookupRequest request,
         CancellationToken ct = default)
     {

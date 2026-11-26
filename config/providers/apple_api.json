@@ -40,6 +40,17 @@
   "hydration_stages": [
     1
   ],
+  "shared_album_claim_keys": [
+    "album",
+    "apple_music_collection_id",
+    "apple_artist_id",
+    "artist",
+    "author",
+    "cover",
+    "genre",
+    "track_count",
+    "disc_count"
+  ],
   "market_fallbacks": {
     "en": ["gb"],
     "de": ["de"],
