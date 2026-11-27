@@ -120,6 +120,33 @@ public sealed class PersonReconciliationEvidenceTests
             PersonReconciliationService.ChooseNamesakeFromContext([comedian], "Part 01", "Q5573861").Outcome);
     }
 
+    [Theory]
+    [InlineData("American banker", "Actor", false)]
+    [InlineData("Scottish researcher", "Actor", false)]
+    [InlineData("British politician", "Director", false)]
+    [InlineData("English actor", "Actor", true)]
+    [InlineData("American film director", "Director", true)]
+    [InlineData("Chinese poet", "Actor", false)]
+    [InlineData(null, "Actor", false)]
+    [InlineData("American banker", "Cinematographer", true)]
+    [InlineData("American banker", null, true)]
+    public void ANamesakeIsOnlyPickedWhenTheirDescriptionFitsTheCreditedJob(string? description, string? role, bool expected)
+    {
+        Assert.Equal(expected, PersonReconciliationService.DescriptionFitsRole(description, role));
+    }
+
+    [Fact]
+    public void ABankerSharingWordsWithTheWorksText_IsNotChosenAsTheActor()
+    {
+        var banker = Namesake("Q55609145", "American banker in New York");
+        var actor = Namesake("Q1", "American television actor");
+
+        var choice = PersonReconciliationService.ChooseNamesakeFromContext(
+            [banker, actor], "Band of Brothers New York banker miniseries", "Q1", "Actor");
+
+        Assert.NotEqual("Q55609145", choice.Person?.Id);
+    }
+
     private static ReconciliationResult Namesake(string qid, string description) => new()
     {
         Id = qid,
