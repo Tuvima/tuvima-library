@@ -261,6 +261,12 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         MusicBrainzCandidate candidate,
         CancellationToken ct)
     {
+        // A song title alone matches recordings by anyone ("Aria" by an unrelated band), so a track with no known artist is never asked about.
+        if (string.IsNullOrWhiteSpace(candidate.Artist))
+        {
+            return;
+        }
+
         var hints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         AddHint(hints, MetadataFieldConstants.Title, candidate.Title);
         AddHint(hints, MetadataFieldConstants.Album, candidate.Album);
@@ -284,6 +290,14 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         var claims = await provider.FetchAsync(request, ct).ConfigureAwait(false);
         if (claims.Count == 0)
         {
+            return;
+        }
+
+        if (!ClaimsNameTheTaggedArtist(candidate.Artist, claims))
+        {
+            _logger.LogInformation(
+                "MusicBrainz answer for '{Title}' names a different artist than the file's '{Artist}'; not applied",
+                candidate.Title, candidate.Artist);
             return;
         }
 
@@ -337,6 +351,30 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
             candidate.Title,
             candidate.Artist ?? "unknown artist",
             claims.Count);
+    }
+
+    /// <summary>
+    /// True unless the answer lists artists and none of them is the artist the file is tagged with (a compilation's "Various Artists"
+    /// is never checked). Stops a recording of the same song title by another act from being applied to the track.
+    /// </summary>
+    internal static bool ClaimsNameTheTaggedArtist(string? taggedArtist, IReadOnlyList<ProviderClaim> claims)
+    {
+        static string Normalize(string value) => new(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
+        var tagged = Normalize(taggedArtist ?? "");
+        if (tagged.Length == 0 || tagged == "variousartists")
+        {
+            return true;
+        }
+
+        var named = claims
+            .Where(claim => string.Equals(claim.Key, MetadataFieldConstants.Artist, StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(claim.Value))
+            .Select(claim => Normalize(claim.Value))
+            .Where(value => value.Length > 0)
+            .ToList();
+        return named.Count == 0 || named.Any(value => value.Contains(tagged, StringComparison.Ordinal)
+            || tagged.Contains(value, StringComparison.Ordinal));
     }
 
     private static Guid ResolveBridgeIdEntityId(WorkLineage? lineage, Guid assetId, string key)
