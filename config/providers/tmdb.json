@@ -312,23 +312,28 @@
             ],
             "map": [
               {
-                "contains": [
+                "equals": [
                   "Director"
                 ],
                 "claim_key": "director"
               },
               {
-                "contains": [
+                "equals": [
                   "Screenplay",
                   "Writer",
-                  "Story"
+                  "Story",
+                  "Teleplay",
+                  "Co-Writer"
                 ],
                 "claim_key": "screenwriter"
               },
               {
                 "contains": [
-                  "Composer",
-                  "Music"
+                  "Composer"
+                ],
+                "equals": [
+                  "Music",
+                  "Original Music"
                 ],
                 "claim_key": "composer"
               },
@@ -547,23 +552,28 @@
             ],
             "map": [
               {
-                "contains": [
+                "equals": [
                   "Director"
                 ],
                 "claim_key": "director"
               },
               {
-                "contains": [
+                "equals": [
                   "Screenplay",
                   "Writer",
-                  "Story"
+                  "Story",
+                  "Teleplay",
+                  "Co-Writer"
                 ],
                 "claim_key": "screenwriter"
               },
               {
                 "contains": [
-                  "Composer",
-                  "Music"
+                  "Composer"
+                ],
+                "equals": [
+                  "Music",
+                  "Original Music"
                 ],
                 "claim_key": "composer"
               },

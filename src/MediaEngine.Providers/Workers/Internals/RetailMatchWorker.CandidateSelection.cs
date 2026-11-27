@@ -453,6 +453,27 @@ public sealed partial class RetailMatchWorker
                && retailScore.AuthorScore >= 0.75;
     }
 
+    /// <summary>
+    /// A doubtful (Ambiguous) music answer may still add cover art, genre and ids, but never the
+    /// people it names: another act's name would otherwise land on the song as its artist.
+    /// </summary>
+    internal static IReadOnlyList<ProviderClaim> DropPeopleFromDoubtfulMusicAnswer(
+        MediaType mediaType, string outcome, IReadOnlyList<ProviderClaim> claims)
+    {
+        if (mediaType != MediaType.Music
+            || !string.Equals(outcome, "Ambiguous", StringComparison.OrdinalIgnoreCase))
+        {
+            return claims;
+        }
+
+        return claims
+            .Where(c => c.Key is not (MetadataFieldConstants.Artist
+                or MetadataFieldConstants.CastMember
+                or MetadataFieldConstants.Author
+                or "performer" or "performers" or "album_artist"))
+            .ToList();
+    }
+
     private static bool IsEnrichmentClaim(ProviderClaim claim)
         => claim.Key is MetadataFieldConstants.CoverUrl
             or MetadataFieldConstants.Genre

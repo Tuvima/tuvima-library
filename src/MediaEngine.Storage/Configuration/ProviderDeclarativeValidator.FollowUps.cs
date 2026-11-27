@@ -391,9 +391,9 @@ internal static partial class ProviderDeclarativeValidator
             {
                 AddUnknown(entry.UnmappedProperties, $"{path}.role.map[]", errors);
                 AddRequired(errors, entry.ClaimKey, $"{path}.role.map[].claim_key");
-                if (entry.Contains.Count == 0)
+                if (entry.Contains.Count == 0 && entry.EqualsAny.Count == 0)
                 {
-                    errors.Add($"{path}.role.map[].contains must list at least one word.");
+                    errors.Add($"{path}.role.map[].contains or equals must list at least one word.");
                 }
             }
         }
