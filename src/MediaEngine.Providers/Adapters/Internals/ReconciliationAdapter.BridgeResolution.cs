@@ -26,7 +26,8 @@ public sealed partial class ReconciliationAdapter
             string? workQid,
             string? editionQid,
             string? fileLanguage,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool isMusic = false)
     {
         var collectedBridgeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var claims = new List<ProviderClaim>();
@@ -35,7 +36,9 @@ public sealed partial class ReconciliationAdapter
 
         try
         {
-            var extensions = await ExtendAsync([resolvedQid], BridgeResolutionPCodes, ct).ConfigureAwait(false);
+            // A soundtrack album is credited to its composer (P86) as well as its performers (P175); the film's cast (P161) is never asked for.
+            var requestedPCodes = isMusic ? [.. BridgeResolutionPCodes, "P86"] : BridgeResolutionPCodes;
+            var extensions = await ExtendAsync([resolvedQid], requestedPCodes, ct).ConfigureAwait(false);
 
             if (extensions.TryGetValue(resolvedQid, out var resolvedProps))
             {
@@ -479,7 +482,8 @@ public sealed partial class ReconciliationAdapter
                 finalWorkQid,
                 finalEditionQid,
                 input?.FileLanguage,
-                ct).ConfigureAwait(false);
+                ct,
+                isMusic: input?.MediaType == MediaType.Music).ConfigureAwait(false);
 
             if (input is not null && input.MediaType != MediaType.Unknown)
             {
