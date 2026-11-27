@@ -338,10 +338,10 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
     // Words in a Wikidata description that say a person does the job a credit names. A credit with a role not listed here is not filtered.
     private static readonly Dictionary<string, string[]> RoleDescriptionWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Actor"] = ["actor", "actress", "comedian", "voice", "film", "television", "performer", "screen"],
-        ["Director"] = ["director", "filmmaker", "film", "television", "producer", "screenwriter"],
-        ["Screenwriter"] = ["screenwriter", "writer", "director", "film", "television", "playwright", "author"],
-        ["Producer"] = ["producer", "film", "television", "executive", "director", "music"],
+        ["Actor"] = ["actor", "actress", "comedian", "voice", "performer"],
+        ["Director"] = ["director", "filmmaker", "producer", "screenwriter"],
+        ["Screenwriter"] = ["screenwriter", "writer", "director", "filmmaker", "playwright", "author"],
+        ["Producer"] = ["producer", "director", "filmmaker"],
         ["Composer"] = ["composer", "musician", "conductor", "songwriter", "producer", "pianist", "arranger", "music"],
         ["Performer"] = ["singer", "musician", "rapper", "band", "vocalist", "songwriter", "guitarist", "drummer", "pianist", "dj", "duo", "group", "music", "artist", "composer"],
         ["Artist"] = ["singer", "musician", "rapper", "band", "vocalist", "songwriter", "guitarist", "drummer", "pianist", "dj", "duo", "group", "music", "artist", "composer"],

@@ -127,6 +127,8 @@ public sealed class PersonReconciliationEvidenceTests
     [InlineData("English actor", "Actor", true)]
     [InlineData("American film director", "Director", true)]
     [InlineData("Chinese poet", "Actor", false)]
+    [InlineData("Australian television executive", "Actor", false)]
+    [InlineData("English film and television actor", "Actor", true)]
     [InlineData(null, "Actor", false)]
     [InlineData("American banker", "Cinematographer", true)]
     [InlineData("American banker", null, true)]

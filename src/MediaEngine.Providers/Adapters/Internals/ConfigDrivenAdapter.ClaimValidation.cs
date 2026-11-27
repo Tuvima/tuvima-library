@@ -80,6 +80,17 @@ public sealed partial class ConfigDrivenAdapter
         var titleScore = ComputeWordOverlap(
             CleanTitleForSearch(request.Title) ?? request.Title,
             CleanTitleForSearch(candidateTitle) ?? candidateTitle);
+        if (request.MediaType == MediaType.Music && titleScore < 0.40)
+        {
+            // A music answer carries the song's title and the album's title as separate title claims, in no fixed order, so the
+            // song is compared with each; judging only the first turned down answers about the right song (#1360).
+            titleScore = claims
+                .Where(c => string.Equals(c.Key, MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(c.Value))
+                .Select(c => ComputeWordOverlap(request.Title, CleanTitleForSearch(c.Value) ?? c.Value))
+                .DefaultIfEmpty(titleScore)
+                .Max();
+        }
         if (titleScore >= 0.40)
         {
             return true;
