@@ -20,7 +20,7 @@ public sealed class AppleAlbumSharingTests
     private const string TrackAnswer = """
         { "resultCount": 1, "results": [ {
             "wrapperType": "track", "kind": "song", "trackId": 111, "trackName": "Karma Police",
-            "artistName": "Radiohead", "artistId": 657515, "collectionId": 1097861387,
+            "artistName": "Radiohead", "artistId": 657515, "collectionId": 1097861387, "collectionName": "OK Computer",
             "artworkUrl100": "https://example.test/cover/100x100bb.jpg", "primaryGenreName": "Alternative",
             "trackNumber": 6, "trackCount": 12, "discNumber": 1, "discCount": 1, "trackTimeMillis": 263000 } ] }
         """;
@@ -106,6 +106,8 @@ public sealed class AppleAlbumSharingTests
     [InlineData("The Beatles", "Beatles", true)]
     [InlineData("Radiohead", "Radiohead Karaoke Tribute", false)]
     [InlineData("Adele", "Eli Lieb", false)]
+    [InlineData("Daft Punk", "Daft Punk Experience", false)]
+    [InlineData("Fleetwood Mac", "Fleetwood Mac Experience", false)]
     [InlineData("Hans Zimmer", "Hans Zimmer; Lorne Balfe", true)]
     [InlineData("Various Artists", "Anyone At All", true)]
     [InlineData("Radiohead", "Various Artists", true)]

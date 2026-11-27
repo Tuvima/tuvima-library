@@ -72,7 +72,8 @@ public sealed partial class ConfigDrivenAdapter
         return requested.Any(left => offered.Any(right => RetailTextSimilarity.ComputeWordOverlap(left, right) >= MinimumArtistOverlap));
     }
 
-    private const double MinimumArtistOverlap = 0.8;
+    // 0.9, not 0.8: "Daft Punk" against "Daft Punk Experience" (a tribute act) scores exactly 0.8.
+    private const double MinimumArtistOverlap = 0.9;
 
     private static List<string> SplitActs(string value) =>
         value.Split([';', '&', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)

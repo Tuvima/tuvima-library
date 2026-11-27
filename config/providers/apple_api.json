@@ -177,6 +177,39 @@
       "release_selection": null
     },
     {
+      "name": "music_song_album_search",
+      "search_scopes": ["song_album"],
+      "priority": 3,
+      "required_fields": [
+        "album"
+      ],
+      "url_template": "{base_url}/search?term={query}\u0026entity=album\u0026limit={limit}\u0026country={country}\u0026lang={lang}_{country}",
+      "query_template": "{artist} {album}",
+      "results_path": "results",
+      "result_index": 0,
+      "tolerate_404": false,
+      "max_results": 10,
+      "fetch_limit": 10,
+      "media_types": [
+        "Music"
+      ],
+      "candidate_selection": {
+        "title_paths": ["collectionName"],
+        "creator_paths": ["artistName"],
+        "minimum_title_score": 0,
+        "minimum_creator_score": 0.5,
+        "request_filters": [
+          {
+            "request_field": "album",
+            "candidate_paths": ["collectionName"],
+            "operator": "album_identity",
+            "required": true
+          }
+        ]
+      },
+      "release_selection": null
+    },
+    {
       "name": "music_search",
       "search_scopes": ["track"],
       "priority": 2,
