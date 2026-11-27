@@ -27,7 +27,7 @@ public sealed partial class ConfigDrivenAdapter
                 ct).ConfigureAwait(false);
             // The retail match only keeps an extra source's claims when its title agrees with the song, so the answer carries this
             // song's own title. The album and artist were already matched by the answer itself.
-            return string.IsNullOrWhiteSpace(request.Title)
+            return albumClaims.Count == 0 || string.IsNullOrWhiteSpace(request.Title)
                 ? albumClaims
                 : [.. albumClaims, new ProviderClaim("title", request.Title, SongTitleConfidence)];
         }
