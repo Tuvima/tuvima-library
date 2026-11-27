@@ -35,6 +35,18 @@ public sealed class ExternalPersonIdChoiceTests
     }
 
     [Fact]
+    public void ExternalIdFor_UsesTheTvdbPersonIdWhenOnlyTheShowsCastListGaveOne()
+    {
+        var person = new PersonReference("Actor", "Jack Gleeson", null, false);
+
+        var id = PersonEnrichmentWorker.ExternalIdFor(
+            person, new Dictionary<string, string>(), new Dictionary<string, PersonEnrichmentWorker.TmdbPersonImageHint>(),
+            name => name == "Jack Gleeson" ? "312345" : null);
+
+        Assert.Equal(new ExternalPersonId("P7920", "312345"), id);
+    }
+
+    [Fact]
     public void ExternalIdFor_ReturnsNothingWhenNoProviderGaveAnId()
     {
         var person = new PersonReference("Actor", "Nobody Atall", null, false);

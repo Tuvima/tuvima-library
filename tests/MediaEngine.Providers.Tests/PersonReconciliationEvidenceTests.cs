@@ -132,6 +132,10 @@ public sealed class PersonReconciliationEvidenceTests
     [InlineData(null, "Actor", false)]
     [InlineData("American banker", "Cinematographer", true)]
     [InlineData("American banker", null, true)]
+    [InlineData("British music executive, influential in the music industry", "Composer", false)]
+    [InlineData("jazz musician who played the saxophone", "Composer", true)]
+    [InlineData("theatre director and actor of New Zealand", "Director", false)]
+    [InlineData("British film and television director", "Director", true)]
     public void ANamesakeIsOnlyPickedWhenTheirDescriptionFitsTheCreditedJob(string? description, string? role, bool expected)
     {
         Assert.Equal(expected, PersonReconciliationService.DescriptionFitsRole(description, role));

@@ -279,7 +279,8 @@ public sealed class PersonEnrichmentWorker
                 {
                     var searchResult = await _personReconciliation.SearchPersonAsync(
                         unlinked.Name, unlinked.Role, titleHint, ct, contextText,
-                        ExternalIdFor(unlinked, artistIds, tmdbImageHints));
+                        ExternalIdFor(unlinked, artistIds, tmdbImageHints,
+                            name => FindTvdbCastHint(providerClaims, name).Id));
 
                     if (searchResult is not null)
                     {
@@ -730,19 +731,28 @@ public sealed class PersonEnrichmentWorker
         }
     }
 
-    /// <summary>The provider ID that lets a person be found on Wikidata by exact ID: a MusicBrainz artist ID for music, a TMDB person ID for film and TV.</summary>
+    /// <summary>
+    /// The provider ID that lets a person be found on Wikidata by exact ID: a MusicBrainz artist ID for music, a TMDB person ID for film and TV,
+    /// and a TheTVDB person ID when a show's cast came from TheTVDB alone (so the same actor in a show and in a film is one person).
+    /// </summary>
     internal static ExternalPersonId? ExternalIdFor(
         PersonReference person,
         IReadOnlyDictionary<string, string> musicBrainzArtistIds,
-        IReadOnlyDictionary<string, TmdbPersonImageHint> tmdbHints)
+        IReadOnlyDictionary<string, TmdbPersonImageHint> tmdbHints,
+        Func<string, string?>? tvdbPersonIdFor = null)
     {
         if (musicBrainzArtistIds.TryGetValue(person.Name, out var artistId))
         {
             return ExternalPersonId.MusicBrainzArtist(artistId);
         }
 
-        return FindTmdbImageHint(tmdbHints, person.Role, person.Name) is { PersonId: > 0 } tmdb
-            ? ExternalPersonId.TmdbPerson(tmdb.PersonId.Value)
+        if (FindTmdbImageHint(tmdbHints, person.Role, person.Name) is { PersonId: > 0 } tmdb)
+        {
+            return ExternalPersonId.TmdbPerson(tmdb.PersonId.Value);
+        }
+
+        return tvdbPersonIdFor?.Invoke(person.Name) is { } tvdbId && tvdbId.Length > 0 && tvdbId.All(char.IsDigit)
+            ? ExternalPersonId.TvdbPerson(tvdbId)
             : null;
     }
 

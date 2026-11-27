@@ -342,9 +342,9 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         ["Director"] = ["director", "filmmaker", "producer", "screenwriter"],
         ["Screenwriter"] = ["screenwriter", "writer", "director", "filmmaker", "playwright", "author"],
         ["Producer"] = ["producer", "director", "filmmaker"],
-        ["Composer"] = ["composer", "musician", "conductor", "songwriter", "producer", "pianist", "arranger", "music"],
-        ["Performer"] = ["singer", "musician", "rapper", "band", "vocalist", "songwriter", "guitarist", "drummer", "pianist", "dj", "duo", "group", "music", "artist", "composer"],
-        ["Artist"] = ["singer", "musician", "rapper", "band", "vocalist", "songwriter", "guitarist", "drummer", "pianist", "dj", "duo", "group", "music", "artist", "composer"],
+        ["Composer"] = ["composer", "musician", "conductor", "songwriter", "pianist", "arranger"],
+        ["Performer"] = ["singer", "musician", "rapper", "band", "vocalist", "songwriter", "guitarist", "drummer", "pianist", "dj", "duo", "group", "artist", "composer"],
+        ["Artist"] = ["singer", "musician", "rapper", "band", "vocalist", "songwriter", "guitarist", "drummer", "pianist", "dj", "duo", "group", "artist", "composer"],
         ["Author"] = ["writer", "author", "novelist", "poet", "journalist", "playwright", "essayist", "screenwriter", "historian", "biographer"],
         ["Narrator"] = ["narrator", "actor", "actress", "voice", "broadcaster", "reader", "presenter", "announcer"],
     };
@@ -367,7 +367,17 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
 
         var described = description.Split(
             [' ', ',', '.', ';', ':', '(', ')', '-', '/', '"', '\''], StringSplitOptions.RemoveEmptyEntries);
-        return described.Any(word => words.Any(job => word.StartsWith(job, StringComparison.OrdinalIgnoreCase)));
+        if (!described.Any(word => words.Any(job => word.StartsWith(job, StringComparison.OrdinalIgnoreCase))))
+        {
+            return false;
+        }
+
+        // A theatre director directs plays, not films: the word "director" alone does not make them the film's director.
+        return !(role.Equals("Director", StringComparison.OrdinalIgnoreCase)
+            && described.Any(word => word.StartsWith("theat", StringComparison.OrdinalIgnoreCase)
+                || word.Equals("stage", StringComparison.OrdinalIgnoreCase))
+            && !described.Any(word => word.StartsWith("film", StringComparison.OrdinalIgnoreCase)
+                || word.StartsWith("television", StringComparison.OrdinalIgnoreCase)));
     }
 
     // A league or sport named in the work's text points at the same people as the sport's own word on Wikidata
