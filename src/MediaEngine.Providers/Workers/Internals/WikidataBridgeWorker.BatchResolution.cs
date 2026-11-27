@@ -178,6 +178,7 @@ public sealed partial class WikidataBridgeWorker
                         mediaType,
                         canonicals,
                         lineage?.TargetForParentScope);
+                authorHint ??= await ReadAuthorFromArraysAsync(_arrayRepo, _logger, mediaType, job.EntityId, lineage, ct).ConfigureAwait(false);
 
                 var context = new JobContext(
                     Job: job,

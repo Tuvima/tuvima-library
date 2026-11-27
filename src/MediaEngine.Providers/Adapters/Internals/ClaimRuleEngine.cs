@@ -329,7 +329,7 @@ internal static class ClaimRuleEngine
             || string.Equals(text, condition.EqualsValue, condition.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     }
 
-    private static string? ResolveRole(JsonNode item, ClaimRoleConfiguration role)
+    internal static string? ResolveRole(JsonNode item, ClaimRoleConfiguration role)
     {
         var text = FirstText(item, role.Paths);
         if (string.IsNullOrWhiteSpace(text))
@@ -344,7 +344,8 @@ internal static class ClaimRuleEngine
 
         foreach (var entry in role.Map)
         {
-            if (entry.Contains.Any(word => text.Contains(word, StringComparison.OrdinalIgnoreCase)))
+            if (entry.Contains.Any(word => text.Contains(word, StringComparison.OrdinalIgnoreCase))
+                || entry.EqualsAny.Any(word => string.Equals(text.Trim(), word, StringComparison.OrdinalIgnoreCase)))
             {
                 return entry.ClaimKey;
             }

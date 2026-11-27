@@ -1941,10 +1941,10 @@ public sealed class AdapterFallbackTests
         });
 
         Assert.Equal(
-            ["Hans Zimmer", "Pedro Eustache"],
+            ["Hans Zimmer"],
             claims.Where(c => c.Key == "composer").Select(c => c.Value));
         Assert.Equal(
-            ["947", "1769622"],
+            ["947"],
             claims.Where(c => c.Key == "composer_tmdb_id").Select(c => c.Value));
     }
 

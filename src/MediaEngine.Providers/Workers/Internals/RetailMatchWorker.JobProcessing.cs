@@ -577,6 +577,8 @@ public sealed partial class RetailMatchWorker
                     bestCandidate = candidate;
                 }
 
+                claims = DropPeopleFromDoubtfulMusicAnswer(mediaType, decision.Outcome, claims);
+
                 var shouldPersistProviderClaims = ShouldPersistProviderClaims(
                     decision,
                     pipelineEntry,

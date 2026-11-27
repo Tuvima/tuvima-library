@@ -478,6 +478,10 @@ public sealed class ClaimRoleMapEntry
     [JsonPropertyName("contains")]
     public List<string> Contains { get; set; } = [];
 
+    /// <summary>The entry matches when the whole role text is exactly one of these (ignoring case); "Director" then never matches "Assistant Director".</summary>
+    [JsonPropertyName("equals")]
+    public List<string> EqualsAny { get; set; } = [];
+
     [JsonPropertyName("claim_key")]
     public string ClaimKey { get; set; } = string.Empty;
 

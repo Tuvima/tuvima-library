@@ -114,6 +114,7 @@ public sealed partial class WikidataBridgeWorker
                 mediaType,
                 canonicals,
                 lineage?.TargetForParentScope);
+        authorHint ??= await ReadAuthorFromArraysAsync(_arrayRepo, _logger, mediaType, job.EntityId, lineage, ct).ConfigureAwait(false);
 
         var ctx = new JobContext(
             Job: job,
@@ -300,6 +301,50 @@ public sealed partial class WikidataBridgeWorker
         }
 
         return (titleHint, authorHint, yearHint, albumHint, artistHint, seriesHint, languageHint, seasonNumber, episodeNumber, issueNumber);
+    }
+
+    /// <summary>
+    /// Authors are stored as a list (the author is multi-valued), never as a single value, so the single-value read in
+    /// <see cref="BuildLookupHints"/> finds none for books and audiobooks. The first listed author is read from the list instead;
+    /// without it a book is looked up by title alone and a common title can match another author's book.
+    /// </summary>
+    internal static async Task<string?> ReadAuthorFromArraysAsync(
+        ICanonicalValueArrayRepository? arrayRepo, ILogger logger,
+        MediaType mediaType, Guid entityId, WorkLineage? lineage, CancellationToken ct)
+    {
+        if (arrayRepo is null || mediaType is not (MediaType.Books or MediaType.Audiobooks))
+        {
+            return null;
+        }
+
+        var ids = new List<Guid> { entityId };
+        if (lineage is not null)
+        {
+            ids.Add(lineage.TargetForSelfScope);
+            ids.Add(lineage.TargetForParentScope);
+        }
+
+        try
+        {
+            var all = await arrayRepo.GetAllByEntitiesAsync(ids.Where(id => id != Guid.Empty).Distinct().ToList(), ct)
+                .ConfigureAwait(false);
+            foreach (var id in ids)
+            {
+                if (all.TryGetValue(id, out var values)
+                    && values.TryGetValue(MetadataFieldConstants.Author, out var authors)
+                    && authors.OrderBy(entry => entry.Ordinal).Select(entry => entry.Value.Trim())
+                        .FirstOrDefault(value => value.Length > 0) is { } author)
+                {
+                    return TextEncodingRepair.RepairMojibake(author);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogDebug(ex, "Wikidata context: author list read failed for {EntityId}; searching without an author", entityId);
+        }
+
+        return null;
     }
 
     internal static string? BuildBridgeYearHint(MediaType mediaType, string? seriesHint, string? yearHint)
