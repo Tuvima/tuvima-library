@@ -50,7 +50,19 @@ public sealed class AppleAlbumSharingTests
 
         var claims = await adapter.FetchAsync(Request("Karma Police"));
 
-        Assert.DoesNotContain(claims, claim => claim.Key is "apple_music_id" or "track_number" or "duration" or "title");
+        Assert.DoesNotContain(claims, claim => claim.Key is "apple_music_id" or "track_number" or "duration");
+    }
+
+    [Fact]
+    public async Task SharedAnswer_CarriesTheSongsOwnTitleSoTheRetailMatchKeepsIt()
+    {
+        var adapter = Adapter([], TrackAnswer);
+
+        var first = await adapter.FetchAsync(Request("Karma Police"));
+        var second = await adapter.FetchAsync(Request("Paranoid Android"));
+
+        Assert.Equal("Karma Police", Assert.Single(first, claim => claim.Key == "title").Value);
+        Assert.Equal("Paranoid Android", Assert.Single(second, claim => claim.Key == "title").Value);
     }
 
     [Fact]
