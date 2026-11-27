@@ -167,7 +167,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         {
             var namesakes = await FindNamesakesAsync(name, language, ct).ConfigureAwait(false);
             nameIsUnique = namesakes.Count == 1 && string.Equals(namesakes[0].Id, chosenQid, StringComparison.OrdinalIgnoreCase);
-            var fit = ChooseNamesakeFromContext(namesakes, $"{workTitle} {contextText}", chosenQid);
+            var fit = ChooseNamesakeFromContext(namesakes, $"{workTitle} {contextText}", chosenQid, expectedRole);
             if (fit.Outcome == NamesakeOutcome.Unmatched)
             {
                 _logger.LogWarning(
@@ -307,7 +307,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
     /// search's pick, Keep when it is); a text that fits none or several of them leaves the person Unmatched.
     /// </summary>
     internal static NamesakeChoice ChooseNamesakeFromContext(
-        IReadOnlyList<ReconciliationResult> namesakes, string? contextText, string? chosenQid = null)
+        IReadOnlyList<ReconciliationResult> namesakes, string? contextText, string? chosenQid = null, string? expectedRole = null)
     {
         if (namesakes.Count < 2)
         {
@@ -315,7 +315,10 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         }
 
         var contextWords = SignificantWords(contextText);
+        // A namesake is only picked when what Wikidata says about them fits the job they are credited with: a banker is never
+        // the actor, whatever words the work's text shares with their description.
         var fits = namesakes
+            .Where(candidate => DescriptionFitsRole(candidate.Description, expectedRole))
             .Where(candidate => SignificantWords(candidate.Description).Any(word =>
                 contextWords.Any(other => word.StartsWith(other, StringComparison.OrdinalIgnoreCase)
                     || other.StartsWith(word, StringComparison.OrdinalIgnoreCase))))
@@ -330,6 +333,41 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
                 ? NamesakeOutcome.Keep
                 : NamesakeOutcome.Switch,
             fits[0]);
+    }
+
+    // Words in a Wikidata description that say a person does the job a credit names. A credit with a role not listed here is not filtered.
+    private static readonly Dictionary<string, string[]> RoleDescriptionWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Actor"] = ["actor", "actress", "comedian", "voice", "film", "television", "performer", "screen"],
+        ["Director"] = ["director", "filmmaker", "film", "television", "producer", "screenwriter"],
+        ["Screenwriter"] = ["screenwriter", "writer", "director", "film", "television", "playwright", "author"],
+        ["Producer"] = ["producer", "film", "television", "executive", "director", "music"],
+        ["Composer"] = ["composer", "musician", "conductor", "songwriter", "producer", "pianist", "arranger", "music"],
+        ["Performer"] = ["singer", "musician", "rapper", "band", "vocalist", "songwriter", "guitarist", "drummer", "pianist", "dj", "duo", "group", "music", "artist", "composer"],
+        ["Artist"] = ["singer", "musician", "rapper", "band", "vocalist", "songwriter", "guitarist", "drummer", "pianist", "dj", "duo", "group", "music", "artist", "composer"],
+        ["Author"] = ["writer", "author", "novelist", "poet", "journalist", "playwright", "essayist", "screenwriter", "historian", "biographer"],
+        ["Narrator"] = ["narrator", "actor", "actress", "voice", "broadcaster", "reader", "presenter", "announcer"],
+    };
+
+    /// <summary>
+    /// True when a person's Wikidata description names a job that fits the credited role. A role this list does not know, or no
+    /// role at all, never filters; a missing description cannot confirm a namesake, so it does not fit a known role.
+    /// </summary>
+    internal static bool DescriptionFitsRole(string? description, string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role) || !RoleDescriptionWords.TryGetValue(role, out var words))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return false;
+        }
+
+        var described = description.Split(
+            [' ', ',', '.', ';', ':', '(', ')', '-', '/', '"', '\''], StringSplitOptions.RemoveEmptyEntries);
+        return described.Any(word => words.Any(job => word.StartsWith(job, StringComparison.OrdinalIgnoreCase)));
     }
 
     // A league or sport named in the work's text points at the same people as the sport's own word on Wikidata

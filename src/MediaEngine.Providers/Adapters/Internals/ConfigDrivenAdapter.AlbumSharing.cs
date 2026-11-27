@@ -20,7 +20,7 @@ public sealed partial class ConfigDrivenAdapter
             var key = LookupMemo<int>.Key(Name, request.Artist, request.Album, request.Country, request.Language);
             var albumClaims = await _albumAnswers.GetAsync(
                 key,
-                async () => (await FetchCoreAsync(request, CancellationToken.None).ConfigureAwait(false))
+                async () => (await FetchMatchingArtistAsync(request, CancellationToken.None).ConfigureAwait(false))
                     .Where(claim => shared.Contains(claim.Key))
                     .ToList(),
                 claims => claims.Count > 0,
@@ -32,8 +32,57 @@ public sealed partial class ConfigDrivenAdapter
                 : [.. albumClaims, new ProviderClaim("title", request.Title, SongTitleConfidence)];
         }
 
-        return await FetchCoreAsync(request, ct).ConfigureAwait(false);
+        return ChecksMusicArtist(request)
+            ? await FetchMatchingArtistAsync(request, ct).ConfigureAwait(false)
+            : await FetchCoreAsync(request, ct).ConfigureAwait(false);
     }
+
+    /// <summary>Music answers are only used when the artist they name is the artist the song is tagged with (#1360).</summary>
+    internal bool ChecksMusicArtist(ProviderLookupRequest request) =>
+        request.MediaType == MediaType.Music
+        && _config.SharedAlbumClaimKeys.Count > 0
+        && !string.IsNullOrWhiteSpace(request.Artist);
+
+    private async Task<IReadOnlyList<ProviderClaim>> FetchMatchingArtistAsync(ProviderLookupRequest request, CancellationToken ct)
+    {
+        var claims = await FetchCoreAsync(request, ct).ConfigureAwait(false);
+        return !ChecksMusicArtist(request) || ArtistAgrees(request.Artist, claims) ? claims : [];
+    }
+
+    /// <summary>
+    /// True when the artist in an answer is the requested artist (any one of several credited acts is enough), or when either side
+    /// is a placeholder such as "Various Artists". A cover or karaoke act with a matching title no longer passes: the first search
+    /// result used to be taken whatever its artist was.
+    /// </summary>
+    internal static bool ArtistAgrees(string? requestedArtist, IReadOnlyList<ProviderClaim> claims)
+    {
+        var answered = claims.FirstOrDefault(claim => string.Equals(claim.Key, "artist", StringComparison.OrdinalIgnoreCase))?.Value;
+        if (string.IsNullOrWhiteSpace(answered) || string.IsNullOrWhiteSpace(requestedArtist))
+        {
+            return true;
+        }
+
+        var requested = SplitActs(requestedArtist);
+        var offered = SplitActs(answered);
+        if (requested.Concat(offered).Any(IsPlaceholderAct))
+        {
+            return true;
+        }
+
+        return requested.Any(left => offered.Any(right => RetailTextSimilarity.ComputeWordOverlap(left, right) >= MinimumArtistOverlap));
+    }
+
+    private const double MinimumArtistOverlap = 0.8;
+
+    private static List<string> SplitActs(string value) =>
+        value.Split([';', '&', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(act => act.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? act[4..] : act)
+            .ToList();
+
+    private static bool IsPlaceholderAct(string act) =>
+        act.Equals("Various Artists", StringComparison.OrdinalIgnoreCase)
+        || act.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase)
+        || act.Equals("Unknown", StringComparison.OrdinalIgnoreCase);
 
     internal bool SharesAlbumAnswer(ProviderLookupRequest request) =>
         request.MediaType == MediaType.Music

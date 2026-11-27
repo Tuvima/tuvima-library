@@ -92,6 +92,31 @@ public sealed class AppleAlbumSharingTests
     }
 
     [Fact]
+    public async Task AnAnswerNamingAnotherArtist_IsNotUsed()
+    {
+        var adapter = Adapter([], TrackAnswer);
+
+        var claims = await adapter.FetchAsync(Request("Karma Police", artist: "Daniela Spector"));
+
+        Assert.Empty(claims);
+    }
+
+    [Theory]
+    [InlineData("Radiohead", "Radiohead", true)]
+    [InlineData("The Beatles", "Beatles", true)]
+    [InlineData("Radiohead", "Radiohead Karaoke Tribute", false)]
+    [InlineData("Adele", "Eli Lieb", false)]
+    [InlineData("Hans Zimmer", "Hans Zimmer; Lorne Balfe", true)]
+    [InlineData("Various Artists", "Anyone At All", true)]
+    [InlineData("Radiohead", "Various Artists", true)]
+    public void ArtistAgrees_AcceptsTheSameActAndRejectsAStranger(string requested, string answered, bool expected)
+    {
+        var claims = new[] { new ProviderClaim("artist", answered, 0.8) };
+
+        Assert.Equal(expected, ConfigDrivenAdapter.ArtistAgrees(requested, claims));
+    }
+
+    [Fact]
     public async Task AnEmptyAnswer_IsNotShared_SoTheNextSongTriesAgain()
     {
         var urls = new List<string>();
@@ -114,9 +139,9 @@ public sealed class AppleAlbumSharingTests
         return new ConfigDrivenAdapter(config, factory, NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
     }
 
-    private static ProviderLookupRequest Request(string title, string? album = "OK Computer")
+    private static ProviderLookupRequest Request(string title, string? album = "OK Computer", string artist = "Radiohead")
     {
-        var hints = new Dictionary<string, string> { ["title"] = title, ["artist"] = "Radiohead" };
+        var hints = new Dictionary<string, string> { ["title"] = title, ["artist"] = artist };
         if (album is not null)
         {
             hints["album"] = album;
@@ -128,8 +153,8 @@ public sealed class AppleAlbumSharingTests
             EntityType = EntityType.Work,
             MediaType = MediaType.Music,
             Title = title,
-            Artist = "Radiohead",
-            Author = "Radiohead",
+            Artist = artist,
+            Author = artist,
             Album = album,
             BaseUrl = "https://itunes.apple.com",
             Country = "us",
