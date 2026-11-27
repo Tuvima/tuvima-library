@@ -462,6 +462,51 @@ public sealed class PersonReferenceExtractorTests
         Assert.DoesNotContain(refs, r => r.WikidataQid == "Q18608460" && r.Name == "James S. A. Corey");
     }
 
+    [Fact]
+    public void SoundtrackAlbum_DoesNotCreditFilmCastAsPeople_AndKeepsComposer()
+    {
+        List<ProviderClaim> claims =
+        [
+            new("artist", "Hans Zimmer", 1),
+            new("artist_qid", "Q76364::Hans Zimmer", 1),
+            new("composer", "Hans Zimmer", 1),
+            new("composer_qid", "Q76364::Hans Zimmer", 1),
+            new("cast_member", "Casey Affleck", 1),
+            new("cast_member_qid", "Q335680::Casey Affleck", 1),
+            new("cast_member", "Jessica Chastain", 1),
+            new("cast_member_qid", "Q191719::Jessica Chastain", 1),
+        ];
+
+        var linked = PersonReferenceExtractor.FromRawClaims(claims, MediaType.Music);
+        var unlinked = PersonReferenceExtractor.FromRawClaimsUnlinked(claims, MediaType.Music);
+
+        Assert.DoesNotContain(linked, r => r.Role == "Actor");
+        Assert.DoesNotContain(unlinked, r => r.Role == "Actor");
+        Assert.Contains(linked, r => r.Role == "Composer" && r.WikidataQid == "Q76364");
+        Assert.Contains(linked, r => r.Role == "Performer" && r.WikidataQid == "Q76364");
+
+        var arrays = new Dictionary<string, IReadOnlyList<CanonicalArrayEntry>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["artist"] = [new() { Value = "Hans Zimmer" }],
+            ["cast_member"] = [new() { Value = "Casey Affleck" }],
+        };
+        Assert.DoesNotContain(PersonReferenceExtractor.FromCanonicalArrays(arrays, MediaType.Music), r => r.Role == "Actor");
+    }
+
+    [Fact]
+    public void Film_StillCreditsCastAsActors()
+    {
+        List<ProviderClaim> claims =
+        [
+            new("cast_member", "Casey Affleck", 1),
+            new("cast_member_qid", "Q335680::Casey Affleck", 1),
+        ];
+
+        var linked = PersonReferenceExtractor.FromRawClaims(claims, MediaType.Movies);
+
+        Assert.Contains(linked, r => r.Role == "Actor" && r.WikidataQid == "Q335680");
+    }
+
     private static IReadOnlyDictionary<string, IReadOnlyList<CanonicalArrayEntry>> CanonicalArrays(
         string key,
         IReadOnlyList<CanonicalArrayEntry> entries) =>
