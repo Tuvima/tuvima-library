@@ -90,6 +90,62 @@ public sealed class ReconciliationAdapterBookIdentityTests
         Assert.Equal(expected, (bool)method.Invoke(adapter, [fileTitle, claims, wikidataName])!);
     }
 
+    [Theory]
+    [InlineData("The Martian", "The War of The Worlds: The Unabridged Original Classic Martian Invasion of Earth", false)]
+    [InlineData("The Martian", "The War of the Worlds", false)]
+    [InlineData("The Martian", "The Martian", true)]
+    [InlineData("Sapiens", "Sapiens: A Brief History of Humankind", true)]
+    [InlineData("Sapiens: A Brief History of Humankind", "Sapiens", true)]
+    [InlineData("Pyramids", "The Red Pyramid", false)]
+    [InlineData("", "Anything", true)]
+    public void TitleIsSameBook_NeedsTheBooksOwnName_NotALongLabelContainingTheWords(string fileTitle, string wikidataName, bool expected)
+    {
+        Assert.Equal(expected, ReconciliationAdapter.TitleIsSameBook(fileTitle, [wikidataName]));
+    }
+
+    [Fact]
+    public void TitleIsSameBook_AcceptsWhenAnyNameFits_SoARolledUpEditionKeepsItsBook()
+    {
+        Assert.True(ReconciliationAdapter.TitleIsSameBook("Dune", ["Dune (Penguin Classics 2019 paperback edition)", "Dune"]));
+    }
+
+    [Theory]
+    [InlineData("Andy Weir", "H. G. Wells", false)]
+    [InlineData("Andy Weir", "Andy Weir", true)]
+    [InlineData("Herbert Frank", "Frank Herbert", true)]
+    [InlineData("", "H. G. Wells", true)]
+    public void AuthorAgreesWithFile_RejectsOnlyADifferentNamedAuthor(string fileAuthor, string wikidataAuthor, bool expected)
+    {
+        var adapter = new ReconciliationAdapter(
+            new ReconciliationProviderConfig(),
+            new HttpFactory(),
+            NullLogger<ReconciliationAdapter>.Instance,
+            new TokenFuzzy());
+        var method = typeof(ReconciliationAdapter).GetMethod("AuthorAgreesWithFile", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        IReadOnlyList<ProviderClaim> claims = [new ProviderClaim(MetadataFieldConstants.Author, wikidataAuthor, 0.9)];
+
+        Assert.Equal(expected, (bool)method.Invoke(adapter, [fileAuthor, claims])!);
+    }
+
+    [Fact]
+    public void AuthorAgreesWithFile_AcceptsWhenWikidataNamesNoAuthor()
+    {
+        var adapter = new ReconciliationAdapter(
+            new ReconciliationProviderConfig(),
+            new HttpFactory(),
+            NullLogger<ReconciliationAdapter>.Instance,
+            new TokenFuzzy());
+        var method = typeof(ReconciliationAdapter).GetMethod("AuthorAgreesWithFile", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+        Assert.True((bool)method.Invoke(adapter, ["Andy Weir", new List<ProviderClaim>()])!);
+    }
+
+    [Fact]
+    public void CleanAudiobookTitle_DropsTheStoresUnabridgedMarkerBeforeTheTitleSearch()
+    {
+        Assert.Equal("The Martian", ReconciliationAdapter.CleanAudiobookTitle("The Martian (Unabridged)"));
+    }
+
     private sealed class HttpFactory : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new();

@@ -148,6 +148,57 @@ public sealed partial class ReconciliationAdapter
 
     private const double TitleAgreementThreshold = 0.8;
 
+    /// <summary>
+    /// The strict title test for a book found by title search. Every word counts both ways (a long edition
+    /// label that merely contains the file's words is not the same book), and a subtitle after a colon may be
+    /// dropped on either side ("Sapiens: A Brief History of Humankind" is "Sapiens"). True when there is
+    /// nothing to compare.
+    /// </summary>
+    internal static bool TitleIsSameBook(string? fileTitle, IEnumerable<string?> wikidataNames)
+    {
+        if (string.IsNullOrWhiteSpace(fileTitle))
+        {
+            return true;
+        }
+
+        var names = wikidataNames.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!).ToList();
+        if (names.Count == 0)
+        {
+            return true;
+        }
+
+        static string BeforeColon(string value)
+        {
+            var index = value.IndexOf(':');
+            return index > 0 ? value[..index] : value;
+        }
+
+        var fileForms = new[] { fileTitle, BeforeColon(fileTitle) }.Distinct().ToList();
+        return names.Any(name => fileForms.Any(file =>
+            new[] { name, BeforeColon(name) }.Any(candidate =>
+                RetailTextSimilarity.ComputeWordOverlap(file, candidate) >= TitleAgreementThreshold)));
+    }
+
+    /// <summary>
+    /// False only when the file names an author and Wikidata names authors and none of them is that person
+    /// (Andy Weir is not H. G. Wells). Missing facts on either side never reject.
+    /// </summary>
+    private bool AuthorAgreesWithFile(string? fileAuthor, IReadOnlyList<ProviderClaim> claims)
+    {
+        if (string.IsNullOrWhiteSpace(fileAuthor))
+        {
+            return true;
+        }
+
+        var authors = claims
+            .Where(c => string.Equals(c.Key, MetadataFieldConstants.Author, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(c.Value))
+            .Select(c => c.Value)
+            .ToList();
+        return authors.Count == 0
+               || authors.Any(a => _fuzzy.ComputeTokenSetRatio(fileAuthor, a) >= TitleAgreementThreshold);
+    }
+
     private static string? GetResolvedClaimsYear(IReadOnlyList<ProviderClaim> claims) =>
         claims.FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.OriginalReleaseYear, StringComparison.OrdinalIgnoreCase))?.Value
         ?? claims.FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Year, StringComparison.OrdinalIgnoreCase))?.Value;
@@ -773,6 +824,7 @@ public sealed partial class ReconciliationAdapter
             MediaType.Music when string.Equals(r.ResolutionScope, "MusicAlbum", StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(r.AlbumTitle) => r.AlbumTitle,
             MediaType.Comics when !string.IsNullOrWhiteSpace(r.SeriesTitle) => r.SeriesTitle,
+            MediaType.Books or MediaType.Audiobooks when !string.IsNullOrWhiteSpace(r.Title) => CleanAudiobookTitle(r.Title),
             _ => r.Title,
         };
 

@@ -516,15 +516,44 @@ public sealed partial class ReconciliationAdapter
                     }
 
                     // Anything that did not come from an exact ID match, and every lower-ranked fallback, must
-                    // still look like the book in the file. Without this a rejected right book let any other
-                    // title by the same author slip in (Pyramids became The Red Pyramid).
-                    if ((!attempt.UsePrimaryRollup || libResult.MatchedBy == BridgeResolutionStrategy.TextSearch)
-                        && !TitleAgreesWithFile(input.Title, claims, attempt.Candidate?.Label))
+                    // still be the book in the file: the same title (judged against the book's own name as well as
+                    // the matched edition's label) and, when both sides name one, the same author. Without this a
+                    // rejected right book let any other title by the same author slip in (Pyramids became The Red
+                    // Pyramid), and a long edition label containing the file's words passed (The Martian became
+                    // The War of the Worlds, "Martian Invasion of Earth").
+                    if (!attempt.UsePrimaryRollup || libResult.MatchedBy == BridgeResolutionStrategy.TextSearch)
                     {
-                        _logger.LogInformation(
-                            "{Provider}: Stage2 - rejected {Key} -> {QID}: title does not resemble '{Title}'",
-                            Name, correlationKey, finalWorkQid, input.Title);
-                        continue;
+                        var names = claims
+                            .Where(c => string.Equals(c.Key, MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase))
+                            .Select(c => c.Value)
+                            .Append(attempt.Candidate?.Label)
+                            .ToList();
+                        var authorClaims = claims;
+                        if (!string.Equals(finalWorkQid, finalQid, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var (ownClaims, _, _) = await BuildClaimsForResolvedQidAsync(
+                                finalWorkQid, false, finalWorkQid, null, input.FileLanguage, ct).ConfigureAwait(false);
+                            names.AddRange(ownClaims
+                                .Where(c => string.Equals(c.Key, MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase))
+                                .Select(c => c.Value));
+                            authorClaims = [.. claims, .. ownClaims];
+                        }
+
+                        if (!TitleIsSameBook(input.Title, names))
+                        {
+                            _logger.LogInformation(
+                                "{Provider}: Stage2 - rejected {Key} -> {QID}: title does not resemble '{Title}'",
+                                Name, correlationKey, finalWorkQid, input.Title);
+                            continue;
+                        }
+
+                        if (!AuthorAgreesWithFile(input.Author, authorClaims))
+                        {
+                            _logger.LogInformation(
+                                "{Provider}: Stage2 - rejected {Key} -> {QID}: author does not match '{Author}'",
+                                Name, correlationKey, finalWorkQid, input.Author);
+                            continue;
+                        }
                     }
                 }
 
