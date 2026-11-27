@@ -326,6 +326,8 @@ public sealed class PersonRepository : IPersonRepository
         using var conn = _db.CreateConnection();
         // INSERT OR IGNORE: composite PK (media_asset_id, person_id, role) prevents
         // duplicate links; repeated calls for the same triplet are safe no-ops.
+        // A cast lookup can be asked about a show or Series row rather than a file; that id is not a media asset, so there is
+        // nothing to link to and the insert is skipped instead of failing the save (the file rows get their own links).
         var p = new DynamicParameters();
         p.Add("mediaAssetId", mediaAssetId);
         p.Add("personId", personId);
@@ -333,8 +335,8 @@ public sealed class PersonRepository : IPersonRepository
         conn.Execute("""
             INSERT OR IGNORE INTO person_media_links
                 (media_asset_id, person_id, role)
-            VALUES
-                (@mediaAssetId, @personId, @role);
+            SELECT @mediaAssetId, @personId, @role
+            WHERE EXISTS (SELECT 1 FROM media_assets WHERE id = @mediaAssetId);
             """, p);
 
         return Task.CompletedTask;

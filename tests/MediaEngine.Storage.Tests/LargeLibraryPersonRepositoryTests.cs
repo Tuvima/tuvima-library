@@ -39,6 +39,20 @@ public sealed class LargeLibraryPersonRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task LinkingAPersonToAnIdThatIsNotAFile_IsSkippedInsteadOfFailing()
+    {
+        SeedPeople(1);
+        var repo = new PersonRepository(_db);
+        var person = (await repo.ListPagedAsync(role: null, offset: 0, limit: 1)).Single();
+        var showRowId = Guid.NewGuid();
+
+        await repo.LinkToMediaAssetAsync(showRowId, person.Id, "Actor");
+
+        using var conn = _db.CreateConnection();
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM person_media_links"));
+    }
+
+    [Fact]
     public async Task CatalogPage_UsesCanonicalOwnedCreditsForPeopleAndRoles()
     {
         SeedWorksAssetsAndPeople(3);
