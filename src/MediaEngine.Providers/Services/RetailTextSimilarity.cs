@@ -41,7 +41,8 @@ internal static class RetailTextSimilarity
 
     public static HashSet<string> Tokenize(string text)
     {
-        return [.. StripDiacritics(text).ToLowerInvariant()
+        // "&" and "and" are the same word: "Prince & The Revolution" is "Prince and The Revolution".
+        return [.. StripDiacritics(text).Replace("&", " and ", StringComparison.Ordinal).ToLowerInvariant()
             .Split([' ', ',', '.', '-', ':', ';', '\'', '"', '(', ')', '[', ']'],
                    StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length >= 2)];

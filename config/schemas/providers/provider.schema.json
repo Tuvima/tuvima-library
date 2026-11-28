@@ -722,7 +722,8 @@
         },
         "operator": { "enum": ["exact", "normalized_similarity", "album_identity"] },
         "minimum_score": { "type": "number", "minimum": 0, "maximum": 1 },
-        "required": { "type": "boolean" }
+        "required": { "type": "boolean" },
+        "accept_sole_edition": { "type": "boolean" }
       },
       "additionalProperties": false
     }

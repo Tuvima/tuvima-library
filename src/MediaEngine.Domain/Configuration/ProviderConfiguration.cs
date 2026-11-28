@@ -961,6 +961,14 @@ public sealed class RequestCandidateFilterConfig
 
     [JsonPropertyName("required")]
     public bool Required { get; set; }
+
+    /// <summary>
+    /// Only for <c>album_identity</c>: when no result is the tagged album's exact track list,
+    /// accept a result that is the same album under an edition label (Expanded, 20th
+    /// Anniversary) if it is the only such album the catalogue offers.
+    /// </summary>
+    [JsonPropertyName("accept_sole_edition")]
+    public bool AcceptSoleEdition { get; set; }
 }
 
 /// <summary>
