@@ -203,6 +203,7 @@
             "request_field": "album",
             "candidate_paths": ["collectionName"],
             "operator": "album_identity",
+            "accept_sole_edition": true,
             "required": true
           }
         ]

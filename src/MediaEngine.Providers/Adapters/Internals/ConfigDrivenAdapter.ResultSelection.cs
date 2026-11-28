@@ -241,6 +241,8 @@ public sealed partial class ConfigDrivenAdapter
             .Select(field => ResolveRequestField(request, field))
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
         var candidates = new List<(JsonNode Node, double TitleScore, double CreatorScore, int AlbumRank, JsonNode? Release)>();
+        // Results that are the tagged album only under an edition label; used when nothing exact exists.
+        var editionOnly = new List<(JsonNode Node, double TitleScore, double CreatorScore, int AlbumRank, JsonNode? Release)>();
 
         // A music search returns many distinct recordings that share one title (the studio
         // recording, live takes, compilation-only duplicates). The file's album tag is the
@@ -269,9 +271,15 @@ public sealed partial class ConfigDrivenAdapter
                 albumRank = RankReleaseAgainstTaggedAlbum(taggedAlbum, selectedRelease);
             }
 
+            var onlyAsEdition = false;
             if (!PassesRequestFilters(result, selection.RequestFilters, request))
             {
-                continue;
+                if (!PassesRequestFilters(result, selection.RequestFilters, request, allowEditionLabel: true))
+                {
+                    continue;
+                }
+
+                onlyAsEdition = true;
             }
 
             var candidateTitle = ExtractFirstString(result, selection.TitlePaths.ToArray());
@@ -297,7 +305,25 @@ public sealed partial class ConfigDrivenAdapter
                 continue;
             }
 
-            candidates.Add((result, titleScore, creatorScore, albumRank, selectedRelease));
+            (onlyAsEdition ? editionOnly : candidates).Add((result, titleScore, creatorScore, albumRank, selectedRelease));
+        }
+
+        // An edition-only answer counts only when it is the single album on offer: with an
+        // Expanded and an Anniversary edition both listed, we cannot tell which one the file is.
+        if (candidates.Count == 0 && editionOnly.Count > 0)
+        {
+            var editionFilter = selection.RequestFilters.FirstOrDefault(f => f.AcceptSoleEdition);
+            var distinctAlbums = editionFilter is null
+                ? 0
+                : editionOnly
+                    .Select(c => string.Join('|', editionFilter.CandidatePaths
+                        .Select(path => ExtractFirstString(c.Node, [path]) ?? string.Empty)))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count();
+            if (distinctAlbums == 1)
+            {
+                candidates = editionOnly;
+            }
         }
 
         // Equally scored candidates (the studio recording and its remaster or compilation
@@ -361,7 +387,8 @@ public sealed partial class ConfigDrivenAdapter
     private static bool PassesRequestFilters(
         JsonNode candidate,
         IReadOnlyList<RequestCandidateFilterConfig> filters,
-        ProviderLookupRequest request)
+        ProviderLookupRequest request,
+        bool allowEditionLabel = false)
     {
         foreach (var filter in filters)
         {
@@ -381,7 +408,7 @@ public sealed partial class ConfigDrivenAdapter
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Cast<string>()
                 .ToList();
-            if (values.Count == 0 || !values.Any(value => RequestFilterMatches(requested, value, filter)))
+            if (values.Count == 0 || !values.Any(value => RequestFilterMatches(requested, value, filter, allowEditionLabel)))
             {
                 return false;
             }
@@ -393,10 +420,13 @@ public sealed partial class ConfigDrivenAdapter
     private static bool RequestFilterMatches(
         string requested,
         string candidate,
-        RequestCandidateFilterConfig filter) =>
+        RequestCandidateFilterConfig filter,
+        bool allowEditionLabel = false) =>
         filter.Operator.ToLowerInvariant() switch
         {
-            "album_identity" => MusicAlbumIdentity.IsSameTrackList(requested, candidate),
+            "album_identity" => MusicAlbumIdentity.IsSameTrackList(requested, candidate)
+                || (allowEditionLabel && filter.AcceptSoleEdition
+                    && MusicAlbumIdentity.IsSameBaseAlbum(requested, candidate)),
             "normalized_similarity" => ComputeWordOverlap(requested, candidate) >= filter.MinimumScore,
             _ => string.Equals(
                 RetailTextSimilarity.NormalizeComparableText(requested),
